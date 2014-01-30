@@ -15,6 +15,7 @@ type configJsonV2 struct {
 	RefreshToken          string
 	OrganizationFields    models.OrganizationFields
 	SpaceFields           models.SpaceFields
+	AuthenticationPrompts map[string][]string
 }
 
 func JsonMarshalV2(config *Data) (output []byte, err error) {

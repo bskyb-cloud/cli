@@ -29,7 +29,8 @@ var _ = Describe("Parsing V2 config files", func() {
 				},
 				"SpaceFields": {
 					"Name": "the-space"
-				}
+				},
+				"AuthenticationPrompts": {"password": ["foo", "bar"]}
 			}`)
 
 		It("returns a populated config object", func() {
@@ -46,6 +47,7 @@ var _ = Describe("Parsing V2 config files", func() {
 				RefreshToken:          "the-refresh-token",
 				OrganizationFields:    models.OrganizationFields{Name: "the-org"},
 				SpaceFields:           models.SpaceFields{Name: "the-space"},
+				AuthenticationPrompts: map[string][]string{"password": []string{"foo", "bar"}},
 			}))
 		})
 	})

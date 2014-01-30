@@ -137,7 +137,7 @@ var _ = Describe("Testing with ginkgo", func() {
 
 		schemelessURL := strings.Replace(ts.URL, "https://", "", 1)
 		endpoint, apiResponse := repo.UpdateEndpoint(schemelessURL)
-		Expect("https://" + schemelessURL).To(Equal(endpoint))
+		Expect(endpoint).To(Equal("https://" + schemelessURL))
 
 		Expect(apiResponse.IsSuccessful()).To(BeTrue())
 
@@ -257,5 +257,9 @@ var _ = Describe("Testing with ginkgo", func() {
 
 		_, response = repo.GetUAAEndpoint()
 		Expect(response.IsNotSuccessful()).To(BeTrue())
+	})
+
+	It("fetches authentication prompts", func() {
+		Fail("not implemented")
 	})
 })

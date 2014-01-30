@@ -5,6 +5,7 @@ import (
 	"cf/net"
 	"regexp"
 	"strings"
+	"fmt"
 )
 
 type EndpointRepository interface {
@@ -64,6 +65,20 @@ func (repo RemoteEndpointRepository) attemptUpdate(endpoint string) (apiResponse
 
 	if endpoint != repo.config.ApiEndpoint() {
 		repo.config.ClearSession()
+	}
+
+	if serverResponse.AuthorizationEndpoint != "" {
+		loginInfoResponse := new(struct {
+			Prompts map[string]string
+		})
+		authEndpoint := fmt.Sprintf("%s/login", serverResponse.AuthorizationEndpoint)
+		request, apiResponse = repo.gateway.NewRequest("GET", authEndpoint, "", nil)
+		if apiResponse.IsNotSuccessful() {
+			return
+		}
+
+		_, apiResponse = repo.gateway.PerformRequestForJSONResponse(request, &loginInfoResponse)
+		repo.config.SetAuthorizationPrompts(loginInfoResponse.Prompts)
 	}
 
 	repo.config.SetApiEndpoint(endpoint)
