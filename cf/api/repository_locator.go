@@ -22,6 +22,7 @@ type RepositoryLocator struct {
 	appInstancesRepo                CloudControllerAppInstancesRepository
 	appEventsRepo                   CloudControllerAppEventsRepository
 	appFilesRepo                    CloudControllerAppFilesRepository
+	appSshRepo                      CloudControllerAppSshRepository
 	domainRepo                      CloudControllerDomainRepository
 	routeRepo                       CloudControllerRouteRepository
 	stackRepo                       CloudControllerStackRepository
@@ -56,6 +57,7 @@ func NewRepositoryLocator(config configuration.ReadWriter, gatewaysByName map[st
 	loc.appBitsRepo = NewCloudControllerApplicationBitsRepository(config, cloudControllerGateway, app_files.ApplicationZipper{})
 	loc.appEventsRepo = NewCloudControllerAppEventsRepository(config, cloudControllerGateway, strategy)
 	loc.appFilesRepo = NewCloudControllerAppFilesRepository(config, cloudControllerGateway)
+	loc.appSshRepo = NewCloudControllerAppSshRepository(config, cloudControllerGateway)
 	loc.appRepo = NewCloudControllerApplicationRepository(config, cloudControllerGateway)
 	loc.appSummaryRepo = NewCloudControllerAppSummaryRepository(config, cloudControllerGateway)
 	loc.appInstancesRepo = NewCloudControllerAppInstancesRepository(config, cloudControllerGateway)
@@ -128,6 +130,10 @@ func (locator RepositoryLocator) GetAppEventsRepository() AppEventsRepository {
 
 func (locator RepositoryLocator) GetAppFilesRepository() AppFilesRepository {
 	return locator.appFilesRepo
+}
+
+func (locator RepositoryLocator) GetAppSshRepository() AppSshRepository {
+	return locator.appSshRepo
 }
 
 func (locator RepositoryLocator) GetDomainRepository() DomainRepository {

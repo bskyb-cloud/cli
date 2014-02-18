@@ -110,6 +110,8 @@ func newAppPresenter(app *cli.App) (presenter appPresenter) {
 					newCmdPresenter(app, maxNameLen, "unset-env"),
 				}, {
 					newCmdPresenter(app, maxNameLen, "stacks"),
+				}, {
+					newCmdPresenter(app, maxNameLen, "ssh"),
 				},
 			},
 		}, {

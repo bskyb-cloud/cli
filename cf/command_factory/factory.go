@@ -38,6 +38,7 @@ func NewFactory(ui terminal.UI, config configuration.ReadWriter, manifestRepo ma
 	factory.cmdsByName["api"] = commands.NewApi(ui, config, repoLocator.GetEndpointRepository())
 	factory.cmdsByName["apps"] = application.NewListApps(ui, config, repoLocator.GetAppSummaryRepository())
 	factory.cmdsByName["auth"] = commands.NewAuthenticate(ui, config, repoLocator.GetAuthenticationRepository())
+	factory.cmdsByName["ssh"] = application.NewSsh(ui, config, repoLocator.GetAppSshRepository())
 	factory.cmdsByName["buildpacks"] = buildpack.NewListBuildpacks(ui, repoLocator.GetBuildpackRepository())
 	factory.cmdsByName["create-buildpack"] = buildpack.NewCreateBuildpack(ui, repoLocator.GetBuildpackRepository(), repoLocator.GetBuildpackBitsRepository())
 	factory.cmdsByName["create-domain"] = domain.NewCreateDomain(ui, config, repoLocator.GetDomainRepository())
