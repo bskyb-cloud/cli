@@ -105,8 +105,7 @@ func (cmd *Ssh) Run(c *cli.Context) {
 
 	err := ExecuteCmd("ssh", sshCommand)
 	if err != nil {
-		fmt.Printf("%s\n", err)
-		panic(err)
+		cmd.ui.Say("Command Failed: %s", err)
 	}
 
 	err2 := os.Remove(tempfile)
