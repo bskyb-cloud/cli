@@ -732,6 +732,17 @@ func NewApp(cmdRunner commands.Runner) (app *cli.App, err error) {
 			},
 		},
 		{
+			Name:        "ssh",
+			Description: "Ssh to an application instance",
+			Usage:       fmt.Sprintf("%s ssh APP [--instance=<num>]", cf.Name()),
+			Flags: []cli.Flag{
+				NewIntFlagWithValue("instance", "Instance number", 0),
+			},
+			Action: func(c *cli.Context) {
+				cmdRunner.RunCmdByName("ssh", c)
+			},
+		},
+		{
 			Name:        "start",
 			ShortName:   "st",
 			Description: "Start an app",
