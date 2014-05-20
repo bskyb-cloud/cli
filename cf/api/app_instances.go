@@ -2,9 +2,9 @@ package api
 
 import (
 	"fmt"
-	"github.com/cloudfoundry/cli/cf/configuration"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/net"
+	"github.com/nimbus-cloud/cli/cf/configuration"
+	"github.com/nimbus-cloud/cli/cf/models"
+	"github.com/nimbus-cloud/cli/cf/net"
 	"strconv"
 	"strings"
 	"time"

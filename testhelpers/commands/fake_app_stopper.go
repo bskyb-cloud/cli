@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/nimbus-cloud/cli/cf/models"
 )
 
 type FakeAppStopper struct {

@@ -1,11 +1,11 @@
 package buildpack
 
 import (
-	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"github.com/nimbus-cloud/cli/cf/api"
+	"github.com/nimbus-cloud/cli/cf/command_metadata"
+	"github.com/nimbus-cloud/cli/cf/models"
+	"github.com/nimbus-cloud/cli/cf/requirements"
+	"github.com/nimbus-cloud/cli/cf/terminal"
 	"github.com/codegangsta/cli"
 	"strconv"
 )

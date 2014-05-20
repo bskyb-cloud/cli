@@ -2,12 +2,12 @@ package serviceauthtoken
 
 import (
 	"fmt"
-	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
-	"github.com/cloudfoundry/cli/cf/errors"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"github.com/nimbus-cloud/cli/cf/api"
+	"github.com/nimbus-cloud/cli/cf/command_metadata"
+	"github.com/nimbus-cloud/cli/cf/configuration"
+	"github.com/nimbus-cloud/cli/cf/errors"
+	"github.com/nimbus-cloud/cli/cf/requirements"
+	"github.com/nimbus-cloud/cli/cf/terminal"
 	"github.com/codegangsta/cli"
 )
 

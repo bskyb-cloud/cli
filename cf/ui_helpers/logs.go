@@ -2,7 +2,7 @@ package ui_helpers
 
 import (
 	"fmt"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"github.com/nimbus-cloud/cli/cf/terminal"
 	"github.com/cloudfoundry/loggregatorlib/logmessage"
 	"regexp"
 	"strings"

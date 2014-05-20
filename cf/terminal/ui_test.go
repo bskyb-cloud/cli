@@ -1,19 +1,19 @@
 package terminal_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/configuration"
-	"github.com/cloudfoundry/cli/cf/io_helpers"
-	"github.com/cloudfoundry/cli/cf/models"
-	. "github.com/cloudfoundry/cli/cf/terminal"
-	testassert "github.com/cloudfoundry/cli/testhelpers/assert"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	"github.com/nimbus-cloud/cli/cf/configuration"
+	"github.com/nimbus-cloud/cli/cf/io_helpers"
+	"github.com/nimbus-cloud/cli/cf/models"
+	. "github.com/nimbus-cloud/cli/cf/terminal"
+	testassert "github.com/nimbus-cloud/cli/testhelpers/assert"
+	testconfig "github.com/nimbus-cloud/cli/testhelpers/configuration"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"io"
 	"os"
 	"strings"
 
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "github.com/nimbus-cloud/cli/testhelpers/matchers"
 )
 
 var _ = Describe("UI", func() {

@@ -2,11 +2,11 @@ package manifest
 
 import (
 	"fmt"
-	"github.com/cloudfoundry/cli/cf/errors"
-	"github.com/cloudfoundry/cli/cf/formatters"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/generic"
-	"github.com/cloudfoundry/cli/words"
+	"github.com/nimbus-cloud/cli/cf/errors"
+	"github.com/nimbus-cloud/cli/cf/formatters"
+	"github.com/nimbus-cloud/cli/cf/models"
+	"github.com/nimbus-cloud/cli/generic"
+	"github.com/nimbus-cloud/cli/words"
 	"path/filepath"
 	"regexp"
 	"strconv"

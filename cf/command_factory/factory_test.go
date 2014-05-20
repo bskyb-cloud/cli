@@ -1,18 +1,18 @@
 package command_factory_test
 
 import (
-	. "github.com/cloudfoundry/cli/cf/command_factory"
+	. "github.com/nimbus-cloud/cli/cf/command_factory"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/manifest"
-	"github.com/cloudfoundry/cli/cf/net"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	"github.com/nimbus-cloud/cli/cf/api"
+	"github.com/nimbus-cloud/cli/cf/manifest"
+	"github.com/nimbus-cloud/cli/cf/net"
+	testconfig "github.com/nimbus-cloud/cli/testhelpers/configuration"
+	testterm "github.com/nimbus-cloud/cli/testhelpers/terminal"
 )
 
 var _ = Describe("factory", func() {

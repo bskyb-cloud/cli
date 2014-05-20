@@ -8,16 +8,16 @@ import (
 
 	"github.com/codegangsta/cli"
 
-	"github.com/cloudfoundry/cli/cf"
-	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/app"
-	"github.com/cloudfoundry/cli/cf/command_factory"
-	"github.com/cloudfoundry/cli/cf/command_runner"
-	"github.com/cloudfoundry/cli/cf/configuration"
-	"github.com/cloudfoundry/cli/cf/manifest"
-	"github.com/cloudfoundry/cli/cf/net"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"github.com/nimbus-cloud/cli/cf"
+	"github.com/nimbus-cloud/cli/cf/api"
+	"github.com/nimbus-cloud/cli/cf/app"
+	"github.com/nimbus-cloud/cli/cf/command_factory"
+	"github.com/nimbus-cloud/cli/cf/command_runner"
+	"github.com/nimbus-cloud/cli/cf/configuration"
+	"github.com/nimbus-cloud/cli/cf/manifest"
+	"github.com/nimbus-cloud/cli/cf/net"
+	"github.com/nimbus-cloud/cli/cf/requirements"
+	"github.com/nimbus-cloud/cli/cf/terminal"
 )
 
 type cliDependencies struct {
@@ -141,7 +141,7 @@ func displayCrashDialog(errorMessage string) {
 Aww shucks.
 
 Something completely unexpected happened. This is a bug in %s.
-Please file this bug : https://github.com/cloudfoundry/cli/issues
+Please file this bug : https://github.com/nimbus-cloud/cli/issues
 Tell us that you ran this command:
 
 	%s

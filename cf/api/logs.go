@@ -3,7 +3,7 @@ package api
 import (
 	"crypto/tls"
 	"errors"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/nimbus-cloud/cli/cf/configuration"
 	consumer "github.com/cloudfoundry/loggregator_consumer"
 	"github.com/cloudfoundry/loggregatorlib/logmessage"
 	"time"

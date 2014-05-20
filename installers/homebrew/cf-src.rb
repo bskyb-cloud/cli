@@ -1,10 +1,10 @@
 require 'formula'
 
 class CfSrc < Formula
-  homepage 'https://github.com/cloudfoundry/cli'
-  url 'https://github.com/cloudfoundry/cli.git', :tag => 'v6.0.1'
+  homepage 'https://github.com/nimbus-cloud/cli'
+  url 'https://github.com/nimbus-cloud/cli.git', :tag => 'v6.0.1'
 
-  head 'https://github.com/cloudfoundry/cli.git', :branch => 'master'
+  head 'https://github.com/nimbus-cloud/cli.git', :branch => 'master'
 
   depends_on 'go' => :build
 

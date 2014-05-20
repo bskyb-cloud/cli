@@ -2,8 +2,8 @@ package terminal
 
 import (
 	"fmt"
-	"github.com/cloudfoundry/cli/cf/configuration"
-	term "github.com/cloudfoundry/cli/cf/terminal"
+	"github.com/nimbus-cloud/cli/cf/configuration"
+	term "github.com/nimbus-cloud/cli/cf/terminal"
 	"github.com/codegangsta/cli"
 	"strings"
 	"time"

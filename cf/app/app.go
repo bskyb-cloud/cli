@@ -2,11 +2,11 @@ package app
 
 import (
 	"fmt"
-	"github.com/cloudfoundry/cli/cf"
-	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/command_runner"
-	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/cf/trace"
+	"github.com/nimbus-cloud/cli/cf"
+	"github.com/nimbus-cloud/cli/cf/command_metadata"
+	"github.com/nimbus-cloud/cli/cf/command_runner"
+	"github.com/nimbus-cloud/cli/cf/terminal"
+	"github.com/nimbus-cloud/cli/cf/trace"
 	"github.com/codegangsta/cli"
 	"strings"
 	"time"

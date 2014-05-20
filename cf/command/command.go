@@ -1,8 +1,8 @@
 package command
 
 import (
-	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/nimbus-cloud/cli/cf/command_metadata"
+	"github.com/nimbus-cloud/cli/cf/requirements"
 	"github.com/codegangsta/cli"
 )
 

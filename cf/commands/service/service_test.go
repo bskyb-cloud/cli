@@ -18,24 +18,24 @@
 
    For good examples of writing Ginkgo tests for the cli, refer to
 
-   src/github.com/cloudfoundry/cli/cf/commands/application/delete_app_test.go
-   src/github.com/cloudfoundry/cli/cf/terminal/ui_test.go
+   src/github.com/nimbus-cloud/cli/cf/commands/application/delete_app_test.go
+   src/github.com/nimbus-cloud/cli/cf/terminal/ui_test.go
    src/github.com/cloudfoundry/loggregator_consumer/consumer_test.go
 */
 
 package service_test
 
 import (
-	. "github.com/cloudfoundry/cli/cf/commands/service"
-	"github.com/cloudfoundry/cli/cf/models"
+	. "github.com/nimbus-cloud/cli/cf/commands/service"
+	"github.com/nimbus-cloud/cli/cf/models"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	testcmd "github.com/nimbus-cloud/cli/testhelpers/commands"
+	testreq "github.com/nimbus-cloud/cli/testhelpers/requirements"
+	testterm "github.com/nimbus-cloud/cli/testhelpers/terminal"
 
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "github.com/nimbus-cloud/cli/testhelpers/matchers"
 )
 
 func callShowService(args []string, requirementsFactory *testreq.FakeReqFactory) (ui *testterm.FakeUI) {

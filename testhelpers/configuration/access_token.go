@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/nimbus-cloud/cli/cf/configuration"
 )
 
 func EncodeAccessToken(tokenInfo configuration.TokenInfo) (accessToken string, err error) {

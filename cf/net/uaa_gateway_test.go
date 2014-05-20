@@ -2,10 +2,10 @@ package net_test
 
 import (
 	"fmt"
-	"github.com/cloudfoundry/cli/cf/configuration"
-	"github.com/cloudfoundry/cli/cf/errors"
-	. "github.com/cloudfoundry/cli/cf/net"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	"github.com/nimbus-cloud/cli/cf/configuration"
+	"github.com/nimbus-cloud/cli/cf/errors"
+	. "github.com/nimbus-cloud/cli/cf/net"
+	testconfig "github.com/nimbus-cloud/cli/testhelpers/configuration"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"net/http"

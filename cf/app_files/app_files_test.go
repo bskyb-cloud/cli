@@ -1,7 +1,7 @@
 package app_files_test
 
 import (
-	. "github.com/cloudfoundry/cli/cf/app_files"
+	. "github.com/nimbus-cloud/cli/cf/app_files"
 	"github.com/cloudfoundry/gofileutils/fileutils"
 	"os"
 	"path/filepath"

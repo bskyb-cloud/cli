@@ -1,9 +1,9 @@
 package commands
 
 import (
-	"github.com/cloudfoundry/cli/cf/command"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	"github.com/nimbus-cloud/cli/cf/command"
+	testreq "github.com/nimbus-cloud/cli/testhelpers/requirements"
+	testterm "github.com/nimbus-cloud/cli/testhelpers/terminal"
 	"github.com/codegangsta/cli"
 )
 

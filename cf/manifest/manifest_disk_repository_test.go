@@ -1,7 +1,7 @@
 package manifest_test
 
 import (
-	. "github.com/cloudfoundry/cli/cf/manifest"
+	. "github.com/nimbus-cloud/cli/cf/manifest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"path/filepath"

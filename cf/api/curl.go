@@ -3,9 +3,9 @@ package api
 import (
 	"bufio"
 	"fmt"
-	"github.com/cloudfoundry/cli/cf/configuration"
-	"github.com/cloudfoundry/cli/cf/errors"
-	"github.com/cloudfoundry/cli/cf/net"
+	"github.com/nimbus-cloud/cli/cf/configuration"
+	"github.com/nimbus-cloud/cli/cf/errors"
+	"github.com/nimbus-cloud/cli/cf/net"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"

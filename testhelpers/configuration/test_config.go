@@ -1,8 +1,8 @@
 package configuration
 
 import (
-	"github.com/cloudfoundry/cli/cf/configuration"
-	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/nimbus-cloud/cli/cf/configuration"
+	"github.com/nimbus-cloud/cli/cf/models"
 )
 
 func NewRepository() configuration.Repository {

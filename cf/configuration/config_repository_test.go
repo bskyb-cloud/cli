@@ -2,9 +2,9 @@ package configuration_test
 
 import (
 	"fmt"
-	. "github.com/cloudfoundry/cli/cf/configuration"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	"github.com/cloudfoundry/cli/testhelpers/maker"
+	. "github.com/nimbus-cloud/cli/cf/configuration"
+	testconfig "github.com/nimbus-cloud/cli/testhelpers/configuration"
+	"github.com/nimbus-cloud/cli/testhelpers/maker"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"time"

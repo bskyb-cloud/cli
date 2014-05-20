@@ -1,10 +1,10 @@
 package actors
 
 import (
-	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/errors"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"github.com/nimbus-cloud/cli/cf/api"
+	"github.com/nimbus-cloud/cli/cf/errors"
+	"github.com/nimbus-cloud/cli/cf/models"
+	"github.com/nimbus-cloud/cli/cf/terminal"
 )
 
 type RouteActor struct {

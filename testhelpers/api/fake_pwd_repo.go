@@ -1,6 +1,6 @@
 package api
 
-import "github.com/cloudfoundry/cli/cf/errors"
+import "github.com/nimbus-cloud/cli/cf/errors"
 
 type FakePasswordRepo struct {
 	Score          string

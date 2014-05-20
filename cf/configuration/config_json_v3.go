@@ -2,7 +2,7 @@ package configuration
 
 import (
 	"encoding/json"
-	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/nimbus-cloud/cli/cf/models"
 )
 
 type configJsonV3 struct {

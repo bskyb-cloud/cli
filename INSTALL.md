@@ -1,6 +1,6 @@
 ## Windows
 
-1. Download the CLI from github: https://github.com/cloudfoundry/cli/releases
+1. Download the CLI from github: https://github.com/nimbus-cloud/cli/releases
 2. Extract the zip file.
 3. Create a folder in C:\Program Files\, named "Cloud Foundry"
 4. Move `cf` to C:\Program Files\Cloud Foundry\
@@ -18,7 +18,7 @@
 
 ## Mac OSX and Linux
 
-1. Download the CLI from github: https://github.com/cloudfoundry/cli/releases
+1. Download the CLI from github: https://github.com/nimbus-cloud/cli/releases
 2. Extract the tgz file.
 3. Move `cf` to /usr/local/bin
 4. Confirm /usr/local/bin is in your PATH by typing `echo $PATH` at the command line

@@ -18,23 +18,23 @@
 
    For good examples of writing Ginkgo tests for the cli, refer to
 
-   src/github.com/cloudfoundry/cli/cf/commands/application/delete_app_test.go
-   src/github.com/cloudfoundry/cli/cf/terminal/ui_test.go
+   src/github.com/nimbus-cloud/cli/cf/commands/application/delete_app_test.go
+   src/github.com/nimbus-cloud/cli/cf/terminal/ui_test.go
    src/github.com/cloudfoundry/loggregator_consumer/consumer_test.go
 */
 
 package requirements_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/models"
-	. "github.com/cloudfoundry/cli/cf/requirements"
-	testassert "github.com/cloudfoundry/cli/testhelpers/assert"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	"github.com/nimbus-cloud/cli/cf/models"
+	. "github.com/nimbus-cloud/cli/cf/requirements"
+	testassert "github.com/nimbus-cloud/cli/testhelpers/assert"
+	testconfig "github.com/nimbus-cloud/cli/testhelpers/configuration"
+	testterm "github.com/nimbus-cloud/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "github.com/nimbus-cloud/cli/testhelpers/matchers"
 )
 
 var _ = Describe("Testing with ginkgo", func() {

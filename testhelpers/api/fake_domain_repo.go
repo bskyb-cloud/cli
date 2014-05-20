@@ -1,8 +1,8 @@
 package api
 
 import (
-	"github.com/cloudfoundry/cli/cf/errors"
-	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/nimbus-cloud/cli/cf/errors"
+	"github.com/nimbus-cloud/cli/cf/models"
 )
 
 type FakeDomainRepository struct {

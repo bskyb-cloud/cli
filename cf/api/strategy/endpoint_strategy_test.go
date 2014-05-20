@@ -1,8 +1,8 @@
 package strategy_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/api/resources"
-	. "github.com/cloudfoundry/cli/cf/api/strategy"
+	"github.com/nimbus-cloud/cli/cf/api/resources"
+	. "github.com/nimbus-cloud/cli/cf/api/strategy"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )

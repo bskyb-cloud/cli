@@ -3,8 +3,8 @@ package net_test
 import (
 	"code.google.com/p/go.net/websocket"
 	"crypto/x509"
-	"github.com/cloudfoundry/cli/cf/errors"
-	. "github.com/cloudfoundry/cli/cf/net"
+	"github.com/nimbus-cloud/cli/cf/errors"
+	. "github.com/nimbus-cloud/cli/cf/net"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"net"

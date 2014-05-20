@@ -2,15 +2,15 @@ package api_test
 
 import (
 	"code.google.com/p/gogoprotobuf/proto"
-	"github.com/cloudfoundry/cli/cf/configuration"
-	"github.com/cloudfoundry/cli/cf/errors"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	"github.com/nimbus-cloud/cli/cf/configuration"
+	"github.com/nimbus-cloud/cli/cf/errors"
+	testapi "github.com/nimbus-cloud/cli/testhelpers/api"
+	testconfig "github.com/nimbus-cloud/cli/testhelpers/configuration"
 	"github.com/cloudfoundry/loggregator_consumer"
 	"github.com/cloudfoundry/loggregatorlib/logmessage"
 	"time"
 
-	. "github.com/cloudfoundry/cli/cf/api"
+	. "github.com/nimbus-cloud/cli/cf/api"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )

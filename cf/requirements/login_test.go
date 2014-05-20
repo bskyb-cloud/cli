@@ -1,15 +1,15 @@
 package requirements_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/configuration"
-	. "github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/nimbus-cloud/cli/cf/configuration"
+	. "github.com/nimbus-cloud/cli/cf/requirements"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	testconfig "github.com/nimbus-cloud/cli/testhelpers/configuration"
+	testterm "github.com/nimbus-cloud/cli/testhelpers/terminal"
 
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "github.com/nimbus-cloud/cli/testhelpers/matchers"
 )
 
 var _ = Describe("LoginRequirement", func() {

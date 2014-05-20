@@ -4,7 +4,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/cloudfoundry/cli/glob"
+	"github.com/nimbus-cloud/cli/glob"
 )
 
 type CfIgnore interface {

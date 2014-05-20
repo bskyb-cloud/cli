@@ -1,11 +1,11 @@
 package command_runner_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/command"
-	"github.com/cloudfoundry/cli/cf/command_metadata"
-	. "github.com/cloudfoundry/cli/cf/command_runner"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
+	"github.com/nimbus-cloud/cli/cf/command"
+	"github.com/nimbus-cloud/cli/cf/command_metadata"
+	. "github.com/nimbus-cloud/cli/cf/command_runner"
+	"github.com/nimbus-cloud/cli/cf/requirements"
+	testcmd "github.com/nimbus-cloud/cli/testhelpers/commands"
 	"github.com/codegangsta/cli"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

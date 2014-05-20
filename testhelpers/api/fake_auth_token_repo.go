@@ -1,6 +1,6 @@
 package api
 
-import "github.com/cloudfoundry/cli/cf/models"
+import "github.com/nimbus-cloud/cli/cf/models"
 
 type FakeAuthTokenRepo struct {
 	CreatedServiceAuthTokenFields models.ServiceAuthTokenFields

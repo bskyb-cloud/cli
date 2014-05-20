@@ -18,8 +18,8 @@
 
    For good examples of writing Ginkgo tests for the cli, refer to
 
-   src/github.com/cloudfoundry/cli/cf/commands/application/delete_app_test.go
-   src/github.com/cloudfoundry/cli/cf/terminal/ui_test.go
+   src/github.com/nimbus-cloud/cli/cf/commands/application/delete_app_test.go
+   src/github.com/nimbus-cloud/cli/cf/terminal/ui_test.go
    src/github.com/cloudfoundry/loggregator_consumer/consumer_test.go
 */
 
@@ -27,22 +27,22 @@ package application_test
 
 import (
 	"code.google.com/p/gogoprotobuf/proto"
-	. "github.com/cloudfoundry/cli/cf/commands/application"
-	"github.com/cloudfoundry/cli/cf/errors"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/terminal"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
-	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testlogs "github.com/cloudfoundry/cli/testhelpers/logs"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	. "github.com/nimbus-cloud/cli/cf/commands/application"
+	"github.com/nimbus-cloud/cli/cf/errors"
+	"github.com/nimbus-cloud/cli/cf/models"
+	"github.com/nimbus-cloud/cli/cf/terminal"
+	testapi "github.com/nimbus-cloud/cli/testhelpers/api"
+	testcmd "github.com/nimbus-cloud/cli/testhelpers/commands"
+	testconfig "github.com/nimbus-cloud/cli/testhelpers/configuration"
+	testlogs "github.com/nimbus-cloud/cli/testhelpers/logs"
+	testreq "github.com/nimbus-cloud/cli/testhelpers/requirements"
+	testterm "github.com/nimbus-cloud/cli/testhelpers/terminal"
 	"github.com/cloudfoundry/loggregatorlib/logmessage"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"time"
 
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "github.com/nimbus-cloud/cli/testhelpers/matchers"
 )
 
 var _ = Describe("logs command", func() {

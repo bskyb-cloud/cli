@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/nimbus-cloud/cli/cf/models"
 )
 
 type FakeQuotaRepository struct {

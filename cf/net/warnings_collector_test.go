@@ -1,10 +1,10 @@
 package net_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/net"
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
-	testnet "github.com/cloudfoundry/cli/testhelpers/net"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	"github.com/nimbus-cloud/cli/cf/net"
+	. "github.com/nimbus-cloud/cli/testhelpers/matchers"
+	testnet "github.com/nimbus-cloud/cli/testhelpers/net"
+	testterm "github.com/nimbus-cloud/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )

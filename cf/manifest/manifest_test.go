@@ -1,14 +1,14 @@
 package manifest_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/manifest"
-	"github.com/cloudfoundry/cli/generic"
+	"github.com/nimbus-cloud/cli/cf/manifest"
+	"github.com/nimbus-cloud/cli/generic"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"runtime"
 	"strings"
 
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "github.com/nimbus-cloud/cli/testhelpers/matchers"
 )
 
 func NewManifest(path string, data generic.Map) (m *manifest.Manifest) {

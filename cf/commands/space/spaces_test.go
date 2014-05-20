@@ -18,27 +18,27 @@
 
    For good examples of writing Ginkgo tests for the cli, refer to
 
-   src/github.com/cloudfoundry/cli/cf/commands/application/delete_app_test.go
-   src/github.com/cloudfoundry/cli/cf/terminal/ui_test.go
+   src/github.com/nimbus-cloud/cli/cf/commands/application/delete_app_test.go
+   src/github.com/nimbus-cloud/cli/cf/terminal/ui_test.go
    src/github.com/cloudfoundry/loggregator_consumer/consumer_test.go
 */
 
 package space_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/api"
-	. "github.com/cloudfoundry/cli/cf/commands/space"
-	"github.com/cloudfoundry/cli/cf/configuration"
-	"github.com/cloudfoundry/cli/cf/models"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
-	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	"github.com/nimbus-cloud/cli/cf/api"
+	. "github.com/nimbus-cloud/cli/cf/commands/space"
+	"github.com/nimbus-cloud/cli/cf/configuration"
+	"github.com/nimbus-cloud/cli/cf/models"
+	testapi "github.com/nimbus-cloud/cli/testhelpers/api"
+	testcmd "github.com/nimbus-cloud/cli/testhelpers/commands"
+	testconfig "github.com/nimbus-cloud/cli/testhelpers/configuration"
+	testreq "github.com/nimbus-cloud/cli/testhelpers/requirements"
+	testterm "github.com/nimbus-cloud/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "github.com/nimbus-cloud/cli/testhelpers/matchers"
 )
 
 func callSpaces(args []string, requirementsFactory *testreq.FakeReqFactory, config configuration.Reader, spaceRepo api.SpaceRepository) (ui *testterm.FakeUI) {
