@@ -1,13 +1,14 @@
 package application
 
 import (
-	"cf/api"
-	"cf/configuration"
-	"cf/requirements"
-	"cf/terminal"
 	"errors"
 	"fmt"
 	"github.com/codegangsta/cli"
+	"github.com/nimbus-cloud/cli/cf/api"
+	"github.com/nimbus-cloud/cli/cf/command_metadata"
+	"github.com/nimbus-cloud/cli/cf/configuration"
+	"github.com/nimbus-cloud/cli/cf/requirements"
+	"github.com/nimbus-cloud/cli/cf/terminal"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -31,10 +32,19 @@ func NewSsh(ui terminal.UI, config configuration.Reader, appSshRepo api.AppSshRe
 	return
 }
 
+func (command *Ssh) Metadata() command_metadata.CommandMetadata {
+	return command_metadata.CommandMetadata{
+		Name:        "ssh",
+		ShortName:   "s",
+		Description: "Ssh to the target instance",
+		Usage:       "CF_NAME ssh APP [--instance=<num>]",
+	}
+}
+
 func (cmd *Ssh) GetRequirements(reqFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
 	if len(c.Args()) < 1 {
 		err = errors.New("Incorrect Usage")
-		cmd.ui.FailWithUsage(c, "ssh")
+		cmd.ui.FailWithUsage(c)
 		return
 	}
 
@@ -70,9 +80,10 @@ func (cmd *Ssh) Run(c *cli.Context) {
 		terminal.EntityNameColor(strconv.Itoa(instance)),
 	)
 
-	apiResponse, sshDetails := sshapi.GetSshDetails(app.Guid, instance)
-	if apiResponse.IsNotSuccessful() {
-		cmd.ui.Failed(apiResponse.Message)
+	sshDetails, apiErr := sshapi.GetSshDetails(app.Guid, instance)
+
+	if apiErr != nil {
+		cmd.ui.Failed(apiErr.Error())
 		return
 	}
 

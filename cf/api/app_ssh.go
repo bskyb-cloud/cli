@@ -1,14 +1,14 @@
 package api
 
 import (
-	"cf/configuration"
-	"cf/models"
-	"cf/net"
 	"fmt"
+	"github.com/nimbus-cloud/cli/cf/configuration"
+	"github.com/nimbus-cloud/cli/cf/models"
+	"github.com/nimbus-cloud/cli/cf/net"
 )
 
 type AppSshRepository interface {
-	GetSshDetails(appGuid string, instance int) (apiResponse net.ApiResponse, sshDetails models.SshConnectionDetails)
+	GetSshDetails(appGuid string, instance int) (sshDetails models.SshConnectionDetails, apiErr error)
 }
 
 type CloudControllerAppSshRepository struct {
@@ -22,12 +22,12 @@ func NewCloudControllerAppSshRepository(config configuration.Reader, gateway net
 	return
 }
 
-func (repo CloudControllerAppSshRepository) GetSshDetails(appGuid string, instance int) (apiResponse net.ApiResponse, sshDetails models.SshConnectionDetails) {
+func (repo CloudControllerAppSshRepository) GetSshDetails(appGuid string, instance int) (sshDetails models.SshConnectionDetails, apiErr error) {
 
 	url := fmt.Sprintf("%s/v2/apps/%s/instances/%d/ssh", repo.config.ApiEndpoint(), appGuid, instance)
-	request, apiResponse := repo.gateway.NewRequest("GET", url, repo.config.AccessToken(), nil)
+	request, apiErr := repo.gateway.NewRequest("GET", url, repo.config.AccessToken(), nil)
 
-	if apiResponse.IsNotSuccessful() {
+	if apiErr != nil {
 		return
 	}
 
@@ -38,8 +38,8 @@ func (repo CloudControllerAppSshRepository) GetSshDetails(appGuid string, instan
 		SshKey string `json:"sshkey"`
 	})
 
-	_, apiResponse = repo.gateway.PerformRequestForJSONResponse(request, &serverResponse)
-	if apiResponse.IsNotSuccessful() {
+	_, apiErr = repo.gateway.PerformRequestForJSONResponse(request, &serverResponse)
+	if apiErr != nil {
 		return
 	}
 

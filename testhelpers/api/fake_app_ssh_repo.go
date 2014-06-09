@@ -1,8 +1,7 @@
 package api
 
 import (
-	"cf/net"
-	"cf/models"
+	"github.com/nimbus-cloud/cli/cf/models"
 )
 
 type FakeAppSshRepo struct {
@@ -11,7 +10,7 @@ type FakeAppSshRepo struct {
 	SshDetails models.SshConnectionDetails
 }
 
-func (repo *FakeAppSshRepo) GetSshDetails(appGuid string, instance int) (apiResponse net.ApiResponse, sshDetails models.SshConnectionDetails) {
+func (repo *FakeAppSshRepo) GetSshDetails(appGuid string, instance int) (sshDetails models.SshConnectionDetails, apiErr error) {
 	repo.AppGuid = appGuid
 	repo.Instance = instance
 

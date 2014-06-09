@@ -1,16 +1,16 @@
 package application_test
 
 import (
-	. "cf/commands/application"
-	"cf/models"
+	. "github.com/nimbus-cloud/cli/cf/commands/application"
+	"github.com/nimbus-cloud/cli/cf/models"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	testapi "testhelpers/api"
-	testassert "testhelpers/assert"
-	testcmd "testhelpers/commands"
-	testconfig "testhelpers/configuration"
-	testreq "testhelpers/requirements"
-	testterm "testhelpers/terminal"
+	testapi "github.com/nimbus-cloud/cli/testhelpers/api"
+	testcmd "github.com/nimbus-cloud/cli/testhelpers/commands"
+	testconfig "github.com/nimbus-cloud/cli/testhelpers/configuration"
+	testreq "github.com/nimbus-cloud/cli/testhelpers/requirements"
+	testterm "github.com/nimbus-cloud/cli/testhelpers/terminal"
+	. "github.com/nimbus-cloud/cli/testhelpers/matchers"
 )
 
 var _ = Describe("Testing with ginkgo", func() {
@@ -72,16 +72,16 @@ var _ = Describe("Testing with ginkgo", func() {
 
 		ui := callSsh([]string{"my-app"}, reqFactory, appSshRepo)
 
-		testassert.SliceContains(ui.Outputs, testassert.Lines{
-			{"SSHing to application my-found-app, instance 0..."},
-			{"OK"},
-			{"SSH username is vcap"},
-			{"SSH IP Address is 10.0.0.1"},
-			{"SSH Port is 1234"},
-			{"SSH Identity is"},
-			{"Command:"},
-			{"SSH Finished"},
-		})
+		Expect(ui.Outputs).To(ContainSubstrings(
+			[]string{"SSHing to application my-found-app, instance 0..."},
+			[]string{"OK"},
+			[]string{"SSH username is vcap"},
+			[]string{"SSH IP Address is 10.0.0.1"},
+			[]string{"SSH Port is 1234"},
+			[]string{"SSH Identity is"},
+			[]string{"Command:"},
+			[]string{"SSH Finished"},		
+		))
 
 		Expect(appSshRepo.AppGuid).To(Equal("my-app-guid"))
 	})

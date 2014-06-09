@@ -1,15 +1,15 @@
 package api_test
 
 import (
-	. "cf/api"
-	"cf/net"
+	. "github.com/nimbus-cloud/cli/cf/api"
+	"github.com/nimbus-cloud/cli/cf/net"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"net/http"
 	"net/http/httptest"
-	testapi "testhelpers/api"
-	testconfig "testhelpers/configuration"
-	testnet "testhelpers/net"
+	testapi "github.com/nimbus-cloud/cli/testhelpers/api"
+	testconfig "github.com/nimbus-cloud/cli/testhelpers/configuration"
+	testnet "github.com/nimbus-cloud/cli/testhelpers/net"
 )
 
 var _ = Describe("AppSshRepository", func() {
@@ -23,10 +23,11 @@ var _ = Describe("AppSshRepository", func() {
 		ts, handler, repo := createSshInfoRepo([]testnet.TestRequest{getAppSshInfoRequest})
 		defer ts.Close()
 
-		apiResponse, sshDetails := repo.GetSshDetails("my-app-guid", 0)
+		sshDetails, apiErr := repo.GetSshDetails("my-app-guid", 0)
 
 		Expect(handler.AllRequestsCalled()).To(BeTrue())
-		Expect(apiResponse.IsSuccessful()).To(BeTrue())
+		Expect(handler).To(testnet.HaveAllRequestsCalled())
+		Expect(apiErr).To(BeNil())
 
 		Expect(sshDetails.Ip).To(Equal("10.0.0.1"))
 		Expect(sshDetails.Port).To(Equal(1234))
@@ -44,10 +45,10 @@ var getSshInfoResponseBody = `
 }`
 
 func createSshInfoRepo(requests []testnet.TestRequest) (ts *httptest.Server, handler *testnet.TestHandler, repo AppSshRepository) {
-	ts, handler = testnet.NewTLSServer(requests)
+	ts, handler = testnet.NewServer(requests)
 	configRepo := testconfig.NewRepositoryWithDefaults()
 	configRepo.SetApiEndpoint(ts.URL)
-	gateway := net.NewCloudControllerGateway()
+	gateway := net.NewCloudControllerGateway(configRepo)
 	repo = NewCloudControllerAppSshRepository(configRepo, gateway)
 	return
 }
