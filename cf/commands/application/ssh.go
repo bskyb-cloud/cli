@@ -9,6 +9,7 @@ import (
 	"github.com/nimbus-cloud/cli/cf/configuration"
 	"github.com/nimbus-cloud/cli/cf/requirements"
 	"github.com/nimbus-cloud/cli/cf/terminal"
+	"github.com/nimbus-cloud/cli/cf/flag_helpers"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -38,6 +39,9 @@ func (command *Ssh) Metadata() command_metadata.CommandMetadata {
 		ShortName:   "s",
 		Description: "Ssh to the target instance",
 		Usage:       "CF_NAME ssh APP [--instance=<num>]",
+		Flags: []cli.Flag{
+		    flag_helpers.NewStringFlag("instance", "instance number to ssh to"),
+		},
 	}
 }
 
