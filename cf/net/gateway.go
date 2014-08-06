@@ -152,6 +152,7 @@ func (gateway Gateway) createUpdateOrDeleteResource(verb, url string, body io.Re
 		resource = optionalResource[0]
 	}
 
+	
 	request, apiErr := gateway.NewRequest(verb, url, gateway.config.AccessToken(), body)
 	if apiErr != nil {
 		return
@@ -176,6 +177,7 @@ func (gateway Gateway) NewRequest(method, path, accessToken string, body io.Read
 		body.Seek(0, 0)
 	}
 
+	
 	request, err := http.NewRequest(method, path, body)
 	if err != nil {
 		apiErr = errors.NewWithError("Error building request", err)
@@ -200,7 +202,6 @@ func (gateway Gateway) NewRequest(method, path, accessToken string, body io.Read
 			request.ContentLength = fileStats.Size()
 		}
 	}
-
 	req = &Request{HttpReq: request, SeekableBody: body}
 	return
 }

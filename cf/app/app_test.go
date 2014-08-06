@@ -21,7 +21,7 @@ import (
 )
 
 var expectedCommandNames = []string{
-	"api", "app", "apps", "auth", "bind-service", "buildpacks", "create-buildpack",
+	"api", "apply-schema", "app", "apps", "auth", "bind-service", "buildpacks", "create-buildpack",
 	"create-domain", "create-org", "create-route", "create-service", "create-service-auth-token",
 	"create-service-broker", "create-space", "create-user", "create-user-provided-service", "curl",
 	"delete", "delete-buildpack", "delete-domain", "delete-shared-domain", "delete-org", "delete-route",

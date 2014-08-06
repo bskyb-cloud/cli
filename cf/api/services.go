@@ -21,6 +21,8 @@ type ServiceRepository interface {
 	CreateServiceInstance(name, planGuid string) (apiErr error)
 	RenameService(instance models.ServiceInstance, newName string) (apiErr error)
 	DeleteService(instance models.ServiceInstance) (apiErr error)
+	ApplySchema(instance models.ServiceInstance, schema string) (apiErr error)
+	GetSchema(instance models.ServiceInstance) (schema string, apiErr error)
 	FindServicePlanByDescription(planDescription resources.ServicePlanDescription) (planGuid string, apiErr error)
 	GetServiceInstanceCountForServicePlan(v1PlanGuid string) (count int, apiErr error)
 	MigrateServicePlanFromV1ToV2(v1PlanGuid, v2PlanGuid string) (changedCount int, apiErr error)
@@ -138,6 +140,31 @@ func (repo CloudControllerServiceRepository) CreateServiceInstance(name, planGui
 	}
 
 	return
+}
+
+func (repo CloudControllerServiceRepository) ApplySchema(instance models.ServiceInstance, schema string) (err error) {
+	body := fmt.Sprintf(`{"schema":"%s"}`, schema)
+	path := fmt.Sprintf("%s/v2/service_instances/%s/schema", repo.config.ApiEndpoint(), instance.Guid)
+
+	return repo.gateway.UpdateResource(path, strings.NewReader(body))
+}
+
+func (repo CloudControllerServiceRepository) GetSchema(instance models.ServiceInstance) (schema string, err error) {
+	path := fmt.Sprintf("%s/v2/service_instances/%s/schema", repo.config.ApiEndpoint(), instance.Guid)
+
+	request, err := repo.gateway.NewRequest("GET", path, repo.config.AccessToken(), nil)
+	if err != nil {
+		return
+	}
+	
+    serverResponse := new(struct {
+		Schema string `json:"schema"`
+	})
+		
+	_, err = repo.gateway.PerformRequestForJSONResponse(request, &serverResponse)
+
+	schema = serverResponse.Schema
+	return 
 }
 
 func (repo CloudControllerServiceRepository) RenameService(instance models.ServiceInstance, newName string) (apiErr error) {
