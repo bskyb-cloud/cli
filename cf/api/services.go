@@ -143,7 +143,7 @@ func (repo CloudControllerServiceRepository) CreateServiceInstance(name, planGui
 }
 
 func (repo CloudControllerServiceRepository) SetSchema(instance models.ServiceInstance, schema string) (err error) {
-	body := fmt.Sprintf(`{"schema":"%s"}`, schema)
+	body := fmt.Sprintf(`{"schema":%q}`, schema)
 	path := fmt.Sprintf("%s/v2/service_instances/%s/schema", repo.config.ApiEndpoint(), instance.Guid)
 
 	return repo.gateway.UpdateResource(path, strings.NewReader(body))
@@ -164,8 +164,6 @@ func (repo CloudControllerServiceRepository) GetSchema(instance models.ServiceIn
 	_, err = repo.gateway.PerformRequestForJSONResponse(request, &serverResponse)
 
 	schema = serverResponse.Schema
-	
-	fmt.Printf("BENC %s", err)
 	
 	return 
 }

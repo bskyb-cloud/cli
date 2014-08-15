@@ -9,6 +9,7 @@ import (
 	"github.com/nimbus-cloud/cli/cf/requirements"
 	"github.com/nimbus-cloud/cli/cf/terminal"
 	"github.com/codegangsta/cli"
+	"io/ioutil"
 )
 
 type SetSchema struct {
@@ -31,7 +32,7 @@ func (command *SetSchema) Metadata() command_metadata.CommandMetadata {
 		Name:        "set-schema",
 		ShortName:   "ss",
 		Description: "Set schema for a service. Currently only supported in the webproxy.",
-		Usage:       "CF_NAME set-schema SERVICE_INSTANCE SCHEME",
+		Usage:       "CF_NAME set-schema SERVICE_INSTANCE SCHEME_FILENAME",
 	}
 }
 
@@ -54,7 +55,16 @@ func (cmd *SetSchema) GetRequirements(requirementsFactory requirements.Factory, 
 }
 
 func (cmd *SetSchema) Run(c *cli.Context) {
-	schema := c.Args()[1]
+	schemaFilename := c.Args()[1]
+	
+	schemaBytes, ferr := ioutil.ReadFile(schemaFilename)
+	if ferr != nil {
+    	cmd.ui.Failed("Failed to read file %s. Error: %s", schemaFilename, ferr)
+    	return
+	}
+	
+	schema := string(schemaBytes[:])
+	
 	serviceInstance := cmd.serviceInstanceReq.GetServiceInstance()
 
 	cmd.ui.Say("Applying schema to %s in org %s / space %s as %s...",

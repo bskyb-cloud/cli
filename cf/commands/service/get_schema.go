@@ -73,5 +73,5 @@ func (cmd *GetSchema) Run(c *cli.Context) {
 	}
 
 	cmd.ui.Ok()
-	cmd.ui.Say("Schema is: %q\n", schema)
+	cmd.ui.Say("Schema is:\n\n%s\n", schema)
 }

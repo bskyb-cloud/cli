@@ -352,11 +352,6 @@ var _ = Describe("Services Repo", func() {
 		})
 	})
 
-
-
-
-
-
 	Describe("GetSchema", func() {
 		Context("when the service is not user provided", func() {
 	
@@ -407,11 +402,6 @@ var _ = Describe("Services Repo", func() {
 			})
 		})
 	})
-
-
-
-
-
 
 	Describe("FindServiceOfferingByLabelAndProvider", func() {
 		Context("when the service offering can be found", func() {
