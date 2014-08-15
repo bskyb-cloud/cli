@@ -50,7 +50,13 @@ type FakeServiceRepo struct {
 
 	RenameServiceServiceInstance models.ServiceInstance
 	RenameServiceNewName         string
-
+	
+	SetSchemaInstance models.ServiceInstance
+	SetSchemaSchema string
+	
+    GetSchemaInstance models.ServiceInstance
+	
+	
 	PurgedServiceOffering           models.ServiceOffering
 	PurgeServiceOfferingCalled      bool
 	PurgeServiceOfferingApiResponse error
@@ -143,6 +149,17 @@ func (repo *FakeServiceRepo) DeleteService(instance models.ServiceInstance) (api
 func (repo *FakeServiceRepo) RenameService(instance models.ServiceInstance, newName string) (apiErr error) {
 	repo.RenameServiceServiceInstance = instance
 	repo.RenameServiceNewName = newName
+	return
+}
+
+func (repo *FakeServiceRepo) SetSchema(instance models.ServiceInstance, schema string) (apiErr error) {
+	repo.SetSchemaInstance = instance
+	repo.SetSchemaSchema = schema
+	return
+} 
+
+func (repo *FakeServiceRepo) GetSchema(instance models.ServiceInstance) (schema string, apiErr error) {
+	repo.GetSchemaInstance = instance
 	return
 }
 

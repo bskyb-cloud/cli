@@ -352,6 +352,67 @@ var _ = Describe("Services Repo", func() {
 		})
 	})
 
+
+
+
+
+
+	Describe("GetSchema", func() {
+		Context("when the service is not user provided", func() {
+	
+			BeforeEach(func() {
+				setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+					Method:   "GET",
+					Path:     "/v2/service_instances/my-service-instance-guid/schema",
+					Response: testnet.TestResponse{Status: http.StatusCreated, Body: `{ "schema": "www.foobar.com" }`},
+				}))
+			})
+	
+			It("returns the schema", func() {
+				serviceInstance := models.ServiceInstance{}
+				serviceInstance.Guid = "my-service-instance-guid"
+				serviceInstance.ServicePlan = models.ServicePlanFields{
+					Guid: "some-plan-guid",
+				}
+	
+				schema, err := repo.GetSchema(serviceInstance)
+				Expect(schema).To(Equal("www.foobar.com"))
+				Expect(testHandler).To(testnet.HaveAllRequestsCalled())
+				Expect(err).NotTo(HaveOccurred())
+			})
+		})
+	})
+	
+	Describe("SetSchema", func() {
+		Context("when the service is not user provided", func() {
+			BeforeEach(func() {
+				setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+					Method:   "PUT",
+					Path:     "/v2/service_instances/my-service-instance-guid/schema",
+					Matcher:  testnet.RequestBodyMatcher(`{"schema":"www.foobar.com"}`),
+					Response: testnet.TestResponse{Status: http.StatusCreated},
+				}))
+			})
+	
+			It("sets the schema", func() {
+				serviceInstance := models.ServiceInstance{}
+				serviceInstance.Guid = "my-service-instance-guid"
+				serviceInstance.ServicePlan = models.ServicePlanFields{
+					Guid: "some-plan-guid",
+				}
+	
+				err := repo.SetSchema(serviceInstance, "www.foobar.com")
+				Expect(testHandler).To(testnet.HaveAllRequestsCalled())
+				Expect(err).NotTo(HaveOccurred())
+			})
+		})
+	})
+
+
+
+
+
+
 	Describe("FindServiceOfferingByLabelAndProvider", func() {
 		Context("when the service offering can be found", func() {
 			BeforeEach(func() {

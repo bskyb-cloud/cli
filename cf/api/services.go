@@ -164,6 +164,9 @@ func (repo CloudControllerServiceRepository) GetSchema(instance models.ServiceIn
 	_, err = repo.gateway.PerformRequestForJSONResponse(request, &serverResponse)
 
 	schema = serverResponse.Schema
+	
+	fmt.Printf("BENC %s", err)
+	
 	return 
 }
 
