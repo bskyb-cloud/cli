@@ -36,7 +36,7 @@ func NewFactory(ui terminal.UI, config configuration.ReadWriter, manifestRepo ma
 	factory.cmdsByName = make(map[string]command.Command)
 
 	factory.cmdsByName["api"] = commands.NewApi(ui, config, repoLocator.GetEndpointRepository())
-	factory.cmdsByName["apply-schema"] = service.NewApplySchema(ui, config, repoLocator.GetServiceRepository())
+	factory.cmdsByName["set-schema"] = service.NewSetSchema(ui, config, repoLocator.GetServiceRepository())
 	factory.cmdsByName["get-schema"] = service.NewGetSchema(ui, config, repoLocator.GetServiceRepository())
 	factory.cmdsByName["apps"] = application.NewListApps(ui, config, repoLocator.GetAppSummaryRepository())
 	factory.cmdsByName["auth"] = commands.NewAuthenticate(ui, config, repoLocator.GetAuthenticationRepository())

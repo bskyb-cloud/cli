@@ -11,31 +11,31 @@ import (
 	"github.com/codegangsta/cli"
 )
 
-type ApplySchema struct {
+type SetSchema struct {
 	ui                 terminal.UI
 	config             configuration.Reader
 	serviceRepo        api.ServiceRepository
 	serviceInstanceReq requirements.ServiceInstanceRequirement
 }
 
-func NewApplySchema(ui terminal.UI, config configuration.Reader, serviceRepo api.ServiceRepository) (cmd *ApplySchema) {
-	cmd = new(ApplySchema)
+func NewSetSchema(ui terminal.UI, config configuration.Reader, serviceRepo api.ServiceRepository) (cmd *SetSchema) {
+	cmd = new(SetSchema)
 	cmd.ui = ui
 	cmd.config = config
 	cmd.serviceRepo = serviceRepo
 	return
 }
 
-func (command *ApplySchema) Metadata() command_metadata.CommandMetadata {
+func (command *SetSchema) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
-		Name:        "apply-schema",
-		ShortName:   "as",
-		Description: "Apply a schema to a service. Currently only supported in the webproxy.",
-		Usage:       "CF_NAME apply-schema SERVICE_INSTANCE SCHEME",
+		Name:        "set-schema",
+		ShortName:   "ss",
+		Description: "Set schema for a service. Currently only supported in the webproxy.",
+		Usage:       "CF_NAME set-schema SERVICE_INSTANCE SCHEME",
 	}
 }
 
-func (cmd *ApplySchema) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
+func (cmd *SetSchema) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
 	if len(c.Args()) != 2 {
 		err = errors.New("incorrect usage")
 		cmd.ui.FailWithUsage(c)
@@ -53,7 +53,7 @@ func (cmd *ApplySchema) GetRequirements(requirementsFactory requirements.Factory
 	return
 }
 
-func (cmd *ApplySchema) Run(c *cli.Context) {
+func (cmd *SetSchema) Run(c *cli.Context) {
 	schema := c.Args()[1]
 	serviceInstance := cmd.serviceInstanceReq.GetServiceInstance()
 
@@ -63,7 +63,7 @@ func (cmd *ApplySchema) Run(c *cli.Context) {
 		terminal.EntityNameColor(cmd.config.SpaceFields().Name),
 		terminal.EntityNameColor(cmd.config.Username()),
 	)
-	err := cmd.serviceRepo.ApplySchema(serviceInstance, schema)
+	err := cmd.serviceRepo.SetSchema(serviceInstance, schema)
 
 	if err != nil {
 		if httpError, ok := err.(errors.HttpError); ok && httpError.ErrorCode() == errors.SERVICE_INSTANCE_NAME_TAKEN {

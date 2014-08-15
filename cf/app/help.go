@@ -125,7 +125,7 @@ func newAppPresenter(app *cli.App) (presenter appPresenter) {
 					newCmdPresenter(app, maxNameLen, "create-service"),
 					newCmdPresenter(app, maxNameLen, "delete-service"),
 					newCmdPresenter(app, maxNameLen, "rename-service"),
-					newCmdPresenter(app, maxNameLen, "apply-schema"),
+					newCmdPresenter(app, maxNameLen, "set-schema"),
 					newCmdPresenter(app, maxNameLen, "get-schema"),
 				}, {
 					newCmdPresenter(app, maxNameLen, "bind-service"),

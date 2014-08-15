@@ -21,7 +21,7 @@ type ServiceRepository interface {
 	CreateServiceInstance(name, planGuid string) (apiErr error)
 	RenameService(instance models.ServiceInstance, newName string) (apiErr error)
 	DeleteService(instance models.ServiceInstance) (apiErr error)
-	ApplySchema(instance models.ServiceInstance, schema string) (apiErr error)
+	SetSchema(instance models.ServiceInstance, schema string) (apiErr error)
 	GetSchema(instance models.ServiceInstance) (schema string, apiErr error)
 	FindServicePlanByDescription(planDescription resources.ServicePlanDescription) (planGuid string, apiErr error)
 	GetServiceInstanceCountForServicePlan(v1PlanGuid string) (count int, apiErr error)
@@ -142,7 +142,7 @@ func (repo CloudControllerServiceRepository) CreateServiceInstance(name, planGui
 	return
 }
 
-func (repo CloudControllerServiceRepository) ApplySchema(instance models.ServiceInstance, schema string) (err error) {
+func (repo CloudControllerServiceRepository) SetSchema(instance models.ServiceInstance, schema string) (err error) {
 	body := fmt.Sprintf(`{"schema":"%s"}`, schema)
 	path := fmt.Sprintf("%s/v2/service_instances/%s/schema", repo.config.ApiEndpoint(), instance.Guid)
 
