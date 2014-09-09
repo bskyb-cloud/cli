@@ -6,33 +6,42 @@ This is the official command line client for Cloud Foundry. [cf v6.0.0](https://
 Stable Release (v6.0.0)
 =======================
 
+
+# __We have modified the command line client - you will need to build your own__
 Installers
 ----------
-- [Debian 32 bit](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/cf-cli_i386.deb)
-- [Debian 64 bit](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/cf-cli_amd64.deb)
-- [Redhat 32 bit](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/cf-cli_i386.rpm)
-- [Redhat 64 bit](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/cf-cli_amd64.rpm)
-- [Mac OS X 64 bit](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/installer-osx-amd64.pkg)
-- [Windows 32 bit](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/installer-windows-386.zip)
-- [Windows 64 bit](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/installer-windows-amd64.zip)
+
+Ignore these - You will need to build your own
+
+- <del>[Debian 32 bit](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/cf-cli_i386.deb)</del>
+- <del>[Debian 64 bit](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/cf-cli_amd64.deb)</del>
+- <del>[Redhat 32 bit](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/cf-cli_i386.rpm)</del>
+- <del>[Redhat 64 bit](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/cf-cli_amd64.rpm)</del>
+- <del>[Mac OS X 64 bit](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/installer-osx-amd64.pkg)</del>
+- <del>[Windows 32 bit](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/installer-windows-386.zip)</del>
+- <del>[Windows 64 bit](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/installer-windows-amd64.zip)</del>
 
 Binaries
 --------
-- [Linux 32 bit binary](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/cf-linux-386.tgz)
-- [Linux 64 bit binary](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/cf-linux-amd64.tgz)
-- [Mac OS X 64 bit binary](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/cf-darwin-amd64.tgz)
-- [Windows 32 bit binary](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/cf-windows-386.zip)
-- [Windows 64 bit binary](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/cf-windows-amd64.zip)
+Ignore these - You will need to build your own
+
+- <del>[Linux 32 bit binary](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/cf-linux-386.tgz)</del>
+- <del>[Linux 64 bit binary](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/cf-linux-amd64.tgz)</del>
+- <del>[Mac OS X 64 bit binary](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/cf-darwin-amd64.tgz)</del>
+- <del>[Windows 32 bit binary](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/cf-windows-386.zip)</del>
+- <del>[Windows 64 bit binary](https://github.com/cloudfoundry/cli/releases/download/v6.0.0/cf-windows-amd64.zip)</del>
 
 Edge Releases (master)
 =============
 
+Ignore these - You will need to build your own
+
 Edge binaries are published to our Amazon S3 bucket with each new commit that passes CI. These binaries are *not intended for wider use*, but for developers to test new features and fixes as they are completed:
-- [Linux 64 bit binary](http://go-cli.s3.amazonaws.com/cf-linux-amd64.tgz)
-- [Linux 32 bit binary](http://go-cli.s3.amazonaws.com/cf-linux-386.tgz)
-- [Mac OS X 64 bit binary](http://go-cli.s3.amazonaws.com/cf-darwin-amd64.tgz)
-- [Windows 64 bit binary](http://go-cli.s3.amazonaws.com/cf-windows-amd64.zip)
-- [Windows 32 bit binary](http://go-cli.s3.amazonaws.com/cf-windows-386.zip)
+- <del>[Linux 64 bit binary](http://go-cli.s3.amazonaws.com/cf-linux-amd64.tgz)</del>
+- <del>[Linux 32 bit binary](http://go-cli.s3.amazonaws.com/cf-linux-386.tgz)</del>
+- <del>[Mac OS X 64 bit binary](http://go-cli.s3.amazonaws.com/cf-darwin-amd64.tgz)</del>
+- <del>[Windows 64 bit binary](http://go-cli.s3.amazonaws.com/cf-windows-amd64.zip)</del>
+- <del>[Windows 32 bit binary](http://go-cli.s3.amazonaws.com/cf-windows-386.zip)</del>
 
 You can follow our development progress on [Pivotal Tracker](https://www.pivotaltracker.com/s/projects/892938).
 
