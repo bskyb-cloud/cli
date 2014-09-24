@@ -1,28 +1,25 @@
 package net
 
 import (
-	"code.google.com/p/go.net/websocket"
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
-	"github.com/cloudfoundry/cli/cf/errors"
-	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/cf/trace"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"regexp"
 	"strings"
 	"time"
-)
 
-const (
-	PRIVATE_DATA_PLACEHOLDER = "[PRIVATE DATA HIDDEN]"
+	"code.google.com/p/go.net/websocket"
+	"github.com/cloudfoundry/cli/cf/errors"
+	. "github.com/cloudfoundry/cli/cf/i18n"
+	"github.com/cloudfoundry/cli/cf/terminal"
+	"github.com/cloudfoundry/cli/cf/trace"
 )
 
 func newHttpClient(trustedCerts []tls.Certificate, disableSSL bool) *http.Client {
 	tr := &http.Transport{
+		Dial:            (&net.Dialer{Timeout: 5 * time.Second}).Dial,
 		TLSClientConfig: NewTLSConfig(trustedCerts, disableSSL),
 		Proxy:           http.ProxyFromEnvironment,
 	}
@@ -35,7 +32,7 @@ func newHttpClient(trustedCerts []tls.Certificate, disableSSL bool) *http.Client
 
 func PrepareRedirect(req *http.Request, via []*http.Request) error {
 	if len(via) > 1 {
-		return errors.New("stopped after 1 redirect")
+		return errors.New(T("stopped after 1 redirect"))
 	}
 
 	prevReq := via[len(via)-1]
@@ -45,35 +42,15 @@ func PrepareRedirect(req *http.Request, via []*http.Request) error {
 	return nil
 }
 
-func Sanitize(input string) (sanitized string) {
-	var sanitizeJson = func(propertyName string, json string) string {
-		regex := regexp.MustCompile(fmt.Sprintf(`"%s":\s*"[^"]*"`, propertyName))
-		return regex.ReplaceAllString(json, fmt.Sprintf(`"%s":"%s"`, propertyName, PRIVATE_DATA_PLACEHOLDER))
-	}
-
-	re := regexp.MustCompile(`(?m)^Authorization: .*`)
-	sanitized = re.ReplaceAllString(input, "Authorization: "+PRIVATE_DATA_PLACEHOLDER)
-	re = regexp.MustCompile(`password=[^&]*&`)
-	sanitized = re.ReplaceAllString(sanitized, "password="+PRIVATE_DATA_PLACEHOLDER+"&")
-
-	sanitized = sanitizeJson("access_token", sanitized)
-	sanitized = sanitizeJson("refresh_token", sanitized)
-	sanitized = sanitizeJson("token", sanitized)
-	sanitized = sanitizeJson("password", sanitized)
-	sanitized = sanitizeJson("oldPassword", sanitized)
-
-	return
-}
-
 func dumpRequest(req *http.Request) {
 	shouldDisplayBody := !strings.Contains(req.Header.Get("Content-Type"), "multipart/form-data")
 	dumpedRequest, err := httputil.DumpRequest(req, shouldDisplayBody)
 	if err != nil {
-		trace.Logger.Printf("Error dumping request\n%s\n", err)
+		trace.Logger.Printf(T("Error dumping request\n{{.Err}}\n", map[string]interface{}{"Err": err}))
 	} else {
-		trace.Logger.Printf("\n%s [%s]\n%s\n", terminal.HeaderColor("REQUEST:"), time.Now().Format(time.RFC3339), Sanitize(string(dumpedRequest)))
+		trace.Logger.Printf("\n%s [%s]\n%s\n", terminal.HeaderColor(T("REQUEST:")), time.Now().Format(time.RFC3339), trace.Sanitize(string(dumpedRequest)))
 		if !shouldDisplayBody {
-			trace.Logger.Println("[MULTIPART/FORM-DATA CONTENT HIDDEN]")
+			trace.Logger.Println(T("[MULTIPART/FORM-DATA CONTENT HIDDEN]"))
 		}
 	}
 }
@@ -81,9 +58,9 @@ func dumpRequest(req *http.Request) {
 func dumpResponse(res *http.Response) {
 	dumpedResponse, err := httputil.DumpResponse(res, true)
 	if err != nil {
-		trace.Logger.Printf("Error dumping response\n%s\n", err)
+		trace.Logger.Printf(T("Error dumping response\n{{.Err}}\n", map[string]interface{}{"Err": err}))
 	} else {
-		trace.Logger.Printf("\n%s [%s]\n%s\n", terminal.HeaderColor("RESPONSE:"), time.Now().Format(time.RFC3339), Sanitize(string(dumpedResponse)))
+		trace.Logger.Printf("\n%s [%s]\n%s\n", terminal.HeaderColor(T("RESPONSE:")), time.Now().Format(time.RFC3339), trace.Sanitize(string(dumpedResponse)))
 	}
 }
 
@@ -99,9 +76,9 @@ func WrapNetworkErrors(host string, err error) error {
 	if innerErr != nil {
 		switch typedErr := innerErr.(type) {
 		case x509.UnknownAuthorityError:
-			return errors.NewInvalidSSLCert(host, "unknown authority")
+			return errors.NewInvalidSSLCert(host, T("unknown authority"))
 		case x509.HostnameError:
-			return errors.NewInvalidSSLCert(host, "not valid for the requested host")
+			return errors.NewInvalidSSLCert(host, T("not valid for the requested host"))
 		case x509.CertificateInvalidError:
 			return errors.NewInvalidSSLCert(host, "")
 		case *net.OpError:
@@ -109,6 +86,6 @@ func WrapNetworkErrors(host string, err error) error {
 		}
 	}
 
-	return errors.NewWithError("Error performing request", err)
+	return errors.NewWithError(T("Error performing request"), err)
 
 }

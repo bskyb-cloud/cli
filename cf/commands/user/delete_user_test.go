@@ -1,10 +1,10 @@
 package user_test
 
 import (
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/user"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/models"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
@@ -39,7 +39,7 @@ var _ = Describe("delete-user command", func() {
 
 	runCommand := func(args ...string) {
 		cmd := NewDeleteUser(ui, configRepo, userRepo)
-		testcmd.RunCommand(cmd, testcmd.NewContext("delete-user", args), requirementsFactory)
+		testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {

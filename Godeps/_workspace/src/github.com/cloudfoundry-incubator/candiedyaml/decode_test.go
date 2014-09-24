@@ -15,12 +15,14 @@ limitations under the License.
 package candiedyaml
 
 import (
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	"math"
 	"os"
+	"strconv"
 	"strings"
 	"time"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Decode", func() {
@@ -31,6 +33,35 @@ var _ = Describe("Decode", func() {
 		err := d.Decode(&v)
 
 		Ω(err).ShouldNot(HaveOccurred())
+	})
+
+	Context("strings", func() {
+		It("Decodes an empty string", func() {
+			d := NewDecoder(strings.NewReader(`""
+`))
+			var v string
+			err := d.Decode(&v)
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(v).Should(Equal(""))
+		})
+
+		It("Decodes an empty string to an interface", func() {
+			d := NewDecoder(strings.NewReader(`""
+`))
+			var v interface{}
+			err := d.Decode(&v)
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(v).Should(Equal(""))
+		})
+
+		It("Decodes a map containing empty strings to an interface", func() {
+			d := NewDecoder(strings.NewReader(`"" : ""
+`))
+			var v interface{}
+			err := d.Decode(&v)
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(v).Should(Equal(map[interface{}]interface{}{"": ""}))
+		})
 	})
 
 	Context("Sequence", func() {
@@ -182,7 +213,6 @@ var _ = Describe("Decode", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(v).To(Equal(map[string][]string{"hr": []string{"Mark McGwire", "Sammy Sosa"}, "rbi": []string{"Sammy Sosa", "Ken Griffey"}}))
 		})
-
 	})
 
 	Context("Sequence of Maps", func() {
@@ -251,39 +281,87 @@ var _ = Describe("Decode", func() {
 		}))
 	})
 
-	It("Decodes a variety of ints", func() {
-		f, _ := os.Open("fixtures/specification/example2_19.yaml")
-		d := NewDecoder(f)
-		v := make(map[string]interface{})
+	Context("ints", func() {
+		It("Decodes into an interface{}", func() {
+			f, _ := os.Open("fixtures/specification/example2_19.yaml")
+			d := NewDecoder(f)
+			v := make(map[string]interface{})
 
-		err := d.Decode(&v)
-		Ω(err).ShouldNot(HaveOccurred())
-		Ω(v).Should(Equal(map[string]interface{}{
-			"canonical":   int64(12345),
-			"decimal":     int64(12345),
-			"sexagesimal": int64(12345),
-			"octal":       int64(12),
-			"hexadecimal": int64(12),
-		}))
+			err := d.Decode(&v)
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(v).Should(Equal(map[string]interface{}{
+				"canonical":   int64(12345),
+				"decimal":     int64(12345),
+				"sexagesimal": int64(12345),
+				"octal":       int64(12),
+				"hexadecimal": int64(12),
+			}))
+		})
+
+		It("Decodes into int64", func() {
+			f, _ := os.Open("fixtures/specification/example2_19.yaml")
+			d := NewDecoder(f)
+			v := make(map[string]int64)
+
+			err := d.Decode(&v)
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(v).Should(Equal(map[string]int64{
+				"canonical":   int64(12345),
+				"decimal":     int64(12345),
+				"sexagesimal": int64(12345),
+				"octal":       int64(12),
+				"hexadecimal": int64(12),
+			}))
+		})
+
+		Context("boundary values", func() {
+			intoInt64 := func(val int64) {
+				It("Decodes into an int64 value", func() {
+					var v int64
+
+					d := NewDecoder(strings.NewReader(strconv.FormatInt(val, 10)))
+					err := d.Decode(&v)
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(v).Should(Equal(val))
+
+				})
+			}
+
+			intoInt := func(val int) {
+				It("Decodes into an int value", func() {
+					var v int
+
+					d := NewDecoder(strings.NewReader(strconv.FormatInt(int64(val), 10)))
+					err := d.Decode(&v)
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(v).Should(Equal(val))
+
+				})
+			}
+
+			intoInterface := func(val int64) {
+				It("Decodes into an interface{}", func() {
+					var v interface{}
+
+					d := NewDecoder(strings.NewReader(strconv.FormatInt(val, 10)))
+					err := d.Decode(&v)
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(v).Should(Equal(val))
+				})
+			}
+
+			intoInt64(math.MaxInt64)
+			intoInterface(math.MaxInt64)
+
+			intoInt64(math.MinInt64)
+			intoInterface(math.MinInt64)
+
+			intoInt(math.MaxInt32)
+			intoInt(math.MinInt32)
+		})
 	})
 
-	It("Decodes a variety of ints", func() {
-		f, _ := os.Open("fixtures/specification/example2_19.yaml")
-		d := NewDecoder(f)
-		v := make(map[string]int64)
-
-		err := d.Decode(&v)
-		Ω(err).ShouldNot(HaveOccurred())
-		Ω(v).Should(Equal(map[string]int64{
-			"canonical":   int64(12345),
-			"decimal":     int64(12345),
-			"sexagesimal": int64(12345),
-			"octal":       int64(12),
-			"hexadecimal": int64(12),
-		}))
-	})
-
-	It("Decodes a variety of flots", func() {
+	It("Decodes a variety of floats", func() {
 		f, _ := os.Open("fixtures/specification/example2_20.yaml")
 		d := NewDecoder(f)
 		v := make(map[string]float64)
@@ -345,35 +423,150 @@ var _ = Describe("Decode", func() {
 		}))
 	})
 
-	It("Decodes binary/base64", func() {
-		f, _ := os.Open("fixtures/specification/example2_23_picture.yaml")
-		d := NewDecoder(f)
-		v := make(map[string][]byte)
+	Context("Decodes binary/base64", func() {
+		It("to []byte", func() {
+			f, _ := os.Open("fixtures/specification/example2_23_picture.yaml")
+			d := NewDecoder(f)
+			v := make(map[string][]byte)
 
-		err := d.Decode(&v)
-		Ω(err).ShouldNot(HaveOccurred())
-		Ω(v).Should(Equal(map[string][]byte{
-			"picture": []byte{0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x0c, 0x00,
-				0x0c, 0x00, 0x84, 0x00, 0x00, 0xff, 0xff, 0xf7, 0xf5, 0xf5, 0xee,
-				0xe9, 0xe9, 0xe5, 0x66, 0x66, 0x66, 0x00, 0x00, 0x00, 0xe7, 0xe7,
-				0xe7, 0x5e, 0x5e, 0x5e, 0xf3, 0xf3, 0xed, 0x8e, 0x8e, 0x8e, 0xe0,
-				0xe0, 0xe0, 0x9f, 0x9f, 0x9f, 0x93, 0x93, 0x93, 0xa7, 0xa7, 0xa7,
-				0x9e, 0x9e, 0x9e, 0x69, 0x5e, 0x10, 0x27, 0x20, 0x82, 0x0a, 0x01,
-				0x00, 0x3b},
-		}))
+			err := d.Decode(&v)
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(v).Should(Equal(map[string][]byte{
+				"picture": []byte{0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x0c, 0x00,
+					0x0c, 0x00, 0x84, 0x00, 0x00, 0xff, 0xff, 0xf7, 0xf5, 0xf5, 0xee,
+					0xe9, 0xe9, 0xe5, 0x66, 0x66, 0x66, 0x00, 0x00, 0x00, 0xe7, 0xe7,
+					0xe7, 0x5e, 0x5e, 0x5e, 0xf3, 0xf3, 0xed, 0x8e, 0x8e, 0x8e, 0xe0,
+					0xe0, 0xe0, 0x9f, 0x9f, 0x9f, 0x93, 0x93, 0x93, 0xa7, 0xa7, 0xa7,
+					0x9e, 0x9e, 0x9e, 0x69, 0x5e, 0x10, 0x27, 0x20, 0x82, 0x0a, 0x01,
+					0x00, 0x3b},
+			}))
+		})
+
+		It("to string", func() {
+			d := NewDecoder(strings.NewReader("!binary YWJjZGVmZw=="))
+			var v string
+
+			err := d.Decode(&v)
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(v).Should(Equal("abcdefg"))
+		})
+
+		It("to string via alternate form", func() {
+			d := NewDecoder(strings.NewReader("!!binary YWJjZGVmZw=="))
+			var v string
+
+			err := d.Decode(&v)
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(v).Should(Equal("abcdefg"))
+		})
+
 	})
 
-	It("Decodes aliases", func() {
-		f, _ := os.Open("fixtures/specification/example2_10.yaml")
-		d := NewDecoder(f)
-		v := make(map[string][]string)
+	Context("Aliases", func() {
+		Context("to known types", func() {
+			It("aliases scalars", func() {
+				f, _ := os.Open("fixtures/specification/example2_10.yaml")
+				d := NewDecoder(f)
+				v := make(map[string][]string)
 
-		err := d.Decode(&v)
-		Ω(err).ShouldNot(HaveOccurred())
-		Ω(v).Should(Equal(map[string][]string{
-			"hr":  []string{"Mark McGwire", "Sammy Sosa"},
-			"rbi": []string{"Sammy Sosa", "Ken Griffey"},
-		}))
+				err := d.Decode(&v)
+				Ω(err).ShouldNot(HaveOccurred())
+				Ω(v).Should(Equal(map[string][]string{
+					"hr":  {"Mark McGwire", "Sammy Sosa"},
+					"rbi": {"Sammy Sosa", "Ken Griffey"},
+				}))
+			})
+
+			It("aliases sequences", func() {
+				d := NewDecoder(strings.NewReader(`
+---
+hr: &ss
+  - MG
+  - SS
+rbi: *ss
+`))
+				v := make(map[string][]string)
+				err := d.Decode(&v)
+				Ω(err).ShouldNot(HaveOccurred())
+				Ω(v).Should(Equal(map[string][]string{
+					"hr":  {"MG", "SS"},
+					"rbi": {"MG", "SS"},
+				}))
+			})
+
+			It("aliases maps", func() {
+				d := NewDecoder(strings.NewReader(`
+---
+hr: &ss
+  MG : SS
+rbi: *ss
+`))
+				v := make(map[string]map[string]string)
+				err := d.Decode(&v)
+				Ω(err).ShouldNot(HaveOccurred())
+				Ω(v).Should(Equal(map[string]map[string]string{
+					"hr":  {"MG": "SS"},
+					"rbi": {"MG": "SS"},
+				}))
+			})
+		})
+
+		Context("to Interface", func() {
+			It("aliases scalars", func() {
+				f, _ := os.Open("fixtures/specification/example2_10.yaml")
+				d := NewDecoder(f)
+				v := make(map[string]interface{})
+
+				err := d.Decode(&v)
+				Ω(err).ShouldNot(HaveOccurred())
+				Ω(v).Should(Equal(map[string]interface{}{
+					"hr":  []interface{}{"Mark McGwire", "Sammy Sosa"},
+					"rbi": []interface{}{"Sammy Sosa", "Ken Griffey"},
+				}))
+			})
+
+			It("aliases sequences", func() {
+				d := NewDecoder(strings.NewReader(`
+---
+hr: &ss
+  - MG
+  - SS
+rbi: *ss
+`))
+				v := make(map[string]interface{})
+				err := d.Decode(&v)
+				Ω(err).ShouldNot(HaveOccurred())
+				Ω(v).Should(Equal(map[string]interface{}{
+					"hr":  []interface{}{"MG", "SS"},
+					"rbi": []interface{}{"MG", "SS"},
+				}))
+			})
+
+			It("aliases maps", func() {
+				d := NewDecoder(strings.NewReader(`
+---
+hr: &ss
+  MG : SS
+rbi: *ss
+`))
+				v := make(map[string]interface{})
+				err := d.Decode(&v)
+				Ω(err).ShouldNot(HaveOccurred())
+				Ω(v).Should(Equal(map[string]interface{}{
+					"hr":  map[interface{}]interface{}{"MG": "SS"},
+					"rbi": map[interface{}]interface{}{"MG": "SS"},
+				}))
+			})
+
+			It("supports binary", func() {
+				d := NewDecoder(strings.NewReader("!binary YWJjZGVmZw=="))
+				var v interface{}
+
+				err := d.Decode(&v)
+				Ω(err).ShouldNot(HaveOccurred())
+				Ω(v).Should(Equal([]byte("abcdefg")))
+			})
+		})
 	})
 
 	Context("When decoding fails", func() {
@@ -397,7 +590,6 @@ var _ = Describe("Decode", func() {
 				Ω(err).ShouldNot(HaveOccurred())
 				Ω(v.Value).Should(BeNil())
 			})
-
 		})
 
 		Context("Receiver is a pointer", func() {

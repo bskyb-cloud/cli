@@ -4,14 +4,20 @@ package loggregator_consumer
 
 import (
 	"bufio"
+	"bytes"
+	"code.google.com/p/gogoprotobuf/proto"
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/cloudfoundry/loggregator_consumer/noaa_errors"
 	"github.com/cloudfoundry/loggregatorlib/logmessage"
 	"github.com/gorilla/websocket"
+	"io/ioutil"
+	"mime/multipart"
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -19,7 +25,11 @@ import (
 
 var (
 	// KeepAlive sets the interval between keep-alive messages sent by the client to loggregator.
-	KeepAlive = 25 * time.Second
+	KeepAlive      = 25 * time.Second
+	boundaryRegexp = regexp.MustCompile("boundary=(.*)")
+	ErrNotFound    = errors.New("/recent path not found or has issues")
+	ErrBadResponse = errors.New("bad server response")
+	ErrBadRequest  = errors.New("bad client request")
 )
 
 /* LoggregatorConsumer represents the actions that can be performed against a loggregator server.
@@ -35,7 +45,7 @@ type LoggregatorConsumer interface {
 	//	to provide any desired sorting mechanism.
 	Tail(appGuid string, authToken string) (<-chan *logmessage.LogMessage, error)
 
-	//	Recent connects to loggregator via its 'dump' endpoint and returns a slice of recent messages.
+	//	Recent connects to loggregator via its 'recent' endpoint and returns a slice of recent messages.
 	//	It does not guarantee any order of the messages; they are in the order returned by loggregator.
 	//
 	//	The SortRecent method is provided to sort the data returned by this method.
@@ -46,20 +56,40 @@ type LoggregatorConsumer interface {
 
 	// SetOnConnectCallback sets a callback function to be called with the websocket connection is established.
 	SetOnConnectCallback(func())
+
+	// SetDebugPrinter enables logging of the websocket handshake
+	SetDebugPrinter(DebugPrinter)
+}
+
+type DebugPrinter interface {
+	Print(title, dump string)
+}
+
+type nullDebugPrinter struct {
+}
+
+func (nullDebugPrinter) Print(title, body string) {
 }
 
 type consumer struct {
-	endpoint  string
-	tlsConfig *tls.Config
-	ws        *websocket.Conn
-	callback  func()
-	proxy     func(*http.Request) (*url.URL, error)
+	endpoint     string
+	tlsConfig    *tls.Config
+	ws           *websocket.Conn
+	callback     func()
+	proxy        func(*http.Request) (*url.URL, error)
+	debugPrinter DebugPrinter
 }
 
 /* New creates a new consumer to a loggregator endpoint.
  */
 func New(endpoint string, tlsConfig *tls.Config, proxy func(*http.Request) (*url.URL, error)) LoggregatorConsumer {
-	return &consumer{endpoint: endpoint, tlsConfig: tlsConfig, proxy: proxy}
+	return &consumer{endpoint: endpoint, tlsConfig: tlsConfig, proxy: proxy, debugPrinter: nullDebugPrinter{}}
+}
+
+/* SetDebugPrinter enables logging of the websocket handshake
+ */
+func (cnsmr *consumer) SetDebugPrinter(debugPrinter DebugPrinter) {
+	cnsmr.debugPrinter = debugPrinter
 }
 
 /*
@@ -91,12 +121,103 @@ func (cnsmr *consumer) Tail(appGuid string, authToken string) (<-chan *logmessag
 }
 
 /*
-Recent connects to loggregator via its 'dump' endpoint and returns a slice of recent messages. It does not
-guarantee any order of the messages; they are in the order returned by loggregator.
+Recent connects to loggregator via its 'recent' http(s) endpoint and returns a slice of recent messages.
+If the new http 'recent' endpoint isn't supported (ie you are connecting to an older loggregator server),
+we will fallback to the old Websocket 'dump' endpoint.
+
+It does not guarantee any order of the messages; they are in the order returned by loggregator.
 
 The SortRecent method is provided to sort the data returned by this method.
 */
 func (cnsmr *consumer) Recent(appGuid string, authToken string) ([]*logmessage.LogMessage, error) {
+	messages, err := cnsmr.httpRecent(appGuid, authToken)
+	if err != ErrBadRequest {
+		return messages, err
+	} else {
+		return cnsmr.dump(appGuid, authToken)
+	}
+}
+
+/*
+httpRecent connects to loggregator via its 'recent' http(s) endpoint and returns a slice of recent messages.
+It does not guarantee any order of the messages; they are in the order returned by loggregator.
+*/
+func (cnsmr *consumer) httpRecent(appGuid string, authToken string) ([]*logmessage.LogMessage, error) {
+	endpointUrl, err := url.ParseRequestURI(cnsmr.endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	scheme := "https"
+
+	if endpointUrl.Scheme == "ws" {
+		scheme = "http"
+	}
+
+	recentPath := fmt.Sprintf("%s://%s/recent?app=%s", scheme, endpointUrl.Host, appGuid)
+	transport := &http.Transport{Proxy: cnsmr.proxy, TLSClientConfig: cnsmr.tlsConfig}
+	client := &http.Client{Transport: transport}
+
+	req, _ := http.NewRequest("GET", recentPath, nil)
+	req.Header.Set("Authorization", authToken)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("Error dialing loggregator server: %s.\nPlease ask your Cloud Foundry Operator to check the platform configuration (loggregator endpoint is %s).", err.Error(), cnsmr.endpoint))
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusUnauthorized {
+		data, _ := ioutil.ReadAll(resp.Body)
+		return nil, noaa_errors.NewUnauthorizedError(string(data))
+	}
+
+	if resp.StatusCode == http.StatusBadRequest {
+		return nil, ErrBadRequest
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, ErrNotFound
+	}
+
+	contentType := resp.Header.Get("Content-Type")
+
+	if len(strings.TrimSpace(contentType)) == 0 {
+		return nil, ErrBadResponse
+	}
+
+	matches := boundaryRegexp.FindStringSubmatch(contentType)
+
+	if len(matches) != 2 || len(strings.TrimSpace(matches[1])) == 0 {
+		return nil, ErrBadResponse
+	}
+
+	reader := multipart.NewReader(resp.Body, matches[1])
+
+	var buffer bytes.Buffer
+	messages := make([]*logmessage.LogMessage, 0, 200)
+
+	for part, loopErr := reader.NextPart(); loopErr == nil; part, loopErr = reader.NextPart() {
+		buffer.Reset()
+
+		msg := new(logmessage.LogMessage)
+		_, err := buffer.ReadFrom(part)
+		if err != nil {
+			break
+		}
+		proto.Unmarshal(buffer.Bytes(), msg)
+		messages = append(messages, msg)
+	}
+
+	return messages, err
+}
+
+/*
+dump connects to loggregator via its 'dump' ws(s) endpoint and returns a slice of recent messages. It does not
+guarantee any order of the messages; they are in the order returned by loggregator.
+
+The SortRecent method is provided to sort the data returned by this method.
+*/
+func (cnsmr *consumer) dump(appGuid string, authToken string) ([]*logmessage.LogMessage, error) {
 	var err error
 
 	dumpPath := fmt.Sprintf("/dump/?app=%s", appGuid)
@@ -198,20 +319,47 @@ func (cnsmr *consumer) listenForMessages(msgChan chan<- *logmessage.LogMessage) 
 	}
 }
 
+func headersString(header http.Header) string {
+	var result string
+	for name, values := range header {
+		result += name + ": " + strings.Join(values, ", ") + "\n"
+	}
+	return result
+}
+
 func (cnsmr *consumer) establishWebsocketConnection(path string, authToken string) (*websocket.Conn, error) {
 	header := http.Header{"Origin": []string{"http://localhost"}, "Authorization": []string{authToken}}
+
 	dialer := websocket.Dialer{NetDial: cnsmr.proxyDial, TLSClientConfig: cnsmr.tlsConfig}
 
-	ws, resp, err := dialer.Dial(cnsmr.endpoint+path, header)
+	url := cnsmr.endpoint + path
+
+	cnsmr.debugPrinter.Print("WEBSOCKET REQUEST:",
+		"GET "+path+" HTTP/1.1\n"+
+			"Host: "+cnsmr.endpoint+"\n"+
+			"Upgrade: websocket\nConnection: Upgrade\nSec-WebSocket-Version: 13\nSec-WebSocket-Key: [HIDDEN]\n"+
+			headersString(header))
+
+	ws, resp, err := dialer.Dial(url, header)
+
+	if resp != nil {
+		cnsmr.debugPrinter.Print("WEBSOCKET RESPONSE:",
+			resp.Proto+" "+resp.Status+"\n"+
+				headersString(resp.Header))
+	}
+
+	if resp != nil && resp.StatusCode == http.StatusUnauthorized {
+		bodyData, _ := ioutil.ReadAll(resp.Body)
+		err = noaa_errors.NewUnauthorizedError(string(bodyData))
+		return ws, err
+	}
 
 	if err == nil && cnsmr.callback != nil {
 		cnsmr.callback()
 	}
-	if resp != nil && resp.StatusCode == http.StatusUnauthorized {
-		bodyData := make([]byte, 4096)
-		resp.Body.Read(bodyData)
-		resp.Body.Close()
-		err = NewUnauthorizedError(string(bodyData))
+
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("Error dialing loggregator server: %s.\nPlease ask your Cloud Foundry Operator to check the platform configuration (loggregator endpoint is %s).", err.Error(), cnsmr.endpoint))
 	}
 
 	return ws, err

@@ -4,6 +4,7 @@ import (
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/configuration"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -23,11 +24,11 @@ func NewListOrgs(ui terminal.UI, config configuration.Reader, orgRepo api.Organi
 	return
 }
 
-func (command ListOrgs) Metadata() command_metadata.CommandMetadata {
+func (cmd ListOrgs) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "orgs",
 		ShortName:   "o",
-		Description: "List all orgs",
+		Description: T("List all orgs"),
 		Usage:       "CF_NAME orgs",
 	}
 }
@@ -40,24 +41,26 @@ func (cmd ListOrgs) GetRequirements(requirementsFactory requirements.Factory, c 
 }
 
 func (cmd ListOrgs) Run(c *cli.Context) {
-	cmd.ui.Say("Getting orgs as %s...\n", terminal.EntityNameColor(cmd.config.Username()))
+	cmd.ui.Say(T("Getting orgs as {{.Username}}...\n",
+		map[string]interface{}{"Username": terminal.EntityNameColor(cmd.config.Username())}))
 
 	noOrgs := true
-	table := cmd.ui.Table([]string{"name"})
+	table := cmd.ui.Table([]string{T("name")})
 
 	apiErr := cmd.orgRepo.ListOrgs(func(org models.Organization) bool {
-		table.Add([]string{org.Name})
+		table.Add(org.Name)
 		noOrgs = false
 		return true
 	})
 	table.Print()
 
 	if apiErr != nil {
-		cmd.ui.Failed("Failed fetching orgs.\n%s", apiErr)
+		cmd.ui.Failed(T("Failed fetching orgs.\n{{.ApiErr}}",
+			map[string]interface{}{"ApiErr": apiErr}))
 		return
 	}
 
 	if noOrgs {
-		cmd.ui.Say("No orgs found")
+		cmd.ui.Say(T("No orgs found"))
 	}
 }

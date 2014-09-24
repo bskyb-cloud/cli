@@ -1,32 +1,9 @@
-/*
-                       WARNING WARNING WARNING
-
-                Attention all potential contributors
-
-   This testfile is not in the best state. We've been slowly transitioning
-   from the built in "testing" package to using Ginkgo. As you can see, we've
-   changed the format, but a lot of the setup, test body, descriptions, etc
-   are either hardcoded, completely lacking, or misleading.
-
-   For example:
-
-   Describe("Testing with ginkgo"...)      // This is not a great description
-   It("TestDoesSoemthing"...)              // This is a horrible description
-
-   Describe("create-user command"...       // Describe the actual object under test
-   It("creates a user when provided ..."   // this is more descriptive
-
-   For good examples of writing Ginkgo tests for the cli, refer to
-
-   src/github.com/cloudfoundry/cli/cf/commands/application/delete_app_test.go
-   src/github.com/cloudfoundry/cli/cf/terminal/ui_test.go
-   src/github.com/cloudfoundry/loggregator_consumer/consumer_test.go
-*/
-
 package space_test
 
 import (
+	"github.com/cloudfoundry/cli/cf/api/space_quotas/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/space"
+	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -38,70 +15,122 @@ import (
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 )
 
-func callShowSpace(args []string, requirementsFactory *testreq.FakeReqFactory) (ui *testterm.FakeUI) {
-	ui = new(testterm.FakeUI)
-	ctxt := testcmd.NewContext("space", args)
+var _ = Describe("space command", func() {
+	var (
+		ui                  *testterm.FakeUI
+		requirementsFactory *testreq.FakeReqFactory
+		quotaRepo           *fakes.FakeSpaceQuotaRepository
+		configRepo          configuration.ReadWriter
+	)
 
-	config := testconfig.NewRepositoryWithDefaults()
-
-	cmd := NewShowSpace(ui, config)
-	testcmd.RunCommand(cmd, ctxt, requirementsFactory)
-	return
-}
-
-var _ = Describe("Testing with ginkgo", func() {
-	It("TestShowSpaceRequirements", func() {
-		args := []string{"my-space"}
-
-		requirementsFactory := &testreq.FakeReqFactory{LoginSuccess: false, TargetedOrgSuccess: true}
-		callShowSpace(args, requirementsFactory)
-		Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
-
-		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedOrgSuccess: false}
-		callShowSpace(args, requirementsFactory)
-		Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
-
-		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedOrgSuccess: true}
-		callShowSpace(args, requirementsFactory)
-		Expect(testcmd.CommandDidPassRequirements).To(BeTrue())
+	BeforeEach(func() {
+		configRepo = testconfig.NewRepositoryWithDefaults()
+		quotaRepo = &fakes.FakeSpaceQuotaRepository{}
+		ui = &testterm.FakeUI{}
+		requirementsFactory = &testreq.FakeReqFactory{}
 	})
 
-	It("TestShowSpaceInfoSuccess", func() {
-		org := models.OrganizationFields{}
-		org.Name = "my-org"
+	runCommand := func(args ...string) {
+		testcmd.RunCommand(NewShowSpace(ui, configRepo, quotaRepo), args, requirementsFactory)
+	}
 
-		app := models.ApplicationFields{}
-		app.Name = "app1"
-		app.Guid = "app1-guid"
-		apps := []models.ApplicationFields{app}
+	Describe("requirements", func() {
+		It("fails when not logged in", func() {
+			requirementsFactory.TargetedOrgSuccess = true
+			runCommand("some-space")
+			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+		})
 
-		domain := models.DomainFields{}
-		domain.Name = "domain1"
-		domain.Guid = "domain1-guid"
-		domains := []models.DomainFields{domain}
+		It("fails when an org is not targeted", func() {
+			requirementsFactory.LoginSuccess = true
+			runCommand("some-space")
+			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+		})
+	})
 
-		serviceInstance := models.ServiceInstanceFields{}
-		serviceInstance.Name = "service1"
-		serviceInstance.Guid = "service1-guid"
-		services := []models.ServiceInstanceFields{serviceInstance}
+	Context("when logged in and an org is targeted", func() {
+		BeforeEach(func() {
+			org := models.OrganizationFields{}
+			org.Name = "my-org"
 
-		space := models.Space{}
-		space.Name = "space1"
-		space.Organization = org
-		space.Applications = apps
-		space.Domains = domains
-		space.ServiceInstances = services
+			app := models.ApplicationFields{}
+			app.Name = "app1"
+			app.Guid = "app1-guid"
+			apps := []models.ApplicationFields{app}
 
-		requirementsFactory := &testreq.FakeReqFactory{LoginSuccess: true, TargetedOrgSuccess: true, Space: space}
-		ui := callShowSpace([]string{"space1"}, requirementsFactory)
-		Expect(ui.Outputs).To(ContainSubstrings(
-			[]string{"Getting info for space", "space1", "my-org", "my-user"},
-			[]string{"OK"},
-			[]string{"space1"},
-			[]string{"Org", "my-org"},
-			[]string{"Apps", "app1"},
-			[]string{"Domains", "domain1"},
-			[]string{"Services", "service1"},
-		))
+			domain := models.DomainFields{}
+			domain.Name = "domain1"
+			domain.Guid = "domain1-guid"
+			domains := []models.DomainFields{domain}
+
+			serviceInstance := models.ServiceInstanceFields{}
+			serviceInstance.Name = "service1"
+			serviceInstance.Guid = "service1-guid"
+			services := []models.ServiceInstanceFields{serviceInstance}
+
+			securityGroup1 := models.SecurityGroupFields{Name: "Nacho Security"}
+			securityGroup2 := models.SecurityGroupFields{Name: "Nacho Prime"}
+			securityGroups := []models.SecurityGroupFields{securityGroup1, securityGroup2}
+
+			space := models.Space{}
+			space.Name = "whose-space-is-it-anyway"
+			space.Organization = org
+			space.Applications = apps
+			space.Domains = domains
+			space.ServiceInstances = services
+			space.SecurityGroups = securityGroups
+			space.SpaceQuotaGuid = "runaway-guid"
+
+			quota := models.SpaceQuota{}
+			quota.Guid = "runaway-guid"
+			quota.Name = "runaway"
+			quota.MemoryLimit = 102400
+			quota.InstanceMemoryLimit = -1
+			quota.RoutesLimit = 111
+			quota.ServicesLimit = 222
+			quota.NonBasicServicesAllowed = false
+
+			requirementsFactory.LoginSuccess = true
+			requirementsFactory.TargetedOrgSuccess = true
+			requirementsFactory.Space = space
+
+			quotaRepo.FindByGuidReturns(quota, nil)
+		})
+
+		Context("when the space has a space quota", func() {
+			It("shows information about the given space", func() {
+				runCommand("whose-space-is-it-anyway")
+				Expect(ui.Outputs).To(ContainSubstrings(
+					[]string{"Getting info for space", "whose-space-is-it-anyway", "my-org", "my-user"},
+					[]string{"OK"},
+					[]string{"whose-space-is-it-anyway"},
+					[]string{"Org", "my-org"},
+					[]string{"Apps", "app1"},
+					[]string{"Domains", "domain1"},
+					[]string{"Services", "service1"},
+					[]string{"Security Groups", "Nacho Security", "Nacho Prime"},
+					[]string{"Space Quota", "runaway (100G memory limit, -1 instance memory limit, 111 routes, 222 services, paid services disallowed)"},
+				))
+			})
+		})
+
+		Context("when the space does not have a space quota", func() {
+			It("shows information without a space quota", func() {
+				requirementsFactory.Space.SpaceQuotaGuid = ""
+				runCommand("whose-space-is-it-anyway")
+				Expect(quotaRepo.FindByGuidCallCount()).To(Equal(0))
+				Expect(ui.Outputs).To(ContainSubstrings(
+					[]string{"Getting info for space", "whose-space-is-it-anyway", "my-org", "my-user"},
+					[]string{"OK"},
+					[]string{"whose-space-is-it-anyway"},
+					[]string{"Org", "my-org"},
+					[]string{"Apps", "app1"},
+					[]string{"Domains", "domain1"},
+					[]string{"Services", "service1"},
+					[]string{"Security Groups", "Nacho Security", "Nacho Prime"},
+					[]string{"Space Quota"},
+				))
+			})
+		})
 	})
 })

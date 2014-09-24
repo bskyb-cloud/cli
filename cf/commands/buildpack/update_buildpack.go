@@ -1,10 +1,10 @@
 package buildpack
 
 import (
-	"errors"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/flag_helpers"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/codegangsta/cli"
@@ -25,27 +25,25 @@ func NewUpdateBuildpack(ui terminal.UI, repo api.BuildpackRepository, bitsRepo a
 	return
 }
 
-func (command *UpdateBuildpack) Metadata() command_metadata.CommandMetadata {
+func (cmd *UpdateBuildpack) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "update-buildpack",
-		Description: "Update a buildpack",
-		Usage:       "CF_NAME update-buildpack BUILDPACK [-p PATH] [-i POSITION] [--enable|--disable] [--lock|--unlock]",
+		Description: T("Update a buildpack"),
+		Usage:       T("CF_NAME update-buildpack BUILDPACK [-p PATH] [-i POSITION] [--enable|--disable] [--lock|--unlock]"),
 		Flags: []cli.Flag{
-			flag_helpers.NewIntFlag("i", "Buildpack position among other buildpacks"),
-			flag_helpers.NewStringFlag("p", "Path to directory or zip file"),
-			cli.BoolFlag{Name: "enable", Usage: "Enable the buildpack"},
-			cli.BoolFlag{Name: "disable", Usage: "Disable the buildpack"},
-			cli.BoolFlag{Name: "lock", Usage: "Lock the buildpack"},
-			cli.BoolFlag{Name: "unlock", Usage: "Unlock the buildpack"},
+			flag_helpers.NewIntFlag("i", T("Buildpack position among other buildpacks")),
+			flag_helpers.NewStringFlag("p", T("Path to directory or zip file")),
+			cli.BoolFlag{Name: "enable", Usage: T("Enable the buildpack")},
+			cli.BoolFlag{Name: "disable", Usage: T("Disable the buildpack")},
+			cli.BoolFlag{Name: "lock", Usage: T("Lock the buildpack")},
+			cli.BoolFlag{Name: "unlock", Usage: T("Unlock the buildpack")},
 		},
 	}
 }
 
 func (cmd *UpdateBuildpack) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
 	if len(c.Args()) != 1 {
-		err = errors.New("Incorrect Usage")
 		cmd.ui.FailWithUsage(c)
-		return
 	}
 
 	loginReq := requirementsFactory.NewLoginRequirement()
@@ -62,7 +60,7 @@ func (cmd *UpdateBuildpack) GetRequirements(requirementsFactory requirements.Fac
 func (cmd *UpdateBuildpack) Run(c *cli.Context) {
 	buildpack := cmd.buildpackReq.GetBuildpack()
 
-	cmd.ui.Say("Updating buildpack %s...", terminal.EntityNameColor(buildpack.Name))
+	cmd.ui.Say(T("Updating buildpack {{.BuildpackName}}...", map[string]interface{}{"BuildpackName": terminal.EntityNameColor(buildpack.Name)}))
 
 	updateBuildpack := false
 
@@ -76,8 +74,10 @@ func (cmd *UpdateBuildpack) Run(c *cli.Context) {
 	enabled := c.Bool("enable")
 	disabled := c.Bool("disable")
 	if enabled && disabled {
-		cmd.ui.Failed("Cannot specify both enabled and disabled options.")
-		return
+		cmd.ui.Failed(T("Cannot specify both {{.Enabled}} and {{.Disabled}}.", map[string]interface{}{
+			"Enabled":  "enabled",
+			"Disabled": "disabled",
+		}))
 	}
 
 	if enabled {
@@ -93,13 +93,13 @@ func (cmd *UpdateBuildpack) Run(c *cli.Context) {
 	lock := c.Bool("lock")
 	unlock := c.Bool("unlock")
 	if lock && unlock {
-		cmd.ui.Failed("Cannot specify both lock and unlock options.")
+		cmd.ui.Failed(T("Cannot specify both lock and unlock options."))
 		return
 	}
 
 	dir := c.String("p")
 	if dir != "" && (lock || unlock) {
-		cmd.ui.Failed("Cannot specify buildpack bits and lock/unlock.")
+		cmd.ui.Failed(T("Cannot specify buildpack bits and lock/unlock."))
 	}
 
 	if lock {
@@ -115,7 +115,10 @@ func (cmd *UpdateBuildpack) Run(c *cli.Context) {
 	if updateBuildpack {
 		newBuildpack, apiErr := cmd.buildpackRepo.Update(buildpack)
 		if apiErr != nil {
-			cmd.ui.Failed("Error updating buildpack %s\n%s", terminal.EntityNameColor(buildpack.Name), apiErr.Error())
+			cmd.ui.Failed(T("Error updating buildpack {{.Name}}\n{{.Error}}", map[string]interface{}{
+				"Name":  terminal.EntityNameColor(buildpack.Name),
+				"Error": apiErr.Error(),
+			}))
 		}
 		buildpack = newBuildpack
 	}
@@ -123,7 +126,10 @@ func (cmd *UpdateBuildpack) Run(c *cli.Context) {
 	if dir != "" {
 		apiErr := cmd.buildpackBitsRepo.UploadBuildpack(buildpack, dir)
 		if apiErr != nil {
-			cmd.ui.Failed("Error uploading buildpack %s\n%s", terminal.EntityNameColor(buildpack.Name), apiErr.Error())
+			cmd.ui.Failed(T("Error uploading buildpack {{.Name}}\n{{.Error}}", map[string]interface{}{
+				"Name":  terminal.EntityNameColor(buildpack.Name),
+				"Error": apiErr.Error(),
+			}))
 		}
 	}
 	cmd.ui.Ok()

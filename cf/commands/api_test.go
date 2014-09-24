@@ -2,16 +2,16 @@ package commands_test
 
 import (
 	"fmt"
+
 	"github.com/cloudfoundry/cli/cf"
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/errors"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
-	"github.com/codegangsta/cli"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -22,9 +22,8 @@ func callApi(args []string, config configuration.ReadWriter, endpointRepo *testa
 	ui = new(testterm.FakeUI)
 
 	cmd := NewApi(ui, config, endpointRepo)
-	ctxt := testcmd.NewContext("api", args)
 	requirementsFactory := &testreq.FakeReqFactory{}
-	testcmd.RunCommand(cmd, ctxt, requirementsFactory)
+	testcmd.RunCommand(cmd, args, requirementsFactory)
 	return
 }
 
@@ -56,7 +55,6 @@ var _ = Describe("api command", func() {
 		Context("when the endpoint is set in the config", func() {
 			var (
 				ui                  *testterm.FakeUI
-				ctx                 *cli.Context
 				requirementsFactory *testreq.FakeReqFactory
 			)
 
@@ -66,12 +64,11 @@ var _ = Describe("api command", func() {
 				config.SetSSLDisabled(true)
 
 				ui = new(testterm.FakeUI)
-				ctx = testcmd.NewContext("api", []string{})
 				requirementsFactory = &testreq.FakeReqFactory{}
 			})
 
 			JustBeforeEach(func() {
-				testcmd.RunCommand(NewApi(ui, config, endpointRepo), ctx, requirementsFactory)
+				testcmd.RunCommand(NewApi(ui, config, endpointRepo), []string{}, requirementsFactory)
 			})
 
 			It("prints out the api endpoint", func() {

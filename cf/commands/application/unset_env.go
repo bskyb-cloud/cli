@@ -1,11 +1,11 @@
 package application
 
 import (
-	"errors"
 	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/configuration"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -27,19 +27,17 @@ func NewUnsetEnv(ui terminal.UI, config configuration.Reader, appRepo api.Applic
 	return
 }
 
-func (command *UnsetEnv) Metadata() command_metadata.CommandMetadata {
+func (cmd *UnsetEnv) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "unset-env",
-		Description: "Remove an env variable",
-		Usage:       "CF_NAME unset-env APP NAME",
+		Description: T("Remove an env variable"),
+		Usage:       T("CF_NAME unset-env APP NAME"),
 	}
 }
 
 func (cmd *UnsetEnv) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
-	if len(c.Args()) < 2 {
-		err = errors.New("Incorrect Usage")
+	if len(c.Args()) != 2 {
 		cmd.ui.FailWithUsage(c)
-		return
 	}
 
 	cmd.appReq = requirementsFactory.NewApplicationRequirement(c.Args()[0])
@@ -55,19 +53,19 @@ func (cmd *UnsetEnv) Run(c *cli.Context) {
 	varName := c.Args()[1]
 	app := cmd.appReq.GetApplication()
 
-	cmd.ui.Say("Removing env variable %s from app %s in org %s / space %s as %s...",
-		terminal.EntityNameColor(varName),
-		terminal.EntityNameColor(app.Name),
-		terminal.EntityNameColor(cmd.config.OrganizationFields().Name),
-		terminal.EntityNameColor(cmd.config.SpaceFields().Name),
-		terminal.EntityNameColor(cmd.config.Username()),
-	)
+	cmd.ui.Say(T("Removing env variable {{.VarName}} from app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
+		map[string]interface{}{
+			"VarName":     terminal.EntityNameColor(varName),
+			"AppName":     terminal.EntityNameColor(app.Name),
+			"OrgName":     terminal.EntityNameColor(cmd.config.OrganizationFields().Name),
+			"SpaceName":   terminal.EntityNameColor(cmd.config.SpaceFields().Name),
+			"CurrentUser": terminal.EntityNameColor(cmd.config.Username())}))
 
 	envParams := app.EnvironmentVars
 
 	if _, ok := envParams[varName]; !ok {
 		cmd.ui.Ok()
-		cmd.ui.Warn("Env variable %s was not set.", varName)
+		cmd.ui.Warn(T("Env variable {{.VarName}} was not set.", map[string]interface{}{"VarName": varName}))
 		return
 	}
 
@@ -80,5 +78,6 @@ func (cmd *UnsetEnv) Run(c *cli.Context) {
 	}
 
 	cmd.ui.Ok()
-	cmd.ui.Say("TIP: Use '%s' to ensure your env variable changes take effect", terminal.CommandColor(cf.Name()+" push"))
+	cmd.ui.Say(T("TIP: Use '{{.Command}}' to ensure your env variable changes take effect",
+		map[string]interface{}{"Command": terminal.CommandColor(cf.Name() + " restage")}))
 }

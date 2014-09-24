@@ -1,8 +1,8 @@
 package application
 
 import (
-	"errors"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -28,20 +28,18 @@ func NewRestart(ui terminal.UI, starter ApplicationStarter, stopper ApplicationS
 	return
 }
 
-func (command *Restart) Metadata() command_metadata.CommandMetadata {
+func (cmd *Restart) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "restart",
 		ShortName:   "rs",
-		Description: "Restart an app",
-		Usage:       "CF_NAME restart APP",
+		Description: T("Restart an app"),
+		Usage:       T("CF_NAME restart APP"),
 	}
 }
 
 func (cmd *Restart) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
 	if len(c.Args()) == 0 {
-		err = errors.New("Incorrect Usage")
 		cmd.ui.FailWithUsage(c)
-		return
 	}
 
 	cmd.appReq = requirementsFactory.NewApplicationRequirement(c.Args()[0])

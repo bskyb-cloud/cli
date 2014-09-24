@@ -56,15 +56,15 @@ func (cmd *SetSchema) GetRequirements(requirementsFactory requirements.Factory, 
 
 func (cmd *SetSchema) Run(c *cli.Context) {
 	schemaFilename := c.Args()[1]
-	
+
 	schemaBytes, ferr := ioutil.ReadFile(schemaFilename)
 	if ferr != nil {
-    	cmd.ui.Failed("Failed to read file %s. Error: %s", schemaFilename, ferr)
-    	return
+		cmd.ui.Failed("Failed to read file %s. Error: %s", schemaFilename, ferr)
+		return
 	}
-	
+
 	schema := string(schemaBytes[:])
-	
+
 	serviceInstance := cmd.serviceInstanceReq.GetServiceInstance()
 
 	cmd.ui.Say("Applying schema to %s in org %s / space %s as %s...",

@@ -1,10 +1,10 @@
 package commands_test
 
 import (
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/models"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -35,7 +35,7 @@ var _ = Describe("target command", func() {
 
 	var callTarget = func(args []string) {
 		cmd := NewTarget(ui, config, orgRepo, spaceRepo)
-		testcmd.RunCommand(cmd, testcmd.NewContext("target", args), requirementsFactory)
+		testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	It("fails with usage when called with an argument but no flags", func() {
@@ -44,10 +44,19 @@ var _ = Describe("target command", func() {
 	})
 
 	Describe("when the user is not logged in", func() {
+		BeforeEach(func() {
+			config.SetAccessToken("")
+		})
+
 		It("prints the target info when no org or space is specified", func() {
 			callTarget([]string{})
 			Expect(testcmd.CommandDidPassRequirements).To(BeTrue())
 			Expect(ui.ShowConfigurationCalled).To(BeTrue())
+		})
+
+		It("panics silently so that it returns an exit code of 1", func() {
+			callTarget([]string{})
+			Expect(ui.PanickedQuietly).To(BeTrue())
 		})
 
 		It("fails requirements when targeting a space or org", func() {

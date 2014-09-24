@@ -1,10 +1,10 @@
 package domain
 
 import (
-	"errors"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/configuration"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/codegangsta/cli"
@@ -25,19 +25,17 @@ func NewCreateSharedDomain(ui terminal.UI, config configuration.Reader, domainRe
 	return
 }
 
-func (command *CreateSharedDomain) Metadata() command_metadata.CommandMetadata {
+func (cmd *CreateSharedDomain) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "create-shared-domain",
-		Description: "Create a domain that can be used by all orgs (admin-only)",
-		Usage:       "CF_NAME create-shared-domain DOMAIN",
+		Description: T("Create a domain that can be used by all orgs (admin-only)"),
+		Usage:       T("CF_NAME create-shared-domain DOMAIN"),
 	}
 }
 
 func (cmd *CreateSharedDomain) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
 	if len(c.Args()) != 1 {
-		err = errors.New("Incorrect Usage")
 		cmd.ui.FailWithUsage(c)
-		return
 	}
 
 	reqs = []requirements.Requirement{
@@ -49,10 +47,10 @@ func (cmd *CreateSharedDomain) GetRequirements(requirementsFactory requirements.
 func (cmd *CreateSharedDomain) Run(c *cli.Context) {
 	domainName := c.Args()[0]
 
-	cmd.ui.Say("Creating shared domain %s as %s...",
-		terminal.EntityNameColor(domainName),
-		terminal.EntityNameColor(cmd.config.Username()),
-	)
+	cmd.ui.Say(T("Creating shared domain {{.DomainName}} as {{.Username}}...",
+		map[string]interface{}{
+			"DomainName": terminal.EntityNameColor(domainName),
+			"Username":   terminal.EntityNameColor(cmd.config.Username())}))
 
 	apiErr := cmd.domainRepo.CreateSharedDomain(domainName)
 	if apiErr != nil {

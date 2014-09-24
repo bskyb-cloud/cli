@@ -1,10 +1,10 @@
 package servicebroker
 
 import (
-	"errors"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/configuration"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/codegangsta/cli"
@@ -23,19 +23,17 @@ func NewRenameServiceBroker(ui terminal.UI, config configuration.Reader, repo ap
 	return
 }
 
-func (command RenameServiceBroker) Metadata() command_metadata.CommandMetadata {
+func (cmd RenameServiceBroker) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "rename-service-broker",
-		Description: "Rename a service broker",
-		Usage:       "CF_NAME rename-service-broker SERVICE_BROKER NEW_SERVICE_BROKER",
+		Description: T("Rename a service broker"),
+		Usage:       T("CF_NAME rename-service-broker SERVICE_BROKER NEW_SERVICE_BROKER"),
 	}
 }
 
 func (cmd RenameServiceBroker) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
 	if len(c.Args()) != 2 {
-		err = errors.New("Incorrect Usage")
 		cmd.ui.FailWithUsage(c)
-		return
 	}
 
 	reqs = append(reqs, requirementsFactory.NewLoginRequirement())
@@ -50,11 +48,11 @@ func (cmd RenameServiceBroker) Run(c *cli.Context) {
 		return
 	}
 
-	cmd.ui.Say("Renaming service broker %s to %s as %s",
-		terminal.EntityNameColor(serviceBroker.Name),
-		terminal.EntityNameColor(c.Args()[1]),
-		terminal.EntityNameColor(cmd.config.Username()),
-	)
+	cmd.ui.Say(T("Renaming service broker {{.OldName}} to {{.NewName}} as {{.Username}}",
+		map[string]interface{}{
+			"OldName":  terminal.EntityNameColor(serviceBroker.Name),
+			"NewName":  terminal.EntityNameColor(c.Args()[1]),
+			"Username": terminal.EntityNameColor(cmd.config.Username())}))
 
 	newName := c.Args()[1]
 

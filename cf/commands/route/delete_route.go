@@ -6,6 +6,7 @@ import (
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/flag_helpers"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/codegangsta/cli"
@@ -26,23 +27,21 @@ func NewDeleteRoute(ui terminal.UI, config configuration.Reader, routeRepo api.R
 	return
 }
 
-func (command *DeleteRoute) Metadata() command_metadata.CommandMetadata {
+func (cmd *DeleteRoute) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "delete-route",
-		Description: "Delete a route",
-		Usage:       "CF_NAME delete-route DOMAIN [-n HOSTNAME] [-f]",
+		Description: T("Delete a route"),
+		Usage:       T("CF_NAME delete-route DOMAIN [-n HOSTNAME] [-f]"),
 		Flags: []cli.Flag{
-			cli.BoolFlag{Name: "f", Usage: "Force deletion without confirmation"},
-			flag_helpers.NewStringFlag("n", "Hostname"),
+			cli.BoolFlag{Name: "f", Usage: T("Force deletion without confirmation")},
+			flag_helpers.NewStringFlag("n", T("Hostname")),
 		},
 	}
 }
 
 func (cmd *DeleteRoute) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
 	if len(c.Args()) != 1 {
-		err = errors.New("Incorrect Usage")
 		cmd.ui.FailWithUsage(c)
-		return
 	}
 
 	cmd.domainReq = requirementsFactory.NewDomainRequirement(c.Args()[0])
@@ -68,7 +67,7 @@ func (cmd *DeleteRoute) Run(c *cli.Context) {
 		}
 	}
 
-	cmd.ui.Say("Deleting route %s...", terminal.EntityNameColor(url))
+	cmd.ui.Say(T("Deleting route {{.URL}}...", map[string]interface{}{"URL": terminal.EntityNameColor(url)}))
 
 	domain := cmd.domainReq.GetDomain()
 	route, apiErr := cmd.routeRepo.FindByHostAndDomain(host, domain)
@@ -76,7 +75,8 @@ func (cmd *DeleteRoute) Run(c *cli.Context) {
 	switch apiErr.(type) {
 	case nil:
 	case *errors.ModelNotFoundError:
-		cmd.ui.Warn("Unable to delete, route '%s' does not exist.", url)
+		cmd.ui.Warn(T("Unable to delete, route '{{.URL}}' does not exist.",
+			map[string]interface{}{"URL": url}))
 		return
 	default:
 		cmd.ui.Failed(apiErr.Error())

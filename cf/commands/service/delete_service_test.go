@@ -1,9 +1,9 @@
 package service_test
 
 import (
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/service"
 	"github.com/cloudfoundry/cli/cf/models"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
@@ -36,7 +36,7 @@ var _ = Describe("delete-service command", func() {
 	runCommand := func(args ...string) {
 		configRepo := testconfig.NewRepositoryWithDefaults()
 		cmd := NewDeleteService(ui, configRepo, serviceRepo)
-		testcmd.RunCommand(cmd, testcmd.NewContext("delete-service", args), requirementsFactory)
+		testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	Context("when not logged in", func() {

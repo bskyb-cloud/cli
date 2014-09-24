@@ -1,18 +1,18 @@
 package organization_test
 
 import (
-	. "github.com/cloudfoundry/cli/cf/commands/organization"
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/models"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+
+	. "github.com/cloudfoundry/cli/cf/commands/organization"
+	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 )
 
 var _ = Describe("delete-org command", func() {
@@ -38,7 +38,7 @@ var _ = Describe("delete-org command", func() {
 
 	runCommand := func(args ...string) {
 		cmd := NewDeleteOrg(ui, config, orgRepo)
-		testcmd.RunCommand(cmd, testcmd.NewContext("delete-org", args), requirementsFactory)
+		testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	It("fails requirements when not logged in", func() {

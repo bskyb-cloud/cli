@@ -1,43 +1,22 @@
-/*
-                       WARNING WARNING WARNING
-
-                Attention all potential contributors
-
-   This testfile is not in the best state. We've been slowly transitioning
-   from the built in "testing" package to using Ginkgo. As you can see, we've
-   changed the format, but a lot of the setup, test body, descriptions, etc
-   are either hardcoded, completely lacking, or misleading.
-
-   For example:
-
-   Describe("Testing with ginkgo"...)      // This is not a great description
-   It("TestDoesSoemthing"...)              // This is a horrible description
-
-   Describe("create-user command"...       // Describe the actual object under test
-   It("creates a user when provided ..."   // this is more descriptive
-
-   For good examples of writing Ginkgo tests for the cli, refer to
-
-   src/github.com/cloudfoundry/cli/cf/commands/application/delete_app_test.go
-   src/github.com/cloudfoundry/cli/cf/terminal/ui_test.go
-   src/github.com/cloudfoundry/loggregator_consumer/consumer_test.go
-*/
-
 package api_test
 
 import (
-	. "github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/net"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testnet "github.com/cloudfoundry/cli/testhelpers/net"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	"net/http"
 	"net/http/httptest"
+	"time"
+
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	"github.com/cloudfoundry/cli/cf/net"
+	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+
+	. "github.com/cloudfoundry/cli/cf/api"
+	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Testing with ginkgo", func() {
+var _ = Describe("ServiceSummaryRepository", func() {
 	var serviceInstanceSummariesResponse testnet.TestResponse
 
 	BeforeEach(func() {
@@ -77,7 +56,7 @@ var _ = Describe("Testing with ginkgo", func() {
 		}
 	})
 
-	It("TestServiceSummaryGetSummariesInCurrentSpace", func() {
+	It("gets a summary of services in the given space", func() {
 		req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
 			Method:   "GET",
 			Path:     "/v2/spaces/my-space-guid/summary",
@@ -88,7 +67,7 @@ var _ = Describe("Testing with ginkgo", func() {
 		defer ts.Close()
 
 		serviceInstances, apiErr := repo.GetSummariesInCurrentSpace()
-		Expect(handler).To(testnet.HaveAllRequestsCalled())
+		Expect(handler).To(HaveAllRequestsCalled())
 
 		Expect(apiErr).NotTo(HaveOccurred())
 		Expect(1).To(Equal(len(serviceInstances)))
@@ -110,7 +89,7 @@ func createServiceSummaryRepo(req testnet.TestRequest) (ts *httptest.Server, han
 	ts, handler = testnet.NewServer([]testnet.TestRequest{req})
 	configRepo := testconfig.NewRepositoryWithDefaults()
 	configRepo.SetApiEndpoint(ts.URL)
-	gateway := net.NewCloudControllerGateway(configRepo)
+	gateway := net.NewCloudControllerGateway(configRepo, time.Now)
 	repo = NewCloudControllerServiceSummaryRepository(configRepo, gateway)
 	return
 }

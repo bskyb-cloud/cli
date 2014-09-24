@@ -1,42 +1,8 @@
-/*
-                       WARNING WARNING WARNING
-
-                Attention all potential contributors
-
-   This testfile is not in the best state. We've been slowly transitioning
-   from the built in "testing" package to using Ginkgo. As you can see, we've
-   changed the format, but a lot of the setup, test body, descriptions, etc
-   are either hardcoded, completely lacking, or misleading.
-
-   For example:
-
-   Describe("Testing with ginkgo"...)      // This is not a great description
-   It("TestDoesSoemthing"...)              // This is a horrible description
-
-   Describe("create-user command"...       // Describe the actual object under test
-   It("creates a user when provided ..."   // this is more descriptive
-
-   For good examples of writing Ginkgo tests for the cli, refer to
-
-   src/github.com/cloudfoundry/cli/cf/commands/application/delete_app_test.go
-   src/github.com/cloudfoundry/cli/cf/terminal/ui_test.go
-   src/github.com/cloudfoundry/loggregator_consumer/consumer_test.go
-*/
-
 package net_test
 
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/cloudfoundry/cli/cf"
-	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/configuration"
-	"github.com/cloudfoundry/cli/cf/errors"
-	. "github.com/cloudfoundry/cli/cf/net"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testnet "github.com/cloudfoundry/cli/testhelpers/net"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -45,40 +11,163 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/cloudfoundry/cli/cf"
+	"github.com/cloudfoundry/cli/cf/api/authentication"
+	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/errors"
+	. "github.com/cloudfoundry/cli/cf/net"
+	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Gateway", func() {
 	var (
-		ccGateway  Gateway
-		uaaGateway Gateway
-		config     configuration.ReadWriter
-		authRepo   api.AuthenticationRepository
+		ccGateway   Gateway
+		uaaGateway  Gateway
+		config      configuration.ReadWriter
+		authRepo    authentication.AuthenticationRepository
+		currentTime time.Time
+		clock       func() time.Time
 	)
 
 	BeforeEach(func() {
+		currentTime = time.Unix(0, 0)
+		clock = func() time.Time { return currentTime }
 		config = testconfig.NewRepository()
-		ccGateway = NewCloudControllerGateway(config)
+
+		ccGateway = NewCloudControllerGateway(config, clock)
+		ccGateway.PollingThrottle = 3 * time.Millisecond
 		uaaGateway = NewUAAGateway(config)
 	})
 
-	It("TestNewRequest", func() {
-		request, apiErr := ccGateway.NewRequest("GET", "https://example.com/v2/apps", "BEARER my-access-token", nil)
+	Describe("async timeout", func() {
+		Context("when the config has a positive async timeout", func() {
+			It("inherits the async timeout from the config", func() {
+				config.SetAsyncTimeout(9001)
+				ccGateway = NewCloudControllerGateway((config), time.Now)
+				Expect(ccGateway.AsyncTimeout()).To(Equal(9001 * time.Minute))
+			})
+		})
+	})
 
-		Expect(apiErr).NotTo(HaveOccurred())
-		Expect(request.HttpReq.Header.Get("Authorization")).To(Equal("BEARER my-access-token"))
-		Expect(request.HttpReq.Header.Get("accept")).To(Equal("application/json"))
-		Expect(request.HttpReq.Header.Get("User-Agent")).To(Equal("go-cli " + cf.Version + " / " + runtime.GOOS))
+	Describe("NewRequest", func() {
+		var (
+			request *Request
+			apiErr  error
+		)
+
+		BeforeEach(func() {
+			request, apiErr = ccGateway.NewRequest("GET", "https://example.com/v2/apps", "BEARER my-access-token", nil)
+			Expect(apiErr).NotTo(HaveOccurred())
+		})
+
+		It("sets the Authorization header", func() {
+			Expect(request.HttpReq.Header.Get("Authorization")).To(Equal("BEARER my-access-token"))
+		})
+
+		It("sets the accept header to application/json", func() {
+			Expect(request.HttpReq.Header.Get("accept")).To(Equal("application/json"))
+		})
+
+		It("sets the user agent header", func() {
+			Expect(request.HttpReq.Header.Get("User-Agent")).To(Equal("go-cli " + cf.Version + " / " + runtime.GOOS))
+		})
+	})
+
+	Describe("CRUD methods", func() {
+		Describe("Delete", func() {
+			var apiServer *httptest.Server
+
+			Context("when the config has an async timeout", func() {
+				BeforeEach(func() {
+					count := 0
+					apiServer = httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+						switch request.URL.Path {
+						case "/v2/foobars/SOME_GUID":
+							writer.WriteHeader(http.StatusNoContent)
+						case "/v2/foobars/TIMEOUT":
+							currentTime = currentTime.Add(time.Minute * 31)
+							fmt.Fprintln(writer, `
+{
+  "metadata": {
+    "guid": "8438916f-5c00-4d44-a19b-1df65abe9d52",
+    "created_at": "2014-05-15T19:15:01+00:00",
+    "url": "/v2/jobs/8438916f-5c00-4d44-a19b-1df65abe9d52"
+  },
+  "entity": {
+    "guid": "8438916f-5c00-4d44-a19b-1df65abe9d52",
+    "status": "queued"
+  }
+}`)
+							writer.WriteHeader(http.StatusAccepted)
+						case "/v2/jobs/8438916f-5c00-4d44-a19b-1df65abe9d52":
+							if count == 0 {
+								count++
+								currentTime = currentTime.Add(time.Minute * 31)
+
+								writer.WriteHeader(http.StatusOK)
+								fmt.Fprintln(writer, `
+{
+  "entity": {
+    "guid": "8438916f-5c00-4d44-a19b-1df65abe9d52",
+    "status": "queued"
+  }
+}`)
+							} else {
+								panic("FAIL")
+							}
+						default:
+							panic("shouldn't have made call to this URL: " + request.URL.Path)
+						}
+					}))
+
+					config.SetAsyncTimeout(30)
+					ccGateway.SetTrustedCerts(apiServer.TLS.Certificates)
+				})
+
+				AfterEach(func() {
+					apiServer.Close()
+				})
+
+				It("deletes a resource", func() {
+					err := ccGateway.DeleteResource(apiServer.URL + "/v2/foobars/SOME_GUID")
+					Expect(err).ToNot(HaveOccurred())
+				})
+
+				Context("when the request would take longer than the async timeout", func() {
+					It("returns an error", func() {
+						apiErr := ccGateway.DeleteResource(apiServer.URL + "/v2/foobars/TIMEOUT")
+						Expect(apiErr).To(HaveOccurred())
+						Expect(apiErr).To(BeAssignableToTypeOf(errors.NewAsyncTimeoutError("http://some.url")))
+					})
+				})
+			})
+		})
 	})
 
 	Describe("making an async request", func() {
-		var jobStatus string
-		var apiServer *httptest.Server
-		var authServer *httptest.Server
+		var (
+			jobStatus     string
+			apiServer     *httptest.Server
+			authServer    *httptest.Server
+			statusChannel chan string
+		)
 
 		BeforeEach(func() {
 			jobStatus = "queued"
+			statusChannel = make(chan string, 10)
 
 			apiServer = httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				currentTime = currentTime.Add(time.Millisecond * 11)
+
+				updateStatus, ok := <-statusChannel
+				if ok {
+					jobStatus = updateStatus
+				}
+
 				switch request.URL.Path {
 				case "/v2/foo":
 					fmt.Fprintln(writer, `{ "metadata": { "url": "/v2/jobs/the-job-guid" } }`)
@@ -102,7 +191,6 @@ var _ = Describe("Gateway", func() {
 
 			config, authRepo = createAuthenticationRepository(apiServer, authServer)
 			ccGateway.SetTokenRefresher(authRepo)
-			ccGateway.PollingThrottle = 3 * time.Millisecond
 
 			ccGateway.SetTrustedCerts(apiServer.TLS.Certificates)
 		})
@@ -114,8 +202,8 @@ var _ = Describe("Gateway", func() {
 
 		It("returns the last response if the job completes before the timeout", func() {
 			go func() {
-				time.Sleep(25 * time.Millisecond)
-				jobStatus = "finished"
+				statusChannel <- "queued"
+				statusChannel <- "finished"
 			}()
 
 			request, _ := ccGateway.NewRequest("GET", config.ApiEndpoint()+"/v2/foo", config.AccessToken(), nil)
@@ -125,8 +213,8 @@ var _ = Describe("Gateway", func() {
 
 		It("returns an error with the right message when the job fails", func() {
 			go func() {
-				time.Sleep(25 * time.Millisecond)
-				jobStatus = "failed"
+				statusChannel <- "queued"
+				statusChannel <- "failed"
 			}()
 
 			request, _ := ccGateway.NewRequest("GET", config.ApiEndpoint()+"/v2/foo", config.AccessToken(), nil)
@@ -135,10 +223,14 @@ var _ = Describe("Gateway", func() {
 		})
 
 		It("returns an error if jobs takes longer than the timeout", func() {
+			go func() {
+				statusChannel <- "queued"
+				statusChannel <- "OHNOES"
+			}()
 			request, _ := ccGateway.NewRequest("GET", config.ApiEndpoint()+"/v2/foo", config.AccessToken(), nil)
 			_, apiErr := ccGateway.PerformPollingRequestForJSONResponse(request, new(struct{}), 10*time.Millisecond)
 			Expect(apiErr).To(HaveOccurred())
-			Expect(apiErr.Error()).To(ContainSubstring("timed out"))
+			Expect(apiErr).To(BeAssignableToTypeOf(errors.NewAsyncTimeoutError("http://some.url")))
 		})
 	})
 
@@ -379,7 +471,6 @@ var _ = Describe("Gateway", func() {
 
 			config, authRepo = createAuthenticationRepository(apiServer, authServer)
 			ccGateway.SetTokenRefresher(authRepo)
-			ccGateway.PollingThrottle = 3 * time.Millisecond
 
 			ccGateway.SetTrustedCerts(apiServer.TLS.Certificates)
 
@@ -443,7 +534,7 @@ func refreshTokenApiEndPoint(unauthorizedBody string, secondReqResp testnet.Test
 	}
 }
 
-func createAuthenticationRepository(apiServer *httptest.Server, authServer *httptest.Server) (configuration.ReadWriter, api.AuthenticationRepository) {
+func createAuthenticationRepository(apiServer *httptest.Server, authServer *httptest.Server) (configuration.ReadWriter, authentication.AuthenticationRepository) {
 	config := testconfig.NewRepository()
 	config.SetAuthenticationEndpoint(authServer.URL)
 	config.SetApiEndpoint(apiServer.URL)
@@ -453,7 +544,7 @@ func createAuthenticationRepository(apiServer *httptest.Server, authServer *http
 	authGateway := NewUAAGateway(config)
 	authGateway.SetTrustedCerts(authServer.TLS.Certificates)
 
-	authenticator := api.NewUAAAuthenticationRepository(authGateway, config)
+	authenticator := authentication.NewUAAAuthenticationRepository(authGateway, config)
 
 	return config, authenticator
 }

@@ -3,7 +3,7 @@ package buildpack
 import (
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/errors"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/codegangsta/cli"
@@ -21,19 +21,17 @@ func NewRenameBuildpack(ui terminal.UI, repo api.BuildpackRepository) (cmd *Rena
 	return
 }
 
-func (command *RenameBuildpack) Metadata() command_metadata.CommandMetadata {
+func (cmd *RenameBuildpack) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "rename-buildpack",
-		Description: "Rename a buildpack",
-		Usage:       "CF_NAME rename-buildpack BUILDPACK_NAME NEW_BUILDPACK_NAME",
+		Description: T("Rename a buildpack"),
+		Usage:       T("CF_NAME rename-buildpack BUILDPACK_NAME NEW_BUILDPACK_NAME"),
 	}
 }
 
 func (cmd *RenameBuildpack) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
 	if len(c.Args()) != 2 {
-		err = errors.New("Incorrect Usage")
 		cmd.ui.FailWithUsage(c)
-		return
 	}
 
 	reqs = []requirements.Requirement{requirementsFactory.NewLoginRequirement()}
@@ -44,7 +42,7 @@ func (cmd *RenameBuildpack) Run(c *cli.Context) {
 	buildpackName := c.Args()[0]
 	newBuildpackName := c.Args()[1]
 
-	cmd.ui.Say("Renaming buildpack %s to %s...", terminal.EntityNameColor(buildpackName), terminal.EntityNameColor(newBuildpackName))
+	cmd.ui.Say(T("Renaming buildpack {{.OldBuildpackName}} to {{.NewBuildpackName}}...", map[string]interface{}{"OldBuildpackName": terminal.EntityNameColor(buildpackName), "NewBuildpackName": terminal.EntityNameColor(newBuildpackName)}))
 
 	buildpack, apiErr := cmd.buildpackRepo.FindByName(buildpackName)
 
@@ -55,8 +53,10 @@ func (cmd *RenameBuildpack) Run(c *cli.Context) {
 	buildpack.Name = newBuildpackName
 	buildpack, apiErr = cmd.buildpackRepo.Update(buildpack)
 	if apiErr != nil {
-		cmd.ui.Failed("Error renaming buildpack %s\n%s", terminal.EntityNameColor(buildpackName), apiErr.Error())
-		return
+		cmd.ui.Failed(T("Error renaming buildpack {{.Name}}\n{{.Error}}", map[string]interface{}{
+			"Name":  terminal.EntityNameColor(buildpack.Name),
+			"Error": apiErr.Error(),
+		}))
 	}
 
 	cmd.ui.Ok()

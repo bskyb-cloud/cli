@@ -17,10 +17,13 @@ type configJsonV3 struct {
 	OrganizationFields    models.OrganizationFields
 	SpaceFields           models.SpaceFields
 	SSLDisabled           bool
+	AsyncTimeout          uint
+	Trace                 string
+	ColorEnabled          string // need to be able to express true, false and undefined
 }
 
 func JsonMarshalV3(config *Data) (output []byte, err error) {
-	return json.Marshal(configJsonV3{
+	return json.MarshalIndent(configJsonV3{
 		ConfigVersion:         3,
 		Target:                config.Target,
 		ApiVersion:            config.ApiVersion,
@@ -32,7 +35,10 @@ func JsonMarshalV3(config *Data) (output []byte, err error) {
 		OrganizationFields:    config.OrganizationFields,
 		SpaceFields:           config.SpaceFields,
 		SSLDisabled:           config.SSLDisabled,
-	})
+		Trace:                 config.Trace,
+		AsyncTimeout:          config.AsyncTimeout,
+		ColorEnabled:          config.ColorEnabled,
+	}, "", "  ")
 }
 
 func JsonUnmarshalV3(input []byte, config *Data) (err error) {
@@ -57,6 +63,9 @@ func JsonUnmarshalV3(input []byte, config *Data) (err error) {
 	config.AuthorizationEndpoint = configJson.AuthorizationEndpoint
 	config.UaaEndpoint = configJson.UaaEndpoint
 	config.SSLDisabled = configJson.SSLDisabled
+	config.AsyncTimeout = configJson.AsyncTimeout
+	config.Trace = configJson.Trace
+	config.ColorEnabled = configJson.ColorEnabled
 
 	return
 }

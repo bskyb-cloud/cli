@@ -2,6 +2,8 @@
 
 set -e
 
+export CF_RAISE_ERROR_ON_WARNINGS=true
+
 export GOPATH=~/go
 rm -rf $GOPATH/pkg/*
 
@@ -9,15 +11,15 @@ go get -d github.com/cloudfoundry/cf-acceptance-tests/
 export CATSPATH=$GOPATH/src/github.com/cloudfoundry/cf-acceptance-tests
 
 rm -f $CATSPATH/gcf
-curl https://s3.amazonaws.com/go-cli/builds/cf-linux-amd64 > $CATSPATH/gcf
-chmod u+x $CATSPATH/gcf
+curl https://s3.amazonaws.com/go-cli/builds/cf-linux-amd64 > $CATSPATH/cf
+chmod u+x $CATSPATH/cf
 
 export PATH=$PATH:$CATSPATH
 
 cd $CATSPATH
-git checkout master
-
 export CONFIG=$CATSPATH/config.json
+git pull
+git checkout CLI-non-backwards-compatible
 
 local_gopath=$CATSPATH/Godeps/_workspace
 
@@ -28,4 +30,4 @@ export PATH=$local_gopath/bin:$PATH
 
 go install -v github.com/onsi/ginkgo/ginkgo
 echo "CATS STRAPPED WITH GATS"
-ginkgo -r -slowSpecThreshold=120 -skip="go makes the app reachable via its bound route|SSO"
+ginkgo -r -slowSpecThreshold=120 -skipPackage=diego -skip="go makes the app reachable via its bound route|SSO|takes effect after a restart, not requiring a push|doesn't die when printing 32MB"

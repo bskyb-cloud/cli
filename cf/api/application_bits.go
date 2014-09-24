@@ -5,19 +5,21 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/cloudfoundry/cli/cf/api/resources"
-	"github.com/cloudfoundry/cli/cf/app_files"
-	"github.com/cloudfoundry/cli/cf/configuration"
-	"github.com/cloudfoundry/cli/cf/errors"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/net"
-	"github.com/cloudfoundry/gofileutils/fileutils"
 	"io"
 	"mime/multipart"
 	"net/textproto"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/cloudfoundry/cli/cf/api/resources"
+	"github.com/cloudfoundry/cli/cf/app_files"
+	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/errors"
+	. "github.com/cloudfoundry/cli/cf/i18n"
+	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/net"
+	"github.com/cloudfoundry/gofileutils/fileutils"
 )
 
 const (
@@ -25,7 +27,7 @@ const (
 )
 
 type ApplicationBitsRepository interface {
-	UploadApp(appGuid, dir string, cb func(path string, zipSize, fileCount uint64)) (apiErr error)
+	UploadApp(appGuid, dir string, cb func(path string, zipSize, fileCount int64)) (apiErr error)
 }
 
 type CloudControllerApplicationBitsRepository struct {
@@ -41,7 +43,7 @@ func NewCloudControllerApplicationBitsRepository(config configuration.Reader, ga
 	return
 }
 
-func (repo CloudControllerApplicationBitsRepository) UploadApp(appGuid string, appDir string, fileSizePrinter func(path string, zipSize, fileCount uint64)) (apiErr error) {
+func (repo CloudControllerApplicationBitsRepository) UploadApp(appGuid string, appDir string, fileSizePrinter func(path string, zipSize, fileCount int64)) (apiErr error) {
 	fileutils.TempDir("apps", func(uploadDir string, err error) {
 		if err != nil {
 			apiErr = err
@@ -55,6 +57,12 @@ func (repo CloudControllerApplicationBitsRepository) UploadApp(appGuid string, a
 				return
 			}
 			presentFiles, err = repo.copyUploadableFiles(sourceDir, uploadDir)
+			if err != nil {
+				return
+			}
+
+			// copy cfignore if present
+			fileutils.CopyPathToPath(filepath.Join(sourceDir, ".cfignore"), filepath.Join(uploadDir, ".cfignore"))
 		})
 
 		if err != nil {
@@ -68,24 +76,24 @@ func (repo CloudControllerApplicationBitsRepository) UploadApp(appGuid string, a
 				return
 			}
 
-			zipFileSize := uint64(0)
-			zipFileCount := uint64(0)
+			zipFileSize := int64(0)
+			zipFileCount := int64(0)
 
 			err = repo.zipper.Zip(uploadDir, zipFile)
 			switch err := err.(type) {
 			case nil:
 				stat, err := zipFile.Stat()
 				if err != nil {
-					apiErr = errors.NewWithError("Error zipping application", err)
+					apiErr = errors.NewWithError(T("Error zipping application"), err)
 					return
 				}
 
-				zipFileSize = uint64(stat.Size())
+				zipFileSize = int64(stat.Size())
 				zipFileCount = app_files.CountFiles(uploadDir)
 			case *errors.EmptyDirError:
 				zipFile = nil
 			default:
-				apiErr = errors.NewWithError("Error zipping application", err)
+				apiErr = errors.NewWithError(T("Error zipping application"), err)
 				return
 			}
 
@@ -104,19 +112,19 @@ func (repo CloudControllerApplicationBitsRepository) uploadBits(appGuid string, 
 	url := fmt.Sprintf("%s/v2/apps/%s/bits", repo.config.ApiEndpoint(), appGuid)
 	fileutils.TempFile("requests", func(requestFile *os.File, err error) {
 		if err != nil {
-			apiErr = errors.NewWithError("Error creating tmp file: %s", err)
+			apiErr = errors.NewWithError(T("Error creating tmp file: {{.Err}}", map[string]interface{}{"Err": err}), err)
 			return
 		}
 
 		presentFilesJSON, err := json.Marshal(presentFiles)
 		if err != nil {
-			apiErr = errors.NewWithError("Error marshaling JSON", err)
+			apiErr = errors.NewWithError(T("Error marshaling JSON"), err)
 			return
 		}
 
 		boundary, err := repo.writeUploadBody(zipFile, requestFile, presentFilesJSON)
 		if err != nil {
-			apiErr = errors.NewWithError("Error writing to tmp file: %s", err)
+			apiErr = errors.NewWithError(T("Error writing to tmp file: {{.Err}}", map[string]interface{}{"Err": err}), err)
 			return
 		}
 
@@ -226,7 +234,7 @@ func (repo CloudControllerApplicationBitsRepository) getFilesToUpload(allAppFile
 
 	allAppFilesJson, err := json.Marshal(appFilesRequest)
 	if err != nil {
-		apiErr = errors.NewWithError("Failed to create json for resource_match request", err)
+		apiErr = errors.NewWithError(T("Failed to create json for resource_match request"), err)
 		return
 	}
 

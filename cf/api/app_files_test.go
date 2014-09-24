@@ -2,15 +2,19 @@ package api_test
 
 import (
 	"fmt"
-	. "github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/net"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testnet "github.com/cloudfoundry/cli/testhelpers/net"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	"net/http"
 	"net/http/httptest"
+	"time"
+
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	"github.com/cloudfoundry/cli/cf/net"
+	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+
+	. "github.com/cloudfoundry/cli/cf/api"
+	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("AppFilesRepository", func() {
@@ -38,7 +42,7 @@ var _ = Describe("AppFilesRepository", func() {
 
 		req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
 			Method: "GET",
-			Path:   "/v2/apps/my-app-guid/instances/0/files/some/path",
+			Path:   "/v2/apps/my-app-guid/instances/1/files/some/path",
 			Response: testnet.TestResponse{
 				Status: http.StatusTemporaryRedirect,
 				Header: http.Header{
@@ -53,11 +57,11 @@ var _ = Describe("AppFilesRepository", func() {
 		configRepo := testconfig.NewRepositoryWithDefaults()
 		configRepo.SetApiEndpoint(listFilesRedirectServer.URL)
 
-		gateway := net.NewCloudControllerGateway(configRepo)
+		gateway := net.NewCloudControllerGateway(configRepo, time.Now)
 		repo := NewCloudControllerAppFilesRepository(configRepo, gateway)
-		list, err := repo.ListFiles("my-app-guid", "some/path")
+		list, err := repo.ListFiles("my-app-guid", 1, "some/path")
 
-		Expect(handler).To(testnet.HaveAllRequestsCalled())
+		Expect(handler).To(HaveAllRequestsCalled())
 		Expect(err).ToNot(HaveOccurred())
 		Expect(list).To(Equal(expectedResponse))
 	})

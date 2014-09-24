@@ -1,10 +1,10 @@
 package application
 
 import (
-	"errors"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/configuration"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -26,20 +26,19 @@ func NewRenameApp(ui terminal.UI, config configuration.Reader, appRepo api.Appli
 	return
 }
 
-func (command *RenameApp) Metadata() command_metadata.CommandMetadata {
+func (cmd *RenameApp) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "rename",
-		Description: "Rename an app",
-		Usage:       "CF_NAME rename APP_NAME NEW_APP_NAME",
+		Description: T("Rename an app"),
+		Usage:       T("CF_NAME rename APP_NAME NEW_APP_NAME"),
 	}
 }
 
 func (cmd *RenameApp) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
 	if len(c.Args()) != 2 {
-		err = errors.New("Incorrect Usage")
 		cmd.ui.FailWithUsage(c)
-		return
 	}
+
 	cmd.appReq = requirementsFactory.NewApplicationRequirement(c.Args()[0])
 	reqs = []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
@@ -52,13 +51,13 @@ func (cmd *RenameApp) Run(c *cli.Context) {
 	app := cmd.appReq.GetApplication()
 	newName := c.Args()[1]
 
-	cmd.ui.Say("Renaming app %s to %s in org %s / space %s as %s...",
-		terminal.EntityNameColor(app.Name),
-		terminal.EntityNameColor(newName),
-		terminal.EntityNameColor(cmd.config.OrganizationFields().Name),
-		terminal.EntityNameColor(cmd.config.SpaceFields().Name),
-		terminal.EntityNameColor(cmd.config.Username()),
-	)
+	cmd.ui.Say(T("Renaming app {{.AppName}} to {{.NewName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.Username}}...",
+		map[string]interface{}{
+			"AppName":   terminal.EntityNameColor(app.Name),
+			"NewName":   terminal.EntityNameColor(newName),
+			"OrgName":   terminal.EntityNameColor(cmd.config.OrganizationFields().Name),
+			"SpaceName": terminal.EntityNameColor(cmd.config.SpaceFields().Name),
+			"Username":  terminal.EntityNameColor(cmd.config.Username())}))
 
 	params := models.AppParams{Name: &newName}
 

@@ -28,6 +28,9 @@ type Data struct {
 	OrganizationFields    models.OrganizationFields
 	SpaceFields           models.SpaceFields
 	SSLDisabled           bool
+	AsyncTimeout          uint
+	Trace                 string
+	ColorEnabled          string
 }
 
 func NewData() (data *Data) {

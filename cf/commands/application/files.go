@@ -1,10 +1,11 @@
 package application
 
 import (
-	"errors"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/flag_helpers"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/codegangsta/cli"
@@ -25,20 +26,21 @@ func NewFiles(ui terminal.UI, config configuration.Reader, appFilesRepo api.AppF
 	return
 }
 
-func (command *Files) Metadata() command_metadata.CommandMetadata {
+func (cmd *Files) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "files",
 		ShortName:   "f",
-		Description: "Print out a list of files in a directory or the contents of a specific file",
-		Usage:       "CF_NAME files APP [PATH]",
+		Description: T("Print out a list of files in a directory or the contents of a specific file"),
+		Usage:       T("CF_NAME files APP [-i INSTANCE] [PATH]"),
+		Flags: []cli.Flag{
+			flag_helpers.NewIntFlag("i", T("Instance")),
+		},
 	}
 }
 
 func (cmd *Files) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
 	if len(c.Args()) < 1 {
-		err = errors.New("Incorrect Usage")
 		cmd.ui.FailWithUsage(c)
-		return
 	}
 
 	cmd.appReq = requirementsFactory.NewApplicationRequirement(c.Args()[0])
@@ -54,19 +56,37 @@ func (cmd *Files) GetRequirements(requirementsFactory requirements.Factory, c *c
 func (cmd *Files) Run(c *cli.Context) {
 	app := cmd.appReq.GetApplication()
 
-	cmd.ui.Say("Getting files for app %s in org %s / space %s as %s...",
-		terminal.EntityNameColor(app.Name),
-		terminal.EntityNameColor(cmd.config.OrganizationFields().Name),
-		terminal.EntityNameColor(cmd.config.SpaceFields().Name),
-		terminal.EntityNameColor(cmd.config.Username()),
-	)
+	var instance int
+	if c.IsSet("i") {
+		instance = c.Int("i")
+		if instance < 0 {
+			cmd.ui.Failed(T("Invalid instance: {{.Instance}}\nInstance must be a positive integer",
+				map[string]interface{}{
+					"Instance": instance,
+				}))
+		}
+		if instance >= app.InstanceCount {
+			cmd.ui.Failed(T("Invalid instance: {{.Instance}}\nInstance must be less than {{.InstanceCount}}",
+				map[string]interface{}{
+					"Instance":      instance,
+					"InstanceCount": app.InstanceCount,
+				}))
+		}
+	}
+
+	cmd.ui.Say(T("Getting files for app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.Username}}...",
+		map[string]interface{}{
+			"AppName":   terminal.EntityNameColor(app.Name),
+			"OrgName":   terminal.EntityNameColor(cmd.config.OrganizationFields().Name),
+			"SpaceName": terminal.EntityNameColor(cmd.config.SpaceFields().Name),
+			"Username":  terminal.EntityNameColor(cmd.config.Username())}))
 
 	path := "/"
 	if len(c.Args()) > 1 {
 		path = c.Args()[1]
 	}
 
-	list, apiErr := cmd.appFilesRepo.ListFiles(app.Guid, path)
+	list, apiErr := cmd.appFilesRepo.ListFiles(app.Guid, instance, path)
 	if apiErr != nil {
 		cmd.ui.Failed(apiErr.Error())
 		return

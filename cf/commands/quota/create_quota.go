@@ -1,12 +1,13 @@
 package quota
 
 import (
-	"github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/api/quotas"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/flag_helpers"
 	"github.com/cloudfoundry/cli/cf/formatters"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -16,10 +17,10 @@ import (
 type CreateQuota struct {
 	ui        terminal.UI
 	config    configuration.Reader
-	quotaRepo api.QuotaRepository
+	quotaRepo quotas.QuotaRepository
 }
 
-func NewCreateQuota(ui terminal.UI, config configuration.Reader, quotaRepo api.QuotaRepository) CreateQuota {
+func NewCreateQuota(ui terminal.UI, config configuration.Reader, quotaRepo quotas.QuotaRepository) CreateQuota {
 	return CreateQuota{
 		ui:        ui,
 		config:    config,
@@ -27,16 +28,17 @@ func NewCreateQuota(ui terminal.UI, config configuration.Reader, quotaRepo api.Q
 	}
 }
 
-func (command CreateQuota) Metadata() command_metadata.CommandMetadata {
+func (cmd CreateQuota) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "create-quota",
-		Description: "Define a new resource quota",
-		Usage:       "CF_NAME create-quota QUOTA [-m MEMORY] [-r ROUTES] [-s SERVICE_INSTANCES] [--allow-paid-service-plans]",
+		Description: T("Define a new resource quota"),
+		Usage:       T("CF_NAME create-quota QUOTA [-m TOTAL_MEMORY] [-i INSTANCE_MEMORY] [-r ROUTES] [-s SERVICE_INSTANCES] [--allow-paid-service-plans]"),
 		Flags: []cli.Flag{
-			flag_helpers.NewStringFlag("m", "Total amount of memory (e.g. 1024M, 1G, 10G)"),
-			flag_helpers.NewIntFlag("r", "Total number of routes"),
-			flag_helpers.NewIntFlag("s", "Total number of service instances"),
-			cli.BoolFlag{Name: "allow-paid-service-plans", Usage: "Can provision instances of paid service plans"},
+			flag_helpers.NewStringFlag("i", T("Maximum amount of memory an application instance can have (e.g. 1024M, 1G, 10G)")),
+			flag_helpers.NewStringFlag("m", T("Total amount of memory (e.g. 1024M, 1G, 10G)")),
+			flag_helpers.NewIntFlag("r", T("Total number of routes")),
+			flag_helpers.NewIntFlag("s", T("Total number of service instances")),
+			cli.BoolFlag{Name: "allow-paid-service-plans", Usage: T("Can provision instances of paid service plans")},
 		},
 	}
 }
@@ -54,9 +56,10 @@ func (cmd CreateQuota) GetRequirements(requirementsFactory requirements.Factory,
 func (cmd CreateQuota) Run(context *cli.Context) {
 	name := context.Args()[0]
 
-	cmd.ui.Say("Creating quota %s as %s...",
-		terminal.EntityNameColor(name),
-		terminal.EntityNameColor(cmd.config.Username()))
+	cmd.ui.Say(T("Creating quota {{.QuotaName}} as {{.Username}}...", map[string]interface{}{
+		"QuotaName": terminal.EntityNameColor(name),
+		"Username":  terminal.EntityNameColor(cmd.config.Username()),
+	}))
 
 	quota := models.QuotaFields{
 		Name: name,
@@ -66,10 +69,20 @@ func (cmd CreateQuota) Run(context *cli.Context) {
 	if memoryLimit != "" {
 		parsedMemory, err := formatters.ToMegabytes(memoryLimit)
 		if err != nil {
-			cmd.ui.Failed("Invalid memory limit: %s\n%s", memoryLimit, err)
+			cmd.ui.Failed(T("Invalid memory limit: {{.MemoryLimit}}\n{{.Err}}", map[string]interface{}{"MemoryLimit": memoryLimit, "Err": err}))
 		}
 
 		quota.MemoryLimit = parsedMemory
+	}
+
+	instanceMemoryLimit := context.String("i")
+	if instanceMemoryLimit != "" {
+		parsedMemory, errr := formatters.ToMegabytes(instanceMemoryLimit)
+		if errr != nil {
+			cmd.ui.Failed(T("Invalid instance memory limit: {{.MemoryLimit}}\n{{.Err}}", map[string]interface{}{"MemoryLimit": instanceMemoryLimit, "Err": errr}))
+		}
+
+		quota.InstanceMemoryLimit = parsedMemory
 	}
 
 	if context.IsSet("r") {
@@ -89,7 +102,7 @@ func (cmd CreateQuota) Run(context *cli.Context) {
 	httpErr, ok := err.(errors.HttpError)
 	if ok && httpErr.ErrorCode() == errors.QUOTA_EXISTS {
 		cmd.ui.Ok()
-		cmd.ui.Warn("Quota Definition %s already exists", quota.Name)
+		cmd.ui.Warn(T("Quota Definition {{.QuotaName}} already exists", map[string]interface{}{"QuotaName": quota.Name}))
 		return
 	}
 

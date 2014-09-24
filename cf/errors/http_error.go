@@ -1,6 +1,9 @@
 package errors
 
-import "fmt"
+import (
+	"fmt"
+	. "github.com/cloudfoundry/cli/cf/i18n"
+)
 
 type HttpError interface {
 	error
@@ -37,11 +40,10 @@ func (err *baseHttpError) StatusCode() int {
 }
 
 func (err *baseHttpError) Error() string {
-	return fmt.Sprintf(
-		"Server error, status code: %d, error code: %s, message: %s",
-		err.statusCode,
-		err.apiErrorCode,
-		err.description,
+	return fmt.Sprintf(T("Server error, status code: {{.ErrStatusCode}}, error code: {{.ErrApiErrorCode}}, message: {{.ErrDescription}}",
+		map[string]interface{}{"ErrStatusCode": err.statusCode,
+			"ErrApiErrorCode": err.apiErrorCode,
+			"ErrDescription":  err.description}),
 	)
 }
 

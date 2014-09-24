@@ -1,10 +1,10 @@
 package buildpack_test
 
 import (
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/buildpack"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
@@ -30,8 +30,7 @@ var _ = Describe("rename-buildpack command", func() {
 	})
 
 	runCommand := func(args ...string) {
-		ctxt := testcmd.NewContext("rename-buildpack", args)
-		testcmd.RunCommand(cmd, ctxt, requirementsFactory)
+		testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	It("fails requirements when called without the current name and the new name to use", func() {

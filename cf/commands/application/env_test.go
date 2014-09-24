@@ -1,109 +1,134 @@
-/*
-                       WARNING WARNING WARNING
-
-                Attention all potential contributors
-
-   This testfile is not in the best state. We've been slowly transitioning
-   from the built in "testing" package to using Ginkgo. As you can see, we've
-   changed the format, but a lot of the setup, test body, descriptions, etc
-   are either hardcoded, completely lacking, or misleading.
-
-   For example:
-
-   Describe("Testing with ginkgo"...)      // This is not a great description
-   It("TestDoesSoemthing"...)              // This is a horrible description
-
-   Describe("create-user command"...       // Describe the actual object under test
-   It("creates a user when provided ..."   // this is more descriptive
-
-   For good examples of writing Ginkgo tests for the cli, refer to
-
-   src/github.com/cloudfoundry/cli/cf/commands/application/delete_app_test.go
-   src/github.com/cloudfoundry/cli/cf/terminal/ui_test.go
-   src/github.com/cloudfoundry/loggregator_consumer/consumer_test.go
-*/
-
 package application_test
 
 import (
-	. "github.com/cloudfoundry/cli/cf/commands/application"
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+
+	. "github.com/cloudfoundry/cli/cf/commands/application"
+	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 )
 
-var _ = Describe("Testing with ginkgo", func() {
-	It("TestEnvRequirements", func() {
-		requirementsFactory := getEnvDependencies()
+var _ = Describe("env command", func() {
+	var (
+		ui                  *testterm.FakeUI
+		app                 models.Application
+		appRepo             *testapi.FakeApplicationRepository
+		configRepo          configuration.ReadWriter
+		requirementsFactory *testreq.FakeReqFactory
+	)
 
-		requirementsFactory.LoginSuccess = true
-		callEnv([]string{"my-app"}, requirementsFactory)
-		Expect(testcmd.CommandDidPassRequirements).To(BeTrue())
-		Expect(requirementsFactory.ApplicationName).To(Equal("my-app"))
+	BeforeEach(func() {
+		ui = &testterm.FakeUI{}
 
-		requirementsFactory.LoginSuccess = false
-		callEnv([]string{"my-app"}, requirementsFactory)
-		Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+		app = models.Application{}
+		app.Name = "my-app"
+		appRepo = &testapi.FakeApplicationRepository{}
+		appRepo.ReadReturns.App = app
+
+		configRepo = testconfig.NewRepositoryWithDefaults()
+		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true}
 	})
-	It("TestEnvFailsWithUsage", func() {
 
-		requirementsFactory := getEnvDependencies()
-		ui := callEnv([]string{}, requirementsFactory)
+	runCommand := func(args ...string) {
+		cmd := NewEnv(ui, configRepo, appRepo)
+		testcmd.RunCommand(cmd, args, requirementsFactory)
+	}
+
+	Describe("Requirements", func() {
+		It("fails when the user is not logged in", func() {
+			requirementsFactory.LoginSuccess = false
+			runCommand("my-app")
+			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+		})
+	})
+
+	It("fails with usage when no app name is given", func() {
+		runCommand()
 
 		Expect(ui.FailedWithUsage).To(BeTrue())
 		Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
 	})
-	It("TestEnvListsEnvironmentVariables", func() {
 
-		requirementsFactory := getEnvDependencies()
-		requirementsFactory.Application.EnvironmentVars = map[string]string{
-			"my-key":  "my-value",
-			"my-key2": "my-value2",
-		}
-
-		ui := callEnv([]string{"my-app"}, requirementsFactory)
+	It("fails with usage when the app cannot be found", func() {
+		appRepo.ReadReturns.Error = errors.NewModelNotFoundError("app", "hocus-pocus")
+		runCommand("hocus-pocus")
 
 		Expect(ui.Outputs).To(ContainSubstrings(
-			[]string{"Getting env variables for app", "my-app", "my-org", "my-space", "my-user"},
-			[]string{"OK"},
-			[]string{"my-key", "my-value", "my-key2", "my-value2"},
+			[]string{"FAILED"},
+			[]string{"not found"},
 		))
 	})
 
-	It("TestEnvShowsEmptyMessage", func() {
-		requirementsFactory := getEnvDependencies()
-		requirementsFactory.Application.EnvironmentVars = map[string]string{}
+	Context("when the app has at least one env var", func() {
+		BeforeEach(func() {
+			app = models.Application{}
+			app.Name = "my-app"
+			app.Guid = "the-app-guid"
 
-		ui := callEnv([]string{"my-app"}, requirementsFactory)
+			appRepo.ReadReturns.App = app
+			appRepo.ReadEnvReturns.UserEnv = map[string]string{
+				"my-key":    "my-value",
+				"my-key2":   "my-value2",
+				"first-key": "Zer0",
+			}
+			appRepo.ReadEnvReturns.VcapServices = `{
+  "VCAP_SERVICES": {
+    "pump-yer-brakes": "drive-slow"
+  }
+}`
+		})
 
-		Expect(ui.Outputs).To(ContainSubstrings(
-			[]string{"Getting env variables for app", "my-app"},
-			[]string{"OK"},
-			[]string{"No env variables exist"},
-		))
+		It("lists those environment variables, in sorted order for provided services", func() {
+			runCommand("my-app")
+			Expect(appRepo.ReadEnvArgs.AppGuid).To(Equal("the-app-guid"))
+			Expect(ui.Outputs).To(ContainSubstrings(
+				[]string{"Getting env variables for app", "my-app", "my-org", "my-space", "my-user"},
+				[]string{"OK"},
+				[]string{"System-Provided:"},
+				[]string{"VCAP_SERVICES", ":", "{"},
+				[]string{"pump-yer-brakes", ":", "drive-slow"},
+				[]string{"}"},
+				[]string{"User-Provided:"},
+				[]string{"first-key", "Zer0"},
+				[]string{"my-key", "my-value"},
+				[]string{"my-key2", "my-value2"},
+			))
+		})
+	})
+
+	Context("when the app has no user-defined environment variables", func() {
+		It("shows an empty message", func() {
+			runCommand("my-app")
+
+			Expect(ui.Outputs).To(ContainSubstrings(
+				[]string{"Getting env variables for app", "my-app"},
+				[]string{"OK"},
+				[]string{"No", "system-provided", "env variables", "have been set"},
+				[]string{"No", "env variables", "have been set"},
+			))
+		})
+	})
+
+	Context("when the app has no system-provided environment variables", func() {
+		It("does not show the system provided services hash", func() {
+			runCommand("my-app")
+			Expect(ui.Outputs).ToNot(ContainSubstrings([]string{"System-Provided"}))
+		})
+	})
+
+	Context("when reading the environment variables returns an error", func() {
+		It("tells you about that error", func() {
+			appRepo.ReadEnvReturns.Error = errors.New("BOO YOU CANT DO THAT; GO HOME; you're drunk")
+			runCommand("whatever")
+			Expect(ui.Outputs).To(ContainSubstrings([]string{"you're drunk"}))
+		})
 	})
 })
-
-func callEnv(args []string, requirementsFactory *testreq.FakeReqFactory) (ui *testterm.FakeUI) {
-	ui = &testterm.FakeUI{}
-	ctxt := testcmd.NewContext("env", args)
-
-	configRepo := testconfig.NewRepositoryWithDefaults()
-	cmd := NewEnv(ui, configRepo)
-	testcmd.RunCommand(cmd, ctxt, requirementsFactory)
-
-	return
-}
-
-func getEnvDependencies() (requirementsFactory *testreq.FakeReqFactory) {
-	app := models.Application{}
-	app.Name = "my-app"
-	requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true, Application: app}
-	return
-}

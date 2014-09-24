@@ -1,11 +1,11 @@
 package serviceauthtoken_test
 
 import (
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/serviceauthtoken"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -34,7 +34,7 @@ var _ = Describe("delete-service-auth-token command", func() {
 
 	runCommand := func(args ...string) {
 		cmd := NewDeleteServiceAuthToken(ui, configRepo, authTokenRepo)
-		testcmd.RunCommand(cmd, testcmd.NewContext("delete-service-auth-token", args), requirementsFactory)
+		testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
@@ -118,7 +118,7 @@ var _ = Describe("delete-service-auth-token command", func() {
 			authTokenRepo.FindByLabelAndProviderApiResponse = errors.New("OH NOES")
 		})
 
-		It("TestDeleteServiceAuthTokenFailsWithError", func() {
+		It("shows the user an error", func() {
 			runCommand("a label", "a provider")
 			Expect(ui.Outputs).To(ContainSubstrings(
 				[]string{"Deleting service auth token as", "my-user"},

@@ -1,18 +1,20 @@
 package app_test
 
 import (
+	"strings"
+	"time"
+
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/app"
 	"github.com/cloudfoundry/cli/cf/command_factory"
-	"github.com/cloudfoundry/cli/cf/io_helpers"
 	"github.com/cloudfoundry/cli/cf/manifest"
 	"github.com/cloudfoundry/cli/cf/net"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	io_helpers "github.com/cloudfoundry/cli/testhelpers/io"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	"github.com/codegangsta/cli"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"strings"
 )
 
 var _ = Describe("Help", func() {
@@ -25,7 +27,7 @@ var _ = Describe("Help", func() {
 {{end}}{{end}}{{end}}
 `
 		output := io_helpers.CaptureOutput(func() {
-			app.ShowAppHelp(dummyTemplate, createApp(commandFactory))
+			app.ShowHelp(dummyTemplate, createApp(commandFactory))
 		})
 
 		for _, metadata := range commandFactory.CommandMetadatas() {
@@ -40,7 +42,7 @@ func createCommandFactory() command_factory.Factory {
 	manifestRepo := manifest.NewManifestDiskRepository()
 	apiRepoLocator := api.NewRepositoryLocator(configRepo, map[string]net.Gateway{
 		"auth":             net.NewUAAGateway(configRepo),
-		"cloud-controller": net.NewCloudControllerGateway(configRepo),
+		"cloud-controller": net.NewCloudControllerGateway(configRepo, time.Now),
 		"uaa":              net.NewUAAGateway(configRepo),
 	})
 

@@ -3,13 +3,15 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	. "github.com/cloudfoundry/cli/cf/i18n"
+	"net/url"
+	"strings"
+
 	"github.com/cloudfoundry/cli/cf/api/resources"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
-	"net/url"
-	"strings"
 )
 
 type ApplicationRepository interface {
@@ -17,6 +19,8 @@ type ApplicationRepository interface {
 	Read(name string) (app models.Application, apiErr error)
 	Update(appGuid string, params models.AppParams) (updatedApp models.Application, apiErr error)
 	Delete(appGuid string) (apiErr error)
+	ReadEnv(guid string) (userEnv map[string]string, vcapServices string, err error)
+	CreateRestageRequest(guid string) (apiErr error)
 }
 
 type CloudControllerApplicationRepository struct {
@@ -33,7 +37,7 @@ func NewCloudControllerApplicationRepository(config configuration.Reader, gatewa
 func (repo CloudControllerApplicationRepository) Create(params models.AppParams) (createdApp models.Application, apiErr error) {
 	data, err := repo.formatAppJSON(params)
 	if err != nil {
-		apiErr = errors.NewWithError("Failed to marshal JSON", err)
+		apiErr = errors.NewWithError(T("Failed to marshal JSON"), err)
 		return
 	}
 
@@ -69,7 +73,7 @@ func (repo CloudControllerApplicationRepository) Read(name string) (app models.A
 func (repo CloudControllerApplicationRepository) Update(appGuid string, params models.AppParams) (updatedApp models.Application, apiErr error) {
 	data, err := repo.formatAppJSON(params)
 	if err != nil {
-		apiErr = errors.NewWithError("Failed to marshal JSON", err)
+		apiErr = errors.NewWithError(T("Failed to marshal JSON"), err)
 		return
 	}
 
@@ -94,4 +98,38 @@ func (repo CloudControllerApplicationRepository) formatAppJSON(input models.AppP
 func (repo CloudControllerApplicationRepository) Delete(appGuid string) (apiErr error) {
 	path := fmt.Sprintf("%s/v2/apps/%s?recursive=true", repo.config.ApiEndpoint(), appGuid)
 	return repo.gateway.DeleteResource(path)
+}
+
+type systemEnvResource struct {
+	System      map[string]interface{} `json:"system_env_json,omitempty"`
+	Environment map[string]string      `json:"environment_json,omitempty"`
+}
+
+func (repo CloudControllerApplicationRepository) ReadEnv(guid string) (map[string]string, string, error) {
+	var (
+		err          error
+		jsonBytes    []byte
+		vcapServices string
+	)
+
+	path := fmt.Sprintf("%s/v2/apps/%s/env", repo.config.ApiEndpoint(), guid)
+	appResource := new(systemEnvResource)
+
+	err = repo.gateway.GetResource(path, appResource)
+	if err != nil {
+		return nil, "", err
+	}
+
+	servicesAsMap, ok := appResource.System["VCAP_SERVICES"].(map[string]interface{})
+	if ok && len(servicesAsMap) > 0 {
+		jsonBytes, err = json.MarshalIndent(appResource.System, "", "  ")
+		vcapServices = string(jsonBytes)
+	}
+
+	return appResource.Environment, vcapServices, err
+}
+
+func (repo CloudControllerApplicationRepository) CreateRestageRequest(guid string) error {
+	path := fmt.Sprintf("%s/v2/apps/%s/restage", repo.config.ApiEndpoint(), guid)
+	return repo.gateway.CreateResource(path, strings.NewReader(""), nil)
 }

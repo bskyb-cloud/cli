@@ -1,10 +1,17 @@
 package trace
 
 import (
+	"fmt"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/gofileutils/fileutils"
 	"io"
 	"log"
 	"os"
+	"regexp"
+)
+
+var (
+	PRIVATE_DATA_PLACEHOLDER = T("[PRIVATE DATA HIDDEN]")
 )
 
 const CF_TRACE = "CF_TRACE"
@@ -25,7 +32,7 @@ var stdOut io.Writer = os.Stdout
 var Logger Printer
 
 func init() {
-	Logger = NewLogger()
+	Logger = NewLogger("")
 }
 
 func EnableTrace() {
@@ -40,16 +47,17 @@ func SetStdout(s io.Writer) {
 	stdOut = s
 }
 
-func NewLogger() Printer {
-	cf_trace := os.Getenv(CF_TRACE)
+func NewLogger(cf_trace string) Printer {
 	switch cf_trace {
 	case "", "false":
-		return new(nullLogger)
+		Logger = new(nullLogger)
 	case "true":
-		return newStdoutLogger()
+		Logger = newStdoutLogger()
 	default:
-		return newFileLogger(cf_trace)
+		Logger = newFileLogger(cf_trace)
 	}
+
+	return Logger
 }
 
 func newStdoutLogger() Printer {
@@ -60,9 +68,30 @@ func newFileLogger(path string) Printer {
 	file, err := fileutils.Open(path)
 	if err != nil {
 		logger := newStdoutLogger()
-		logger.Printf("CF_TRACE ERROR CREATING LOG FILE %s:\n%s", path, err)
+		logger.Printf(T("CF_TRACE ERROR CREATING LOG FILE {{.Path}}:\n{{.Err}}",
+			map[string]interface{}{"Path": path, "Err": err}))
 		return logger
 	}
 
 	return log.New(file, "", 0)
+}
+
+func Sanitize(input string) (sanitized string) {
+	var sanitizeJson = func(propertyName string, json string) string {
+		regex := regexp.MustCompile(fmt.Sprintf(`"%s":\s*"[^"]*"`, propertyName))
+		return regex.ReplaceAllString(json, fmt.Sprintf(`"%s":"%s"`, propertyName, PRIVATE_DATA_PLACEHOLDER))
+	}
+
+	re := regexp.MustCompile(`(?m)^Authorization: .*`)
+	sanitized = re.ReplaceAllString(input, "Authorization: "+PRIVATE_DATA_PLACEHOLDER)
+	re = regexp.MustCompile(`password=[^&]*&`)
+	sanitized = re.ReplaceAllString(sanitized, "password="+PRIVATE_DATA_PLACEHOLDER+"&")
+
+	sanitized = sanitizeJson("access_token", sanitized)
+	sanitized = sanitizeJson("refresh_token", sanitized)
+	sanitized = sanitizeJson("token", sanitized)
+	sanitized = sanitizeJson("password", sanitized)
+	sanitized = sanitizeJson("oldPassword", sanitized)
+
+	return
 }

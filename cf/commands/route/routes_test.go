@@ -1,10 +1,10 @@
 package route_test
 
 import (
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/route"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/models"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
@@ -35,7 +35,7 @@ var _ = Describe("routes command", func() {
 
 	runCommand := func(args ...string) {
 		cmd := NewListRoutes(ui, configRepo, routeRepo)
-		testcmd.RunCommand(cmd, testcmd.NewContext("routes", args), requirementsFactory)
+		testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	Describe("login requirements", func() {

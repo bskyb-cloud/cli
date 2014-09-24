@@ -3,14 +3,16 @@ package api
 import (
 	"bufio"
 	"fmt"
-	"github.com/cloudfoundry/cli/cf/configuration"
-	"github.com/cloudfoundry/cli/cf/errors"
-	"github.com/cloudfoundry/cli/cf/net"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 	"net/textproto"
 	"strings"
+
+	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/errors"
+	. "github.com/cloudfoundry/cli/cf/i18n"
+	"github.com/cloudfoundry/cli/cf/net"
 )
 
 type CurlRepository interface {
@@ -38,7 +40,7 @@ func (repo CloudControllerCurlRepository) Request(method, path, headerString, bo
 
 	err = mergeHeaders(req.HttpReq.Header, headerString)
 	if err != nil {
-		err = errors.NewWithError("Error parsing headers", err)
+		err = errors.NewWithError(T("Error parsing headers"), err)
 		return
 	}
 
@@ -51,13 +53,14 @@ func (repo CloudControllerCurlRepository) Request(method, path, headerString, bo
 	if err != nil {
 		return
 	}
+	defer res.Body.Close()
 
 	headerBytes, _ := httputil.DumpResponse(res, false)
 	resHeaders = string(headerBytes)
 
 	bytes, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		err = errors.NewWithError("Error reading response", err)
+		err = errors.NewWithError(T("Error reading response"), err)
 	}
 	resBody = string(bytes)
 

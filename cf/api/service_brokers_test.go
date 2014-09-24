@@ -1,46 +1,24 @@
-/*
-                       WARNING WARNING WARNING
-
-                Attention all potential contributors
-
-   This testfile is not in the best state. We've been slowly transitioning
-   from the built in "testing" package to using Ginkgo. As you can see, we've
-   changed the format, but a lot of the setup, test body, descriptions, etc
-   are either hardcoded, completely lacking, or misleading.
-
-   For example:
-
-   Describe("Testing with ginkgo"...)      // This is not a great description
-   It("TestDoesSoemthing"...)              // This is a horrible description
-
-   Describe("create-user command"...       // Describe the actual object under test
-   It("creates a user when provided ..."   // this is more descriptive
-
-   For good examples of writing Ginkgo tests for the cli, refer to
-
-   src/github.com/cloudfoundry/cli/cf/commands/application/delete_app_test.go
-   src/github.com/cloudfoundry/cli/cf/terminal/ui_test.go
-   src/github.com/cloudfoundry/loggregator_consumer/consumer_test.go
-*/
-
 package api_test
 
 import (
-	. "github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/errors"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/net"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testnet "github.com/cloudfoundry/cli/testhelpers/net"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	"net/http"
 	"net/http/httptest"
+	"time"
+
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/net"
+	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+
+	. "github.com/cloudfoundry/cli/cf/api"
+	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Service Brokers Repo", func() {
-	It("TestServiceBrokersListServiceBrokers", func() {
+	It("lists services brokers", func() {
 		firstRequest := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
 			Method: "GET",
 			Path:   "/v2/service_brokers",
@@ -101,141 +79,204 @@ var _ = Describe("Service Brokers Repo", func() {
 		Expect(len(serviceBrokers)).To(Equal(2))
 		Expect(serviceBrokers[0].Guid).To(Equal("found-guid-1"))
 		Expect(serviceBrokers[1].Guid).To(Equal("found-guid-2"))
-		Expect(handler).To(testnet.HaveAllRequestsCalled())
+		Expect(handler).To(HaveAllRequestsCalled())
 		Expect(apiErr).NotTo(HaveOccurred())
 	})
 
-	It("TestFindServiceBrokerByName", func() {
-		responseBody := `{
-"resources": [
-{
-  "metadata": {
-	"guid":"found-guid"
-  },
+	Describe("FindByName", func() {
+		It("returns the service broker with the given name", func() {
+			responseBody := `
+{"resources": [{
+  "metadata": {"guid":"found-guid"},
   "entity": {
-	"name": "found-name",
-	"broker_url": "http://found.example.com",
-	"auth_username": "found-username",
-	"auth_password": "found-password"
+  	"name": "found-name",
+		"broker_url": "http://found.example.com",
+		"auth_username": "found-username",
+		"auth_password": "found-password"
   }
+}]}`
+
+			req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+				Method:   "GET",
+				Path:     "/v2/service_brokers?q=name%3Amy-broker",
+				Response: testnet.TestResponse{Status: http.StatusOK, Body: responseBody},
+			})
+
+			ts, handler, repo := createServiceBrokerRepo(req)
+			defer ts.Close()
+
+			foundBroker, apiErr := repo.FindByName("my-broker")
+			expectedBroker := models.ServiceBroker{}
+			expectedBroker.Name = "found-name"
+			expectedBroker.Url = "http://found.example.com"
+			expectedBroker.Username = "found-username"
+			expectedBroker.Password = "found-password"
+			expectedBroker.Guid = "found-guid"
+
+			Expect(handler).To(HaveAllRequestsCalled())
+			Expect(apiErr).NotTo(HaveOccurred())
+			Expect(foundBroker).To(Equal(expectedBroker))
+		})
+
+		It("returns an error when the service broker cannot be found", func() {
+			req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+				Method:   "GET",
+				Path:     "/v2/service_brokers?q=name%3Amy-broker",
+				Response: testnet.TestResponse{Status: http.StatusOK, Body: `{ "resources": [ ] }`},
+			})
+
+			ts, handler, repo := createServiceBrokerRepo(req)
+			defer ts.Close()
+
+			_, apiErr := repo.FindByName("my-broker")
+
+			Expect(handler).To(HaveAllRequestsCalled())
+			Expect(apiErr).To(HaveOccurred())
+			Expect(apiErr.Error()).To(Equal("Service Broker my-broker not found"))
+		})
+	})
+
+	Describe("FindByGuid", func() {
+		It("returns the service broker with the given guid", func() {
+			responseBody := `
+{
+   "metadata": {
+      "guid": "found-guid",
+      "url": "/v2/service_brokers/found-guid",
+      "created_at": "2014-07-24T21:21:54+00:00",
+      "updated_at": "2014-07-25T17:03:40+00:00"
+   },
+   "entity": {
+      "name": "found-name",
+      "broker_url": "http://found.example.com",
+      "auth_username": "found-username"
+   }
 }
-]
-}`
+`
 
-		req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
-			Method:   "GET",
-			Path:     "/v2/service_brokers?q=name%3Amy-broker",
-			Response: testnet.TestResponse{Status: http.StatusOK, Body: responseBody},
+			req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+				Method:   "GET",
+				Path:     "/v2/service_brokers/found-guid",
+				Response: testnet.TestResponse{Status: http.StatusOK, Body: responseBody},
+			})
+
+			ts, handler, repo := createServiceBrokerRepo(req)
+			defer ts.Close()
+
+			foundBroker, apiErr := repo.FindByGuid("found-guid")
+			expectedBroker := models.ServiceBroker{}
+			expectedBroker.Name = "found-name"
+			expectedBroker.Url = "http://found.example.com"
+			expectedBroker.Username = "found-username"
+			expectedBroker.Guid = "found-guid"
+
+			Expect(handler).To(HaveAllRequestsCalled())
+			Expect(apiErr).NotTo(HaveOccurred())
+			Expect(foundBroker).To(Equal(expectedBroker))
 		})
 
-		ts, handler, repo := createServiceBrokerRepo(req)
-		defer ts.Close()
+		It("returns an error when the service broker cannot be found", func() {
+			req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+				Method: "GET",
+				Path:   "/v2/service_brokers/bogus-guid",
+				//This error code may not reflect reality.  Check it, change the code to match, and remove this comment.
+				Response: testnet.TestResponse{Status: http.StatusNotFound, Body: `{"error_code":"ServiceBrokerNotFound","description":"Service Broker bogus-guid not found","code":270042}`},
+			})
 
-		foundBroker, apiErr := repo.FindByName("my-broker")
-		expectedBroker := models.ServiceBroker{}
-		expectedBroker.Name = "found-name"
-		expectedBroker.Url = "http://found.example.com"
-		expectedBroker.Username = "found-username"
-		expectedBroker.Password = "found-password"
-		expectedBroker.Guid = "found-guid"
+			ts, handler, repo := createServiceBrokerRepo(req)
+			defer ts.Close()
 
-		Expect(handler).To(testnet.HaveAllRequestsCalled())
-		Expect(apiErr).NotTo(HaveOccurred())
-		Expect(foundBroker).To(Equal(expectedBroker))
+			_, apiErr := repo.FindByGuid("bogus-guid")
+
+			Expect(handler).To(HaveAllRequestsCalled())
+			Expect(apiErr).To(HaveOccurred())
+			Expect(apiErr.Error()).To(Equal("Server error, status code: 404, error code: 270042, message: Service Broker bogus-guid not found"))
+		})
 	})
 
-	It("TestFindServiceBrokerByNameWheNotFound", func() {
-		req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
-			Method:   "GET",
-			Path:     "/v2/service_brokers?q=name%3Amy-broker",
-			Response: testnet.TestResponse{Status: http.StatusOK, Body: `{ "resources": [ ] }`},
+	Describe("Create", func() {
+		It("creates the service broker with the given name, URL, username and password", func() {
+			expectedReqBody := `{"name":"foobroker","broker_url":"http://example.com","auth_username":"foouser","auth_password":"password"}`
+
+			req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+				Method:   "POST",
+				Path:     "/v2/service_brokers",
+				Matcher:  testnet.RequestBodyMatcher(expectedReqBody),
+				Response: testnet.TestResponse{Status: http.StatusCreated},
+			})
+
+			ts, handler, repo := createServiceBrokerRepo(req)
+			defer ts.Close()
+
+			apiErr := repo.Create("foobroker", "http://example.com", "foouser", "password")
+
+			Expect(handler).To(HaveAllRequestsCalled())
+			Expect(apiErr).NotTo(HaveOccurred())
 		})
-
-		ts, handler, repo := createServiceBrokerRepo(req)
-		defer ts.Close()
-
-		_, apiErr := repo.FindByName("my-broker")
-
-		Expect(handler).To(testnet.HaveAllRequestsCalled())
-		Expect(apiErr.(*errors.ModelNotFoundError)).NotTo(BeNil())
-		Expect(apiErr.Error()).To(Equal("Service Broker my-broker not found"))
 	})
 
-	It("TestCreateServiceBroker", func() {
-		expectedReqBody := `{"name":"foobroker","broker_url":"http://example.com","auth_username":"foouser","auth_password":"password"}`
+	Describe("Update", func() {
+		It("updates the service broker with the given guid", func() {
+			expectedReqBody := `{"broker_url":"http://update.example.com","auth_username":"update-foouser","auth_password":"update-password"}`
 
-		req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
-			Method:   "POST",
-			Path:     "/v2/service_brokers",
-			Matcher:  testnet.RequestBodyMatcher(expectedReqBody),
-			Response: testnet.TestResponse{Status: http.StatusCreated},
+			req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+				Method:   "PUT",
+				Path:     "/v2/service_brokers/my-guid",
+				Matcher:  testnet.RequestBodyMatcher(expectedReqBody),
+				Response: testnet.TestResponse{Status: http.StatusOK},
+			})
+
+			ts, handler, repo := createServiceBrokerRepo(req)
+			defer ts.Close()
+			serviceBroker := models.ServiceBroker{}
+			serviceBroker.Guid = "my-guid"
+			serviceBroker.Name = "foobroker"
+			serviceBroker.Url = "http://update.example.com"
+			serviceBroker.Username = "update-foouser"
+			serviceBroker.Password = "update-password"
+
+			apiErr := repo.Update(serviceBroker)
+
+			Expect(handler).To(HaveAllRequestsCalled())
+			Expect(apiErr).NotTo(HaveOccurred())
 		})
-
-		ts, handler, repo := createServiceBrokerRepo(req)
-		defer ts.Close()
-
-		apiErr := repo.Create("foobroker", "http://example.com", "foouser", "password")
-
-		Expect(handler).To(testnet.HaveAllRequestsCalled())
-		Expect(apiErr).NotTo(HaveOccurred())
 	})
 
-	It("TestUpdateServiceBroker", func() {
-		expectedReqBody := `{"broker_url":"http://update.example.com","auth_username":"update-foouser","auth_password":"update-password"}`
+	Describe("Rename", func() {
+		It("renames the service broker with the given guid", func() {
+			req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+				Method:   "PUT",
+				Path:     "/v2/service_brokers/my-guid",
+				Matcher:  testnet.RequestBodyMatcher(`{"name":"update-foobroker"}`),
+				Response: testnet.TestResponse{Status: http.StatusOK},
+			})
 
-		req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
-			Method:   "PUT",
-			Path:     "/v2/service_brokers/my-guid",
-			Matcher:  testnet.RequestBodyMatcher(expectedReqBody),
-			Response: testnet.TestResponse{Status: http.StatusOK},
+			ts, handler, repo := createServiceBrokerRepo(req)
+			defer ts.Close()
+
+			apiErr := repo.Rename("my-guid", "update-foobroker")
+
+			Expect(handler).To(HaveAllRequestsCalled())
+			Expect(apiErr).NotTo(HaveOccurred())
 		})
-
-		ts, handler, repo := createServiceBrokerRepo(req)
-		defer ts.Close()
-		serviceBroker := models.ServiceBroker{}
-		serviceBroker.Guid = "my-guid"
-		serviceBroker.Name = "foobroker"
-		serviceBroker.Url = "http://update.example.com"
-		serviceBroker.Username = "update-foouser"
-		serviceBroker.Password = "update-password"
-
-		apiErr := repo.Update(serviceBroker)
-
-		Expect(handler).To(testnet.HaveAllRequestsCalled())
-		Expect(apiErr).NotTo(HaveOccurred())
 	})
 
-	It("TestRenameServiceBroker", func() {
-		req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
-			Method:   "PUT",
-			Path:     "/v2/service_brokers/my-guid",
-			Matcher:  testnet.RequestBodyMatcher(`{"name":"update-foobroker"}`),
-			Response: testnet.TestResponse{Status: http.StatusOK},
+	Describe("Delete", func() {
+		It("deletes the service broker with the given guid", func() {
+			req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+				Method:   "DELETE",
+				Path:     "/v2/service_brokers/my-guid",
+				Response: testnet.TestResponse{Status: http.StatusNoContent},
+			})
+
+			ts, handler, repo := createServiceBrokerRepo(req)
+			defer ts.Close()
+
+			apiErr := repo.Delete("my-guid")
+
+			Expect(handler).To(HaveAllRequestsCalled())
+			Expect(apiErr).NotTo(HaveOccurred())
 		})
-
-		ts, handler, repo := createServiceBrokerRepo(req)
-		defer ts.Close()
-
-		apiErr := repo.Rename("my-guid", "update-foobroker")
-
-		Expect(handler).To(testnet.HaveAllRequestsCalled())
-		Expect(apiErr).NotTo(HaveOccurred())
-	})
-
-	It("TestDeleteServiceBroker", func() {
-		req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
-			Method:   "DELETE",
-			Path:     "/v2/service_brokers/my-guid",
-			Response: testnet.TestResponse{Status: http.StatusNoContent},
-		})
-
-		ts, handler, repo := createServiceBrokerRepo(req)
-		defer ts.Close()
-
-		apiErr := repo.Delete("my-guid")
-
-		Expect(handler).To(testnet.HaveAllRequestsCalled())
-		Expect(apiErr).NotTo(HaveOccurred())
 	})
 })
 
@@ -243,7 +284,7 @@ func createServiceBrokerRepo(requests ...testnet.TestRequest) (ts *httptest.Serv
 	ts, handler = testnet.NewServer(requests)
 	configRepo := testconfig.NewRepositoryWithDefaults()
 	configRepo.SetApiEndpoint(ts.URL)
-	gateway := net.NewCloudControllerGateway(configRepo)
+	gateway := net.NewCloudControllerGateway(configRepo, time.Now)
 	repo = NewCloudControllerServiceBrokerRepository(configRepo, gateway)
 	return
 }

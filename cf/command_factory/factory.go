@@ -2,6 +2,13 @@ package command_factory
 
 import (
 	"errors"
+
+	"github.com/cloudfoundry/cli/cf/actors/plan_builder"
+	"github.com/cloudfoundry/cli/cf/actors/service_builder"
+	. "github.com/cloudfoundry/cli/cf/i18n"
+
+	"github.com/cloudfoundry/cli/cf/actors"
+	"github.com/cloudfoundry/cli/cf/actors/broker_builder"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
@@ -12,10 +19,13 @@ import (
 	"github.com/cloudfoundry/cli/cf/commands/organization"
 	"github.com/cloudfoundry/cli/cf/commands/quota"
 	"github.com/cloudfoundry/cli/cf/commands/route"
+	"github.com/cloudfoundry/cli/cf/commands/securitygroup"
 	"github.com/cloudfoundry/cli/cf/commands/service"
+	"github.com/cloudfoundry/cli/cf/commands/serviceaccess"
 	"github.com/cloudfoundry/cli/cf/commands/serviceauthtoken"
 	"github.com/cloudfoundry/cli/cf/commands/servicebroker"
 	"github.com/cloudfoundry/cli/cf/commands/space"
+	"github.com/cloudfoundry/cli/cf/commands/spacequota"
 	"github.com/cloudfoundry/cli/cf/commands/user"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/manifest"
@@ -42,6 +52,7 @@ func NewFactory(ui terminal.UI, config configuration.ReadWriter, manifestRepo ma
 	factory.cmdsByName["auth"] = commands.NewAuthenticate(ui, config, repoLocator.GetAuthenticationRepository())
 	factory.cmdsByName["ssh"] = application.NewSsh(ui, config, repoLocator.GetAppSshRepository())
 	factory.cmdsByName["buildpacks"] = buildpack.NewListBuildpacks(ui, repoLocator.GetBuildpackRepository())
+	factory.cmdsByName["config"] = commands.NewConfig(ui, config)
 	factory.cmdsByName["create-buildpack"] = buildpack.NewCreateBuildpack(ui, repoLocator.GetBuildpackRepository(), repoLocator.GetBuildpackBitsRepository())
 	factory.cmdsByName["create-domain"] = domain.NewCreateDomain(ui, config, repoLocator.GetDomainRepository())
 	factory.cmdsByName["create-org"] = organization.NewCreateOrg(ui, config, repoLocator.GetOrganizationRepository())
@@ -64,7 +75,7 @@ func NewFactory(ui terminal.UI, config configuration.ReadWriter, manifestRepo ma
 	factory.cmdsByName["delete-space"] = space.NewDeleteSpace(ui, config, repoLocator.GetSpaceRepository())
 	factory.cmdsByName["delete-user"] = user.NewDeleteUser(ui, config, repoLocator.GetUserRepository())
 	factory.cmdsByName["domains"] = domain.NewListDomains(ui, config, repoLocator.GetDomainRepository())
-	factory.cmdsByName["env"] = application.NewEnv(ui, config)
+	factory.cmdsByName["env"] = application.NewEnv(ui, config, repoLocator.GetApplicationRepository())
 	factory.cmdsByName["events"] = application.NewEvents(ui, config, repoLocator.GetAppEventsRepository())
 	factory.cmdsByName["files"] = application.NewFiles(ui, config, repoLocator.GetAppFilesRepository())
 	factory.cmdsByName["login"] = commands.NewLogin(ui, config, repoLocator.GetAuthenticationRepository(), repoLocator.GetEndpointRepository(), repoLocator.GetOrganizationRepository(), repoLocator.GetSpaceRepository())
@@ -97,7 +108,7 @@ func NewFactory(ui terminal.UI, config configuration.ReadWriter, manifestRepo ma
 	factory.cmdsByName["set-org-role"] = user.NewSetOrgRole(ui, config, repoLocator.GetUserRepository())
 	factory.cmdsByName["set-quota"] = organization.NewSetQuota(ui, config, repoLocator.GetQuotaRepository())
 	factory.cmdsByName["create-shared-domain"] = domain.NewCreateSharedDomain(ui, config, repoLocator.GetDomainRepository())
-	factory.cmdsByName["space"] = space.NewShowSpace(ui, config)
+	factory.cmdsByName["space"] = space.NewShowSpace(ui, config, repoLocator.GetSpaceQuotaRepository())
 	factory.cmdsByName["space-users"] = user.NewSpaceUsers(ui, config, repoLocator.GetSpaceRepository(), repoLocator.GetUserRepository())
 	factory.cmdsByName["spaces"] = space.NewListSpaces(ui, config, repoLocator.GetSpaceRepository())
 	factory.cmdsByName["stacks"] = commands.NewListStacks(ui, config, repoLocator.GetStackRepository())
@@ -110,6 +121,46 @@ func NewFactory(ui terminal.UI, config configuration.ReadWriter, manifestRepo ma
 	factory.cmdsByName["update-service-broker"] = servicebroker.NewUpdateServiceBroker(ui, config, repoLocator.GetServiceBrokerRepository())
 	factory.cmdsByName["update-service-auth-token"] = serviceauthtoken.NewUpdateServiceAuthToken(ui, config, repoLocator.GetServiceAuthTokenRepository())
 	factory.cmdsByName["update-user-provided-service"] = service.NewUpdateUserProvidedService(ui, config, repoLocator.GetUserProvidedServiceInstanceRepository())
+	factory.cmdsByName["create-security-group"] = securitygroup.NewCreateSecurityGroup(ui, config, repoLocator.GetSecurityGroupRepository())
+	factory.cmdsByName["update-security-group"] = securitygroup.NewUpdateSecurityGroup(ui, config, repoLocator.GetSecurityGroupRepository())
+	factory.cmdsByName["delete-security-group"] = securitygroup.NewDeleteSecurityGroup(ui, config, repoLocator.GetSecurityGroupRepository())
+	factory.cmdsByName["security-group"] = securitygroup.NewShowSecurityGroup(ui, config, repoLocator.GetSecurityGroupRepository())
+	factory.cmdsByName["security-groups"] = securitygroup.NewSecurityGroups(ui, config, repoLocator.GetSecurityGroupRepository())
+	factory.cmdsByName["bind-staging-security-group"] = securitygroup.NewBindToStagingGroup(
+		ui,
+		config,
+		repoLocator.GetSecurityGroupRepository(),
+		repoLocator.GetStagingSecurityGroupsRepository(),
+	)
+	factory.cmdsByName["staging-security-groups"] = securitygroup.NewListStagingSecurityGroups(ui, config, repoLocator.GetStagingSecurityGroupsRepository())
+	factory.cmdsByName["unbind-staging-security-group"] = securitygroup.NewUnbindFromStagingGroup(
+		ui,
+		config,
+		repoLocator.GetSecurityGroupRepository(),
+		repoLocator.GetStagingSecurityGroupsRepository(),
+	)
+	factory.cmdsByName["bind-running-security-group"] = securitygroup.NewBindToRunningGroup(
+		ui,
+		config,
+		repoLocator.GetSecurityGroupRepository(),
+		repoLocator.GetRunningSecurityGroupsRepository(),
+	)
+	factory.cmdsByName["unbind-running-security-group"] = securitygroup.NewUnbindFromRunningGroup(
+		ui,
+		config,
+		repoLocator.GetSecurityGroupRepository(),
+		repoLocator.GetRunningSecurityGroupsRepository(),
+	)
+	factory.cmdsByName["running-security-groups"] = securitygroup.NewListRunningSecurityGroups(ui, config, repoLocator.GetRunningSecurityGroupsRepository())
+	factory.cmdsByName["bind-security-group"] = securitygroup.NewBindSecurityGroup(
+		ui,
+		config,
+		repoLocator.GetSecurityGroupRepository(),
+		repoLocator.GetSpaceRepository(),
+		repoLocator.GetOrganizationRepository(),
+		repoLocator.GetSecurityGroupSpaceBinder(),
+	)
+	factory.cmdsByName["unbind-security-group"] = securitygroup.NewUnbindSecurityGroup(ui, config, repoLocator.GetSecurityGroupRepository(), repoLocator.GetOrganizationRepository(), repoLocator.GetSpaceRepository(), repoLocator.GetSecurityGroupSpaceBinder())
 
 	createRoute := route.NewCreateRoute(ui, config, repoLocator.GetRouteRepository())
 	factory.cmdsByName["create-route"] = createRoute
@@ -120,6 +171,7 @@ func NewFactory(ui terminal.UI, config configuration.ReadWriter, manifestRepo ma
 	start := application.NewStart(ui, config, displayApp, repoLocator.GetApplicationRepository(), repoLocator.GetAppInstancesRepository(), repoLocator.GetLogsRepository())
 	stop := application.NewStop(ui, config, repoLocator.GetApplicationRepository())
 	restart := application.NewRestart(ui, start, stop)
+	restage := application.NewRestage(ui, config, repoLocator.GetApplicationRepository(), start)
 	bind := service.NewBindService(ui, config, repoLocator.GetServiceBindingRepository())
 
 	factory.cmdsByName["app"] = displayApp
@@ -127,6 +179,7 @@ func NewFactory(ui terminal.UI, config configuration.ReadWriter, manifestRepo ma
 	factory.cmdsByName["start"] = start
 	factory.cmdsByName["stop"] = stop
 	factory.cmdsByName["restart"] = restart
+	factory.cmdsByName["restage"] = restage
 	factory.cmdsByName["push"] = application.NewPush(
 		ui, config, manifestRepo, start, stop, bind,
 		repoLocator.GetApplicationRepository(),
@@ -144,13 +197,70 @@ func NewFactory(ui terminal.UI, config configuration.ReadWriter, manifestRepo ma
 	factory.cmdsByName["set-space-role"] = spaceRoleSetter
 	factory.cmdsByName["create-space"] = space.NewCreateSpace(ui, config, spaceRoleSetter, repoLocator.GetSpaceRepository(), repoLocator.GetOrganizationRepository(), repoLocator.GetUserRepository())
 
+	planBuilder := plan_builder.NewBuilder(
+		repoLocator.GetServicePlanRepository(),
+		repoLocator.GetServicePlanVisibilityRepository(),
+		repoLocator.GetOrganizationRepository(),
+	)
+
+	serviceBuilder := service_builder.NewBuilder(
+		repoLocator.GetServiceRepository(),
+		planBuilder,
+	)
+
+	brokerBuilder := broker_builder.NewBuilder(
+		repoLocator.GetServiceBrokerRepository(),
+		serviceBuilder,
+	)
+
+	factory.cmdsByName["service-access"] = serviceaccess.NewServiceAccess(
+		ui, config,
+		actors.NewServiceHandler(
+			repoLocator.GetOrganizationRepository(),
+			brokerBuilder,
+			serviceBuilder,
+		),
+		repoLocator.GetAuthenticationRepository(),
+	)
+	factory.cmdsByName["enable-service-access"] = serviceaccess.NewEnableServiceAccess(
+		ui, config,
+		actors.NewServicePlanHandler(
+			repoLocator.GetServicePlanRepository(),
+			repoLocator.GetServicePlanVisibilityRepository(),
+			repoLocator.GetOrganizationRepository(),
+			planBuilder,
+			serviceBuilder,
+		),
+		repoLocator.GetAuthenticationRepository(),
+	)
+	factory.cmdsByName["disable-service-access"] = serviceaccess.NewDisableServiceAccess(
+		ui, config,
+		actors.NewServicePlanHandler(
+			repoLocator.GetServicePlanRepository(),
+			repoLocator.GetServicePlanVisibilityRepository(),
+			repoLocator.GetOrganizationRepository(),
+			planBuilder,
+			serviceBuilder,
+		),
+		repoLocator.GetAuthenticationRepository(),
+	)
+
+	factory.cmdsByName["create-space-quota"] = spacequota.NewCreateSpaceQuota(ui, config, repoLocator.GetSpaceQuotaRepository(), repoLocator.GetOrganizationRepository())
+	factory.cmdsByName["delete-space-quota"] = spacequota.NewDeleteSpaceQuota(ui, config, repoLocator.GetSpaceQuotaRepository())
+
+	factory.cmdsByName["space-quotas"] = spacequota.NewListSpaceQuotas(ui, config, repoLocator.GetSpaceQuotaRepository())
+	factory.cmdsByName["space-quota"] = spacequota.NewSpaceQuota(ui, config, repoLocator.GetSpaceQuotaRepository())
+	factory.cmdsByName["update-space-quota"] = spacequota.NewUpdateSpaceQuota(ui, config, repoLocator.GetSpaceQuotaRepository())
+	factory.cmdsByName["set-space-quota"] = spacequota.NewSetSpaceQuota(ui, config, repoLocator.GetSpaceRepository(), repoLocator.GetSpaceQuotaRepository())
+	factory.cmdsByName["unset-space-quota"] = spacequota.NewUnsetSpaceQuota(ui, config, repoLocator.GetSpaceQuotaRepository(), repoLocator.GetSpaceRepository())
+
 	return
 }
 
 func (f concreteFactory) GetByCmdName(cmdName string) (cmd command.Command, err error) {
 	cmd, found := f.cmdsByName[cmdName]
 	if !found {
-		err = errors.New("Command not found")
+		err = errors.New(T("Command not found"))
 	}
 	return
 }

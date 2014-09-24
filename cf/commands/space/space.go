@@ -1,41 +1,47 @@
 package space
 
 import (
-	"errors"
+	"fmt"
+	"strings"
+
+	. "github.com/cloudfoundry/cli/cf/i18n"
+	"github.com/cloudfoundry/cli/cf/models"
+
+	"github.com/cloudfoundry/cli/cf/api/space_quotas"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/formatters"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/codegangsta/cli"
-	"strings"
 )
 
 type ShowSpace struct {
-	ui       terminal.UI
-	config   configuration.Reader
-	spaceReq requirements.SpaceRequirement
+	ui        terminal.UI
+	config    configuration.Reader
+	spaceReq  requirements.SpaceRequirement
+	quotaRepo space_quotas.SpaceQuotaRepository
 }
 
-func NewShowSpace(ui terminal.UI, config configuration.Reader) (cmd *ShowSpace) {
+func NewShowSpace(ui terminal.UI, config configuration.Reader, quotaRepo space_quotas.SpaceQuotaRepository) (cmd *ShowSpace) {
 	cmd = new(ShowSpace)
 	cmd.ui = ui
 	cmd.config = config
+	cmd.quotaRepo = quotaRepo
 	return
 }
 
-func (command *ShowSpace) Metadata() command_metadata.CommandMetadata {
+func (cmd *ShowSpace) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "space",
-		Description: "Show space info",
-		Usage:       "CF_NAME space SPACE",
+		Description: T("Show space info"),
+		Usage:       T("CF_NAME space SPACE"),
 	}
 }
 
 func (cmd *ShowSpace) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
 	if len(c.Args()) != 1 {
-		err = errors.New("Incorrect Usage")
 		cmd.ui.FailWithUsage(c)
-		return
 	}
 
 	cmd.spaceReq = requirementsFactory.NewSpaceRequirement(c.Args()[0])
@@ -49,30 +55,80 @@ func (cmd *ShowSpace) GetRequirements(requirementsFactory requirements.Factory, 
 
 func (cmd *ShowSpace) Run(c *cli.Context) {
 	space := cmd.spaceReq.GetSpace()
-	cmd.ui.Say("Getting info for space %s in org %s as %s...",
-		terminal.EntityNameColor(space.Name),
-		terminal.EntityNameColor(space.Organization.Name),
-		terminal.EntityNameColor(cmd.config.Username()),
-	)
+	cmd.ui.Say(T("Getting info for space {{.TargetSpace}} in org {{.OrgName}} as {{.CurrentUser}}...",
+		map[string]interface{}{
+			"TargetSpace": terminal.EntityNameColor(space.Name),
+			"OrgName":     terminal.EntityNameColor(space.Organization.Name),
+			"CurrentUser": terminal.EntityNameColor(cmd.config.Username()),
+		}))
+
+	quotaString := cmd.quotaString(space)
+
 	cmd.ui.Ok()
-	cmd.ui.Say("\n%s:", terminal.EntityNameColor(space.Name))
-	cmd.ui.Say("  Org: %s", terminal.EntityNameColor(space.Organization.Name))
+	cmd.ui.Say("")
+	cmd.ui.Say(terminal.EntityNameColor(space.Name) + ":")
+
+	table := terminal.NewTable(cmd.ui, []string{"", "", ""})
+	table.Add("", T("Org:"), terminal.EntityNameColor(space.Organization.Name))
 
 	apps := []string{}
 	for _, app := range space.Applications {
-		apps = append(apps, app.Name)
+		apps = append(apps, terminal.EntityNameColor(app.Name))
 	}
-	cmd.ui.Say("  Apps: %s", terminal.EntityNameColor(strings.Join(apps, ", ")))
+	table.Add("", T("Apps:"), strings.Join(apps, ", "))
 
 	domains := []string{}
 	for _, domain := range space.Domains {
-		domains = append(domains, domain.Name)
+		domains = append(domains, terminal.EntityNameColor(domain.Name))
 	}
-	cmd.ui.Say("  Domains: %s", terminal.EntityNameColor(strings.Join(domains, ", ")))
+	table.Add("", T("Domains:"), strings.Join(domains, ", "))
 
 	services := []string{}
 	for _, service := range space.ServiceInstances {
-		services = append(services, service.Name)
+		services = append(services, terminal.EntityNameColor(service.Name))
 	}
-	cmd.ui.Say("  Services: %s", terminal.EntityNameColor(strings.Join(services, ", ")))
+	table.Add("", T("Services:"), strings.Join(services, ", "))
+
+	securityGroups := []string{}
+	for _, group := range space.SecurityGroups {
+		securityGroups = append(securityGroups, terminal.EntityNameColor(group.Name))
+	}
+	table.Add("", T("Security Groups:"), strings.Join(securityGroups, ", "))
+
+	table.Add("", T("Space Quota:"), quotaString)
+
+	table.Print()
+}
+
+func (cmd *ShowSpace) quotaString(space models.Space) string {
+	var instance_memory string
+
+	if space.SpaceQuotaGuid == "" {
+		return ""
+	}
+
+	quota, err := cmd.quotaRepo.FindByGuid(space.SpaceQuotaGuid)
+	if err != nil {
+		cmd.ui.Failed(err.Error())
+		return ""
+	}
+
+	if quota.InstanceMemoryLimit == -1 {
+		instance_memory = "-1"
+	} else {
+		instance_memory = formatters.ByteSize(quota.InstanceMemoryLimit * formatters.MEGABYTE)
+	}
+	memory := formatters.ByteSize(quota.MemoryLimit * formatters.MEGABYTE)
+
+	spaceQuota := fmt.Sprintf("%s (%s memory limit, %s instance memory limit, %d routes, %d services, paid services %s)", quota.Name, memory, instance_memory, quota.RoutesLimit, quota.ServicesLimit, formatters.Allowed(quota.NonBasicServicesAllowed))
+	//	spaceQuota := fmt.Sprintf(T("{{.QuotaName}} ({{.MemoryLimit}} memory limit, {{.InstanceMemoryLimit}} instance memory limit, {{.RoutesLimit}} routes, {{.ServicesLimit}} services, paid services {{.NonBasicServicesAllowed}})",
+	//		map[string]interface{}{
+	//			"QuotaName":               quota.Name,
+	//			"MemoryLimit":             memory,
+	//			"InstanceMemoryLimit":     instance_memory,
+	//			"RoutesLimit":             quota.RoutesLimit,
+	//			"ServicesLimit":           quota.ServicesLimit,
+	//			"NonBasicServicesAllowed": formatters.Allowed(quota.NonBasicServicesAllowed)}))
+
+	return spaceQuota
 }

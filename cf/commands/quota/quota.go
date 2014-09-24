@@ -2,7 +2,9 @@ package quota
 
 import (
 	"fmt"
-	"github.com/cloudfoundry/cli/cf/api"
+	. "github.com/cloudfoundry/cli/cf/i18n"
+
+	"github.com/cloudfoundry/cli/cf/api/quotas"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/formatters"
@@ -14,10 +16,10 @@ import (
 type showQuota struct {
 	ui        terminal.UI
 	config    configuration.Reader
-	quotaRepo api.QuotaRepository
+	quotaRepo quotas.QuotaRepository
 }
 
-func NewShowQuota(ui terminal.UI, config configuration.Reader, quotaRepo api.QuotaRepository) *showQuota {
+func NewShowQuota(ui terminal.UI, config configuration.Reader, quotaRepo quotas.QuotaRepository) *showQuota {
 	return &showQuota{
 		ui:        ui,
 		config:    config,
@@ -25,11 +27,11 @@ func NewShowQuota(ui terminal.UI, config configuration.Reader, quotaRepo api.Quo
 	}
 }
 
-func (command *showQuota) Metadata() command_metadata.CommandMetadata {
+func (cmd *showQuota) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "quota",
-		Usage:       "CF_NAME quota QUOTA",
-		Description: "Show quota info",
+		Usage:       T("CF_NAME quota QUOTA"),
+		Description: T("Show quota info"),
 	}
 }
 
@@ -45,7 +47,7 @@ func (cmd *showQuota) GetRequirements(requirementsFactory requirements.Factory, 
 
 func (cmd *showQuota) Run(context *cli.Context) {
 	quotaName := context.Args()[0]
-	cmd.ui.Say("Getting quota %s info as %s...", quotaName, cmd.config.Username())
+	cmd.ui.Say(T("Getting quota {{.QuotaName}} info as {{.Username}}...", map[string]interface{}{"QuotaName": quotaName, "Username": cmd.config.Username()}))
 
 	quota, err := cmd.quotaRepo.FindByName(quotaName)
 	if err != nil {
@@ -55,9 +57,10 @@ func (cmd *showQuota) Run(context *cli.Context) {
 	cmd.ui.Ok()
 
 	table := terminal.NewTable(cmd.ui, []string{"", ""})
-	table.Add([]string{"Memory", formatters.ByteSize(quota.MemoryLimit * formatters.MEGABYTE)})
-	table.Add([]string{"Routes", fmt.Sprintf("%d", quota.RoutesLimit)})
-	table.Add([]string{"Services", fmt.Sprintf("%d", quota.ServicesLimit)})
-	table.Add([]string{"Paid service plans", formatters.Allowed(quota.NonBasicServicesAllowed)})
+	table.Add(T("Total Memory"), formatters.ByteSize(quota.MemoryLimit*formatters.MEGABYTE))
+	table.Add(T("Instance Memory"), formatters.ByteSize(quota.InstanceMemoryLimit*formatters.MEGABYTE))
+	table.Add(T("Routes"), fmt.Sprintf("%d", quota.RoutesLimit))
+	table.Add(T("Services"), fmt.Sprintf("%d", quota.ServicesLimit))
+	table.Add(T("Paid service plans"), formatters.Allowed(quota.NonBasicServicesAllowed))
 	table.Print()
 }

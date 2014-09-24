@@ -5,9 +5,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/cloudfoundry/cli/cf"
-	"github.com/cloudfoundry/cli/cf/configuration"
-	"github.com/cloudfoundry/cli/cf/errors"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -16,13 +13,17 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/cloudfoundry/cli/cf"
+	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/errors"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 )
 
 const (
 	JOB_FINISHED             = "finished"
 	JOB_FAILED               = "failed"
 	DEFAULT_POLLING_THROTTLE = 5 * time.Second
-	ASYNC_REQUEST_TIMEOUT    = 20 * time.Second
 )
 
 type JobResource struct {
@@ -59,6 +60,7 @@ type Gateway struct {
 	trustedCerts    []tls.Certificate
 	config          configuration.Reader
 	warnings        *[]string
+	Clock           func() time.Time
 }
 
 func newGateway(errHandler apiErrorHandler, config configuration.Reader) (gateway Gateway) {
@@ -66,7 +68,17 @@ func newGateway(errHandler apiErrorHandler, config configuration.Reader) (gatewa
 	gateway.config = config
 	gateway.PollingThrottle = DEFAULT_POLLING_THROTTLE
 	gateway.warnings = &[]string{}
+	gateway.Clock = time.Now
+
 	return
+}
+
+func (gateway *Gateway) AsyncTimeout() time.Duration {
+	if gateway.config.AsyncTimeout() > 0 {
+		return time.Duration(gateway.config.AsyncTimeout()) * time.Minute
+	}
+
+	return 0
 }
 
 func (gateway *Gateway) SetTokenRefresher(auth tokenRefresher) {
@@ -121,9 +133,9 @@ func (gateway Gateway) ListPaginatedResources(target string,
 	path string,
 	resource interface{},
 	cb func(interface{}) bool) (apiErr error) {
-
 	for path != "" {
 		pagination := NewPaginatedResources(resource)
+
 		apiErr = gateway.GetResource(fmt.Sprintf("%s%s", target, path), &pagination)
 		if apiErr != nil {
 			return
@@ -131,7 +143,7 @@ func (gateway Gateway) ListPaginatedResources(target string,
 
 		resources, err := pagination.Resources()
 		if err != nil {
-			return errors.NewWithError("Error parsing JSON", err)
+			return errors.NewWithError(T("Error parsing JSON"), err)
 		}
 
 		for _, resource := range resources {
@@ -152,7 +164,6 @@ func (gateway Gateway) createUpdateOrDeleteResource(verb, url string, body io.Re
 		resource = optionalResource[0]
 	}
 
-	
 	request, apiErr := gateway.NewRequest(verb, url, gateway.config.AccessToken(), body)
 	if apiErr != nil {
 		return
@@ -164,7 +175,7 @@ func (gateway Gateway) createUpdateOrDeleteResource(verb, url string, body io.Re
 	}
 
 	if gateway.PollingEnabled && !sync {
-		_, apiErr = gateway.PerformPollingRequestForJSONResponse(request, resource, ASYNC_REQUEST_TIMEOUT)
+		_, apiErr = gateway.PerformPollingRequestForJSONResponse(request, resource, gateway.AsyncTimeout())
 		return
 	} else {
 		_, apiErr = gateway.PerformRequestForJSONResponse(request, resource)
@@ -177,10 +188,9 @@ func (gateway Gateway) NewRequest(method, path, accessToken string, body io.Read
 		body.Seek(0, 0)
 	}
 
-	
 	request, err := http.NewRequest(method, path, body)
 	if err != nil {
-		apiErr = errors.NewWithError("Error building request", err)
+		apiErr = errors.NewWithError(T("Error building request"), err)
 		return
 	}
 
@@ -215,10 +225,11 @@ func (gateway Gateway) performRequestForResponseBytes(request *Request) (bytes [
 	if apiErr != nil {
 		return
 	}
+	defer rawResponse.Body.Close()
 
 	bytes, err := ioutil.ReadAll(rawResponse.Body)
 	if err != nil {
-		apiErr = errors.NewWithError("Error reading response", err)
+		apiErr = errors.NewWithError(T("Error reading response"), err)
 	}
 
 	headers = rawResponse.Header
@@ -243,7 +254,7 @@ func (gateway Gateway) PerformRequestForJSONResponse(request *Request, response 
 
 	err := json.Unmarshal(bytes, &response)
 	if err != nil {
-		apiErr = errors.NewWithError("Invalid JSON response from server", err)
+		apiErr = errors.NewWithError(T("Invalid JSON response from server"), err)
 	}
 	return
 }
@@ -257,6 +268,7 @@ func (gateway Gateway) PerformPollingRequestForJSONResponse(request *Request, re
 	if apiErr != nil {
 		return
 	}
+	defer rawResponse.Body.Close()
 
 	if rawResponse.StatusCode > 203 || strings.TrimSpace(string(bytes)) == "" {
 		return
@@ -264,14 +276,14 @@ func (gateway Gateway) PerformPollingRequestForJSONResponse(request *Request, re
 
 	err := json.Unmarshal(bytes, &response)
 	if err != nil {
-		apiErr = errors.NewWithError("Invalid JSON response from server", err)
+		apiErr = errors.NewWithError(T("Invalid JSON response from server"), err)
 		return
 	}
 
 	asyncResource := &AsyncResource{}
 	err = json.Unmarshal(bytes, &asyncResource)
 	if err != nil {
-		apiErr = errors.NewWithError("Invalid async response from server", err)
+		apiErr = errors.NewWithError(T("Invalid async response from server"), err)
 		return
 	}
 
@@ -295,17 +307,14 @@ func (gateway Gateway) Warnings() []string {
 }
 
 func (gateway Gateway) waitForJob(jobUrl, accessToken string, timeout time.Duration) (err error) {
-	startTime := time.Now()
+	startTime := gateway.Clock()
 	for true {
-		if time.Since(startTime) > timeout {
-			err = errors.NewWithFmt("Error: timed out waiting for async job '%s' to finish", jobUrl)
-			return
+		if gateway.Clock().Sub(startTime) > timeout && timeout != 0 {
+			return errors.NewAsyncTimeoutError(jobUrl)
 		}
-
 		var request *Request
 		request, err = gateway.NewRequest("GET", jobUrl, accessToken, nil)
 		response := &JobResource{}
-
 		_, err = gateway.PerformRequestForJSONResponse(request, response)
 		if err != nil {
 			return

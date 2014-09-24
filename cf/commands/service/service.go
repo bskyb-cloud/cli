@@ -1,8 +1,8 @@
 package service
 
 import (
-	"errors"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/codegangsta/cli"
@@ -19,19 +19,17 @@ func NewShowService(ui terminal.UI) (cmd *ShowService) {
 	return
 }
 
-func (command *ShowService) Metadata() command_metadata.CommandMetadata {
+func (cmd *ShowService) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "service",
-		Description: "Show service instance info",
-		Usage:       "CF_NAME service SERVICE_INSTANCE",
+		Description: T("Show service instance info"),
+		Usage:       T("CF_NAME service SERVICE_INSTANCE"),
 	}
 }
 
 func (cmd *ShowService) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
 	if len(c.Args()) != 1 {
-		err = errors.New("Incorrect Usage")
 		cmd.ui.FailWithUsage(c)
-		return
 	}
 
 	cmd.serviceInstanceReq = requirementsFactory.NewServiceInstanceRequirement(c.Args()[0])
@@ -48,14 +46,26 @@ func (cmd *ShowService) Run(c *cli.Context) {
 	serviceInstance := cmd.serviceInstanceReq.GetServiceInstance()
 
 	cmd.ui.Say("")
-	cmd.ui.Say("Service instance: %s", terminal.EntityNameColor(serviceInstance.Name))
+	cmd.ui.Say(T("Service instance: {{.ServiceName}}", map[string]interface{}{"ServiceName": terminal.EntityNameColor(serviceInstance.Name)}))
 
 	if serviceInstance.IsUserProvided() {
-		cmd.ui.Say("Service: %s", terminal.EntityNameColor("user-provided"))
+		cmd.ui.Say(T("Service: {{.ServiceDescription}}",
+			map[string]interface{}{
+				"ServiceDescription": terminal.EntityNameColor(T("user-provided")),
+			}))
 	} else {
-		cmd.ui.Say("Service: %s", terminal.EntityNameColor(serviceInstance.ServiceOffering.Label))
-		cmd.ui.Say("Plan: %s", terminal.EntityNameColor(serviceInstance.ServicePlan.Name))
-		cmd.ui.Say("Description: %s", terminal.EntityNameColor(serviceInstance.ServiceOffering.Description))
-		cmd.ui.Say("Documentation url: %s", terminal.EntityNameColor(serviceInstance.ServiceOffering.DocumentationUrl))
+		cmd.ui.Say(T("Service: {{.ServiceDescription}}",
+			map[string]interface{}{
+				"ServiceDescription": terminal.EntityNameColor(serviceInstance.ServiceOffering.Label),
+			}))
+		cmd.ui.Say(T("Plan: {{.ServicePlanName}}",
+			map[string]interface{}{
+				"ServicePlanName": terminal.EntityNameColor(serviceInstance.ServicePlan.Name),
+			}))
+		cmd.ui.Say(T("Description: {{.ServiceDescription}}", map[string]interface{}{"ServiceDescription": terminal.EntityNameColor(serviceInstance.ServiceOffering.Description)}))
+		cmd.ui.Say(T("Documentation url: {{.URL}}",
+			map[string]interface{}{
+				"URL": terminal.EntityNameColor(serviceInstance.ServiceOffering.DocumentationUrl),
+			}))
 	}
 }

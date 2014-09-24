@@ -1,10 +1,10 @@
 package servicebroker
 
 import (
-	"errors"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/configuration"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/codegangsta/cli"
@@ -23,20 +23,18 @@ func NewCreateServiceBroker(ui terminal.UI, config configuration.Reader, service
 	return
 }
 
-func (command CreateServiceBroker) Metadata() command_metadata.CommandMetadata {
+func (cmd CreateServiceBroker) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "create-service-broker",
-		Description: "Create a service broker",
-		Usage:       "CF_NAME create-service-broker SERVICE_BROKER USERNAME PASSWORD URL",
+		Description: T("Create a service broker"),
+		Usage:       T("CF_NAME create-service-broker SERVICE_BROKER USERNAME PASSWORD URL"),
 	}
 }
 
 func (cmd CreateServiceBroker) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
 
 	if len(c.Args()) != 4 {
-		err = errors.New("Incorrect usage")
 		cmd.ui.FailWithUsage(c)
-		return
 	}
 
 	reqs = append(reqs, requirementsFactory.NewLoginRequirement())
@@ -50,10 +48,10 @@ func (cmd CreateServiceBroker) Run(c *cli.Context) {
 	password := c.Args()[2]
 	url := c.Args()[3]
 
-	cmd.ui.Say("Creating service broker %s as %s...",
-		terminal.EntityNameColor(name),
-		terminal.EntityNameColor(cmd.config.Username()),
-	)
+	cmd.ui.Say(T("Creating service broker {{.Name}} as {{.Username}}...",
+		map[string]interface{}{
+			"Name":     terminal.EntityNameColor(name),
+			"Username": terminal.EntityNameColor(cmd.config.Username())}))
 
 	apiErr := cmd.serviceBrokerRepo.Create(name, url, username, password)
 	if apiErr != nil {

@@ -26,29 +26,36 @@ var (
 	colorize               func(message string, color Color, bold int) string
 	OsSupportsColors       = runtime.GOOS != "windows"
 	TerminalSupportsColors = isTerminal()
+	UserAskedForColors     = ""
 )
 
 func init() {
-	ResetColorSupport()
+	InitColorSupport()
 }
 
-func ResetColorSupport() {
-	if colorsDisabled() {
-		colorize = func(message string, _ Color, _ int) string {
-			return message
-		}
-	} else {
+func InitColorSupport() {
+	if colorsEnabled() {
 		colorize = func(message string, color Color, bold int) string {
 			return fmt.Sprintf("\033[%d;%dm%s\033[0m", bold, color, message)
+		}
+	} else {
+		colorize = func(message string, _ Color, _ int) string {
+			return message
 		}
 	}
 }
 
-func colorsDisabled() bool {
-	userDisabledColors := os.Getenv("CF_COLOR") == "false"
+func colorsEnabled() bool {
+	return userDidNotDisableColor() &&
+		(userEnabledColors() || (TerminalSupportsColors && OsSupportsColors))
+}
 
-	return userDisabledColors ||
-		(os.Getenv("CF_COLOR") != "true" && (!TerminalSupportsColors || !OsSupportsColors))
+func userEnabledColors() bool {
+	return UserAskedForColors == "true" || os.Getenv("CF_COLOR") == "true"
+}
+
+func userDidNotDisableColor() bool {
+	return os.Getenv("CF_COLOR") != "false" && (UserAskedForColors != "false" || os.Getenv("CF_COLOR") == "true")
 }
 
 func Colorize(message string, color Color) string {

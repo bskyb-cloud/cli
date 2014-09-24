@@ -5,6 +5,7 @@ import (
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/errors"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/codegangsta/cli"
@@ -25,22 +26,20 @@ func NewDeleteDomain(ui terminal.UI, config configuration.Reader, repo api.Domai
 	return
 }
 
-func (command *DeleteDomain) Metadata() command_metadata.CommandMetadata {
+func (cmd *DeleteDomain) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "delete-domain",
-		Description: "Delete a domain",
-		Usage:       "CF_NAME delete-domain DOMAIN [-f]",
+		Description: T("Delete a domain"),
+		Usage:       T("CF_NAME delete-domain DOMAIN [-f]"),
 		Flags: []cli.Flag{
-			cli.BoolFlag{Name: "f", Usage: "Force deletion without confirmation"},
+			cli.BoolFlag{Name: "f", Usage: T("Force deletion without confirmation")},
 		},
 	}
 }
 
 func (cmd *DeleteDomain) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
 	if len(c.Args()) != 1 {
-		err = errors.New("Incorrect Usage")
 		cmd.ui.FailWithUsage(c)
-		return
 	}
 
 	loginReq := requirementsFactory.NewLoginRequirement()
@@ -65,24 +64,26 @@ func (cmd *DeleteDomain) Run(c *cli.Context) {
 		cmd.ui.Warn(apiErr.Error())
 		return
 	default:
-		cmd.ui.Failed("Error finding domain %s\n%s", domainName, apiErr.Error())
+		cmd.ui.Failed(T("Error finding domain {{.DomainName}}\n{{.ApiErr}}",
+			map[string]interface{}{"DomainName": domainName, "ApiErr": apiErr.Error()}))
 		return
 	}
 
 	if !c.Bool("f") {
-		if !cmd.ui.ConfirmDelete("domain", domainName) {
+		if !cmd.ui.ConfirmDelete(T("domain"), domainName) {
 			return
 		}
 	}
 
-	cmd.ui.Say("Deleting domain %s as %s...",
-		terminal.EntityNameColor(domainName),
-		terminal.EntityNameColor(cmd.config.Username()),
-	)
+	cmd.ui.Say(T("Deleting domain {{.DomainName}} as {{.Username}}...",
+		map[string]interface{}{
+			"DomainName": terminal.EntityNameColor(domainName),
+			"Username":   terminal.EntityNameColor(cmd.config.Username())}))
 
 	apiErr = cmd.domainRepo.Delete(domain.Guid)
 	if apiErr != nil {
-		cmd.ui.Failed("Error deleting domain %s\n%s", domainName, apiErr.Error())
+		cmd.ui.Failed(T("Error deleting domain {{.DomainName}}\n{{.ApiErr}}",
+			map[string]interface{}{"DomainName": domainName, "ApiErr": apiErr.Error()}))
 		return
 	}
 

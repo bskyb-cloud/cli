@@ -1,9 +1,9 @@
 package quota_test
 
 import (
+	"github.com/cloudfoundry/cli/cf/api/quotas/fakes"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	"github.com/cloudfoundry/cli/testhelpers/configuration"
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
@@ -18,19 +18,19 @@ import (
 var _ = Describe("delete-quota command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		quotaRepo           *testapi.FakeQuotaRepository
+		quotaRepo           *fakes.FakeQuotaRepository
 		requirementsFactory *testreq.FakeReqFactory
 	)
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
-		quotaRepo = &testapi.FakeQuotaRepository{}
+		quotaRepo = &fakes.FakeQuotaRepository{}
 		requirementsFactory = &testreq.FakeReqFactory{}
 	})
 
 	runCommand := func(args ...string) {
 		cmd := NewDeleteQuota(ui, configuration.NewRepositoryWithDefaults(), quotaRepo)
-		testcmd.RunCommand(cmd, testcmd.NewContext("delete-quota", args), requirementsFactory)
+		testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	Context("when the user is not logged in", func() {
@@ -61,14 +61,14 @@ var _ = Describe("delete-quota command", func() {
 				quota.Name = "my-quota"
 				quota.Guid = "my-quota-guid"
 
-				quotaRepo.FindByNameReturns.Quota = quota
+				quotaRepo.FindByNameReturns(quota, nil)
 			})
 
 			It("deletes a quota with a given name when the user confirms", func() {
 				ui.Inputs = []string{"y"}
 
 				runCommand("my-quota")
-				Expect(quotaRepo.DeleteCalledWith.Guid).To(Equal("my-quota-guid"))
+				Expect(quotaRepo.DeleteArgsForCall(0)).To(Equal("my-quota-guid"))
 
 				Expect(ui.Prompts).To(ContainSubstrings(
 					[]string{"Really delete the quota", "my-quota"},
@@ -83,13 +83,13 @@ var _ = Describe("delete-quota command", func() {
 			It("does not prompt when the -f flag is provided", func() {
 				runCommand("-f", "my-quota")
 
-				Expect(quotaRepo.DeleteCalledWith.Guid).To(Equal("my-quota-guid"))
+				Expect(quotaRepo.DeleteArgsForCall(0)).To(Equal("my-quota-guid"))
 
 				Expect(ui.Prompts).To(BeEmpty())
 			})
 
 			It("shows an error when deletion fails", func() {
-				quotaRepo.DeleteReturns.Error = errors.New("some error")
+				quotaRepo.DeleteReturns(errors.New("some error"))
 
 				runCommand("-f", "my-quota")
 
@@ -103,7 +103,7 @@ var _ = Describe("delete-quota command", func() {
 		Context("when finding the quota fails", func() {
 			Context("when the quota provided does not exist", func() {
 				BeforeEach(func() {
-					quotaRepo.FindByNameReturns.Error = errors.NewModelNotFoundError("Quota", "non-existent-quota")
+					quotaRepo.FindByNameReturns(models.QuotaFields{}, errors.NewModelNotFoundError("Quota", "non-existent-quota"))
 				})
 
 				It("warns the user when that the quota does not exist", func() {
@@ -122,7 +122,7 @@ var _ = Describe("delete-quota command", func() {
 
 			Context("when other types of error occur", func() {
 				BeforeEach(func() {
-					quotaRepo.FindByNameReturns.Error = errors.New("some error")
+					quotaRepo.FindByNameReturns(models.QuotaFields{}, errors.New("some error"))
 				})
 
 				It("shows an error", func() {

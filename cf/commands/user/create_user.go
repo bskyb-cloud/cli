@@ -6,6 +6,7 @@ import (
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/errors"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/codegangsta/cli"
@@ -24,17 +25,16 @@ func NewCreateUser(ui terminal.UI, config configuration.Reader, userRepo api.Use
 	return
 }
 
-func (command CreateUser) Metadata() command_metadata.CommandMetadata {
+func (cmd CreateUser) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "create-user",
-		Description: "Create a new user",
-		Usage:       "CF_NAME create-user USERNAME PASSWORD",
+		Description: T("Create a new user"),
+		Usage:       T("CF_NAME create-user USERNAME PASSWORD"),
 	}
 }
 
 func (cmd CreateUser) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
 	if len(c.Args()) != 2 {
-		err = errors.New("Incorrect Usage")
 		cmd.ui.FailWithUsage(c)
 	}
 
@@ -47,10 +47,11 @@ func (cmd CreateUser) Run(c *cli.Context) {
 	username := c.Args()[0]
 	password := c.Args()[1]
 
-	cmd.ui.Say("Creating user %s as %s...",
-		terminal.EntityNameColor(username),
-		terminal.EntityNameColor(cmd.config.Username()),
-	)
+	cmd.ui.Say(T("Creating user {{.TargetUser}} as {{.CurrentUser}}...",
+		map[string]interface{}{
+			"TargetUser":  terminal.EntityNameColor(username),
+			"CurrentUser": terminal.EntityNameColor(cmd.config.Username()),
+		}))
 
 	err := cmd.userRepo.Create(username, password)
 	switch err.(type) {
@@ -58,9 +59,13 @@ func (cmd CreateUser) Run(c *cli.Context) {
 	case *errors.ModelAlreadyExistsError:
 		cmd.ui.Warn("%s", err.Error())
 	default:
-		cmd.ui.Failed("Error creating user %s.\n%s", terminal.EntityNameColor(username), err.Error())
+		cmd.ui.Failed(T("Error creating user {{.TargetUser}}.\n{{.Error}}",
+			map[string]interface{}{
+				"TargetUser": terminal.EntityNameColor(username),
+				"Error":      err.Error(),
+			}))
 	}
 
 	cmd.ui.Ok()
-	cmd.ui.Say("\nTIP: Assign roles with '%s set-org-role' and '%s set-space-role'", cf.Name(), cf.Name())
+	cmd.ui.Say(T("\nTIP: Assign roles with '{{.CurrentUser}} set-org-role' and '{{.CurrentUser}} set-space-role'", map[string]interface{}{"CurrentUser": cf.Name()}))
 }

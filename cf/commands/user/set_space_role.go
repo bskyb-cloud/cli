@@ -2,7 +2,10 @@ package user
 
 import (
 	"errors"
+	. "github.com/cloudfoundry/cli/cf/i18n"
+
 	"github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/api/spaces"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/models"
@@ -18,13 +21,13 @@ type SpaceRoleSetter interface {
 type SetSpaceRole struct {
 	ui        terminal.UI
 	config    configuration.Reader
-	spaceRepo api.SpaceRepository
+	spaceRepo spaces.SpaceRepository
 	userRepo  api.UserRepository
 	userReq   requirements.UserRequirement
 	orgReq    requirements.OrganizationRequirement
 }
 
-func NewSetSpaceRole(ui terminal.UI, config configuration.Reader, spaceRepo api.SpaceRepository, userRepo api.UserRepository) (cmd *SetSpaceRole) {
+func NewSetSpaceRole(ui terminal.UI, config configuration.Reader, spaceRepo spaces.SpaceRepository, userRepo api.UserRepository) (cmd *SetSpaceRole) {
 	cmd = new(SetSpaceRole)
 	cmd.ui = ui
 	cmd.config = config
@@ -33,23 +36,21 @@ func NewSetSpaceRole(ui terminal.UI, config configuration.Reader, spaceRepo api.
 	return
 }
 
-func (command *SetSpaceRole) Metadata() command_metadata.CommandMetadata {
+func (cmd *SetSpaceRole) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "set-space-role",
-		Description: "Assign a space role to a user",
-		Usage: "CF_NAME set-space-role USERNAME ORG SPACE ROLE\n\n" +
-			"ROLES:\n" +
-			"   SpaceManager - Invite and manage users, and enable features for a given space\n" +
-			"   SpaceDeveloper - Create and manage apps and services, and see logs and reports\n" +
-			"   SpaceAuditor - View logs, reports, and settings on this space\n",
+		Description: T("Assign a space role to a user"),
+		Usage: T("CF_NAME set-space-role USERNAME ORG SPACE ROLE\n\n") +
+			T("ROLES:\n") +
+			T("   SpaceManager - Invite and manage users, and enable features for a given space\n") +
+			T("   SpaceDeveloper - Create and manage apps and services, and see logs and reports\n") +
+			T("   SpaceAuditor - View logs, reports, and settings on this space\n"),
 	}
 }
 
 func (cmd *SetSpaceRole) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
 	if len(c.Args()) != 4 {
-		err = errors.New("Incorrect Usage")
 		cmd.ui.FailWithUsage(c)
-		return
 	}
 
 	cmd.userReq = requirementsFactory.NewUserRequirement(c.Args()[0])
@@ -83,13 +84,14 @@ func (cmd *SetSpaceRole) Run(c *cli.Context) {
 }
 
 func (cmd *SetSpaceRole) SetSpaceRole(space models.Space, role, userGuid, userName string) (err error) {
-	cmd.ui.Say("Assigning role %s to user %s in org %s / space %s as %s...",
-		terminal.EntityNameColor(role),
-		terminal.EntityNameColor(userName),
-		terminal.EntityNameColor(space.Organization.Name),
-		terminal.EntityNameColor(space.Name),
-		terminal.EntityNameColor(cmd.config.Username()),
-	)
+	cmd.ui.Say(T("Assigning role {{.Role}} to user {{.TargetUser}} in org {{.TargetOrg}} / space {{.TargetSpace}} as {{.CurrentUser}}...",
+		map[string]interface{}{
+			"Role":        terminal.EntityNameColor(role),
+			"TargetUser":  terminal.EntityNameColor(userName),
+			"TargetOrg":   terminal.EntityNameColor(space.Organization.Name),
+			"TargetSpace": terminal.EntityNameColor(space.Name),
+			"CurrentUser": terminal.EntityNameColor(cmd.config.Username()),
+		}))
 
 	apiErr := cmd.userRepo.SetSpaceRole(userGuid, space.Guid, space.Organization.Guid, role)
 	if apiErr != nil {

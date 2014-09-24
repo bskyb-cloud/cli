@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/configuration"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/terminal"
 )
@@ -24,8 +25,7 @@ func NewTargetedOrgRequirement(ui terminal.UI, config configuration.Reader) Targ
 
 func (req targetedOrgApiRequirement) Execute() (success bool) {
 	if !req.config.HasOrganization() {
-		message := fmt.Sprintf("No org targeted, use '%s' to target an org.",
-			terminal.CommandColor(cf.Name()+" target -o ORG"))
+		message := fmt.Sprintf(T("No org targeted, use '{{.Command}}' to target an org.", map[string]interface{}{"Command": terminal.CommandColor(cf.Name() + " target -o ORG")}))
 		req.ui.Failed(message)
 		return false
 	}

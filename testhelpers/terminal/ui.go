@@ -2,14 +2,16 @@ package terminal
 
 import (
 	"fmt"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/cloudfoundry/cli/cf/configuration"
 	term "github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/codegangsta/cli"
-	"strings"
-	"time"
 )
 
-const FailedWasCalled = "FailedWasCalled"
+const QuietPanic = "I should not print anything"
 
 type FakeUI struct {
 	Outputs                    []string
@@ -19,7 +21,10 @@ type FakeUI struct {
 	Inputs                     []string
 	FailedWithUsage            bool
 	FailedWithUsageCommandName string
+	PanickedQuietly            bool
 	ShowConfigurationCalled    bool
+
+	sayMutex sync.Mutex
 }
 
 func (ui *FakeUI) PrintPaginator(rows []string, err error) {
@@ -34,6 +39,9 @@ func (ui *FakeUI) PrintPaginator(rows []string, err error) {
 }
 
 func (ui *FakeUI) Say(message string, args ...interface{}) {
+	ui.sayMutex.Lock()
+	defer ui.sayMutex.Unlock()
+
 	message = fmt.Sprintf(message, args...)
 	ui.Outputs = append(ui.Outputs, strings.Split(message, "\n")...)
 	return
@@ -100,18 +108,19 @@ func (ui *FakeUI) Ok() {
 func (ui *FakeUI) Failed(message string, args ...interface{}) {
 	ui.Say("FAILED")
 	ui.Say(message, args...)
-	panic(FailedWasCalled)
+	panic(QuietPanic)
 	return
-}
-
-func (ui *FakeUI) ConfigFailure(err error) {
-	ui.Failed("Error loading config file.\n%s", err.Error())
 }
 
 func (ui *FakeUI) FailWithUsage(context *cli.Context) {
 	ui.FailedWithUsage = true
 	ui.FailedWithUsageCommandName = context.Command.Name
 	ui.Failed("Incorrect Usage.")
+	ui.PanickedQuietly = true
+}
+
+func (ui *FakeUI) PanicQuietly() {
+	ui.PanickedQuietly = true
 }
 
 func (ui *FakeUI) DumpWarnOutputs() string {

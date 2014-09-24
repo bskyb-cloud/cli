@@ -2,20 +2,22 @@ package terminal
 
 import (
 	"fmt"
-	"github.com/cloudfoundry/cli/cf"
-	"github.com/cloudfoundry/cli/cf/configuration"
-	"github.com/cloudfoundry/cli/cf/trace"
-	"github.com/codegangsta/cli"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"io"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/cloudfoundry/cli/cf"
+	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/trace"
+	"github.com/codegangsta/cli"
 )
 
 type ColoringFunction func(value string, row int, col int) string
 
 func NotLoggedInText() string {
-	return fmt.Sprintf("Not logged in. Use '%s' to log in.", CommandColor(cf.Name()+" login"))
+	return fmt.Sprintf(T("Not logged in. Use '{{.CFLoginCommand}}' to log in.", map[string]interface{}{"CFLoginCommand": CommandColor(cf.Name() + " " + "login")}))
 }
 
 type UI interface {
@@ -30,7 +32,7 @@ type UI interface {
 	Ok()
 	Failed(message string, args ...interface{})
 	FailWithUsage(context *cli.Context)
-	ConfigFailure(err error)
+	PanicQuietly()
 	ShowConfiguration(configuration.Reader)
 	LoadingIndication()
 	Wait(duration time.Duration)
@@ -73,23 +75,26 @@ func (c terminalUI) Warn(message string, args ...interface{}) {
 }
 
 func (c terminalUI) ConfirmDeleteWithAssociations(modelType, modelName string) bool {
-	return c.confirmDelete("Really delete the %s %s and everything associated with it?%s", modelType, modelName)
+	return c.confirmDelete(T("Really delete the {{.ModelType}} {{.ModelName}} and everything associated with it?",
+		map[string]interface{}{
+			"ModelType": modelType,
+			"ModelName": EntityNameColor(modelName),
+		}))
 }
 
 func (c terminalUI) ConfirmDelete(modelType, modelName string) bool {
-	return c.confirmDelete("Really delete the %s %s?%s", modelType, modelName)
+	return c.confirmDelete(T("Really delete the {{.ModelType}} {{.ModelName}}?",
+		map[string]interface{}{
+			"ModelType": modelType,
+			"ModelName": EntityNameColor(modelName),
+		}))
 }
 
-func (c terminalUI) confirmDelete(message, modelType, modelName string) bool {
-	result := c.Confirm(
-		message,
-		modelType,
-		EntityNameColor(modelName),
-		PromptColor(">"),
-	)
+func (c terminalUI) confirmDelete(message string) bool {
+	result := c.Confirm(message)
 
 	if !result {
-		c.Warn("Delete cancelled")
+		c.Warn(T("Delete cancelled"))
 	}
 
 	return result
@@ -98,7 +103,7 @@ func (c terminalUI) confirmDelete(message, modelType, modelName string) bool {
 func (c terminalUI) Confirm(message string, args ...interface{}) bool {
 	response := c.Ask(message, args...)
 	switch strings.ToLower(response) {
-	case "y", "yes":
+	case "y", T("yes"):
 		return true
 	}
 	return false
@@ -112,66 +117,97 @@ func (c terminalUI) Ask(prompt string, args ...interface{}) (answer string) {
 }
 
 func (c terminalUI) Ok() {
-	c.Say(SuccessColor("OK"))
+	c.Say(SuccessColor(T("OK")))
 }
 
-const FailedWasCalled = "FailedWasCalled"
+const QuietPanic = "This shouldn't print anything"
 
 func (c terminalUI) Failed(message string, args ...interface{}) {
 	message = fmt.Sprintf(message, args...)
-	c.Say(FailureColor("FAILED"))
+	c.Say(FailureColor(T("FAILED")))
 	c.Say(message)
 
-	trace.Logger.Print("FAILED")
+	trace.Logger.Print(T("FAILED"))
 	trace.Logger.Print(message)
-	panic(FailedWasCalled)
+	c.PanicQuietly()
+}
+
+func (c terminalUI) PanicQuietly() {
+	panic(QuietPanic)
 }
 
 func (c terminalUI) FailWithUsage(context *cli.Context) {
-	c.Say(FailureColor("FAILED"))
-	c.Say("Incorrect Usage.\n")
+	c.Say(FailureColor(T("FAILED")))
+	c.Say(T("Incorrect Usage.\n"))
 	cli.ShowCommandHelp(context, context.Command.Name)
 	c.Say("")
 	os.Exit(1)
 }
 
-func (c terminalUI) ConfigFailure(err error) {
-	c.Failed("Please use '%s api' to set an API endpoint and then '%s login' to login.", cf.Name(), cf.Name())
-}
-
 func (ui terminalUI) ShowConfiguration(config configuration.Reader) {
+	table := NewTable(ui, []string{"", ""})
 	if config.HasAPIEndpoint() {
-		ui.Say("API endpoint: %s (API version: %s)",
-			EntityNameColor(config.ApiEndpoint()),
-			EntityNameColor(config.ApiVersion()))
+		table.Add(
+			T("API endpoint:"),
+			T("{{.ApiEndpoint}} (API version: {{.ApiVersionString}})",
+				map[string]interface{}{
+					"ApiEndpoint":      EntityNameColor(config.ApiEndpoint()),
+					"ApiVersionString": EntityNameColor(config.ApiVersion()),
+				}),
+		)
 	}
 
 	if !config.IsLoggedIn() {
+		table.Print()
 		ui.Say(NotLoggedInText())
 		return
 	} else {
-		ui.Say("User:         %s", EntityNameColor(config.UserEmail()))
+		table.Add(
+			T("User:"),
+			EntityNameColor(config.UserEmail()),
+		)
 	}
 
 	if !config.HasOrganization() && !config.HasSpace() {
+		table.Print()
 		command := fmt.Sprintf("%s target -o ORG -s SPACE", cf.Name())
-		ui.Say("No org or space targeted, use '%s'", CommandColor(command))
+		ui.Say(T("No org or space targeted, use '{{.CFTargetCommand}}'",
+			map[string]interface{}{
+				"CFTargetCommand": CommandColor(command),
+			}))
 		return
 	}
 
 	if config.HasOrganization() {
-		ui.Say("Org:          %s", EntityNameColor(config.OrganizationFields().Name))
+		table.Add(
+			T("Org:"),
+			EntityNameColor(config.OrganizationFields().Name),
+		)
 	} else {
 		command := fmt.Sprintf("%s target -o Org", cf.Name())
-		ui.Say("Org:          No org targeted, use '%s'", CommandColor(command))
+		table.Add(
+			T("Org:"),
+			T("No org targeted, use '{{.CFTargetCommand}}'",
+				map[string]interface{}{
+					"CFTargetCommand": CommandColor(command),
+				}),
+		)
 	}
 
 	if config.HasSpace() {
-		ui.Say("Space:        %s", EntityNameColor(config.SpaceFields().Name))
+		table.Add(
+			T("Space:"),
+			EntityNameColor(config.SpaceFields().Name),
+		)
 	} else {
 		command := fmt.Sprintf("%s target -s SPACE", cf.Name())
-		ui.Say("Space:        No space targeted, use '%s'", CommandColor(command))
+		table.Add(
+			T("Space:"),
+			T("No space targeted, use '{{.CFTargetCommand}}'", map[string]interface{}{"CFTargetCommand": CommandColor(command)}),
+		)
 	}
+
+	table.Print()
 }
 
 func (c terminalUI) LoadingIndication() {
@@ -184,15 +220,4 @@ func (c terminalUI) Wait(duration time.Duration) {
 
 func (ui terminalUI) Table(headers []string) Table {
 	return NewTable(ui, headers)
-}
-
-func tableColoringFunc(value string, row int, col int) string {
-	switch {
-	case row == 0:
-		return HeaderColor(value)
-	case col == 0 && row > 0:
-		return TableContentHeaderColor(value)
-	default:
-		return value
-	}
 }

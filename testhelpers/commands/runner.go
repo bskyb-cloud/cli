@@ -4,23 +4,32 @@ import (
 	"github.com/cloudfoundry/cli/cf/command"
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
-	"github.com/codegangsta/cli"
+)
+
+type RunCommandResult int
+
+const (
+	RunCommandResultSuccess            = iota
+	RunCommandResultFailed             = iota
+	RunCommandResultRequirementsFailed = iota
 )
 
 var CommandDidPassRequirements bool
 
-func RunCommand(cmd command.Command, ctxt *cli.Context, requirementsFactory *testreq.FakeReqFactory) (passedRequirements bool) {
+func RunCommand(cmd command.Command, args []string, requirementsFactory *testreq.FakeReqFactory) (passedRequirements bool) {
+	context := NewContext(cmd.Metadata().Name, args)
+
 	defer func() {
 		errMsg := recover()
 
-		if errMsg != nil && errMsg != testterm.FailedWasCalled {
+		if errMsg != nil && errMsg != testterm.QuietPanic {
 			panic(errMsg)
 		}
 	}()
 
 	CommandDidPassRequirements = false
 
-	requirements, err := cmd.GetRequirements(requirementsFactory, ctxt)
+	requirements, err := cmd.GetRequirements(requirementsFactory, context)
 	if err != nil {
 		return
 	}
@@ -34,7 +43,39 @@ func RunCommand(cmd command.Command, ctxt *cli.Context, requirementsFactory *tes
 
 	passedRequirements = true
 	CommandDidPassRequirements = true
-	cmd.Run(ctxt)
+	cmd.Run(context)
 
 	return
+}
+
+func RunCommandMoreBetter(cmd command.Command, requirementsFactory *testreq.FakeReqFactory, args ...string) (result RunCommandResult) {
+	defer func() {
+		errMsg := recover()
+		if errMsg == nil {
+			return
+		}
+
+		if errMsg != nil && errMsg != testterm.QuietPanic {
+			panic(errMsg)
+		}
+
+		result = RunCommandResultFailed
+	}()
+
+	context := NewContext(cmd.Metadata().Name, args)
+	requirements, err := cmd.GetRequirements(requirementsFactory, context)
+	if err != nil {
+		return RunCommandResultRequirementsFailed
+	}
+
+	for _, requirement := range requirements {
+		success := requirement.Execute()
+		if !success {
+			return RunCommandResultRequirementsFailed
+		}
+	}
+
+	cmd.Run(context)
+
+	return RunCommandResultSuccess
 }

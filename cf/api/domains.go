@@ -2,13 +2,15 @@ package api
 
 import (
 	"encoding/json"
+	. "github.com/cloudfoundry/cli/cf/i18n"
+	"strings"
+
 	"github.com/cloudfoundry/cli/cf/api/resources"
 	"github.com/cloudfoundry/cli/cf/api/strategy"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
-	"strings"
 )
 
 type DomainRepository interface {
@@ -37,7 +39,12 @@ func NewCloudControllerDomainRepository(config configuration.Reader, gateway net
 }
 
 func (repo CloudControllerDomainRepository) ListDomainsForOrg(orgGuid string, cb func(models.DomainFields) bool) error {
-	return repo.listDomains(repo.strategy.OrgDomainsURL(orgGuid), cb)
+	err := repo.listDomains(repo.strategy.PrivateDomainsByOrgURL(orgGuid), cb)
+	if err != nil {
+		return err
+	}
+	err = repo.listDomains(repo.strategy.SharedDomainsURL(), cb)
+	return err
 }
 
 func (repo CloudControllerDomainRepository) listDomains(path string, cb func(models.DomainFields) bool) (apiErr error) {
@@ -156,7 +163,7 @@ func (repo CloudControllerDomainRepository) defaultDomain(orgGuid string) (model
 	})
 
 	if foundDomain == nil {
-		return models.DomainFields{}, errors.New("Could not find a default domain")
+		return models.DomainFields{}, errors.New(T("Could not find a default domain"))
 	}
 
 	return *foundDomain, nil

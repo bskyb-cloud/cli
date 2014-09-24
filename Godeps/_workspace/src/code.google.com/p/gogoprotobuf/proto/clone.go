@@ -83,9 +83,14 @@ func mergeStruct(out, in reflect.Value) {
 		mergeAny(out.Field(i), in.Field(i))
 	}
 
-	if emIn, ok := in.Addr().Interface().(extendableProto); ok {
-		emOut := out.Addr().Interface().(extendableProto)
+	if emIn, ok := in.Addr().Interface().(extensionsMap); ok {
+		emOut := out.Addr().Interface().(extensionsMap)
 		mergeExtension(emOut.ExtensionMap(), emIn.ExtensionMap())
+	} else if emIn, ok := in.Addr().Interface().(extensionsBytes); ok {
+		emOut := out.Addr().Interface().(extensionsBytes)
+		bIn := emIn.GetExtensions()
+		bOut := emOut.GetExtensions()
+		*bOut = append(*bOut, *bIn...)
 	}
 
 	uf := in.FieldByName("XXX_unrecognized")
@@ -131,8 +136,11 @@ func mergeAny(out, in reflect.Value) {
 		}
 		switch in.Type().Elem().Kind() {
 		case reflect.Bool, reflect.Float32, reflect.Float64, reflect.Int32, reflect.Int64,
-			reflect.String, reflect.Uint32, reflect.Uint64, reflect.Uint8:
+			reflect.String, reflect.Uint32, reflect.Uint64:
 			out.Set(reflect.AppendSlice(out, in))
+		case reflect.Uint8:
+			// []byte is a scalar bytes field.
+			out.Set(in)
 		default:
 			for i := 0; i < n; i++ {
 				x := reflect.Indirect(reflect.New(in.Type().Elem()))

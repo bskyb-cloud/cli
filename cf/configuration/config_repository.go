@@ -48,6 +48,11 @@ type Reader interface {
 	UserEmail() string
 	IsLoggedIn() bool
 	IsSSLDisabled() bool
+
+	AsyncTimeout() uint
+	Trace() string
+
+	ColorEnabled() string
 }
 
 type ReadWriter interface {
@@ -63,6 +68,9 @@ type ReadWriter interface {
 	SetOrganizationFields(models.OrganizationFields)
 	SetSpaceFields(models.SpaceFields)
 	SetSSLDisabled(bool)
+	SetAsyncTimeout(uint)
+	SetTrace(string)
+	SetColorEnabled(string)
 }
 
 type Repository interface {
@@ -232,6 +240,27 @@ func (c *configRepository) IsSSLDisabled() (isSSLDisabled bool) {
 	return
 }
 
+func (c *configRepository) AsyncTimeout() (timeout uint) {
+	c.read(func() {
+		timeout = c.data.AsyncTimeout
+	})
+	return
+}
+
+func (c *configRepository) Trace() (trace string) {
+	c.read(func() {
+		trace = c.data.Trace
+	})
+	return
+}
+
+func (c *configRepository) ColorEnabled() (enabled string) {
+	c.read(func() {
+		enabled = c.data.ColorEnabled
+	})
+	return
+}
+
 // SETTERS
 
 func (c *configRepository) ClearSession() {
@@ -300,5 +329,23 @@ func (c *configRepository) SetSpaceFields(space models.SpaceFields) {
 func (c *configRepository) SetSSLDisabled(disabled bool) {
 	c.write(func() {
 		c.data.SSLDisabled = disabled
+	})
+}
+
+func (c *configRepository) SetAsyncTimeout(timeout uint) {
+	c.write(func() {
+		c.data.AsyncTimeout = timeout
+	})
+}
+
+func (c *configRepository) SetTrace(value string) {
+	c.write(func() {
+		c.data.Trace = value
+	})
+}
+
+func (c *configRepository) SetColorEnabled(enabled string) {
+	c.write(func() {
+		c.data.ColorEnabled = enabled
 	})
 }

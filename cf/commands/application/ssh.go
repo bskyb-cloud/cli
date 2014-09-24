@@ -3,13 +3,13 @@ package application
 import (
 	"errors"
 	"fmt"
-	"github.com/codegangsta/cli"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/flag_helpers"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/cf/flag_helpers"
+	"github.com/codegangsta/cli"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -40,7 +40,7 @@ func (command *Ssh) Metadata() command_metadata.CommandMetadata {
 		Description: "Ssh to the target instance",
 		Usage:       "CF_NAME ssh APP [--instance=<num>]",
 		Flags: []cli.Flag{
-		    flag_helpers.NewStringFlag("instance", "instance number to ssh to"),
+			flag_helpers.NewStringFlag("instance", "instance number to ssh to"),
 		},
 	}
 }

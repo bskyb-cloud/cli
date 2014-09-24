@@ -1,11 +1,11 @@
 package service
 
 import (
-	"fmt"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/errors"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -25,24 +25,24 @@ func NewCreateService(ui terminal.UI, config configuration.Reader, serviceRepo a
 	return
 }
 
-func (command CreateService) Metadata() command_metadata.CommandMetadata {
+func (cmd CreateService) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "create-service",
 		ShortName:   "cs",
-		Description: "Create a service instance",
-		Usage: "CF_NAME create-service SERVICE PLAN SERVICE_INSTANCE\n\n" +
-			"EXAMPLE:\n" +
-			"   CF_NAME create-service cleardb spark clear-db-mine\n\n" +
-			"TIP:\n" +
-			"   Use 'CF_NAME create-user-provided-service' to make user-provided services available to cf apps",
+		Description: T("Create a service instance"),
+		Usage: T(`CF_NAME create-service SERVICE PLAN SERVICE_INSTANCE
+
+EXAMPLE:
+   CF_NAME create-service cleardb spark clear-db-mine
+
+TIP:
+   Use 'CF_NAME create-user-provided-service' to make user-provided services available to cf apps`),
 	}
 }
 
 func (cmd CreateService) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
 	if len(c.Args()) != 3 {
-		err = errors.New("Incorrect Usage")
 		cmd.ui.FailWithUsage(c)
-		return
 	}
 
 	reqs = []requirements.Requirement{
@@ -58,12 +58,13 @@ func (cmd CreateService) Run(c *cli.Context) {
 	planName := c.Args()[1]
 	serviceInstanceName := c.Args()[2]
 
-	cmd.ui.Say("Creating service %s in org %s / space %s as %s...",
-		terminal.EntityNameColor(serviceInstanceName),
-		terminal.EntityNameColor(cmd.config.OrganizationFields().Name),
-		terminal.EntityNameColor(cmd.config.SpaceFields().Name),
-		terminal.EntityNameColor(cmd.config.Username()),
-	)
+	cmd.ui.Say(T("Creating service {{.ServiceName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
+		map[string]interface{}{
+			"ServiceName": terminal.EntityNameColor(serviceInstanceName),
+			"OrgName":     terminal.EntityNameColor(cmd.config.OrganizationFields().Name),
+			"SpaceName":   terminal.EntityNameColor(cmd.config.SpaceFields().Name),
+			"CurrentUser": terminal.EntityNameColor(cmd.config.Username()),
+		}))
 
 	err := cmd.CreateService(serviceName, planName, serviceInstanceName)
 
@@ -99,7 +100,9 @@ func findOfferings(offerings []models.ServiceOffering, name string) (matchingOff
 	}
 
 	if len(matchingOfferings) == 0 {
-		err = errors.New(fmt.Sprintf("Could not find any offerings with name %s", name))
+		err = errors.New(T("Could not find any offerings with name {{.ServiceOfferingName}}",
+			map[string]interface{}{"ServiceOfferingName": name},
+		))
 	}
 	return
 }
@@ -113,6 +116,8 @@ func findPlanFromOfferings(offerings models.ServiceOfferings, name string) (plan
 		}
 	}
 
-	err = errors.New(fmt.Sprintf("Could not find plan with name %s", name))
+	err = errors.New(T("Could not find plan with name {{.ServicePlanName}}",
+		map[string]interface{}{"ServicePlanName": name},
+	))
 	return
 }

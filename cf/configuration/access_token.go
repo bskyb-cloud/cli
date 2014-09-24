@@ -50,7 +50,7 @@ func restorePadding(seg string) string {
 	case 2:
 		seg = seg + "=="
 	case 3:
-		seg = seg + "==="
+		seg = seg + "="
 	}
 	return seg
 }

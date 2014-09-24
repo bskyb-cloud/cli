@@ -1,10 +1,10 @@
 package space
 
 import (
-	"errors"
-	"github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/api/spaces"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/configuration"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/codegangsta/cli"
@@ -13,11 +13,11 @@ import (
 type RenameSpace struct {
 	ui        terminal.UI
 	config    configuration.ReadWriter
-	spaceRepo api.SpaceRepository
+	spaceRepo spaces.SpaceRepository
 	spaceReq  requirements.SpaceRequirement
 }
 
-func NewRenameSpace(ui terminal.UI, config configuration.ReadWriter, spaceRepo api.SpaceRepository) (cmd *RenameSpace) {
+func NewRenameSpace(ui terminal.UI, config configuration.ReadWriter, spaceRepo spaces.SpaceRepository) (cmd *RenameSpace) {
 	cmd = new(RenameSpace)
 	cmd.ui = ui
 	cmd.config = config
@@ -25,20 +25,19 @@ func NewRenameSpace(ui terminal.UI, config configuration.ReadWriter, spaceRepo a
 	return
 }
 
-func (command *RenameSpace) Metadata() command_metadata.CommandMetadata {
+func (cmd *RenameSpace) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "rename-space",
-		Description: "Rename a space",
-		Usage:       "CF_NAME rename-space SPACE NEW_SPACE",
+		Description: T("Rename a space"),
+		Usage:       T("CF_NAME rename-space SPACE NEW_SPACE"),
 	}
 }
 
 func (cmd *RenameSpace) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
 	if len(c.Args()) != 2 {
-		err = errors.New("Incorrect Usage")
 		cmd.ui.FailWithUsage(c)
-		return
 	}
+
 	cmd.spaceReq = requirementsFactory.NewSpaceRequirement(c.Args()[0])
 	reqs = []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
@@ -51,12 +50,13 @@ func (cmd *RenameSpace) GetRequirements(requirementsFactory requirements.Factory
 func (cmd *RenameSpace) Run(c *cli.Context) {
 	space := cmd.spaceReq.GetSpace()
 	newName := c.Args()[1]
-	cmd.ui.Say("Renaming space %s to %s in org %s as %s...",
-		terminal.EntityNameColor(space.Name),
-		terminal.EntityNameColor(newName),
-		terminal.EntityNameColor(cmd.config.OrganizationFields().Name),
-		terminal.EntityNameColor(cmd.config.Username()),
-	)
+	cmd.ui.Say(T("Renaming space {{.OldSpaceName}} to {{.NewSpaceName}} in org {{.OrgName}} as {{.CurrentUser}}...",
+		map[string]interface{}{
+			"OldSpaceName": terminal.EntityNameColor(space.Name),
+			"NewSpaceName": terminal.EntityNameColor(newName),
+			"OrgName":      terminal.EntityNameColor(cmd.config.OrganizationFields().Name),
+			"CurrentUser":  terminal.EntityNameColor(cmd.config.Username()),
+		}))
 
 	apiErr := cmd.spaceRepo.Rename(space.Guid, newName)
 	if apiErr != nil {

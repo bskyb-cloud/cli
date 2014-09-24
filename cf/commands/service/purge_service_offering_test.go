@@ -2,10 +2,10 @@ package service_test
 
 import (
 	"errors"
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/service"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	cferrors "github.com/cloudfoundry/cli/cf/errors"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	"github.com/cloudfoundry/cli/testhelpers/maker"
@@ -26,7 +26,7 @@ var _ = Describe("purge-service command", func() {
 			cmd := NewPurgeServiceOffering(deps.ui, deps.config, deps.serviceRepo)
 			testcmd.RunCommand(
 				cmd,
-				testcmd.NewContext("purge-service-offering", []string{"-f", "whatever"}),
+				[]string{"-f", "whatever"},
 				deps.requirementsFactory,
 			)
 
@@ -39,7 +39,7 @@ var _ = Describe("purge-service command", func() {
 
 			testcmd.RunCommand(
 				NewPurgeServiceOffering(deps.ui, deps.config, deps.serviceRepo),
-				testcmd.NewContext("purge-service-offering", []string{}),
+				[]string{},
 				deps.requirementsFactory,
 			)
 
@@ -58,7 +58,7 @@ var _ = Describe("purge-service command", func() {
 
 		testcmd.RunCommand(
 			NewPurgeServiceOffering(deps.ui, deps.config, deps.serviceRepo),
-			testcmd.NewContext("purge-service-offering", []string{"-p", "the-provider", "the-service-name"}),
+			[]string{"-p", "the-provider", "the-service-name"},
 			deps.requirementsFactory,
 		)
 
@@ -77,11 +77,11 @@ var _ = Describe("purge-service command", func() {
 
 		testcmd.RunCommand(
 			NewPurgeServiceOffering(deps.ui, deps.config, deps.serviceRepo),
-			testcmd.NewContext("purge-service-offering", []string{"the-service-name"}),
+			[]string{"the-service-name"},
 			deps.requirementsFactory,
 		)
 
-		Expect(deps.ui.Outputs).To(ContainSubstrings([]string{"Warning"}))
+		Expect(deps.ui.Outputs).To(ContainSubstrings([]string{"WARNING"}))
 		Expect(deps.ui.Prompts).To(ContainSubstrings([]string{"Really purge service", "the-service-name"}))
 		Expect(deps.ui.Outputs).To(ContainSubstrings([]string{"Purging service the-service-name..."}))
 
@@ -99,7 +99,7 @@ var _ = Describe("purge-service command", func() {
 
 		testcmd.RunCommand(
 			NewPurgeServiceOffering(deps.ui, deps.config, deps.serviceRepo),
-			testcmd.NewContext("purge-service-offering", []string{"the-service-name"}),
+			[]string{"the-service-name"},
 			deps.requirementsFactory,
 		)
 
@@ -115,7 +115,7 @@ var _ = Describe("purge-service command", func() {
 
 		testcmd.RunCommand(
 			NewPurgeServiceOffering(deps.ui, deps.config, deps.serviceRepo),
-			testcmd.NewContext("purge-service-offering", []string{"-f", "the-service-name"}),
+			[]string{"-f", "the-service-name"},
 			deps.requirementsFactory,
 		)
 
@@ -130,7 +130,7 @@ var _ = Describe("purge-service command", func() {
 
 		testcmd.RunCommand(
 			NewPurgeServiceOffering(deps.ui, deps.config, deps.serviceRepo),
-			testcmd.NewContext("purge-service-offering", []string{"-f", "-p", "the-provider", "the-service-name"}),
+			[]string{"-f", "-p", "the-provider", "the-service-name"},
 			deps.requirementsFactory,
 		)
 
@@ -142,6 +142,21 @@ var _ = Describe("purge-service command", func() {
 		Expect(deps.serviceRepo.PurgeServiceOfferingCalled).To(Equal(false))
 	})
 
+	It("fails with an error message when the purging request fails", func() {
+		deps := setupDependencies()
+		deps.serviceRepo.PurgeServiceOfferingApiResponse = cferrors.New("crumpets insufficiently buttered")
+
+		testcmd.RunCommand(NewPurgeServiceOffering(deps.ui, deps.config, deps.serviceRepo),
+			[]string{"-f", "-p", "the-provider", "the-service-name"},
+			deps.requirementsFactory,
+		)
+
+		Expect(deps.ui.Outputs).To(ContainSubstrings(
+			[]string{"FAILED"},
+			[]string{"crumpets insufficiently buttered"},
+		))
+	})
+
 	It("indicates when a service doesn't exist", func() {
 		deps := setupDependencies()
 
@@ -151,12 +166,12 @@ var _ = Describe("purge-service command", func() {
 
 		testcmd.RunCommand(
 			NewPurgeServiceOffering(deps.ui, deps.config, deps.serviceRepo),
-			testcmd.NewContext("purge-service-offering", []string{"-p", "the-provider", "the-service-name"}),
+			[]string{"-p", "the-provider", "the-service-name"},
 			deps.requirementsFactory,
 		)
 
 		Expect(deps.ui.Outputs).To(ContainSubstrings([]string{"Service offering", "does not exist"}))
-		Expect(deps.ui.Outputs).ToNot(ContainSubstrings([]string{"Warning"}))
+		Expect(deps.ui.Outputs).ToNot(ContainSubstrings([]string{"WARNING"}))
 		Expect(deps.ui.Outputs).ToNot(ContainSubstrings([]string{"Ok"}))
 
 		Expect(deps.serviceRepo.PurgeServiceOfferingCalled).To(Equal(false))

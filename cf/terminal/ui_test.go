@@ -1,19 +1,20 @@
 package terminal_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/configuration"
-	"github.com/cloudfoundry/cli/cf/io_helpers"
-	"github.com/cloudfoundry/cli/cf/models"
-	. "github.com/cloudfoundry/cli/cf/terminal"
-	testassert "github.com/cloudfoundry/cli/testhelpers/assert"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	"io"
 	"os"
 	"strings"
 
+	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/models"
+	testassert "github.com/cloudfoundry/cli/testhelpers/assert"
+	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	io_helpers "github.com/cloudfoundry/cli/testhelpers/io"
+
+	. "github.com/cloudfoundry/cli/cf/terminal"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("UI", func() {
@@ -86,14 +87,18 @@ var _ = Describe("UI", func() {
 	})
 
 	Describe("Confirming deletion", func() {
-		It("treats 'y' as an affirmative confirmation", func() {
+		It("formats a nice output string with exactly one prompt", func() {
 			io_helpers.SimulateStdin("y\n", func(reader io.Reader) {
 				out := io_helpers.CaptureOutput(func() {
 					ui := NewUI(reader)
-					Expect(ui.ConfirmDelete("modelType", "modelName")).To(BeTrue())
+					Expect(ui.ConfirmDelete("fizzbuzz", "bizzbump")).To(BeTrue())
 				})
 
-				Expect(out).To(ContainSubstrings([]string{"modelType modelName"}))
+				Expect(out).To(ContainSubstrings([]string{
+					"Really delete the fizzbuzz",
+					"bizzbump",
+					"?> ",
+				}))
 			})
 		})
 
@@ -253,7 +258,7 @@ var _ = Describe("UI", func() {
 	Describe("failing", func() {
 		It("panics with a specific string", func() {
 			io_helpers.CaptureOutput(func() {
-				testassert.AssertPanic(FailedWasCalled, func() {
+				testassert.AssertPanic(QuietPanic, func() {
 					NewUI(os.Stdin).Failed("uh oh")
 				})
 			})

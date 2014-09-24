@@ -7,6 +7,7 @@ package terminal
 import (
 	"bufio"
 	"fmt"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"os"
 	"os/signal"
 	"strings"
@@ -73,7 +74,7 @@ func echoOff(fd []uintptr) (int, error) {
 	pid, err := syscall.ForkExec(sttyArg0, sttyArgvEOff, &syscall.ProcAttr{Dir: exec_cwdir, Files: fd})
 
 	if err != nil {
-		return 0, fmt.Errorf("failed turning off console echo for password entry:\n\t%s", err)
+		return 0, fmt.Errorf(T("failed turning off console echo for password entry:\n{{.ErrorDescription}}", map[string]interface{}{"ErrorDescription": err}))
 	}
 
 	return pid, nil

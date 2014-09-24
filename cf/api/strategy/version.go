@@ -1,28 +1,32 @@
 package strategy
 
 import (
-	"github.com/cloudfoundry/cli/cf/errors"
 	"strconv"
 	"strings"
+
+	"github.com/cloudfoundry/cli/cf/errors"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 )
 
 type Version struct {
-	Major uint64
-	Minor uint64
-	Patch uint64
+	Major int64
+	Minor int64
+	Patch int64
 }
 
 func ParseVersion(input string) (Version, error) {
 	parts := strings.Split(input, ".")
 	if len(parts) != 3 {
-		return Version{}, errors.NewWithFmt("Could not parse version number: %s", input)
+		return Version{}, errors.NewWithFmt(T("Could not parse version number: {{.Input}}",
+			map[string]interface{}{"Input": input}))
 	}
 
-	major, err1 := strconv.ParseUint(parts[0], 10, 64)
-	minor, err2 := strconv.ParseUint(parts[1], 10, 64)
-	patch, err3 := strconv.ParseUint(parts[2], 10, 64)
+	major, err1 := strconv.ParseInt(parts[0], 10, 64)
+	minor, err2 := strconv.ParseInt(parts[1], 10, 64)
+	patch, err3 := strconv.ParseInt(parts[2], 10, 64)
 	if err1 != nil || err2 != nil || err3 != nil {
-		return Version{}, errors.NewWithFmt("Could not parse version number: %s", input)
+		return Version{}, errors.NewWithFmt(T("Could not parse version number: {{.Input}}",
+			map[string]interface{}{"Input": input}))
 	}
 
 	return Version{major, minor, patch}, nil

@@ -237,11 +237,20 @@ func writeStruct(w *textWriter, sv reflect.Value) error {
 						return err
 					}
 				}
-				if len(props.Enum) > 0 {
-					if err := writeEnum(w, fv.Index(j), props); err != nil {
+				v := fv.Index(j)
+				if v.Kind() == reflect.Ptr && v.IsNil() {
+					// A nil message in a repeated field is not valid,
+					// but we can handle that more gracefully than panicking.
+					if _, err := w.Write([]byte("<nil>\n")); err != nil {
 						return err
 					}
-				} else if err := writeAny(w, fv.Index(j), props); err != nil {
+					continue
+				}
+				if len(props.Enum) > 0 {
+					if err := writeEnum(w, v, props); err != nil {
+						return err
+					}
+				} else if err := writeAny(w, v, props); err != nil {
 					return err
 				}
 				if err := w.WriteByte('\n'); err != nil {
@@ -570,7 +579,18 @@ func writeExtensions(w *textWriter, pv reflect.Value) error {
 	// Order the extensions by ID.
 	// This isn't strictly necessary, but it will give us
 	// canonical output, which will also make testing easier.
-	m := ep.ExtensionMap()
+	var m map[int32]Extension
+	if em, ok := ep.(extensionsMap); ok {
+		m = em.ExtensionMap()
+	} else if em, ok := ep.(extensionsBytes); ok {
+		eb := em.GetExtensions()
+		var err error
+		m, err = BytesToExtensionsMap(*eb)
+		if err != nil {
+			return err
+		}
+	}
+
 	ids := make([]int32, 0, len(m))
 	for id := range m {
 		ids = append(ids, id)

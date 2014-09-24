@@ -3,10 +3,14 @@ package api
 import (
 	"crypto/tls"
 	"errors"
+	. "github.com/cloudfoundry/cli/cf/i18n"
+	"time"
+
+	"github.com/cloudfoundry/cli/cf/api/authentication"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	consumer "github.com/cloudfoundry/loggregator_consumer"
+	"github.com/cloudfoundry/loggregator_consumer/noaa_errors"
 	"github.com/cloudfoundry/loggregatorlib/logmessage"
-	"time"
 )
 
 type LogsRepository interface {
@@ -19,15 +23,15 @@ type LoggregatorLogsRepository struct {
 	consumer       consumer.LoggregatorConsumer
 	config         configuration.Reader
 	TrustedCerts   []tls.Certificate
-	tokenRefresher TokenRefresher
+	tokenRefresher authentication.TokenRefresher
 	messageQueue   *SortedMessageQueue
 
 	onMessage func(*logmessage.LogMessage)
 }
 
-var BufferTime time.Duration = 5
+var BufferTime time.Duration = 5 * time.Second
 
-func NewLoggregatorLogsRepository(config configuration.Reader, consumer consumer.LoggregatorConsumer, refresher TokenRefresher) LogsRepository {
+func NewLoggregatorLogsRepository(config configuration.Reader, consumer consumer.LoggregatorConsumer, refresher authentication.TokenRefresher) LogsRepository {
 	return &LoggregatorLogsRepository{
 		config:         config,
 		consumer:       consumer,
@@ -46,7 +50,7 @@ func (repo *LoggregatorLogsRepository) RecentLogsFor(appGuid string) ([]*logmess
 
 	switch err.(type) {
 	case nil: // do nothing
-	case *consumer.UnauthorizedError:
+	case *noaa_errors.UnauthorizedError:
 		repo.tokenRefresher.RefreshAuthToken()
 		messages, err = repo.consumer.Recent(appGuid, repo.config.AccessToken())
 	default:
@@ -62,17 +66,21 @@ func (repo *LoggregatorLogsRepository) TailLogsFor(appGuid string, onConnect fun
 
 	endpoint := repo.config.LoggregatorEndpoint()
 	if endpoint == "" {
-		return errors.New("Loggregator endpoint missing from config file")
+		return errors.New(T("Loggregator endpoint missing from config file"))
 	}
 
 	repo.consumer.SetOnConnectCallback(onConnect)
 	logChan, err := repo.consumer.Tail(appGuid, repo.config.AccessToken())
 	switch err.(type) {
 	case nil: // do nothing
-	case *consumer.UnauthorizedError:
+	case *noaa_errors.UnauthorizedError:
 		repo.tokenRefresher.RefreshAuthToken()
 		logChan, err = repo.consumer.Tail(appGuid, repo.config.AccessToken())
 	default:
+		return err
+	}
+
+	if err != nil {
 		return err
 	}
 

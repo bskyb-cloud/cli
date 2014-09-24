@@ -5,19 +5,23 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"github.com/cloudfoundry/cli/cf/app_files"
-	"github.com/cloudfoundry/cli/cf/configuration"
-	"github.com/cloudfoundry/cli/cf/errors"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/net"
-	"github.com/cloudfoundry/gofileutils/fileutils"
 	"io"
 	"mime/multipart"
+	gonet "net"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"github.com/cloudfoundry/cli/cf/app_files"
+	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/errors"
+	. "github.com/cloudfoundry/cli/cf/i18n"
+	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/net"
+	"github.com/cloudfoundry/gofileutils/fileutils"
 )
 
 type BuildpackBitsRepository interface {
@@ -41,7 +45,7 @@ func NewCloudControllerBuildpackBitsRepository(config configuration.Reader, gate
 func (repo CloudControllerBuildpackBitsRepository) UploadBuildpack(buildpack models.Buildpack, buildpackLocation string) (apiErr error) {
 	fileutils.TempFile("buildpack-upload", func(zipFileToUpload *os.File, err error) {
 		if err != nil {
-			apiErr = errors.NewWithError("Couldn't create temp file for upload", err)
+			apiErr = errors.NewWithError(T("Couldn't create temp file for upload"), err)
 			return
 		}
 
@@ -61,17 +65,18 @@ func (repo CloudControllerBuildpackBitsRepository) UploadBuildpack(buildpack mod
 
 			stats, statError := os.Stat(buildpackLocation)
 			if statError != nil {
-				apiErr = errors.NewWithError("Error opening buildpack file", statError)
+				apiErr = errors.NewWithError(T("Error opening buildpack file"), statError)
 				err = statError
 				return
 			}
 
 			if stats.IsDir() {
+				buildpackFileName += ".zip" // FIXME: remove once #71167394 is fixed
 				err = repo.zipper.Zip(buildpackLocation, zipFileToUpload)
 			} else {
 				specifiedFile, openError := os.Open(buildpackLocation)
 				if openError != nil {
-					apiErr = errors.NewWithError("Couldn't open buildpack file", openError)
+					apiErr = errors.NewWithError(T("Couldn't open buildpack file"), openError)
 					err = openError
 					return
 				}
@@ -80,7 +85,7 @@ func (repo CloudControllerBuildpackBitsRepository) UploadBuildpack(buildpack mod
 		}
 
 		if err != nil {
-			apiErr = errors.NewWithError("Couldn't write zip file", err)
+			apiErr = errors.NewWithError(T("Couldn't write zip file"), err)
 			return
 		}
 
@@ -106,7 +111,7 @@ func normalizeBuildpackArchive(inputFile *os.File, outputFile *os.File) error {
 	parentPath, hasBuildpack := findBuildpackPath(contents)
 
 	if !hasBuildpack {
-		return errors.New("Zip archive does not contain a buildpack")
+		return errors.New(T("Zip archive does not contain a buildpack"))
 	}
 
 	writer := zip.NewWriter(outputFile)
@@ -187,6 +192,7 @@ func (repo CloudControllerBuildpackBitsRepository) downloadBuildpack(url string,
 
 		client := &http.Client{
 			Transport: &http.Transport{
+				Dial:            (&gonet.Dialer{Timeout: 5 * time.Second}).Dial,
 				TLSClientConfig: &tls.Config{RootCAs: certPool},
 				Proxy:           http.ProxyFromEnvironment,
 			},
@@ -197,6 +203,7 @@ func (repo CloudControllerBuildpackBitsRepository) downloadBuildpack(url string,
 			cb(nil, err)
 			return
 		}
+		defer response.Body.Close()
 
 		io.Copy(tempfile, response.Body)
 		tempfile.Seek(0, 0)
@@ -231,7 +238,7 @@ func (repo CloudControllerBuildpackBitsRepository) performMultiPartUpload(url st
 		writer.Close()
 
 		if err != nil {
-			apiErr = errors.NewWithError("Error creating upload", err)
+			apiErr = errors.NewWithError(T("Error creating upload"), err)
 			return
 		}
 

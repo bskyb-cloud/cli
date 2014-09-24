@@ -1,10 +1,10 @@
 package application_test
 
 import (
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/application"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/models"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
@@ -35,7 +35,7 @@ var _ = Describe("list-apps command", func() {
 
 	runCommand := func() {
 		cmd := NewListApps(ui, configRepo, appSummaryRepo)
-		testcmd.RunCommand(cmd, testcmd.NewContext("apps", []string{}), requirementsFactory)
+		testcmd.RunCommand(cmd, []string{}, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
@@ -104,6 +104,34 @@ var _ = Describe("list-apps command", func() {
 				[]string{"Application-1", "started", "1/1", "512M", "1G", "app1.cfapps.io", "app1.example.com"},
 				[]string{"Application-2", "started", "1/2", "256M", "1G", "app2.cfapps.io"},
 			))
+		})
+
+		Context("when an app's running instances is unknown", func() {
+			It("dipslays a '?' for running instances", func() {
+				appRoutes := []models.RouteSummary{
+					models.RouteSummary{
+						Host:   "app1",
+						Domain: models.DomainFields{Name: "cfapps.io"},
+					}}
+				app := models.Application{}
+				app.Name = "Application-1"
+				app.State = "started"
+				app.RunningInstances = -1
+				app.InstanceCount = 2
+				app.Memory = 512
+				app.DiskQuota = 1024
+				app.Routes = appRoutes
+
+				appSummaryRepo.GetSummariesInCurrentSpaceApps = []models.Application{app}
+
+				runCommand()
+
+				Expect(ui.Outputs).To(ContainSubstrings(
+					[]string{"Getting apps in", "my-org", "my-space", "my-user"},
+					[]string{"OK"},
+					[]string{"Application-1", "started", "?/2", "512M", "1G", "app1.cfapps.io"},
+				))
+			})
 		})
 
 		Context("when there are no apps", func() {

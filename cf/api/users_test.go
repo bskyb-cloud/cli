@@ -2,19 +2,23 @@ package api_test
 
 import (
 	"fmt"
-	. "github.com/cloudfoundry/cli/cf/api"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"time"
+
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+
+	. "github.com/cloudfoundry/cli/cf/api"
+	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
 )
 
 var _ = Describe("User Repository", func() {
@@ -29,7 +33,7 @@ var _ = Describe("User Repository", func() {
 
 	BeforeEach(func() {
 		config = testconfig.NewRepositoryWithDefaults()
-		ccGateway := net.NewCloudControllerGateway(config)
+		ccGateway := net.NewCloudControllerGateway((config), time.Now)
 		uaaGateway := net.NewUAAGateway(config)
 		repo = NewCloudControllerUserRepository(config, uaaGateway, ccGateway)
 	})
@@ -70,7 +74,7 @@ var _ = Describe("User Repository", func() {
 
 				users, apiErr := repo.ListUsersInOrgForRole("my-org-guid", models.ORG_MANAGER)
 
-				Expect(ccHandler).To(testnet.HaveAllRequestsCalled())
+				Expect(ccHandler).To(HaveAllRequestsCalled())
 				Expect(apiErr).NotTo(HaveOccurred())
 				Expect(len(users)).To(Equal(0))
 			})
@@ -85,8 +89,8 @@ var _ = Describe("User Repository", func() {
 
 				users, apiErr := repo.ListUsersInOrgForRole("my-org-guid", models.ORG_MANAGER)
 
-				Expect(ccHandler).To(testnet.HaveAllRequestsCalled())
-				Expect(uaaHandler).To(testnet.HaveAllRequestsCalled())
+				Expect(ccHandler).To(HaveAllRequestsCalled())
+				Expect(uaaHandler).To(HaveAllRequestsCalled())
 				Expect(apiErr).NotTo(HaveOccurred())
 
 				Expect(len(users)).To(Equal(3))
@@ -113,7 +117,7 @@ var _ = Describe("User Repository", func() {
 
 				users, apiErr := repo.ListUsersInSpaceForRole("my-space-guid", models.SPACE_MANAGER)
 
-				Expect(ccHandler).To(testnet.HaveAllRequestsCalled())
+				Expect(ccHandler).To(HaveAllRequestsCalled())
 				Expect(apiErr).NotTo(HaveOccurred())
 				Expect(len(users)).To(Equal(0))
 			})
@@ -128,8 +132,8 @@ var _ = Describe("User Repository", func() {
 
 				users, apiErr := repo.ListUsersInSpaceForRole("my-space-guid", models.SPACE_MANAGER)
 
-				Expect(ccHandler).To(testnet.HaveAllRequestsCalled())
-				Expect(uaaHandler).To(testnet.HaveAllRequestsCalled())
+				Expect(ccHandler).To(HaveAllRequestsCalled())
+				Expect(uaaHandler).To(HaveAllRequestsCalled())
 				Expect(apiErr).NotTo(HaveOccurred())
 
 				Expect(len(users)).To(Equal(3))
@@ -155,7 +159,7 @@ var _ = Describe("User Repository", func() {
 
 			_, apiErr := repo.ListUsersInOrgForRole("my-org-guid", models.ORG_MANAGER)
 
-			Expect(ccHandler).To(testnet.HaveAllRequestsCalled())
+			Expect(ccHandler).To(HaveAllRequestsCalled())
 			httpErr, ok := apiErr.(errors.HttpError)
 			Expect(ok).To(BeTrue())
 			Expect(httpErr.StatusCode()).To(Equal(http.StatusGatewayTimeout))
@@ -189,7 +193,7 @@ var _ = Describe("User Repository", func() {
 						}}))
 
 				user, err := repo.FindByUsername("damien+user1@pivotallabs.com")
-				Expect(uaaHandler).To(testnet.HaveAllRequestsCalled())
+				Expect(uaaHandler).To(HaveAllRequestsCalled())
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(user).To(Equal(models.UserFields{
@@ -209,7 +213,7 @@ var _ = Describe("User Repository", func() {
 					}))
 
 				_, err := repo.FindByUsername("my-user")
-				Expect(uaaHandler).To(testnet.HaveAllRequestsCalled())
+				Expect(uaaHandler).To(HaveAllRequestsCalled())
 				Expect(err).To(BeAssignableToTypeOf(&errors.ModelNotFoundError{}))
 			})
 		})
@@ -244,8 +248,8 @@ var _ = Describe("User Repository", func() {
 				}))
 
 			apiErr := repo.Create("my-user", "my-password")
-			Expect(ccHandler).To(testnet.HaveAllRequestsCalled())
-			Expect(uaaHandler).To(testnet.HaveAllRequestsCalled())
+			Expect(ccHandler).To(HaveAllRequestsCalled())
+			Expect(uaaHandler).To(HaveAllRequestsCalled())
 			Expect(apiErr).NotTo(HaveOccurred())
 		})
 
@@ -286,8 +290,8 @@ var _ = Describe("User Repository", func() {
 				}))
 
 			apiErr := repo.Delete("my-user-guid")
-			Expect(ccHandler).To(testnet.HaveAllRequestsCalled())
-			Expect(uaaHandler).To(testnet.HaveAllRequestsCalled())
+			Expect(ccHandler).To(HaveAllRequestsCalled())
+			Expect(uaaHandler).To(HaveAllRequestsCalled())
 			Expect(apiErr).NotTo(HaveOccurred())
 		})
 
@@ -312,8 +316,8 @@ var _ = Describe("User Repository", func() {
 					}))
 
 				err := repo.Delete("my-user-guid")
-				Expect(ccHandler).To(testnet.HaveAllRequestsCalled())
-				Expect(uaaHandler).To(testnet.HaveAllRequestsCalled())
+				Expect(ccHandler).To(HaveAllRequestsCalled())
+				Expect(uaaHandler).To(HaveAllRequestsCalled())
 				Expect(err).NotTo(HaveOccurred())
 			})
 		})
@@ -348,7 +352,7 @@ var _ = Describe("User Repository", func() {
 
 				err := repo.SetOrgRole("my-user-guid", "my-org-guid", role)
 
-				Expect(ccHandler).To(testnet.HaveAllRequestsCalled())
+				Expect(ccHandler).To(HaveAllRequestsCalled())
 				Expect(err).NotTo(HaveOccurred())
 			})
 
@@ -362,7 +366,7 @@ var _ = Describe("User Repository", func() {
 
 				apiErr := repo.UnsetOrgRole("my-user-guid", "my-org-guid", role)
 
-				Expect(ccHandler).To(testnet.HaveAllRequestsCalled())
+				Expect(ccHandler).To(HaveAllRequestsCalled())
 				Expect(apiErr).NotTo(HaveOccurred())
 			})
 		}
@@ -406,7 +410,7 @@ var _ = Describe("User Repository", func() {
 
 				err := repo.SetSpaceRole("my-user-guid", "my-space-guid", "my-org-guid", role)
 
-				Expect(ccHandler).To(testnet.HaveAllRequestsCalled())
+				Expect(ccHandler).To(HaveAllRequestsCalled())
 				Expect(err).NotTo(HaveOccurred())
 			})
 		}
@@ -426,8 +430,8 @@ var _ = Describe("User Repository", func() {
 
 		users, err := repo.ListUsersInOrgForRole("my-org-guid", models.ORG_USER)
 
-		Expect(ccHandler).To(testnet.HaveAllRequestsCalled())
-		Expect(uaaHandler).To(testnet.HaveAllRequestsCalled())
+		Expect(ccHandler).To(HaveAllRequestsCalled())
+		Expect(uaaHandler).To(HaveAllRequestsCalled())
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(len(users)).To(Equal(3))

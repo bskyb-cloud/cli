@@ -1,5 +1,9 @@
 package errors
 
+import (
+	. "github.com/cloudfoundry/cli/cf/i18n"
+)
+
 type EmptyDirError struct {
 	dir string
 }
@@ -9,5 +13,5 @@ func NewEmptyDirError(dir string) error {
 }
 
 func (err *EmptyDirError) Error() string {
-	return err.dir + " is empty"
+	return err.dir + T(" is empty")
 }

@@ -3,14 +3,6 @@ package api_test
 import (
 	"archive/zip"
 	"fmt"
-	. "github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/app_files"
-	"github.com/cloudfoundry/cli/cf/net"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testnet "github.com/cloudfoundry/cli/testhelpers/net"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -18,14 +10,26 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	"github.com/cloudfoundry/cli/cf/app_files"
+	"github.com/cloudfoundry/cli/cf/net"
+	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+
+	. "github.com/cloudfoundry/cli/cf/api"
+	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("CloudControllerApplicationBitsRepository", func() {
 	var (
 		fixturesDir        string
 		reportedFilePath   string
-		reportedUploadSize uint64
-		reportedFileCount  uint64
+		reportedUploadSize int64
+		reportedFileCount  int64
+		reportedZipCount   int
 	)
 
 	BeforeEach(func() {
@@ -40,18 +44,22 @@ var _ = Describe("CloudControllerApplicationBitsRepository", func() {
 
 		configRepo := testconfig.NewRepositoryWithDefaults()
 		configRepo.SetApiEndpoint(ts.URL)
-		gateway := net.NewCloudControllerGateway(configRepo)
+		gateway := net.NewCloudControllerGateway((configRepo), time.Now)
 		gateway.PollingThrottle = time.Duration(0)
-		zipper := app_files.ApplicationZipper{}
+		zipper := &countingZipper{
+			z: &app_files.ApplicationZipper{},
+		}
+
 		repo := NewCloudControllerApplicationBitsRepository(configRepo, gateway, zipper)
 
-		apiErr = repo.UploadApp("my-cool-app-guid", dir, func(path string, uploadSize, fileCount uint64) {
+		apiErr = repo.UploadApp("my-cool-app-guid", dir, func(path string, uploadSize, fileCount int64) {
 			reportedFilePath = path
 			reportedUploadSize = uploadSize
 			reportedFileCount = fileCount
 		})
+		reportedZipCount = zipper.size
 
-		Expect(handler).To(testnet.HaveAllRequestsCalled())
+		Expect(handler).To(HaveAllRequestsCalled())
 		return
 	}
 
@@ -61,18 +69,19 @@ var _ = Describe("CloudControllerApplicationBitsRepository", func() {
 
 		Expect(apiErr).NotTo(HaveOccurred())
 		Expect(reportedFilePath).To(Equal(appPath))
-		Expect(reportedFileCount).To(Equal(uint64(len(expectedApplicationContent))))
-		Expect(reportedUploadSize).To(Equal(uint64(532)))
+		Expect(reportedFileCount).To(Equal(int64(len(expectedApplicationContent))))
+		Expect(reportedZipCount).To(Equal(2))
+		Expect(reportedUploadSize).To(Equal(int64(532)))
 	})
 
 	It("returns an error when the directory to upload does not exist", func() {
 		config := testconfig.NewRepository()
-		gateway := net.NewCloudControllerGateway(config)
+		gateway := net.NewCloudControllerGateway((config), time.Now)
 		zipper := &app_files.ApplicationZipper{}
 
 		repo := NewCloudControllerApplicationBitsRepository(config, gateway, zipper)
 
-		apiErr := repo.UploadApp("app-guid", "/foo/bar", func(_ string, _, _ uint64) {})
+		apiErr := repo.UploadApp("app-guid", "/foo/bar", func(_ string, _, _ int64) {})
 		Expect(apiErr).To(HaveOccurred())
 		Expect(apiErr.Error()).To(ContainSubstring(filepath.Join("foo", "bar")))
 	})
@@ -97,8 +106,8 @@ var _ = Describe("CloudControllerApplicationBitsRepository", func() {
 			Expect(apiErr).NotTo(HaveOccurred())
 
 			Expect(reportedFilePath).To(Equal(appPath))
-			Expect(reportedFileCount).To(Equal(uint64(len(expectedApplicationContent))))
-			Expect(reportedUploadSize).To(Equal(uint64(532)))
+			Expect(reportedFileCount).To(Equal(int64(len(expectedApplicationContent))))
+			Expect(reportedUploadSize).To(Equal(int64(532)))
 		})
 
 		It("returns a failure when uploading bits fails", func() {
@@ -107,7 +116,7 @@ var _ = Describe("CloudControllerApplicationBitsRepository", func() {
 				testapi.NewCloudControllerTestRequest(testnet.TestRequest{
 					Method:  "PUT",
 					Path:    "/v2/apps/my-cool-app-guid/bits",
-					Matcher: uploadBodyMatcher,
+					Matcher: uploadBodyMatcher(defaultZipCheck),
 					Response: testnet.TestResponse{
 						Status: http.StatusCreated,
 						Body: `
@@ -168,10 +177,35 @@ var _ = Describe("CloudControllerApplicationBitsRepository", func() {
 				)
 
 				Expect(err).NotTo(HaveOccurred())
-				Expect(reportedFileCount).To(Equal(uint64(0)))
-				Expect(reportedUploadSize).To(Equal(uint64(0)))
+				Expect(reportedFileCount).To(Equal(int64(0)))
+				Expect(reportedUploadSize).To(Equal(int64(0)))
+				Expect(reportedZipCount).To(Equal(-1))
 				Expect(reportedFilePath).To(Equal(emptyDir))
 			})
+		})
+	})
+
+	Context("when excluding a default ignored item", func() {
+		var appPath string
+
+		BeforeEach(func() {
+			appPath = filepath.Join(fixturesDir, "exclude-a-default-cfignore")
+		})
+
+		It("includes the ignored item", func() {
+			err := testUploadApp(appPath,
+				matchExcludedResourceRequest,
+				uploadApplicationRequest(func(zipReader *zip.Reader) {
+					Expect(len(zipReader.File)).To(Equal(3), "Wrong number of files in zip")
+				}),
+				createProgressEndpoint("running"),
+				createProgressEndpoint("finished"),
+			)
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(reportedFileCount).To(Equal(int64(3)))
+			Expect(reportedUploadSize).To(Equal(int64(354)))
+			Expect(reportedZipCount).To(Equal(3))
 		})
 	})
 })
@@ -189,13 +223,14 @@ var matchedResources = testnet.RemoveWhiteSpaceFromBody(`[
     }
 ]`)
 
-var uploadApplicationRequest = testapi.NewCloudControllerTestRequest(testnet.TestRequest{
-	Method:  "PUT",
-	Path:    "/v2/apps/my-cool-app-guid/bits",
-	Matcher: uploadBodyMatcher,
-	Response: testnet.TestResponse{
-		Status: http.StatusCreated,
-		Body: `
+func uploadApplicationRequest(zipCheck func(*zip.Reader)) testnet.TestRequest {
+	return testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+		Method:  "PUT",
+		Path:    "/v2/apps/my-cool-app-guid/bits",
+		Matcher: uploadBodyMatcher(zipCheck),
+		Response: testnet.TestResponse{
+			Status: http.StatusCreated,
+			Body: `
 {
 	"metadata":{
 		"guid": "my-job-guid",
@@ -203,7 +238,8 @@ var uploadApplicationRequest = testapi.NewCloudControllerTestRequest(testnet.Tes
 	}
 }
 	`},
-})
+	})
+}
 
 var matchResourceRequest = testnet.TestRequest{
 	Method: "PUT",
@@ -236,61 +272,7 @@ var matchResourceRequest = testnet.TestRequest{
 	},
 }
 
-var defaultRequests = []testnet.TestRequest{
-	matchResourceRequest,
-	uploadApplicationRequest,
-	createProgressEndpoint("running"),
-	createProgressEndpoint("finished"),
-}
-
-var expectedApplicationContent = []string{"Gemfile", "Gemfile.lock"}
-
-const maxMultipartResponseSizeInBytes = 4096
-
-var uploadBodyMatcher = func(request *http.Request) {
-	err := request.ParseMultipartForm(maxMultipartResponseSizeInBytes)
-	if err != nil {
-		Fail(fmt.Sprintf("Failed parsing multipart form %v", err))
-		return
-	}
-	defer request.MultipartForm.RemoveAll()
-
-	Expect(len(request.MultipartForm.Value)).To(Equal(1), "Should have 1 value")
-	valuePart, ok := request.MultipartForm.Value["resources"]
-	Expect(ok).To(BeTrue(), "Resource manifest not present")
-	Expect(len(valuePart)).To(Equal(1), "Wrong number of values")
-
-	resourceManifest := valuePart[0]
-	chompedResourceManifest := strings.Replace(resourceManifest, "\n", "", -1)
-	Expect(chompedResourceManifest).To(Equal(matchedResources), "Resources do not match")
-
-	Expect(len(request.MultipartForm.File)).To(Equal(1), "Wrong number of files")
-
-	fileHeaders, ok := request.MultipartForm.File["application"]
-	Expect(ok).To(BeTrue(), "Application file part not present")
-	Expect(len(fileHeaders)).To(Equal(1), "Wrong number of files")
-
-	applicationFile := fileHeaders[0]
-	Expect(applicationFile.Filename).To(Equal("application.zip"), "Wrong file name")
-
-	file, err := applicationFile.Open()
-	if err != nil {
-		Fail(fmt.Sprintf("Cannot get multipart file %v", err.Error()))
-		return
-	}
-
-	length, err := strconv.ParseInt(applicationFile.Header.Get("content-length"), 10, 64)
-	if err != nil {
-		Fail(fmt.Sprintf("Cannot convert content-length to int %v", err.Error()))
-		return
-	}
-
-	zipReader, err := zip.NewReader(file, length)
-	if err != nil {
-		Fail(fmt.Sprintf("Error reading zip content %v", err.Error()))
-		return
-	}
-
+var defaultZipCheck = func(zipReader *zip.Reader) {
 	Expect(len(zipReader.File)).To(Equal(2), "Wrong number of files in zip")
 
 	var expectedPermissionBits os.FileMode
@@ -314,6 +296,69 @@ nextFile:
 	}
 }
 
+var defaultRequests = []testnet.TestRequest{
+	matchResourceRequest,
+	uploadApplicationRequest(defaultZipCheck),
+	createProgressEndpoint("running"),
+	createProgressEndpoint("finished"),
+}
+
+var expectedApplicationContent = []string{"Gemfile", "Gemfile.lock"}
+
+const maxMultipartResponseSizeInBytes = 4096
+
+func uploadBodyMatcher(zipChecks func(zipReader *zip.Reader)) func(*http.Request) {
+	return func(request *http.Request) {
+		defer GinkgoRecover()
+		err := request.ParseMultipartForm(maxMultipartResponseSizeInBytes)
+		if err != nil {
+			Fail(fmt.Sprintf("Failed parsing multipart form %v", err))
+			return
+		}
+		defer request.MultipartForm.RemoveAll()
+
+		Expect(len(request.MultipartForm.Value)).To(Equal(1), "Should have 1 value")
+		valuePart, ok := request.MultipartForm.Value["resources"]
+		Expect(ok).To(BeTrue(), "Resource manifest not present")
+		Expect(len(valuePart)).To(Equal(1), "Wrong number of values")
+
+		resourceManifest := valuePart[0]
+		chompedResourceManifest := strings.Replace(resourceManifest, "\n", "", -1)
+		Expect(chompedResourceManifest).To(Equal(matchedResources), "Resources do not match")
+
+		Expect(len(request.MultipartForm.File)).To(Equal(1), "Wrong number of files")
+
+		fileHeaders, ok := request.MultipartForm.File["application"]
+		Expect(ok).To(BeTrue(), "Application file part not present")
+		Expect(len(fileHeaders)).To(Equal(1), "Wrong number of files")
+
+		applicationFile := fileHeaders[0]
+		Expect(applicationFile.Filename).To(Equal("application.zip"), "Wrong file name")
+
+		file, err := applicationFile.Open()
+		if err != nil {
+			Fail(fmt.Sprintf("Cannot get multipart file %v", err.Error()))
+			return
+		}
+
+		length, err := strconv.ParseInt(applicationFile.Header.Get("content-length"), 10, 64)
+		if err != nil {
+			Fail(fmt.Sprintf("Cannot convert content-length to int %v", err.Error()))
+			return
+		}
+
+		if zipChecks != nil {
+			zipReader, err := zip.NewReader(file, length)
+			if err != nil {
+				Fail(fmt.Sprintf("Error reading zip content %v", err.Error()))
+				return
+			}
+
+			zipChecks(zipReader)
+		}
+	}
+}
+
 func executableBits(mode os.FileMode) os.FileMode {
 	return mode & 0111
 }
@@ -334,4 +379,56 @@ func createProgressEndpoint(status string) (req testnet.TestRequest) {
 	}
 
 	return
+}
+
+var matchExcludedResourceRequest = testnet.TestRequest{
+	Method: "PUT",
+	Path:   "/v2/resource_match",
+	Matcher: testnet.RequestBodyMatcher(testnet.RemoveWhiteSpaceFromBody(`[
+    {
+        "fn": ".svn",
+        "sha1": "0",
+        "size": 0
+    },
+    {
+        "fn": ".svn/test",
+        "sha1": "456b1d3f7cfbadc66d390de79cbbb6e6a10662da",
+        "size": 12
+    },
+    {
+        "fn": "_darcs",
+        "sha1": "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3",
+        "size": 4
+    }
+]`)),
+	Response: testnet.TestResponse{
+		Status: http.StatusOK,
+		Body:   matchedResources,
+	},
+}
+
+type countingZipper struct {
+	z    app_files.Zipper
+	size int
+}
+
+func (cz *countingZipper) Zip(dirToZip string, targetFile *os.File) error {
+	cz.size = -1
+	err := cz.z.Zip(dirToZip, targetFile)
+	if err != nil {
+		return err
+	}
+
+	r, err := zip.OpenReader(targetFile.Name())
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	cz.size = len(r.File)
+	return nil
+}
+
+func (cz *countingZipper) IsZipFile(path string) bool {
+	return cz.z.IsZipFile(path)
 }

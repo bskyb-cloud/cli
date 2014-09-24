@@ -1,10 +1,10 @@
 package space_test
 
 import (
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/space"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/models"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
@@ -32,7 +32,7 @@ var _ = Describe("rename-space command", func() {
 
 	var callRenameSpace = func(args []string) {
 		cmd := NewRenameSpace(ui, configRepo, spaceRepo)
-		testcmd.RunCommand(cmd, testcmd.NewContext("create-space", args), requirementsFactory)
+		testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	Describe("when the user is not logged in", func() {

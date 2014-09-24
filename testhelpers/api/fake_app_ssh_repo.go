@@ -5,8 +5,8 @@ import (
 )
 
 type FakeAppSshRepo struct {
-	AppGuid  string
-	Instance int
+	AppGuid    string
+	Instance   int
 	SshDetails models.SshConnectionDetails
 }
 

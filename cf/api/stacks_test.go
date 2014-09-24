@@ -1,18 +1,22 @@
 package api_test
 
 import (
-	. "github.com/cloudfoundry/cli/cf/api"
+	"net/http"
+	"net/http/httptest"
+	"time"
+
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+
+	. "github.com/cloudfoundry/cli/cf/api"
+	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"net/http"
-	"net/http/httptest"
 )
 
 var _ = Describe("StacksRepo", func() {
@@ -32,7 +36,7 @@ var _ = Describe("StacksRepo", func() {
 		configRepo = testconfig.NewRepositoryWithDefaults()
 		configRepo.SetAccessToken("BEARER my_access_token")
 
-		gateway := net.NewCloudControllerGateway(configRepo)
+		gateway := net.NewCloudControllerGateway((configRepo), time.Now)
 		repo = NewCloudControllerStackRepository(configRepo, gateway)
 	})
 
@@ -62,7 +66,7 @@ var _ = Describe("StacksRepo", func() {
 			It("finds the stack", func() {
 				stack, err := repo.FindByName("linux")
 
-				Expect(testHandler).To(testnet.HaveAllRequestsCalled())
+				Expect(testHandler).To(HaveAllRequestsCalled())
 				Expect(err).NotTo(HaveOccurred())
 				Expect(stack).To(Equal(models.Stack{
 					Name: "custom-linux",
@@ -85,7 +89,7 @@ var _ = Describe("StacksRepo", func() {
 			It("returns an error", func() {
 				_, err := repo.FindByName("linux")
 
-				Expect(testHandler).To(testnet.HaveAllRequestsCalled())
+				Expect(testHandler).To(HaveAllRequestsCalled())
 				Expect(err).To(BeAssignableToTypeOf(&errors.ModelNotFoundError{}))
 			})
 		})
@@ -144,7 +148,7 @@ var _ = Describe("StacksRepo", func() {
 		It("finds all the stacks", func() {
 			stacks, err := repo.FindAll()
 
-			Expect(testHandler).To(testnet.HaveAllRequestsCalled())
+			Expect(testHandler).To(HaveAllRequestsCalled())
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stacks).To(Equal([]models.Stack{
 				{
@@ -160,5 +164,4 @@ var _ = Describe("StacksRepo", func() {
 			}))
 		})
 	})
-
 })

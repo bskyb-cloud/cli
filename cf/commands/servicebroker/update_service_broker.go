@@ -1,10 +1,10 @@
 package servicebroker
 
 import (
-	"errors"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/configuration"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/codegangsta/cli"
@@ -23,19 +23,17 @@ func NewUpdateServiceBroker(ui terminal.UI, config configuration.Reader, repo ap
 	return
 }
 
-func (command UpdateServiceBroker) Metadata() command_metadata.CommandMetadata {
+func (cmd UpdateServiceBroker) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "update-service-broker",
-		Description: "Update a service broker",
-		Usage:       "CF_NAME update-service-broker SERVICE_BROKER USERNAME PASSWORD URL",
+		Description: T("Update a service broker"),
+		Usage:       T("CF_NAME update-service-broker SERVICE_BROKER USERNAME PASSWORD URL"),
 	}
 }
 
 func (cmd UpdateServiceBroker) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
 	if len(c.Args()) != 4 {
-		err = errors.New("Incorrect Usage")
 		cmd.ui.FailWithUsage(c)
-		return
 	}
 
 	reqs = append(reqs, requirementsFactory.NewLoginRequirement())
@@ -50,10 +48,10 @@ func (cmd UpdateServiceBroker) Run(c *cli.Context) {
 		return
 	}
 
-	cmd.ui.Say("Updating service broker %s as %s...",
-		terminal.EntityNameColor(serviceBroker.Name),
-		terminal.EntityNameColor(cmd.config.Username()),
-	)
+	cmd.ui.Say(T("Updating service broker {{.Name}} as {{.Username}}...",
+		map[string]interface{}{
+			"Name":     terminal.EntityNameColor(serviceBroker.Name),
+			"Username": terminal.EntityNameColor(cmd.config.Username())}))
 
 	serviceBroker.Username = c.Args()[1]
 	serviceBroker.Password = c.Args()[2]

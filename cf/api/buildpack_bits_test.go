@@ -3,15 +3,6 @@ package api_test
 import (
 	"archive/zip"
 	"fmt"
-	. "github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/app_files"
-	"github.com/cloudfoundry/cli/cf/configuration"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/net"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testnet "github.com/cloudfoundry/cli/testhelpers/net"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -20,6 +11,19 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"time"
+
+	"github.com/cloudfoundry/cli/cf/app_files"
+	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/net"
+	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+
+	. "github.com/cloudfoundry/cli/cf/api"
+	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("BuildpackBitsRepository", func() {
@@ -33,11 +37,11 @@ var _ = Describe("BuildpackBitsRepository", func() {
 	)
 
 	BeforeEach(func() {
-		gateway := net.NewCloudControllerGateway(configRepo)
+		configRepo = testconfig.NewRepositoryWithDefaults()
+		gateway := net.NewCloudControllerGateway((configRepo), time.Now)
 		pwd, _ := os.Getwd()
 
 		buildpacksDir = filepath.Join(pwd, "../../fixtures/buildpacks")
-		configRepo = testconfig.NewRepositoryWithDefaults()
 		repo = NewCloudControllerBuildpackBitsRepository(configRepo, gateway, app_files.ApplicationZipper{})
 		buildpack = models.Buildpack{Name: "my-cool-buildpack", Guid: "my-cool-buildpack-guid"}
 
@@ -65,7 +69,7 @@ var _ = Describe("BuildpackBitsRepository", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			apiErr := repo.UploadBuildpack(buildpack, buildpackPath)
-			Expect(testServerHandler).To(testnet.HaveAllRequestsCalled())
+			Expect(testServerHandler).To(HaveAllRequestsCalled())
 			Expect(apiErr).NotTo(HaveOccurred())
 		})
 
@@ -73,7 +77,7 @@ var _ = Describe("BuildpackBitsRepository", func() {
 			buildpackPath := filepath.Join(buildpacksDir, "example-buildpack.zip")
 
 			apiErr := repo.UploadBuildpack(buildpack, buildpackPath)
-			Expect(testServerHandler).To(testnet.HaveAllRequestsCalled())
+			Expect(testServerHandler).To(HaveAllRequestsCalled())
 			Expect(apiErr).NotTo(HaveOccurred())
 		})
 
@@ -82,7 +86,7 @@ var _ = Describe("BuildpackBitsRepository", func() {
 				buildpackPath := filepath.Join(buildpacksDir, "example-buildpack-in-dir.zip")
 
 				apiErr := repo.UploadBuildpack(buildpack, buildpackPath)
-				Expect(testServerHandler).To(testnet.HaveAllRequestsCalled())
+				Expect(testServerHandler).To(HaveAllRequestsCalled())
 				Expect(apiErr).NotTo(HaveOccurred())
 			})
 		})
@@ -103,7 +107,7 @@ var _ = Describe("BuildpackBitsRepository", func() {
 					defer fileServer.Close()
 
 					apiErr := repo.UploadBuildpack(buildpack, fileServer.URL+"/place/bad-buildpack.zip")
-					Expect(testServerHandler).NotTo(testnet.HaveAllRequestsCalled())
+					Expect(testServerHandler).NotTo(HaveAllRequestsCalled())
 					Expect(apiErr).To(HaveOccurred())
 				})
 			})
@@ -114,7 +118,7 @@ var _ = Describe("BuildpackBitsRepository", func() {
 
 				apiErr := repo.UploadBuildpack(buildpack, fileServer.URL+"/place/example-buildpack.zip")
 
-				Expect(testServerHandler).To(testnet.HaveAllRequestsCalled())
+				Expect(testServerHandler).To(HaveAllRequestsCalled())
 				Expect(apiErr).NotTo(HaveOccurred())
 			})
 
@@ -125,7 +129,7 @@ var _ = Describe("BuildpackBitsRepository", func() {
 				repo.TrustedCerts = fileServer.TLS.Certificates
 				apiErr := repo.UploadBuildpack(buildpack, fileServer.URL+"/place/example-buildpack.zip")
 
-				Expect(testServerHandler).To(testnet.HaveAllRequestsCalled())
+				Expect(testServerHandler).To(HaveAllRequestsCalled())
 				Expect(apiErr).NotTo(HaveOccurred())
 			})
 
@@ -135,7 +139,7 @@ var _ = Describe("BuildpackBitsRepository", func() {
 
 				apiErr := repo.UploadBuildpack(buildpack, fileServer.URL+"/place/example-buildpack.zip")
 
-				Expect(testServerHandler).NotTo(testnet.HaveAllRequestsCalled())
+				Expect(testServerHandler).NotTo(HaveAllRequestsCalled())
 				Expect(apiErr).To(HaveOccurred())
 			})
 
@@ -147,14 +151,14 @@ var _ = Describe("BuildpackBitsRepository", func() {
 					repo.TrustedCerts = fileServer.TLS.Certificates
 					apiErr := repo.UploadBuildpack(buildpack, fileServer.URL+"/place/example-buildpack-in-dir.zip")
 
-					Expect(testServerHandler).To(testnet.HaveAllRequestsCalled())
+					Expect(testServerHandler).To(HaveAllRequestsCalled())
 					Expect(apiErr).NotTo(HaveOccurred())
 				})
 			})
 
 			It("returns an unsuccessful response when the server cannot be reached", func() {
 				apiErr := repo.UploadBuildpack(buildpack, "https://domain.bad-domain:223453/no-place/example-buildpack.zip")
-				Expect(testServerHandler).NotTo(testnet.HaveAllRequestsCalled())
+				Expect(testServerHandler).NotTo(HaveAllRequestsCalled())
 				Expect(apiErr).To(HaveOccurred())
 			})
 		})
@@ -184,6 +188,8 @@ func uploadBuildpackRequest() testnet.TestRequest {
 			buildpackFile := files[0]
 			file, err := buildpackFile.Open()
 			Expect(err).NotTo(HaveOccurred())
+
+			Expect(buildpackFile.Filename).To(ContainSubstring(".zip"))
 
 			zipReader, err := zip.NewReader(file, 4096)
 			Expect(err).NotTo(HaveOccurred())

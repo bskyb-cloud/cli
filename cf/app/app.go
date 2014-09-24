@@ -2,51 +2,60 @@ package app
 
 import (
 	"fmt"
+	. "github.com/cloudfoundry/cli/cf/i18n"
+	"strings"
+	"time"
+
 	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/command_runner"
+	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/cloudfoundry/cli/cf/trace"
 	"github.com/codegangsta/cli"
-	"strings"
-	"time"
 )
 
-var appHelpTemplate = `{{.Title "NAME:"}}
+var (
+	t               = i18n.Init()
+	appHelpTemplate = `{{.Title "` + t("NAME:") + `"}}
    {{.Name}} - {{.Usage}}
 
-{{.Title "USAGE:"}}
-   [environment variables] {{.Name}} [global options] command [arguments...] [command options]
+{{.Title "` + t("USAGE:") + `"}}
+   ` + t("[environment variables]") + ` {{.Name}} ` + t("[global options] command [arguments...] [command options]") + `
 
-{{.Title "VERSION:"}}
+{{.Title "` + t("VERSION:") + `"}}
    {{.Version}}
 
-{{.Title "BUILD TIME:"}}
+{{.Title "` + t("BUILD TIME:") + `"}}
    {{.Compiled}}
    {{range .Commands}}
 {{.SubTitle .Name}}{{range .CommandSubGroups}}
 {{range .}}   {{.Name}} {{.Description}}
 {{end}}{{end}}{{end}}
-{{.Title "ENVIRONMENT VARIABLES"}}
-   CF_COLOR=false                     Do not colorize output
-   CF_HOME=path/to/dir/               Override path to default config directory
-   CF_STAGING_TIMEOUT=15              Max wait time for buildpack staging, in minutes
-   CF_STARTUP_TIMEOUT=5               Max wait time for app instance startup, in minutes
-   CF_TRACE=true                      Print API request diagnostics to stdout
-   CF_TRACE=path/to/trace.log         Append API request diagnostics to a log file
-   HTTP_PROXY=proxy.example.com:8080  Enable HTTP proxying for API requests
+{{.Title "` + t("ENVIRONMENT VARIABLES") + `"}}
+   CF_COLOR=false                     ` + t("Do not colorize output") + `
+   CF_HOME=path/to/dir/               ` + t("Override path to default config directory") + `
+   CF_STAGING_TIMEOUT=15              ` + t("Max wait time for buildpack staging, in minutes") + `
+   CF_STARTUP_TIMEOUT=5               ` + t("Max wait time for app instance startup, in minutes") + `
+   CF_TRACE=true                      ` + t("Print API request diagnostics to stdout") + `
+   CF_TRACE=path/to/trace.log         ` + t("Append API request diagnostics to a log file") + `
+   HTTP_PROXY=proxy.example.com:8080  ` + t("Enable HTTP proxying for API requests") + `
 
-{{.Title "GLOBAL OPTIONS"}}
-   --version, -v                      Print the version
-   --help, -h                         Show help
+{{.Title "` + t("GLOBAL OPTIONS") + `"}}
+   --version, -v                      ` + t("Print the version") + `
+   --help, -h                         ` + t("Show help") + `
 `
+)
+
+const UnknownCommand = "cf: '%s' is not a registered command. See 'cf help'"
 
 func NewApp(cmdRunner command_runner.Runner, metadatas ...command_metadata.CommandMetadata) (app *cli.App) {
 	helpCommand := cli.Command{
 		Name:        "help",
 		ShortName:   "h",
-		Description: "Show help",
-		Usage:       fmt.Sprintf("%s help [COMMAND]", cf.Name()),
+		Description: T("Show help"),
+		Usage:       fmt.Sprintf(T("{{.Command}} help [COMMAND]", map[string]interface{}{"Command": cf.Name()})),
 		Action: func(c *cli.Context) {
 			args := c.Args()
 			if len(args) > 0 {
@@ -56,17 +65,24 @@ func NewApp(cmdRunner command_runner.Runner, metadatas ...command_metadata.Comma
 			}
 		},
 	}
-	cli.HelpPrinter = showAppHelp
-	cli.AppHelpTemplate = appHelpTemplate
 
-	trace.Logger.Printf("\n%s\n%s\n\n", terminal.HeaderColor("VERSION:"), cf.Version)
+	cli.AppHelpTemplate = appHelpTemplate
+	cli.HelpPrinter = ShowHelp
+
+	trace.Logger.Printf("\n%s\n%s\n\n", terminal.HeaderColor(T("VERSION:")), cf.Version)
 
 	app = cli.NewApp()
 	app.Usage = cf.Usage
-	app.Version = cf.Version
+	app.Version = cf.Version + "-" + cf.BuiltOnDate
 	app.Action = helpCommand.Action
+	app.CommandNotFound = func(c *cli.Context, command string) {
+		panic(errors.Exception{
+			Message:            fmt.Sprintf(UnknownCommand, command),
+			DisplayCrashDialog: false,
+		})
+	}
 
-	compiledAtTime, err := time.Parse("Jan 2, 2006 3:04PM", cf.BuiltOnDate)
+	compiledAtTime, err := time.Parse("2006-01-02T03:04:05+00:00", cf.BuiltOnDate)
 
 	if err == nil {
 		app.Compiled = compiledAtTime
@@ -90,7 +106,10 @@ func getCommand(metadata command_metadata.CommandMetadata, runner command_runner
 		Description: metadata.Description,
 		Usage:       strings.Replace(metadata.Usage, "CF_NAME", cf.Name(), -1),
 		Action: func(context *cli.Context) {
-			runner.RunCmdByName(metadata.Name, context)
+			err := runner.RunCmdByName(metadata.Name, context)
+			if err != nil {
+				panic(terminal.QuietPanic)
+			}
 		},
 		Flags:           metadata.Flags,
 		SkipFlagParsing: metadata.SkipFlagParsing,

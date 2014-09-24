@@ -1,10 +1,10 @@
 package service_test
 
 import (
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/service"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/models"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -45,7 +45,7 @@ var _ = Describe("services", func() {
 			})
 
 			It("fails requirements", func() {
-				testcmd.RunCommand(cmd, testcmd.NewContext("services", []string{}), requirementsFactory)
+				testcmd.RunCommand(cmd, []string{}, requirementsFactory)
 				Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
 			})
 		})
@@ -56,7 +56,7 @@ var _ = Describe("services", func() {
 			})
 
 			It("fails requirements", func() {
-				testcmd.RunCommand(cmd, testcmd.NewContext("services", []string{}), requirementsFactory)
+				testcmd.RunCommand(cmd, []string{}, requirementsFactory)
 				Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
 			})
 		})
@@ -96,7 +96,7 @@ var _ = Describe("services", func() {
 		}
 
 		cmd := NewListServices(ui, configRepo, serviceSummaryRepo)
-		testcmd.RunCommand(cmd, testcmd.NewContext("services", []string{}), requirementsFactory)
+		testcmd.RunCommand(cmd, []string{}, requirementsFactory)
 
 		Expect(ui.Outputs).To(ContainSubstrings(
 			[]string{"Getting services in org", "my-org", "my-space", "my-user"},
@@ -114,7 +114,7 @@ var _ = Describe("services", func() {
 		}
 
 		cmd := NewListServices(ui, configRepo, serviceSummaryRepo)
-		testcmd.RunCommand(cmd, testcmd.NewContext("services", []string{}), requirementsFactory)
+		testcmd.RunCommand(cmd, []string{}, requirementsFactory)
 
 		Expect(ui.Outputs).To(ContainSubstrings(
 			[]string{"Getting services in org", "my-org", "my-space", "my-user"},

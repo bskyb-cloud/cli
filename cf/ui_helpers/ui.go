@@ -2,9 +2,12 @@ package ui_helpers
 
 import (
 	"fmt"
+	"strings"
+
+	. "github.com/cloudfoundry/cli/cf/i18n"
+
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"strings"
 )
 
 func ColoredAppState(app models.ApplicationFields) string {
@@ -28,6 +31,10 @@ func ColoredAppState(app models.ApplicationFields) string {
 func ColoredAppInstances(app models.ApplicationFields) string {
 	healthString := fmt.Sprintf("%d/%d", app.RunningInstances, app.InstanceCount)
 
+	if app.RunningInstances < 0 {
+		healthString = fmt.Sprintf("?/%d", app.InstanceCount)
+	}
+
 	if app.RunningInstances == 0 {
 		if strings.ToLower(app.State) == "stopped" {
 			return healthString
@@ -47,15 +54,15 @@ func ColoredInstanceState(instance models.AppInstanceFields) (colored string) {
 	state := string(instance.State)
 	switch state {
 	case "started", "running":
-		colored = "running"
+		colored = T("running")
 	case "stopped":
-		colored = terminal.StoppedColor("stopped")
+		colored = terminal.StoppedColor(T("stopped"))
 	case "flapping":
-		colored = terminal.CrashedColor("crashing")
+		colored = terminal.CrashedColor(T("crashing"))
 	case "down":
-		colored = terminal.CrashedColor("down")
+		colored = terminal.CrashedColor(T("down"))
 	case "starting":
-		colored = terminal.AdvisoryColor("starting")
+		colored = terminal.AdvisoryColor(T("starting"))
 	default:
 		colored = terminal.WarningColor(state)
 	}

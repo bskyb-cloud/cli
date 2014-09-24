@@ -1,17 +1,20 @@
 package api_test
 
 import (
-	. "github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/net"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testnet "github.com/cloudfoundry/cli/testhelpers/net"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	"net/http"
 	"net/http/httptest"
 	"time"
+
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/net"
+	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+
+	. "github.com/cloudfoundry/cli/cf/api"
+	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("AppInstancesRepo", func() {
@@ -25,7 +28,7 @@ var _ = Describe("AppInstancesRepo", func() {
 
 		instances, err := repo.GetInstances(appGuid)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(handler).To(testnet.HaveAllRequestsCalled())
+		Expect(handler).To(HaveAllRequestsCalled())
 
 		Expect(len(instances)).To(Equal(2))
 
@@ -34,10 +37,10 @@ var _ = Describe("AppInstancesRepo", func() {
 
 		instance0 := instances[0]
 		Expect(instance0.Since).To(Equal(time.Unix(1379522342, 0)))
-		Expect(instance0.DiskQuota).To(Equal(uint64(1073741824)))
-		Expect(instance0.DiskUsage).To(Equal(uint64(56037376)))
-		Expect(instance0.MemQuota).To(Equal(uint64(67108864)))
-		Expect(instance0.MemUsage).To(Equal(uint64(19218432)))
+		Expect(instance0.DiskQuota).To(Equal(int64(1073741824)))
+		Expect(instance0.DiskUsage).To(Equal(int64(56037376)))
+		Expect(instance0.MemQuota).To(Equal(int64(67108864)))
+		Expect(instance0.MemUsage).To(Equal(int64(19218432)))
 		Expect(instance0.CpuUsage).To(Equal(3.659571249238058e-05))
 	})
 })
@@ -92,7 +95,7 @@ func createAppInstancesRepo(requests []testnet.TestRequest) (ts *httptest.Server
 	space.Guid = "my-space-guid"
 	configRepo := testconfig.NewRepositoryWithDefaults()
 	configRepo.SetApiEndpoint(ts.URL)
-	gateway := net.NewCloudControllerGateway(configRepo)
+	gateway := net.NewCloudControllerGateway(configRepo, time.Now)
 	repo = NewCloudControllerAppInstancesRepository(configRepo, gateway)
 	return
 }

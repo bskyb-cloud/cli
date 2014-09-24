@@ -3,12 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
-	"runtime/debug"
+	"runtime"
 	"strings"
+	"time"
 
-	"github.com/codegangsta/cli"
-
-	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/app"
 	"github.com/cloudfoundry/cli/cf/command_factory"
@@ -16,8 +14,11 @@ import (
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/manifest"
 	"github.com/cloudfoundry/cli/cf/net"
+	"github.com/cloudfoundry/cli/cf/panic_printer"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
+	"github.com/cloudfoundry/cli/cf/trace"
+	"github.com/codegangsta/cli"
 )
 
 type cliDependencies struct {
@@ -41,9 +42,18 @@ func setupDependencies() (deps *cliDependencies) {
 		}
 	})
 
+	terminal.UserAskedForColors = deps.configRepo.ColorEnabled()
+	terminal.InitColorSupport()
+
+	if os.Getenv("CF_TRACE") != "" {
+		trace.Logger = trace.NewLogger(os.Getenv("CF_TRACE"))
+	} else {
+		trace.Logger = trace.NewLogger(deps.configRepo.Trace())
+	}
+
 	deps.gateways = map[string]net.Gateway{
 		"auth":             net.NewUAAGateway(deps.configRepo),
-		"cloud-controller": net.NewCloudControllerGateway(deps.configRepo),
+		"cloud-controller": net.NewCloudControllerGateway(deps.configRepo, time.Now),
 		"uaa":              net.NewUAAGateway(deps.configRepo),
 	}
 	deps.apiRepoLocator = api.NewRepositoryLocator(deps.configRepo, deps.gateways)
@@ -61,10 +71,15 @@ func main() {
 	requirementsFactory := requirements.NewFactory(deps.termUI, deps.configRepo, deps.apiRepoLocator)
 	cmdRunner := command_runner.NewRunner(cmdFactory, requirementsFactory)
 
-	app.NewApp(cmdRunner, cmdFactory.CommandMetadatas()...).Run(os.Args)
+	err := app.NewApp(cmdRunner, cmdFactory.CommandMetadatas()...).Run(os.Args)
+	if err != nil {
+		os.Exit(1)
+	}
 
 	gateways := gatewaySliceFromMap(deps.gateways)
-	net.NewWarningsCollector(deps.termUI, gateways...).PrintWarnings()
+
+	warningsCollector := net.NewWarningsCollector(deps.termUI, gateways...)
+	warningsCollector.PrintWarnings()
 }
 
 func gatewaySliceFromMap(gateway_map map[string]net.Gateway) []net.WarningProducer {
@@ -76,31 +91,6 @@ func gatewaySliceFromMap(gateway_map map[string]net.Gateway) []net.WarningProduc
 }
 
 func init() {
-	cli.AppHelpTemplate = `NAME:
-   {{.Name}} - {{.Usage}}
-
-USAGE:
-   [environment variables] {{.Name}} [global options] command [arguments...] [command options]
-
-VERSION:
-   {{.Version}}
-
-COMMANDS:
-   {{range .Commands}}{{.Name}}{{with .ShortName}}, {{.}}{{end}}{{ "\t" }}{{.Description}}
-   {{end}}
-GLOBAL OPTIONS:
-   {{range .Flags}}{{.}}
-   {{end}}
-ENVIRONMENT VARIABLES:
-   CF_COLOR=false - will not colorize output
-   CF_HOME=path/to/config/ override default config directory
-   CF_STAGING_TIMEOUT=15 max wait time for buildpack staging, in minutes
-   CF_STARTUP_TIMEOUT=5 max wait time for app instance startup, in minutes
-   CF_TRACE=true - print API request diagnostics to stdout
-   CF_TRACE=path/to/trace.log - append API request diagnostics to a log file
-   HTTP_PROXY=http://proxy.example.com:8080 - enable HTTP proxying for API requests
-`
-
 	cli.CommandHelpTemplate = `NAME:
    {{.Name}} - {{.Description}}
 {{with .ShortName}}
@@ -118,43 +108,27 @@ OPTIONS:
 }
 
 func handlePanics() {
+	panic_printer.UI = terminal.NewUI(os.Stdin)
+
+	commandArgs := strings.Join(os.Args, " ")
+	stackTrace := generateBacktrace()
+
 	err := recover()
-	if err != nil && err != terminal.FailedWasCalled {
-		switch err := err.(type) {
-		case error:
-			displayCrashDialog(err.Error())
-		case string:
-			displayCrashDialog(err)
-		default:
-			displayCrashDialog("An unexpected type of error")
-		}
-	}
+	panic_printer.DisplayCrashDialog(err, commandArgs, stackTrace)
 
 	if err != nil {
 		os.Exit(1)
 	}
 }
 
-func displayCrashDialog(errorMessage string) {
-	formattedString := `
-
-Aww shucks.
-
-Something completely unexpected happened. This is a bug in %s.
-Please file this bug : https://github.com/cloudfoundry/cli/issues
-Tell us that you ran this command:
-
-	%s
-
-this error occurred:
-
-	%s
-
-and this stack trace:
-
-%s
-	`
-
-	stackTrace := "\t" + strings.Replace(string(debug.Stack()), "\n", "\n\t", -1)
-	println(fmt.Sprintf(formattedString, cf.Name(), strings.Join(os.Args, " "), errorMessage, stackTrace))
+func generateBacktrace() string {
+	stackByteCount := 0
+	STACK_SIZE_LIMIT := 1024 * 1024
+	var bytes []byte
+	for stackSize := 1024; (stackByteCount == 0 || stackByteCount == stackSize) && stackSize < STACK_SIZE_LIMIT; stackSize = 2 * stackSize {
+		bytes = make([]byte, stackSize)
+		stackByteCount = runtime.Stack(bytes, true)
+	}
+	stackTrace := "\t" + strings.Replace(string(bytes), "\n", "\n\t", -1)
+	return stackTrace
 }

@@ -4,10 +4,10 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
+	"github.com/cloudfoundry/cli/cf/api/quotas/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/quota"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
@@ -20,18 +20,18 @@ var _ = Describe("quota", func() {
 	var (
 		ui                  *testterm.FakeUI
 		requirementsFactory *testreq.FakeReqFactory
-		quotaRepo           *testapi.FakeQuotaRepository
+		quotaRepo           *fakes.FakeQuotaRepository
 	)
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		requirementsFactory = &testreq.FakeReqFactory{}
-		quotaRepo = &testapi.FakeQuotaRepository{}
+		quotaRepo = &fakes.FakeQuotaRepository{}
 	})
 
 	runCommand := func(args ...string) {
 		cmd := NewShowQuota(ui, testconfig.NewRepositoryWithDefaults(), quotaRepo)
-		testcmd.RunCommand(cmd, testcmd.NewContext("quotas", args), requirementsFactory)
+		testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	Context("When not logged in", func() {
@@ -56,14 +56,15 @@ var _ = Describe("quota", func() {
 		Context("When providing a quota name", func() {
 			Context("that exists", func() {
 				BeforeEach(func() {
-					quotaRepo.FindByNameReturns.Quota = models.QuotaFields{
+					quotaRepo.FindByNameReturns(models.QuotaFields{
 						Guid:                    "my-quota-guid",
 						Name:                    "muh-muh-muh-my-qua-quota",
 						MemoryLimit:             512,
+						InstanceMemoryLimit:     5,
 						RoutesLimit:             2000,
 						ServicesLimit:           47,
 						NonBasicServicesAllowed: true,
-					}
+					}, nil)
 				})
 
 				It("shows you that quota", func() {
@@ -72,7 +73,8 @@ var _ = Describe("quota", func() {
 					Expect(ui.Outputs).To(ContainSubstrings(
 						[]string{"Getting quota", "muh-muh-muh-my-qua-quota", "my-user"},
 						[]string{"OK"},
-						[]string{"Memory", "512M"},
+						[]string{"Total Memory", "512M"},
+						[]string{"Instance Memory", "5M"},
 						[]string{"Routes", "2000"},
 						[]string{"Services", "47"},
 						[]string{"Paid service plans", "allowed"},
@@ -82,7 +84,7 @@ var _ = Describe("quota", func() {
 
 			Context("that doesn't exist", func() {
 				BeforeEach(func() {
-					quotaRepo.FindByNameReturns.Error = errors.New("oops i accidentally a quota")
+					quotaRepo.FindByNameReturns(models.QuotaFields{}, errors.New("oops i accidentally a quota"))
 				})
 
 				It("gives an error", func() {

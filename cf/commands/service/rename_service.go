@@ -6,6 +6,7 @@ import (
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/errors"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/codegangsta/cli"
@@ -26,17 +27,16 @@ func NewRenameService(ui terminal.UI, config configuration.Reader, serviceRepo a
 	return
 }
 
-func (command *RenameService) Metadata() command_metadata.CommandMetadata {
+func (cmd *RenameService) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "rename-service",
-		Description: "Rename a service instance",
-		Usage:       "CF_NAME rename-service SERVICE_INSTANCE NEW_SERVICE_INSTANCE",
+		Description: T("Rename a service instance"),
+		Usage:       T("CF_NAME rename-service SERVICE_INSTANCE NEW_SERVICE_INSTANCE"),
 	}
 }
 
 func (cmd *RenameService) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
 	if len(c.Args()) != 2 {
-		err = errors.New("incorrect usage")
 		cmd.ui.FailWithUsage(c)
 		return
 	}
@@ -56,18 +56,23 @@ func (cmd *RenameService) Run(c *cli.Context) {
 	newName := c.Args()[1]
 	serviceInstance := cmd.serviceInstanceReq.GetServiceInstance()
 
-	cmd.ui.Say("Renaming service %s to %s in org %s / space %s as %s...",
-		terminal.EntityNameColor(serviceInstance.Name),
-		terminal.EntityNameColor(newName),
-		terminal.EntityNameColor(cmd.config.OrganizationFields().Name),
-		terminal.EntityNameColor(cmd.config.SpaceFields().Name),
-		terminal.EntityNameColor(cmd.config.Username()),
-	)
+	cmd.ui.Say(T("Renaming service {{.ServiceName}} to {{.NewServiceName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
+		map[string]interface{}{
+			"ServiceName":    terminal.EntityNameColor(serviceInstance.Name),
+			"NewServiceName": terminal.EntityNameColor(newName),
+			"OrgName":        terminal.EntityNameColor(cmd.config.OrganizationFields().Name),
+			"SpaceName":      terminal.EntityNameColor(cmd.config.SpaceFields().Name),
+			"CurrentUser":    terminal.EntityNameColor(cmd.config.Username()),
+		}))
 	err := cmd.serviceRepo.RenameService(serviceInstance, newName)
 
 	if err != nil {
 		if httpError, ok := err.(errors.HttpError); ok && httpError.ErrorCode() == errors.SERVICE_INSTANCE_NAME_TAKEN {
-			cmd.ui.Failed("%s\nTIP: Use '%s services' to view all services in this org and space.", httpError.Error(), cf.Name())
+			cmd.ui.Failed(T("{{.ErrorDescription}}\nTIP: Use '{{.CFServicesCommand}}' to view all services in this org and space.",
+				map[string]interface{}{
+					"ErrorDescription":  httpError.Error(),
+					"CFServicesCommand": cf.Name() + " " + "services",
+				}))
 		} else {
 			cmd.ui.Failed(err.Error())
 		}

@@ -13,6 +13,8 @@ type SpaceEntity struct {
 	Applications     []ApplicationResource `json:"apps"`
 	Domains          []DomainResource
 	ServiceInstances []ServiceInstanceResource `json:"service_instances"`
+	SecurityGroups   []SecurityGroupResource   `json:"security_groups"`
+	SpaceQuotaGuid   string                    `json:"space_quota_definition_guid"`
 }
 
 func (resource SpaceResource) ToFields() (fields models.SpaceFields) {
@@ -35,6 +37,11 @@ func (resource SpaceResource) ToModel() (space models.Space) {
 		space.ServiceInstances = append(space.ServiceInstances, serviceResource.ToFields())
 	}
 
+	for _, securityGroupResource := range resource.Entity.SecurityGroups {
+		space.SecurityGroups = append(space.SecurityGroups, securityGroupResource.ToFields())
+	}
+
 	space.Organization = resource.Entity.Organization.ToFields()
+	space.SpaceQuotaGuid = resource.Entity.SpaceQuotaGuid
 	return
 }

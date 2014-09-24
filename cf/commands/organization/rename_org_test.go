@@ -1,10 +1,10 @@
 package organization_test
 
 import (
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	"github.com/cloudfoundry/cli/cf/commands/organization"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/models"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
@@ -32,7 +32,7 @@ var _ = Describe("rename-org command", func() {
 
 	var callRenameOrg = func(args []string) {
 		cmd := organization.NewRenameOrg(ui, configRepo, orgRepo)
-		testcmd.RunCommand(cmd, testcmd.NewContext("rename-org", args), requirementsFactory)
+		testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	It("fails with usage when given less than two args", func() {

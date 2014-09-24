@@ -1,10 +1,10 @@
 package organization
 
 import (
-	"errors"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/configuration"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/codegangsta/cli"
@@ -25,20 +25,19 @@ func NewRenameOrg(ui terminal.UI, config configuration.ReadWriter, orgRepo api.O
 	return
 }
 
-func (command *RenameOrg) Metadata() command_metadata.CommandMetadata {
+func (cmd *RenameOrg) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "rename-org",
-		Description: "Rename an org",
-		Usage:       "CF_NAME rename-org ORG NEW_ORG",
+		Description: T("Rename an org"),
+		Usage:       T("CF_NAME rename-org ORG NEW_ORG"),
 	}
 }
 
 func (cmd *RenameOrg) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
 	if len(c.Args()) != 2 {
-		err = errors.New("Incorrect Usage")
 		cmd.ui.FailWithUsage(c)
-		return
 	}
+
 	cmd.orgReq = requirementsFactory.NewOrganizationRequirement(c.Args()[0])
 	reqs = []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
@@ -51,11 +50,11 @@ func (cmd *RenameOrg) Run(c *cli.Context) {
 	org := cmd.orgReq.GetOrganization()
 	newName := c.Args()[1]
 
-	cmd.ui.Say("Renaming org %s to %s as %s...",
-		terminal.EntityNameColor(org.Name),
-		terminal.EntityNameColor(newName),
-		terminal.EntityNameColor(cmd.config.Username()),
-	)
+	cmd.ui.Say(T("Renaming org {{.OrgName}} to {{.NewName}} as {{.Username}}...",
+		map[string]interface{}{
+			"OrgName":  terminal.EntityNameColor(org.Name),
+			"NewName":  terminal.EntityNameColor(newName),
+			"Username": terminal.EntityNameColor(cmd.config.Username())}))
 
 	apiErr := cmd.orgRepo.Rename(org.Guid, newName)
 	if apiErr != nil {

@@ -2,19 +2,23 @@ package commands_test
 
 import (
 	"bytes"
-	. "github.com/cloudfoundry/cli/cf/commands"
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/trace"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	"github.com/cloudfoundry/gofileutils/fileutils"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+
+	. "github.com/cloudfoundry/cli/cf/commands"
+	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 )
 
 var _ = Describe("curl command", func() {
@@ -56,6 +60,37 @@ var _ = Describe("curl command", func() {
 				[]string{"FAILED"},
 				[]string{"Content-Size:1024"},
 			))
+		})
+
+		Context("when the --output flag is provided", func() {
+			It("saves the body of the response to the given filepath if it exists", func() {
+				fileutils.TempFile("poor-mans-pipe", func(tempFile *os.File, err error) {
+					Expect(err).ToNot(HaveOccurred())
+					deps.curlRepo.ResponseBody = "hai"
+
+					runCurlWithInputs(deps, []string{"--output", tempFile.Name(), "/foo"})
+					contents, err := ioutil.ReadAll(tempFile)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(string(contents)).To(Equal("hai"))
+				})
+			})
+
+			It("saves the body of the response to the given filepath if it doesn't exists", func() {
+				fileutils.TempDir("poor-mans-dir", func(tmpDir string, err error) {
+					Expect(err).ToNot(HaveOccurred())
+					deps.curlRepo.ResponseBody = "hai"
+
+					filePath := filepath.Join(tmpDir, "subdir1", "banana.txt")
+					runCurlWithInputs(deps, []string{"--output", filePath, "/foo"})
+
+					file, err := os.Open(filePath)
+					Expect(err).ToNot(HaveOccurred())
+
+					contents, err := ioutil.ReadAll(file)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(string(contents)).To(Equal("hai"))
+				})
+			})
 		})
 
 		It("makes a post request given -X", func() {
@@ -117,6 +152,39 @@ var _ = Describe("curl command", func() {
 				[]string{"ooops"},
 			))
 		})
+
+		Context("Whent the content type is JSON", func() {
+			BeforeEach(func() {
+				deps.curlRepo.ResponseHeader = "Content-Type: application/json;charset=utf-8"
+				deps.curlRepo.ResponseBody = `{"total_results":0,"total_pages":1,"prev_url":null,"next_url":null,"resources":[]}`
+			})
+
+			It("pretty-prints the response body", func() {
+				runCurlWithInputs(deps, []string{"/ugly-printed-json-endpoint"})
+
+				Expect(deps.ui.Outputs).To(ContainSubstrings(
+					[]string{"{"},
+					[]string{"  \"total_results", "0"},
+					[]string{"  \"total_pages", "1"},
+					[]string{"  \"prev_url", "null"},
+					[]string{"  \"next_url", "null"},
+					[]string{"  \"resources", "[]"},
+					[]string{"}"},
+				))
+			})
+
+			Context("But the body is not JSON", func() {
+				BeforeEach(func() {
+					deps.curlRepo.ResponseBody = "FAIL: crumpets need MOAR butterz"
+				})
+
+				It("regular-prints the response body", func() {
+					runCurlWithInputs(deps, []string{"/whateverz"})
+
+					Expect(deps.ui.Outputs).To(Equal([]string{"FAIL: crumpets need MOAR butterz"}))
+				})
+			})
+		})
 	})
 })
 
@@ -135,8 +203,7 @@ func newCurlDependencies() (deps curlDependencies) {
 	return
 }
 
-func runCurlWithInputs(deps curlDependencies, inputs []string) {
-	ctxt := testcmd.NewContext("curl", inputs)
+func runCurlWithInputs(deps curlDependencies, args []string) {
 	cmd := NewCurl(deps.ui, deps.config, deps.curlRepo)
-	testcmd.RunCommand(cmd, ctxt, deps.requirementsFactory)
+	testcmd.RunCommand(cmd, args, deps.requirementsFactory)
 }

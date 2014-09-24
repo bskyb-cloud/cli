@@ -1,17 +1,22 @@
 package api_test
 
 import (
-	. "github.com/cloudfoundry/cli/cf/api"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"time"
+
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+
+	. "github.com/cloudfoundry/cli/cf/api"
+	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"net/http"
-	"net/http/httptest"
 )
 
 var _ = Describe("ApplicationsRepository", func() {
@@ -21,12 +26,12 @@ var _ = Describe("ApplicationsRepository", func() {
 			defer ts.Close()
 
 			app, apiErr := repo.Read("My App")
-			Expect(handler).To(testnet.HaveAllRequestsCalled())
+			Expect(handler).To(HaveAllRequestsCalled())
 			Expect(apiErr).NotTo(HaveOccurred())
 			Expect(app.Name).To(Equal("My App"))
 			Expect(app.Guid).To(Equal("app1-guid"))
-			Expect(app.Memory).To(Equal(uint64(128)))
-			Expect(app.DiskQuota).To(Equal(uint64(512)))
+			Expect(app.Memory).To(Equal(int64(128)))
+			Expect(app.DiskQuota).To(Equal(int64(512)))
 			Expect(app.InstanceCount).To(Equal(1))
 			Expect(app.EnvironmentVars).To(Equal(map[string]string{"foo": "bar", "baz": "boom"}))
 			Expect(app.Routes[0].Host).To(Equal("app1"))
@@ -42,7 +47,7 @@ var _ = Describe("ApplicationsRepository", func() {
 			defer ts.Close()
 
 			_, apiErr := repo.Read("My App")
-			Expect(handler).To(testnet.HaveAllRequestsCalled())
+			Expect(handler).To(HaveAllRequestsCalled())
 			Expect(apiErr.(*errors.ModelNotFoundError)).NotTo(BeNil())
 		})
 	})
@@ -55,7 +60,7 @@ var _ = Describe("ApplicationsRepository", func() {
 			params := defaultAppParams()
 			createdApp, apiErr := repo.Create(params)
 
-			Expect(handler).To(testnet.HaveAllRequestsCalled())
+			Expect(handler).To(HaveAllRequestsCalled())
 			Expect(apiErr).NotTo(HaveOccurred())
 
 			app := models.Application{}
@@ -81,8 +86,106 @@ var _ = Describe("ApplicationsRepository", func() {
 			params.Command = nil
 
 			_, apiErr := repo.Create(params)
-			Expect(handler).To(testnet.HaveAllRequestsCalled())
+			Expect(handler).To(HaveAllRequestsCalled())
 			Expect(apiErr).NotTo(HaveOccurred())
+		})
+	})
+
+	Describe("reading environment for an app", func() {
+		Context("when the response can be parsed as json", func() {
+			var (
+				testServer   *httptest.Server
+				userEnv      map[string]string
+				vcapServices string
+				err          error
+				handler      *testnet.TestHandler
+				repo         ApplicationRepository
+			)
+
+			AfterEach(func() {
+				testServer.Close()
+			})
+
+			Context("when there are system provided env vars", func() {
+				BeforeEach(func() {
+
+					var appEnvRequest = testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+						Method: "GET",
+						Path:   "/v2/apps/some-cool-app-guid/env",
+						Response: testnet.TestResponse{
+							Status: http.StatusOK,
+							Body: `
+{
+   "system_env_json": {
+      "VCAP_SERVICES": {
+        "system_hash": {
+          "system_key": "system_value"
+        }
+      }
+   },
+   "environment_json": {
+      "key": "value"
+   }
+}
+`,
+						}})
+
+					testServer, handler, repo = createAppRepo([]testnet.TestRequest{appEnvRequest})
+					userEnv, vcapServices, err = repo.ReadEnv("some-cool-app-guid")
+					Expect(err).ToNot(HaveOccurred())
+					Expect(handler).To(HaveAllRequestsCalled())
+				})
+
+				It("returns the user environment and vcap services", func() {
+					Expect(userEnv["key"]).To(Equal("value"))
+					Expect(strings.Split(vcapServices, "\n")).To(ContainSubstrings(
+						[]string{"system_hash", ":", "{"},
+						[]string{"system_key", ":", "system_value"},
+						[]string{"}"},
+					))
+				})
+			})
+
+			Context("when there are no environment variables", func() {
+				BeforeEach(func() {
+					var emptyEnvRequest = testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+						Method: "GET",
+						Path:   "/v2/apps/some-cool-app-guid/env",
+						Response: testnet.TestResponse{
+							Status: http.StatusOK,
+							Body:   `{"system_env_json": {"VCAP_SERVICES": {} }}`,
+						}})
+
+					testServer, handler, repo = createAppRepo([]testnet.TestRequest{emptyEnvRequest})
+					userEnv, vcapServices, err = repo.ReadEnv("some-cool-app-guid")
+					Expect(err).ToNot(HaveOccurred())
+					Expect(handler).To(HaveAllRequestsCalled())
+				})
+
+				It("returns an empty string", func() {
+					Expect(userEnv["key"]).To(BeEmpty())
+					Expect(vcapServices).To(BeEmpty())
+				})
+			})
+		})
+	})
+
+	Describe("restaging applications", func() {
+		It("POSTs to the right URL", func() {
+			appRestageRequest := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+				Method: "POST",
+				Path:   "/v2/apps/some-cool-app-guid/restage",
+				Response: testnet.TestResponse{
+					Status: http.StatusOK,
+					Body:   "",
+				},
+			})
+
+			ts, handler, repo := createAppRepo([]testnet.TestRequest{appRestageRequest})
+			defer ts.Close()
+
+			repo.CreateRestageRequest("some-cool-app-guid")
+			Expect(handler).To(HaveAllRequestsCalled())
 		})
 	})
 
@@ -106,7 +209,7 @@ var _ = Describe("ApplicationsRepository", func() {
 
 			updatedApp, apiErr := repo.Update(app.Guid, app.ToParams())
 
-			Expect(handler).To(testnet.HaveAllRequestsCalled())
+			Expect(handler).To(HaveAllRequestsCalled())
 			Expect(apiErr).NotTo(HaveOccurred())
 			Expect(updatedApp.Name).To(Equal("my-cool-app"))
 			Expect(updatedApp.Guid).To(Equal("my-cool-app-guid"))
@@ -128,7 +231,7 @@ var _ = Describe("ApplicationsRepository", func() {
 
 			_, apiErr := repo.Update("app1-guid", params)
 
-			Expect(handler).To(testnet.HaveAllRequestsCalled())
+			Expect(handler).To(HaveAllRequestsCalled())
 			Expect(apiErr).NotTo(HaveOccurred())
 		})
 
@@ -148,7 +251,7 @@ var _ = Describe("ApplicationsRepository", func() {
 
 			_, apiErr := repo.Update("app1-guid", params)
 
-			Expect(handler).To(testnet.HaveAllRequestsCalled())
+			Expect(handler).To(HaveAllRequestsCalled())
 			Expect(apiErr).NotTo(HaveOccurred())
 		})
 	})
@@ -164,7 +267,7 @@ var _ = Describe("ApplicationsRepository", func() {
 		defer ts.Close()
 
 		apiErr := repo.Delete("my-cool-app-guid")
-		Expect(handler).To(testnet.HaveAllRequestsCalled())
+		Expect(handler).To(HaveAllRequestsCalled())
 		Expect(apiErr).NotTo(HaveOccurred())
 	})
 })
@@ -259,8 +362,8 @@ func defaultAppParams() models.AppParams {
 	spaceGuid := "some-space-guid"
 	stackGuid := "some-stack-guid"
 	command := "some-command"
-	memory := uint64(2048)
-	diskQuota := uint64(512)
+	memory := int64(2048)
+	diskQuota := int64(512)
 	instanceCount := 3
 
 	return models.AppParams{
@@ -298,7 +401,7 @@ func createAppRepo(requests []testnet.TestRequest) (ts *httptest.Server, handler
 	ts, handler = testnet.NewServer(requests)
 	configRepo := testconfig.NewRepositoryWithDefaults()
 	configRepo.SetApiEndpoint(ts.URL)
-	gateway := net.NewCloudControllerGateway(configRepo)
+	gateway := net.NewCloudControllerGateway(configRepo, time.Now)
 	repo = NewCloudControllerApplicationRepository(configRepo, gateway)
 	return
 }

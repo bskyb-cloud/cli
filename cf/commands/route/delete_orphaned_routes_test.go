@@ -1,8 +1,8 @@
 package route_test
 
 import (
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	"github.com/cloudfoundry/cli/cf/models"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
@@ -105,11 +105,8 @@ var _ = Describe("delete-orphaned-routes command", func() {
 
 func callDeleteOrphanedRoutes(confirmation string, args []string, reqFactory *testreq.FakeReqFactory, routeRepo *testapi.FakeRouteRepository) (ui *testterm.FakeUI) {
 	ui = &testterm.FakeUI{Inputs: []string{confirmation}}
-	ctxt := testcmd.NewContext("delete-orphaned-routes", args)
 	configRepo := testconfig.NewRepositoryWithDefaults()
-
 	cmd := NewDeleteOrphanedRoutes(ui, configRepo, routeRepo)
-
-	testcmd.RunCommand(cmd, ctxt, reqFactory)
+	testcmd.RunCommand(cmd, args, reqFactory)
 	return
 }

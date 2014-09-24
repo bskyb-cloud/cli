@@ -13,30 +13,47 @@
 
   trap printStatus EXIT
 
+  bin/generate-language-resources
+
   GODEP=$(which godep)
   if [[ -z $GODEP ]] ; then
     echo "godep is not installed. Run 'go get github.com/tools/godep'"
     exit 1
   fi
 
-  export GOPATH=$($GODEP path):$GOPATH
-
   echo -e "\n Cleaning build artifacts..."
-  go clean
+
+  # Clean up old .a files in GOPATH
+  # It seems like `go clean` should do this but ... not so much
+  if [[ -d $GOPATH/pkg ]] ; then
+    pushd $GOPATH/pkg
+    rm -Rf *
+    popd
+  fi
+
+  if [[ -d $($GODEP path)/pkg ]] ; then
+    pushd $($GODEP path)/pkg
+    rm -Rf *
+    popd
+  fi
+
+  export LC_ALL="en_US.UTF-8"
+  export GOPATH=$($GODEP path):$GOPATH
+  export PATH=$($GODEP path)/bin:$PATH
+  go install github.com/onsi/ginkgo/ginkgo
 
   echo -e "\n Formatting packages..."
-  go fmt ./cf/... ./testhelpers/... ./generic/... ./main/... ./glob/... ./words/...
+  go fmt ./...
 
-  echo -e "\n Testing packages:"
-  go test ./cf/... ./generic/... -parallel 4 $@
-
+  echo -e "\n Testing packages..."
+  ginkgo -r $@
 
   echo -e "\n Vetting packages for potential issues..."
   go tool vet cf/.
-# for file in $(find {cf,fileutils,generic,glob,main,testhelpers,words} \( -name "*.go" -not -iname "*test.go" \))
-# do
-#   go tool vet -all -shadow=true $file
-# done
+  for file in $(find {cf,fileutils,generic,glob,main,testhelpers,words} \( -name "*.go" -not -iname "*test.go" \))
+  do
+    go tool vet -all -shadow=true $file
+  done
 
   echo -e "\n Running build script to confirm everything compiles..."
   bin/build

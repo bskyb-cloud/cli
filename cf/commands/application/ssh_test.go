@@ -3,14 +3,14 @@ package application_test
 import (
 	. "github.com/cloudfoundry/cli/cf/commands/application"
 	"github.com/cloudfoundry/cli/cf/models"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	testapi "github.com/cloudfoundry/cli/testhelpers/api"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Testing with ginkgo", func() {
@@ -80,7 +80,7 @@ var _ = Describe("Testing with ginkgo", func() {
 			[]string{"SSH Port is 1234"},
 			[]string{"SSH Identity is"},
 			[]string{"Command:"},
-			[]string{"SSH Finished"},		
+			[]string{"SSH Finished"},
 		))
 
 		Expect(appSshRepo.AppGuid).To(Equal("my-app-guid"))
@@ -88,12 +88,12 @@ var _ = Describe("Testing with ginkgo", func() {
 })
 
 func callSsh(args []string, reqFactory *testreq.FakeReqFactory, appSshRepo *testapi.FakeAppSshRepo) (ui *testterm.FakeUI) {
+
 	ui = &testterm.FakeUI{}
-	ctxt := testcmd.NewContext("ssh", args)
 
 	configRepo := testconfig.NewRepositoryWithDefaults()
 	cmd := NewSsh(ui, configRepo, appSshRepo)
-	testcmd.RunCommand(cmd, ctxt, reqFactory)
+	testcmd.RunCommand(cmd, args, reqFactory)
 
 	return
 }

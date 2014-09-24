@@ -2,17 +2,19 @@ package app_test
 
 import (
 	"bytes"
+	"strings"
+	"time"
+
 	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_factory"
-	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/net"
 	"github.com/cloudfoundry/cli/cf/trace"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	io_helpers "github.com/cloudfoundry/cli/testhelpers/io"
 	testmanifest "github.com/cloudfoundry/cli/testhelpers/manifest"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	"github.com/codegangsta/cli"
-	"strings"
 
 	. "github.com/cloudfoundry/cli/cf/app"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -28,7 +30,7 @@ var expectedCommandNames = []string{
 	"delete-service", "delete-service-auth-token", "delete-service-broker", "delete-space", "delete-user",
 	"domains", "env", "events", "files", "login", "logout", "logs", "marketplace", "map-route", "org",
 	"org-users", "orgs", "passwd", "purge-service-offering", "push", "quotas", "rename", "rename-org",
-	"rename-service", "rename-service-broker", "rename-space", "restart", "routes", "scale",
+	"rename-service", "rename-service-broker", "rename-space", "restage", "restart", "routes", "scale",
 	"service", "service-auth-tokens", "service-brokers", "services", "set-env", "set-org-role",
 	"set-space-role", "create-shared-domain", "space", "space-users", "spaces", "stacks", "start", "stop",
 	"target", "unbind-service", "unmap-route", "unset-env", "unset-org-role", "unset-space-role",
@@ -37,39 +39,83 @@ var expectedCommandNames = []string{
 }
 
 var _ = Describe("App", func() {
-	It("#NewApp", func() {
+	var (
+		app       *cli.App
+		cmdRunner *FakeRunner
+	)
+
+	JustBeforeEach(func() {
 		ui := &testterm.FakeUI{}
 		config := testconfig.NewRepository()
 		manifestRepo := &testmanifest.FakeManifestRepository{}
 
 		repoLocator := api.NewRepositoryLocator(config, map[string]net.Gateway{
 			"auth":             net.NewUAAGateway(config),
-			"cloud-controller": net.NewCloudControllerGateway(config),
+			"cloud-controller": net.NewCloudControllerGateway(config, time.Now),
 			"uaa":              net.NewUAAGateway(config),
 		})
 
 		cmdFactory := command_factory.NewFactory(ui, config, manifestRepo, repoLocator)
+		cmdRunner = &FakeRunner{cmdFactory: cmdFactory}
+		app = NewApp(cmdRunner, cmdFactory.CommandMetadatas()...)
+	})
 
-		metadatas := []command_metadata.CommandMetadata{}
-		for _, cmdName := range expectedCommandNames {
-			metadatas = append(metadatas, command_metadata.CommandMetadata{Name: cmdName})
-		}
+	Describe("trace file integration", func() {
+		var (
+			output *bytes.Buffer
+		)
 
-		for _, cmdName := range expectedCommandNames {
-			cmdRunner := &FakeRunner{cmdFactory: cmdFactory}
-			output := bytes.NewBuffer(make([]byte, 1024))
+		BeforeEach(func() {
+			output = bytes.NewBuffer(make([]byte, 1024))
 			trace.SetStdout(output)
 			trace.EnableTrace()
+		})
 
-			app := NewApp(cmdRunner, cmdFactory.CommandMetadatas()...)
+		It("prints its version number to the trace output when constructed", func() {
 			Expect(strings.Split(output.String(), "\n")).To(ContainSubstrings(
 				[]string{"VERSION:"},
 				[]string{cf.Version},
 			))
+		})
+	})
 
-			app.Run([]string{"", cmdName})
-			Expect(cmdRunner.cmdName).To(Equal(cmdName))
-		}
+	Context("when given a command name to run", func() {
+		It("runs the command with that name", func() {
+			for _, cmdName := range expectedCommandNames {
+				app.Run([]string{"", cmdName})
+				Expect(cmdRunner.cmdName).To(Equal(cmdName))
+			}
+		})
+	})
+
+	Context("when running 'cf --help'", func() {
+		It("should output the help in our custom format", func() {
+
+			output := io_helpers.CaptureOutput(func() {
+				app.Run([]string{"", "--help"})
+			})
+
+			mergedOutput := strings.Join(output, "\n")
+			Expect(mergedOutput).To(ContainSubstring("CF_TRACE=true"), "CF_TRACE=true not in help")
+
+			for _, name := range expectedCommandNames {
+				Expect(mergedOutput).To(ContainSubstring(name), name+" not in help")
+			}
+		})
+	})
+
+	Context("when the user provides an unknown command name", func() {
+		It("should complain loudly and then panic", func() {
+			Expect(func() {
+				io_helpers.CaptureOutput(func() {
+					app.Run([]string{"cf", "zoidberg"})
+				})
+			}).To(Panic())
+		})
+	})
+
+	It("includes the built on date in its version string", func() {
+		Expect(app.Version).To(Equal(cf.Version + "-" + cf.BuiltOnDate))
 	})
 })
 
