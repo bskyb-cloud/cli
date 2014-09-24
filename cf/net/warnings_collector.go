@@ -1,7 +1,7 @@
 package net
 
 import (
-	"github.com/nimbus-cloud/cli/cf/terminal"
+	"github.com/cloudfoundry/cli/cf/terminal"
 )
 
 type warningsCollector struct {

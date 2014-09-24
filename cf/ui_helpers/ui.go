@@ -2,8 +2,8 @@ package ui_helpers
 
 import (
 	"fmt"
-	"github.com/nimbus-cloud/cli/cf/models"
-	"github.com/nimbus-cloud/cli/cf/terminal"
+	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/terminal"
 	"strings"
 )
 

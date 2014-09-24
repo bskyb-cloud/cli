@@ -2,8 +2,8 @@ package resources
 
 import (
 	"fmt"
-	"github.com/nimbus-cloud/cli/cf/models"
-	"github.com/nimbus-cloud/cli/generic"
+	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/generic"
 	"strconv"
 	"strings"
 	"time"

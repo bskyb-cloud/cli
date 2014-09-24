@@ -1,9 +1,9 @@
 package terminal_test
 
 import (
-	. "github.com/nimbus-cloud/cli/cf/terminal"
-	. "github.com/nimbus-cloud/cli/testhelpers/matchers"
-	testterm "github.com/nimbus-cloud/cli/testhelpers/terminal"
+	. "github.com/cloudfoundry/cli/cf/terminal"
+	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )

@@ -2,9 +2,9 @@ package terminal
 
 import (
 	"fmt"
-	"github.com/nimbus-cloud/cli/cf"
-	"github.com/nimbus-cloud/cli/cf/configuration"
-	"github.com/nimbus-cloud/cli/cf/trace"
+	"github.com/cloudfoundry/cli/cf"
+	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/trace"
 	"github.com/codegangsta/cli"
 	"io"
 	"os"

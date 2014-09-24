@@ -1,19 +1,19 @@
 package commands_test
 
 import (
-	. "github.com/nimbus-cloud/cli/cf/commands"
-	"github.com/nimbus-cloud/cli/cf/configuration"
-	"github.com/nimbus-cloud/cli/cf/errors"
-	"github.com/nimbus-cloud/cli/cf/models"
-	testapi "github.com/nimbus-cloud/cli/testhelpers/api"
-	testcmd "github.com/nimbus-cloud/cli/testhelpers/commands"
-	testconfig "github.com/nimbus-cloud/cli/testhelpers/configuration"
-	testterm "github.com/nimbus-cloud/cli/testhelpers/terminal"
+	. "github.com/cloudfoundry/cli/cf/commands"
+	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/models"
+	testapi "github.com/cloudfoundry/cli/testhelpers/api"
+	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
+	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"strconv"
 
-	. "github.com/nimbus-cloud/cli/testhelpers/matchers"
+	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 )
 
 var _ = Describe("Login Command", func() {

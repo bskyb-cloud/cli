@@ -18,26 +18,26 @@
 
    For good examples of writing Ginkgo tests for the cli, refer to
 
-   src/github.com/nimbus-cloud/cli/cf/commands/application/delete_app_test.go
-   src/github.com/nimbus-cloud/cli/cf/terminal/ui_test.go
+   src/github.com/cloudfoundry/cli/cf/commands/application/delete_app_test.go
+   src/github.com/cloudfoundry/cli/cf/terminal/ui_test.go
    src/github.com/cloudfoundry/loggregator_consumer/consumer_test.go
 */
 
 package service_test
 
 import (
-	"github.com/nimbus-cloud/cli/cf/api"
-	. "github.com/nimbus-cloud/cli/cf/commands/service"
-	"github.com/nimbus-cloud/cli/cf/models"
-	testapi "github.com/nimbus-cloud/cli/testhelpers/api"
-	testcmd "github.com/nimbus-cloud/cli/testhelpers/commands"
-	testconfig "github.com/nimbus-cloud/cli/testhelpers/configuration"
-	testreq "github.com/nimbus-cloud/cli/testhelpers/requirements"
-	testterm "github.com/nimbus-cloud/cli/testhelpers/terminal"
+	"github.com/cloudfoundry/cli/cf/api"
+	. "github.com/cloudfoundry/cli/cf/commands/service"
+	"github.com/cloudfoundry/cli/cf/models"
+	testapi "github.com/cloudfoundry/cli/testhelpers/api"
+	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
+	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	. "github.com/nimbus-cloud/cli/testhelpers/matchers"
+	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 )
 
 func callUpdateUserProvidedService(args []string, requirementsFactory *testreq.FakeReqFactory, userProvidedServiceInstanceRepo api.UserProvidedServiceInstanceRepository) (fakeUI *testterm.FakeUI) {

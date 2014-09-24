@@ -1,7 +1,7 @@
 package matchers
 
 import (
-	"github.com/nimbus-cloud/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/onsi/gomega"
 )
 

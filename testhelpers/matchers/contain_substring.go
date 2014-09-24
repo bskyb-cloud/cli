@@ -2,7 +2,7 @@ package matchers
 
 import (
 	"fmt"
-	"github.com/nimbus-cloud/cli/cf/terminal"
+	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/onsi/gomega"
 	"strings"
 )

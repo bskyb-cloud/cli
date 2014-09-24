@@ -1,7 +1,7 @@
 package strategy
 
 import (
-	"github.com/nimbus-cloud/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/errors"
 	"strconv"
 	"strings"
 )

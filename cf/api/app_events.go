@@ -1,11 +1,11 @@
 package api
 
 import (
-	"github.com/nimbus-cloud/cli/cf/api/resources"
-	"github.com/nimbus-cloud/cli/cf/api/strategy"
-	"github.com/nimbus-cloud/cli/cf/configuration"
-	"github.com/nimbus-cloud/cli/cf/models"
-	"github.com/nimbus-cloud/cli/cf/net"
+	"github.com/cloudfoundry/cli/cf/api/resources"
+	"github.com/cloudfoundry/cli/cf/api/strategy"
+	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/net"
 )
 
 type AppEventsRepository interface {

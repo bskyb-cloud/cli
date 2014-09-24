@@ -3,11 +3,11 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/nimbus-cloud/cli/cf/api/resources"
-	"github.com/nimbus-cloud/cli/cf/configuration"
-	"github.com/nimbus-cloud/cli/cf/errors"
-	"github.com/nimbus-cloud/cli/cf/models"
-	"github.com/nimbus-cloud/cli/cf/net"
+	"github.com/cloudfoundry/cli/cf/api/resources"
+	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/net"
 	"net/url"
 	"strings"
 )

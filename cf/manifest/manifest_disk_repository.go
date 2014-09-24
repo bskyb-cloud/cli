@@ -2,8 +2,8 @@ package manifest
 
 import (
 	"github.com/cloudfoundry-incubator/candiedyaml"
-	"github.com/nimbus-cloud/cli/cf/errors"
-	"github.com/nimbus-cloud/cli/generic"
+	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/generic"
 	"io"
 	"os"
 	"path/filepath"

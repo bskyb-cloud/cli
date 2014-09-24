@@ -1,7 +1,7 @@
 package words
 
 import (
-	real_words "github.com/nimbus-cloud/cli/words"
+	real_words "github.com/cloudfoundry/cli/words"
 )
 
 type fakeWordGenerator struct {

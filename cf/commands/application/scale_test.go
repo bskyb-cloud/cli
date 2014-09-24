@@ -1,18 +1,18 @@
 package application_test
 
 import (
-	. "github.com/nimbus-cloud/cli/cf/commands/application"
-	"github.com/nimbus-cloud/cli/cf/configuration"
-	testapi "github.com/nimbus-cloud/cli/testhelpers/api"
-	testcmd "github.com/nimbus-cloud/cli/testhelpers/commands"
-	testconfig "github.com/nimbus-cloud/cli/testhelpers/configuration"
-	"github.com/nimbus-cloud/cli/testhelpers/maker"
-	testreq "github.com/nimbus-cloud/cli/testhelpers/requirements"
-	testterm "github.com/nimbus-cloud/cli/testhelpers/terminal"
+	. "github.com/cloudfoundry/cli/cf/commands/application"
+	"github.com/cloudfoundry/cli/cf/configuration"
+	testapi "github.com/cloudfoundry/cli/testhelpers/api"
+	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
+	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	"github.com/cloudfoundry/cli/testhelpers/maker"
+	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	. "github.com/nimbus-cloud/cli/testhelpers/matchers"
+	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 )
 
 var _ = Describe("scale command", func() {

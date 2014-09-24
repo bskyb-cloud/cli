@@ -1,6 +1,6 @@
 package maker
 
-import "github.com/nimbus-cloud/cli/cf/models"
+import "github.com/cloudfoundry/cli/cf/models"
 
 func NewServiceOffering(label string) models.ServiceOffering {
 	return models.ServiceOffering{ServiceOfferingFields: models.ServiceOfferingFields{

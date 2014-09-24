@@ -3,8 +3,8 @@ package command_runner
 import (
 	"errors"
 	"fmt"
-	"github.com/nimbus-cloud/cli/cf/command_factory"
-	"github.com/nimbus-cloud/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/command_factory"
+	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/codegangsta/cli"
 	"os"
 )

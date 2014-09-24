@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/nimbus-cloud/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/models"
 )
 
 type FakeAppSshRepo struct {

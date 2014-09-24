@@ -1,7 +1,7 @@
 package app_files_test
 
 import (
-	. "github.com/nimbus-cloud/cli/cf/app_files"
+	. "github.com/cloudfoundry/cli/cf/app_files"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )

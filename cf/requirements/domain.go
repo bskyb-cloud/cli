@@ -1,10 +1,10 @@
 package requirements
 
 import (
-	"github.com/nimbus-cloud/cli/cf/api"
-	"github.com/nimbus-cloud/cli/cf/configuration"
-	"github.com/nimbus-cloud/cli/cf/models"
-	"github.com/nimbus-cloud/cli/cf/terminal"
+	"github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/terminal"
 )
 
 type DomainRequirement interface {

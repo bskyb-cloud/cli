@@ -1,15 +1,15 @@
 package api_test
 
 import (
-	. "github.com/nimbus-cloud/cli/cf/api"
-	"github.com/nimbus-cloud/cli/cf/net"
+	. "github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/net"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"net/http"
 	"net/http/httptest"
-	testapi "github.com/nimbus-cloud/cli/testhelpers/api"
-	testconfig "github.com/nimbus-cloud/cli/testhelpers/configuration"
-	testnet "github.com/nimbus-cloud/cli/testhelpers/net"
+	testapi "github.com/cloudfoundry/cli/testhelpers/api"
+	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	testnet "github.com/cloudfoundry/cli/testhelpers/net"
 )
 
 var _ = Describe("AppSshRepository", func() {

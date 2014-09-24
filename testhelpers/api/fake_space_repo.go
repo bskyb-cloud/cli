@@ -1,8 +1,8 @@
 package api
 
 import (
-	"github.com/nimbus-cloud/cli/cf/errors"
-	"github.com/nimbus-cloud/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/models"
 )
 
 type FakeSpaceRepository struct {

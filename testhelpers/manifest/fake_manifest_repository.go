@@ -1,7 +1,7 @@
 package manifest
 
 import (
-	"github.com/nimbus-cloud/cli/cf/manifest"
+	"github.com/cloudfoundry/cli/cf/manifest"
 )
 
 type FakeManifestRepository struct {

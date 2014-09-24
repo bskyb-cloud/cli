@@ -2,10 +2,10 @@ package api
 
 import (
 	"crypto/tls"
-	"github.com/nimbus-cloud/cli/cf/api/strategy"
-	"github.com/nimbus-cloud/cli/cf/app_files"
-	"github.com/nimbus-cloud/cli/cf/configuration"
-	"github.com/nimbus-cloud/cli/cf/net"
+	"github.com/cloudfoundry/cli/cf/api/strategy"
+	"github.com/cloudfoundry/cli/cf/app_files"
+	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/net"
 	consumer "github.com/cloudfoundry/loggregator_consumer"
 )
 

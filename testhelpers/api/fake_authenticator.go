@@ -1,8 +1,8 @@
 package api
 
 import (
-	"github.com/nimbus-cloud/cli/cf/configuration"
-	"github.com/nimbus-cloud/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/errors"
 )
 
 type FakeAuthenticationRepository struct {

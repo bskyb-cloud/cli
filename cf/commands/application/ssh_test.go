@@ -1,16 +1,16 @@
 package application_test
 
 import (
-	. "github.com/nimbus-cloud/cli/cf/commands/application"
-	"github.com/nimbus-cloud/cli/cf/models"
+	. "github.com/cloudfoundry/cli/cf/commands/application"
+	"github.com/cloudfoundry/cli/cf/models"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	testapi "github.com/nimbus-cloud/cli/testhelpers/api"
-	testcmd "github.com/nimbus-cloud/cli/testhelpers/commands"
-	testconfig "github.com/nimbus-cloud/cli/testhelpers/configuration"
-	testreq "github.com/nimbus-cloud/cli/testhelpers/requirements"
-	testterm "github.com/nimbus-cloud/cli/testhelpers/terminal"
-	. "github.com/nimbus-cloud/cli/testhelpers/matchers"
+	testapi "github.com/cloudfoundry/cli/testhelpers/api"
+	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
+	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 )
 
 var _ = Describe("Testing with ginkgo", func() {

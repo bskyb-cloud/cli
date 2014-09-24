@@ -2,7 +2,7 @@ package trace_test
 
 import (
 	"bytes"
-	"github.com/nimbus-cloud/cli/cf/trace"
+	"github.com/cloudfoundry/cli/cf/trace"
 	"github.com/cloudfoundry/gofileutils/fileutils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

@@ -2,7 +2,7 @@ package resources
 
 import (
 	"fmt"
-	"github.com/nimbus-cloud/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/models"
 )
 
 type ServicePlanResource struct {

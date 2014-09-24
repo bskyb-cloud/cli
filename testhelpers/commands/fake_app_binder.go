@@ -1,6 +1,6 @@
 package commands
 
-import "github.com/nimbus-cloud/cli/cf/models"
+import "github.com/cloudfoundry/cli/cf/models"
 
 type FakeAppBinder struct {
 	AppsToBind        []models.Application

@@ -3,8 +3,8 @@ package app_files
 import (
 	"crypto/sha1"
 	"fmt"
-	"github.com/nimbus-cloud/cli/cf/models"
-	cffileutils "github.com/nimbus-cloud/cli/fileutils"
+	"github.com/cloudfoundry/cli/cf/models"
+	cffileutils "github.com/cloudfoundry/cli/fileutils"
 	"github.com/cloudfoundry/gofileutils/fileutils"
 	"io/ioutil"
 	"os"

@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/nimbus-cloud/cli/cf/terminal"
+	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/codegangsta/cli"
 	"os"
 	"strings"

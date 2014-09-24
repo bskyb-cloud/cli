@@ -1,19 +1,19 @@
 package service_test
 
 import (
-	"github.com/nimbus-cloud/cli/cf/api/resources"
-	. "github.com/nimbus-cloud/cli/cf/commands/service"
-	"github.com/nimbus-cloud/cli/cf/errors"
-	testapi "github.com/nimbus-cloud/cli/testhelpers/api"
-	testcmd "github.com/nimbus-cloud/cli/testhelpers/commands"
-	testconfig "github.com/nimbus-cloud/cli/testhelpers/configuration"
-	testreq "github.com/nimbus-cloud/cli/testhelpers/requirements"
-	testterm "github.com/nimbus-cloud/cli/testhelpers/terminal"
+	"github.com/cloudfoundry/cli/cf/api/resources"
+	. "github.com/cloudfoundry/cli/cf/commands/service"
+	"github.com/cloudfoundry/cli/cf/errors"
+	testapi "github.com/cloudfoundry/cli/testhelpers/api"
+	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
+	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	"github.com/codegangsta/cli"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	. "github.com/nimbus-cloud/cli/testhelpers/matchers"
+	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 )
 
 var _ = Describe("migrating service instances from v1 to v2", func() {

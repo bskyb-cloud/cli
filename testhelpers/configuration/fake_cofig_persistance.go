@@ -1,7 +1,7 @@
 package configuration
 
 import (
-	"github.com/nimbus-cloud/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration"
 )
 
 type FakePersistor struct {

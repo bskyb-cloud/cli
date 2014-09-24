@@ -1,17 +1,17 @@
 package buildpack_test
 
 import (
-	. "github.com/nimbus-cloud/cli/cf/commands/buildpack"
-	"github.com/nimbus-cloud/cli/cf/errors"
-	"github.com/nimbus-cloud/cli/cf/models"
-	testapi "github.com/nimbus-cloud/cli/testhelpers/api"
-	testcmd "github.com/nimbus-cloud/cli/testhelpers/commands"
-	testreq "github.com/nimbus-cloud/cli/testhelpers/requirements"
-	testterm "github.com/nimbus-cloud/cli/testhelpers/terminal"
+	. "github.com/cloudfoundry/cli/cf/commands/buildpack"
+	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/models"
+	testapi "github.com/cloudfoundry/cli/testhelpers/api"
+	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
+	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	. "github.com/nimbus-cloud/cli/testhelpers/matchers"
+	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 )
 
 var _ = Describe("rename-buildpack command", func() {

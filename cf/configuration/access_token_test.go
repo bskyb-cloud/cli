@@ -18,15 +18,15 @@
 
    For good examples of writing Ginkgo tests for the cli, refer to
 
-   src/github.com/nimbus-cloud/cli/cf/commands/application/delete_app_test.go
-   src/github.com/nimbus-cloud/cli/cf/terminal/ui_test.go
+   src/github.com/cloudfoundry/cli/cf/commands/application/delete_app_test.go
+   src/github.com/cloudfoundry/cli/cf/terminal/ui_test.go
    src/github.com/cloudfoundry/loggregator_consumer/consumer_test.go
 */
 
 package configuration_test
 
 import (
-	. "github.com/nimbus-cloud/cli/cf/configuration"
+	. "github.com/cloudfoundry/cli/cf/configuration"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )

@@ -1,7 +1,7 @@
 package api
 
 import (
-	testnet "github.com/nimbus-cloud/cli/testhelpers/net"
+	testnet "github.com/cloudfoundry/cli/testhelpers/net"
 	"net/http"
 )
 

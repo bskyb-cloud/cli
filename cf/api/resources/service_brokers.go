@@ -1,6 +1,6 @@
 package resources
 
-import "github.com/nimbus-cloud/cli/cf/models"
+import "github.com/cloudfoundry/cli/cf/models"
 
 type ServiceBrokerResource struct {
 	Resource

@@ -1,14 +1,14 @@
 package api_test
 
 import (
-	. "github.com/nimbus-cloud/cli/cf/api"
-	"github.com/nimbus-cloud/cli/cf/api/strategy"
-	"github.com/nimbus-cloud/cli/cf/configuration"
-	"github.com/nimbus-cloud/cli/cf/models"
-	"github.com/nimbus-cloud/cli/cf/net"
-	testconfig "github.com/nimbus-cloud/cli/testhelpers/configuration"
-	testnet "github.com/nimbus-cloud/cli/testhelpers/net"
-	testtime "github.com/nimbus-cloud/cli/testhelpers/time"
+	. "github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/api/strategy"
+	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/net"
+	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+	testtime "github.com/cloudfoundry/cli/testhelpers/time"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"net/http"
