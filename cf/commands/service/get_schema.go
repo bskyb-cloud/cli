@@ -4,7 +4,7 @@ import (
 	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -13,12 +13,12 @@ import (
 
 type GetSchema struct {
 	ui                 terminal.UI
-	config             configuration.Reader
+	config             core_config.Reader
 	serviceRepo        api.ServiceRepository
 	serviceInstanceReq requirements.ServiceInstanceRequirement
 }
 
-func NewGetSchema(ui terminal.UI, config configuration.Reader, serviceRepo api.ServiceRepository) (cmd *GetSchema) {
+func NewGetSchema(ui terminal.UI, config core_config.Reader, serviceRepo api.ServiceRepository) (cmd *GetSchema) {
 	cmd = new(GetSchema)
 	cmd.ui = ui
 	cmd.config = config

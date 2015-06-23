@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/flag_helpers"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -20,12 +20,12 @@ import (
 
 type Ssh struct {
 	ui         terminal.UI
-	config     configuration.Reader
+	config     core_config.Reader
 	appSshRepo api.AppSshRepository
 	appReq     requirements.ApplicationRequirement
 }
 
-func NewSsh(ui terminal.UI, config configuration.Reader, appSshRepo api.AppSshRepository) (cmd *Ssh) {
+func NewSsh(ui terminal.UI, config core_config.Reader, appSshRepo api.AppSshRepository) (cmd *Ssh) {
 	cmd = new(Ssh)
 	cmd.ui = ui
 	cmd.config = config
