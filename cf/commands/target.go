@@ -1,29 +1,30 @@
 package commands
 
 import (
-	"github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/api/organizations"
 	"github.com/cloudfoundry/cli/cf/api/spaces"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/flag_helpers"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
+	"github.com/cloudfoundry/cli/utils"
 	"github.com/codegangsta/cli"
 )
 
 type Target struct {
 	ui        terminal.UI
-	config    configuration.ReadWriter
-	orgRepo   api.OrganizationRepository
+	config    core_config.ReadWriter
+	orgRepo   organizations.OrganizationRepository
 	spaceRepo spaces.SpaceRepository
 }
 
 func NewTarget(ui terminal.UI,
-	config configuration.ReadWriter,
-	orgRepo api.OrganizationRepository,
+	config core_config.ReadWriter,
+	orgRepo organizations.OrganizationRepository,
 	spaceRepo spaces.SpaceRepository) (cmd Target) {
 
 	cmd.ui = ui
@@ -54,6 +55,7 @@ func (cmd Target) GetRequirements(requirementsFactory requirements.Factory, c *c
 		return
 	}
 
+	reqs = append(reqs, requirementsFactory.NewApiEndpointRequirement())
 	if c.String("o") != "" || c.String("s") != "" {
 		reqs = append(reqs, requirementsFactory.NewLoginRequirement())
 	}
@@ -69,6 +71,11 @@ func (cmd Target) Run(c *cli.Context) {
 		err := cmd.setOrganization(orgName)
 		if err != nil {
 			cmd.ui.Failed(err.Error())
+		} else if spaceName == "" {
+			spaceList, apiErr := cmd.getSpaceList()
+			if apiErr == nil && len(spaceList) == 1 {
+				cmd.setSpace(spaceList[0].Name)
+			}
 		}
 	}
 
@@ -83,6 +90,7 @@ func (cmd Target) Run(c *cli.Context) {
 	if !cmd.config.IsLoggedIn() {
 		cmd.ui.PanicQuietly()
 	}
+	utils.NotifyUpdateIfNeeded(cmd.ui, cmd.config)
 	return
 }
 
@@ -116,4 +124,14 @@ func (cmd Target) setSpace(spaceName string) error {
 
 	cmd.config.SetSpaceFields(space.SpaceFields)
 	return nil
+}
+
+func (cmd Target) getSpaceList() ([]models.Space, error) {
+	spaceList := []models.Space{}
+	apiErr := cmd.spaceRepo.ListSpaces(
+		func(space models.Space) bool {
+			spaceList = append(spaceList, space)
+			return true
+		})
+	return spaceList, apiErr
 }

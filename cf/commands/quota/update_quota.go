@@ -3,7 +3,7 @@ package quota
 import (
 	"github.com/cloudfoundry/cli/cf/api/quotas"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/flag_helpers"
 	"github.com/cloudfoundry/cli/cf/formatters"
 	. "github.com/cloudfoundry/cli/cf/i18n"
@@ -14,11 +14,11 @@ import (
 
 type updateQuota struct {
 	ui        terminal.UI
-	config    configuration.Reader
+	config    core_config.Reader
 	quotaRepo quotas.QuotaRepository
 }
 
-func NewUpdateQuota(ui terminal.UI, config configuration.Reader, quotaRepo quotas.QuotaRepository) *updateQuota {
+func NewUpdateQuota(ui terminal.UI, config core_config.Reader, quotaRepo quotas.QuotaRepository) *updateQuota {
 	return &updateQuota{
 		ui:        ui,
 		config:    config,
@@ -76,10 +76,18 @@ func (cmd *updateQuota) Run(c *cli.Context) {
 	}
 
 	if c.String("i") != "" {
-		memory, formatError := formatters.ToMegabytes(c.String("i"))
+		var memory int64
 
-		if formatError != nil {
-			cmd.ui.FailWithUsage(c)
+		if c.String("i") == "-1" {
+			memory = -1
+		} else {
+			var formatError error
+
+			memory, formatError = formatters.ToMegabytes(c.String("i"))
+
+			if formatError != nil {
+				cmd.ui.FailWithUsage(c)
+			}
 		}
 
 		quota.InstanceMemoryLimit = memory

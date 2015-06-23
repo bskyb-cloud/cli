@@ -2,17 +2,18 @@ package manifest
 
 import (
 	"fmt"
-	. "github.com/cloudfoundry/cli/cf/i18n"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 
+	. "github.com/cloudfoundry/cli/cf/i18n"
+
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/formatters"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/generic"
-	"github.com/cloudfoundry/cli/words"
+	"github.com/cloudfoundry/cli/words/generator"
 )
 
 type Manifest struct {
@@ -25,7 +26,7 @@ func NewEmptyManifest() (m *Manifest) {
 }
 
 func (m Manifest) Applications() (apps []models.AppParams, err error) {
-	rawData, errs := expandProperties(m.Data, words.NewWordGenerator())
+	rawData, errs := expandProperties(m.Data, generator.NewWordGenerator())
 	if len(errs) > 0 {
 		err = errors.NewWithSlice(errs)
 		return
@@ -80,7 +81,7 @@ func (m Manifest) getAppMaps(data generic.Map) (apps []generic.Map, errs []error
 
 var propertyRegex = regexp.MustCompile(`\${[\w-]+}`)
 
-func expandProperties(input interface{}, babbler words.WordGenerator) (output interface{}, errs []error) {
+func expandProperties(input interface{}, babbler generator.WordGenerator) (output interface{}, errs []error) {
 	switch input := input.(type) {
 	case string:
 		match := propertyRegex.FindStringSubmatch(input)
@@ -134,8 +135,19 @@ func mapToAppParams(basePath string, yamlMap generic.Map) (appParams models.AppP
 
 	appParams.BuildpackUrl = stringValOrDefault(yamlMap, "buildpack", &errs)
 	appParams.DiskQuota = bytesVal(yamlMap, "disk_quota", &errs)
-	appParams.Domain = stringVal(yamlMap, "domain", &errs)
-	appParams.Host = stringVal(yamlMap, "host", &errs)
+
+	domainAry := *sliceOrEmptyVal(yamlMap, "domains", &errs)
+	if domain := stringVal(yamlMap, "domain", &errs); domain != nil {
+		domainAry = append(domainAry, *domain)
+	}
+	appParams.Domains = removeDuplicatedValue(domainAry)
+
+	hostsArr := *sliceOrEmptyVal(yamlMap, "hosts", &errs)
+	if host := stringVal(yamlMap, "host", &errs); host != nil {
+		hostsArr = append(hostsArr, *host)
+	}
+	appParams.Hosts = removeDuplicatedValue(hostsArr)
+
 	appParams.Name = stringVal(yamlMap, "name", &errs)
 	appParams.Path = stringVal(yamlMap, "path", &errs)
 	appParams.StackName = stringVal(yamlMap, "stack", &errs)
@@ -144,6 +156,7 @@ func mapToAppParams(basePath string, yamlMap generic.Map) (appParams models.AppP
 	appParams.InstanceCount = intVal(yamlMap, "instances", &errs)
 	appParams.HealthCheckTimeout = intVal(yamlMap, "timeout", &errs)
 	appParams.NoRoute = boolVal(yamlMap, "no-route", &errs)
+	appParams.NoHostname = boolVal(yamlMap, "no-hostname", &errs)
 	appParams.UseRandomHostname = boolVal(yamlMap, "random-route", &errs)
 	appParams.ServicesToBind = sliceOrEmptyVal(yamlMap, "services", &errs)
 	appParams.EnvironmentVars = envVarOrEmptyMap(yamlMap, &errs)
@@ -159,6 +172,23 @@ func mapToAppParams(basePath string, yamlMap generic.Map) (appParams models.AppP
 	}
 
 	return
+}
+
+func removeDuplicatedValue(ary []string) *[]string {
+	if ary == nil {
+		return nil
+	}
+
+	m := make(map[string]bool)
+	for _, v := range ary {
+		m[v] = true
+	}
+
+	newAry := []string{}
+	for k, _ := range m {
+		newAry = append(newAry, k)
+	}
+	return &newAry
 }
 
 func checkForNulls(yamlMap generic.Map) (errs []error) {
@@ -212,10 +242,16 @@ func bytesVal(yamlMap generic.Map, key string, errs *[]error) *int64 {
 	if yamlVal == nil {
 		return nil
 	}
-	value, err := formatters.ToMegabytes(yamlVal.(string))
+
+	stringVal := coerceToString(yamlVal)
+	value, err := formatters.ToMegabytes(stringVal)
 	if err != nil {
-		*errs = append(*errs, errors.NewWithFmt(T("Unexpected value for {{.PropertyName}} :\n{{.Error}}",
-			map[string]interface{}{"PropertyName": key, "Error": err.Error()})))
+		*errs = append(*errs, errors.NewWithFmt(T("Invalid value for '{{.PropertyName}}': {{.StringVal}}\n{{.Error}}",
+			map[string]interface{}{
+				"PropertyName": key,
+				"Error":        err.Error(),
+				"StringVal":    stringVal,
+			})))
 		return nil
 	}
 	return &value
@@ -249,6 +285,10 @@ func intVal(yamlMap generic.Map, key string, errs *[]error) *int {
 	return &intVal
 }
 
+func coerceToString(value interface{}) string {
+	return fmt.Sprintf("%v", value)
+}
+
 func boolVal(yamlMap generic.Map, key string, errs *[]error) bool {
 	switch val := yamlMap.Get(key).(type) {
 	case nil:
@@ -273,8 +313,7 @@ func sliceOrEmptyVal(yamlMap generic.Map, key string, errs *[]error) *[]string {
 		err         error
 	)
 
-	sliceErr := errors.NewWithFmt(T("Expected {{.PropertyName}} to be a list of strings.",
-		map[string]interface{}{"PropertyName": key}))
+	sliceErr := errors.NewWithFmt(T("Expected {{.PropertyName}} to be a list of strings.", map[string]interface{}{"PropertyName": key}))
 
 	switch input := yamlMap.Get(key).(type) {
 	case []interface{}:
@@ -292,17 +331,17 @@ func sliceOrEmptyVal(yamlMap generic.Map, key string, errs *[]error) *[]string {
 
 	if err != nil {
 		*errs = append(*errs, err)
-		return nil
+		return &[]string{}
 	}
 
 	return &stringSlice
 }
 
-func envVarOrEmptyMap(yamlMap generic.Map, errs *[]error) *map[string]string {
+func envVarOrEmptyMap(yamlMap generic.Map, errs *[]error) *map[string]interface{} {
 	key := "env"
 	switch envVars := yamlMap.Get(key).(type) {
 	case nil:
-		aMap := make(map[string]string, 0)
+		aMap := make(map[string]interface{}, 0)
 		return &aMap
 	case map[string]interface{}:
 		yamlMap.Set(key, generic.NewMap(yamlMap.Get(key)))
@@ -317,22 +356,11 @@ func envVarOrEmptyMap(yamlMap generic.Map, errs *[]error) *map[string]string {
 			return nil
 		}
 
-		result := make(map[string]string, envVars.Count())
+		result := make(map[string]interface{}, envVars.Count())
 		generic.Each(envVars, func(key, value interface{}) {
-
-			switch value.(type) {
-			case string:
-				result[key.(string)] = value.(string)
-			case int64, int, int32:
-				result[key.(string)] = fmt.Sprintf("%d", value)
-			case float32, float64:
-				result[key.(string)] = fmt.Sprintf("%f", value)
-			default:
-				*errs = append(*errs, errors.NewWithFmt(T("Expected environment variable {{.PropertyName}} to have a string value, but it was a {{.PropertyType}}.",
-					map[string]interface{}{"PropertyName": key, "PropertyType": value})))
-			}
-
+			result[key.(string)] = value
 		})
+
 		return &result
 	default:
 		*errs = append(*errs, errors.NewWithFmt(T("Expected {{.Name}} to be a set of key => value, but it was a {{.Type}}.",

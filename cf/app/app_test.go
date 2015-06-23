@@ -8,8 +8,10 @@ import (
 	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_factory"
+	testPluginConfig "github.com/cloudfoundry/cli/cf/configuration/plugin_config/fakes"
 	"github.com/cloudfoundry/cli/cf/net"
 	"github.com/cloudfoundry/cli/cf/trace"
+	"github.com/cloudfoundry/cli/plugin/rpc"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	io_helpers "github.com/cloudfoundry/cli/testhelpers/io"
 	testmanifest "github.com/cloudfoundry/cli/testhelpers/manifest"
@@ -35,7 +37,7 @@ var expectedCommandNames = []string{
 	"set-space-role", "create-shared-domain", "space", "space-users", "spaces", "stacks", "start", "stop",
 	"target", "unbind-service", "unmap-route", "unset-env", "unset-org-role", "unset-space-role",
 	"update-buildpack", "update-service-broker", "update-service-auth-token", "update-user-provided-service",
-	"quotas", "create-quota", "delete-quota", "quota", "set-quota",
+	"quotas", "create-quota", "delete-quota", "quota", "set-quota", "install-plugin", "plugins", "uninstall-plugin",
 }
 
 var _ = Describe("App", func() {
@@ -47,15 +49,17 @@ var _ = Describe("App", func() {
 	JustBeforeEach(func() {
 		ui := &testterm.FakeUI{}
 		config := testconfig.NewRepository()
+		pluginConfig := &testPluginConfig.FakePluginConfiguration{}
 		manifestRepo := &testmanifest.FakeManifestRepository{}
 
 		repoLocator := api.NewRepositoryLocator(config, map[string]net.Gateway{
-			"auth":             net.NewUAAGateway(config),
-			"cloud-controller": net.NewCloudControllerGateway(config, time.Now),
-			"uaa":              net.NewUAAGateway(config),
+			"auth":             net.NewUAAGateway(config, ui),
+			"cloud-controller": net.NewCloudControllerGateway(config, time.Now, &testterm.FakeUI{}),
+			"uaa":              net.NewUAAGateway(config, ui),
 		})
 
-		cmdFactory := command_factory.NewFactory(ui, config, manifestRepo, repoLocator)
+		rpcService, _ := rpc.NewRpcService(nil, nil, nil, nil)
+		cmdFactory := command_factory.NewFactory(ui, config, manifestRepo, repoLocator, pluginConfig, rpcService)
 		cmdRunner = &FakeRunner{cmdFactory: cmdFactory}
 		app = NewApp(cmdRunner, cmdFactory.CommandMetadatas()...)
 	})
@@ -97,6 +101,7 @@ var _ = Describe("App", func() {
 
 			mergedOutput := strings.Join(output, "\n")
 			Expect(mergedOutput).To(ContainSubstring("CF_TRACE=true"), "CF_TRACE=true not in help")
+			Expect(mergedOutput).To(ContainSubstring("CF_PLUGIN_HOME=path/to/dir/"))
 
 			for _, name := range expectedCommandNames {
 				Expect(mergedOutput).To(ContainSubstring(name), name+" not in help")

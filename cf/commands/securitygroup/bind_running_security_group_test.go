@@ -5,7 +5,7 @@ import (
 
 	fakeRunning "github.com/cloudfoundry/cli/cf/api/security_groups/defaults/running/fakes"
 	fakeSecurityGroup "github.com/cloudfoundry/cli/cf/api/security_groups/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -21,7 +21,7 @@ import (
 var _ = Describe("bind-running-security-group command", func() {
 	var (
 		ui                           *testterm.FakeUI
-		configRepo                   configuration.ReadWriter
+		configRepo                   core_config.ReadWriter
 		requirementsFactory          *testreq.FakeReqFactory
 		fakeSecurityGroupRepo        *fakeSecurityGroup.FakeSecurityGroupRepo
 		fakeRunningSecurityGroupRepo *fakeRunning.FakeRunningSecurityGroupsRepo
@@ -35,15 +35,14 @@ var _ = Describe("bind-running-security-group command", func() {
 		fakeRunningSecurityGroupRepo = &fakeRunning.FakeRunningSecurityGroupsRepo{}
 	})
 
-	runCommand := func(args ...string) {
+	runCommand := func(args ...string) bool {
 		cmd := NewBindToRunningGroup(ui, configRepo, fakeSecurityGroupRepo, fakeRunningSecurityGroupRepo)
-		testcmd.RunCommand(cmd, args, requirementsFactory)
+		return testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
 		It("fails when the user is not logged in", func() {
-			runCommand("name")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("name")).To(BeFalse())
 		})
 
 		It("fails with usage when a name is not provided", func() {
@@ -69,6 +68,7 @@ var _ = Describe("bind-running-security-group command", func() {
 			Expect(ui.Outputs).To(ContainSubstrings(
 				[]string{"Binding", "security-group-name", "as", "my-user"},
 				[]string{"OK"},
+				[]string{"TIP: Changes will not apply to existing running applications until they are restarted."},
 			))
 		})
 

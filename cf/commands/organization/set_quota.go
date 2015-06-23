@@ -3,7 +3,7 @@ package organization
 import (
 	"github.com/cloudfoundry/cli/cf/api/quotas"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -12,12 +12,12 @@ import (
 
 type SetQuota struct {
 	ui        terminal.UI
-	config    configuration.Reader
+	config    core_config.Reader
 	quotaRepo quotas.QuotaRepository
 	orgReq    requirements.OrganizationRequirement
 }
 
-func NewSetQuota(ui terminal.UI, config configuration.Reader, quotaRepo quotas.QuotaRepository) (cmd *SetQuota) {
+func NewSetQuota(ui terminal.UI, config core_config.Reader, quotaRepo quotas.QuotaRepository) (cmd *SetQuota) {
 	cmd = new(SetQuota)
 	cmd.ui = ui
 	cmd.config = config
@@ -38,7 +38,11 @@ func (cmd *SetQuota) GetRequirements(requirementsFactory requirements.Factory, c
 		cmd.ui.FailWithUsage(c)
 	}
 
-	cmd.orgReq = requirementsFactory.NewOrganizationRequirement(c.Args()[0])
+	if cmd.orgReq == nil {
+		cmd.orgReq = requirementsFactory.NewOrganizationRequirement(c.Args()[0])
+	} else {
+		cmd.orgReq.SetOrganizationName(c.Args()[0])
+	}
 
 	reqs = []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),

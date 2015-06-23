@@ -3,7 +3,7 @@ package domain_test
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	"github.com/cloudfoundry/cli/cf/commands/domain"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -21,20 +21,19 @@ var _ = Describe("create domain command", func() {
 		requirementsFactory *testreq.FakeReqFactory
 		ui                  *testterm.FakeUI
 		domainRepo          *testapi.FakeDomainRepository
-		configRepo          configuration.ReadWriter
+		configRepo          core_config.ReadWriter
 	)
 
 	BeforeEach(func() {
 		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true}
 		domainRepo = &testapi.FakeDomainRepository{}
-		configRepo = testconfig.NewRepositoryWithAccessToken(configuration.TokenInfo{Username: "my-user"})
+		configRepo = testconfig.NewRepositoryWithAccessToken(core_config.TokenInfo{Username: "my-user"})
 	})
 
-	runCommand := func(args ...string) {
+	runCommand := func(args ...string) bool {
 		ui = new(testterm.FakeUI)
 		cmd := domain.NewCreateDomain(ui, configRepo, domainRepo)
-		testcmd.RunCommand(cmd, args, requirementsFactory)
-		return
+		return testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	It("fails with usage", func() {
@@ -50,16 +49,14 @@ var _ = Describe("create domain command", func() {
 
 	Context("checks login", func() {
 		It("passes when logged in", func() {
-			runCommand("my-org", "example.com")
-			Expect(testcmd.CommandDidPassRequirements).To(BeTrue())
+			Expect(runCommand("my-org", "example.com")).To(BeTrue())
 			Expect(requirementsFactory.OrganizationName).To(Equal("my-org"))
 		})
 
 		It("fails when not logged in", func() {
 			requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: false}
 
-			runCommand("my-org", "example.com")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("my-org", "example.com")).To(BeFalse())
 		})
 	})
 

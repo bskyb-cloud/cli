@@ -2,15 +2,17 @@ package net_test
 
 import (
 	"fmt"
-	"github.com/cloudfoundry/cli/cf/configuration"
-	"github.com/cloudfoundry/cli/cf/errors"
-	. "github.com/cloudfoundry/cli/cf/net"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	"net/http"
 	"net/http/httptest"
 	"time"
+
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/errors"
+	. "github.com/cloudfoundry/cli/cf/net"
+	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 var failingCloudControllerRequest = func(writer http.ResponseWriter, request *http.Request) {
@@ -27,11 +29,11 @@ var invalidTokenCloudControllerRequest = func(writer http.ResponseWriter, reques
 
 var _ = Describe("Cloud Controller Gateway", func() {
 	var gateway Gateway
-	var config configuration.Reader
+	var config core_config.Reader
 
 	BeforeEach(func() {
 		config = testconfig.NewRepository()
-		gateway = NewCloudControllerGateway(config, time.Now)
+		gateway = NewCloudControllerGateway(config, time.Now, &testterm.FakeUI{})
 	})
 
 	It("parses error responses", func() {

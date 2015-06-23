@@ -2,12 +2,13 @@ package user
 
 import (
 	"errors"
+
 	. "github.com/cloudfoundry/cli/cf/i18n"
 
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/api/spaces"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -20,14 +21,14 @@ type SpaceRoleSetter interface {
 
 type SetSpaceRole struct {
 	ui        terminal.UI
-	config    configuration.Reader
+	config    core_config.Reader
 	spaceRepo spaces.SpaceRepository
 	userRepo  api.UserRepository
 	userReq   requirements.UserRequirement
 	orgReq    requirements.OrganizationRequirement
 }
 
-func NewSetSpaceRole(ui terminal.UI, config configuration.Reader, spaceRepo spaces.SpaceRepository, userRepo api.UserRepository) (cmd *SetSpaceRole) {
+func NewSetSpaceRole(ui terminal.UI, config core_config.Reader, spaceRepo spaces.SpaceRepository, userRepo api.UserRepository) (cmd *SetSpaceRole) {
 	cmd = new(SetSpaceRole)
 	cmd.ui = ui
 	cmd.config = config
@@ -54,7 +55,11 @@ func (cmd *SetSpaceRole) GetRequirements(requirementsFactory requirements.Factor
 	}
 
 	cmd.userReq = requirementsFactory.NewUserRequirement(c.Args()[0])
-	cmd.orgReq = requirementsFactory.NewOrganizationRequirement(c.Args()[1])
+	if cmd.orgReq == nil {
+		cmd.orgReq = requirementsFactory.NewOrganizationRequirement(c.Args()[1])
+	} else {
+		cmd.orgReq.SetOrganizationName(c.Args()[1])
+	}
 
 	reqs = []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),

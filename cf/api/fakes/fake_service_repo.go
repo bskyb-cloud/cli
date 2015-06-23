@@ -32,17 +32,25 @@ type FakeServiceRepo struct {
 	}
 
 	FindServiceOfferingsForSpaceByLabelReturns struct {
-		ServiceOfferings []models.ServiceOffering
+		ServiceOfferings models.ServiceOfferings
 		Error            error
 	}
 
 	CreateServiceInstanceArgs struct {
 		Name     string
 		PlanGuid string
+		Params   map[string]interface{}
 	}
 	CreateServiceInstanceReturns struct {
 		Error error
 	}
+
+	UpdateServiceInstanceArgs struct {
+		InstanceGuid string
+		PlanGuid     string
+	}
+
+	UpdateServiceInstanceReturnsErr bool
 
 	FindInstanceByNameName            string
 	FindInstanceByNameServiceInstance models.ServiceInstance
@@ -71,10 +79,10 @@ type FakeServiceRepo struct {
 	FindServiceOfferingByLabelAndProviderApiResponse     error
 	FindServiceOfferingByLabelAndProviderCalled          bool
 
-	FindServiceOfferingByLabelName            string
-	FindServiceOfferingByLabelServiceOffering models.ServiceOffering
-	FindServiceOfferingByLabelApiResponse     error
-	FindServiceOfferingByLabelCalled          bool
+	FindServiceOfferingsByLabelName             string
+	FindServiceOfferingsByLabelServiceOfferings models.ServiceOfferings
+	FindServiceOfferingsByLabelApiResponse      error
+	FindServiceOfferingsByLabelCalled           bool
 
 	ListServicesFromBrokerReturns map[string][]models.ServiceOffering
 	ListServicesFromBrokerErr     error
@@ -130,19 +138,32 @@ func (repo *FakeServiceRepo) FindServiceOfferingByLabelAndProvider(name, provide
 	return
 }
 
-func (repo *FakeServiceRepo) FindServiceOfferingByLabel(name string) (offering models.ServiceOffering, apiErr error) {
-	repo.FindServiceOfferingByLabelCalled = true
-	repo.FindServiceOfferingByLabelName = name
-	apiErr = repo.FindServiceOfferingByLabelApiResponse
-	offering = repo.FindServiceOfferingByLabelServiceOffering
+func (repo *FakeServiceRepo) FindServiceOfferingsByLabel(name string) (offerings models.ServiceOfferings, apiErr error) {
+	repo.FindServiceOfferingsByLabelCalled = true
+	repo.FindServiceOfferingsByLabelName = name
+	apiErr = repo.FindServiceOfferingsByLabelApiResponse
+	offerings = repo.FindServiceOfferingsByLabelServiceOfferings
 	return
 }
 
-func (repo *FakeServiceRepo) CreateServiceInstance(name, planGuid string) (apiErr error) {
+func (repo *FakeServiceRepo) CreateServiceInstance(name, planGuid string, params map[string]interface{}) (apiErr error) {
 	repo.CreateServiceInstanceArgs.Name = name
 	repo.CreateServiceInstanceArgs.PlanGuid = planGuid
+	repo.CreateServiceInstanceArgs.Params = params
 
 	return repo.CreateServiceInstanceReturns.Error
+}
+
+func (repo *FakeServiceRepo) UpdateServiceInstance(instanceGuid, planGuid string) (apiErr error) {
+
+	if repo.UpdateServiceInstanceReturnsErr {
+		apiErr = errors.New("Error updating service instance")
+	} else {
+		repo.UpdateServiceInstanceArgs.InstanceGuid = instanceGuid
+		repo.UpdateServiceInstanceArgs.PlanGuid = planGuid
+	}
+
+	return
 }
 
 func (repo *FakeServiceRepo) FindInstanceByName(name string) (instance models.ServiceInstance, apiErr error) {

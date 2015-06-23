@@ -28,10 +28,11 @@ OK
 $ cf push
 ```
 #Further Reading and Getting Help
-You can find further documentation at the docs page for the CLI [here](http://docs.cloudfoundry.org/devguide/#cf).
-There is also help available in the CLI itself; type `cf help` for more information.
-Each command also has help output available via `cf [command] --help` or `cf [command] -h`.
-Finally, if you are still stuck, feel free to open a GitHub issue.
+* You can find further documentation at the docs page for the CLI [here](http://docs.cloudfoundry.org/devguide/#cf).
+* There is also help available in the CLI itself; type `cf help` for more information.
+* Each command also has help output available via `cf [command] --help` or `cf [command] -h`.   
+* For development guide on writing a cli plugin, see [here](https://github.com/cloudfoundry/cli/tree/master/plugin_examples).  
+* Finally, if you are still stuck or have any questions or issues, feel free to open a GitHub issue.
 
 Downloads
 =========
@@ -55,8 +56,14 @@ $ brew tap pivotal/tap
 $ brew install cloudfoundry-cli
 ```
 
+**Releases:** Information about our releases can be found [here](https://github.com/cloudfoundry/cli/releases)
+
 Troubleshooting / FAQs
 ======================
+
+Known Issues
+------------
+* .cfignore used in `cf push` must be in UTF8 encoding for CLI to interpret correctly.
 
 Linux
 -----
@@ -91,6 +98,7 @@ Forking the repository for development
 1. Install [godep](https://github.com/tools/godep)
 1. Get the cli source code: `go get github.com/cloudfoundry/cli`
   * (Ignore any warnings about "no buildable Go source files")
+1. Run `godep restore` (note: this will modify the dependencies in your $GOPATH)
 1. Fork the repository
 1. Add your fork as a remote: `cd $GOPATH/src/github.com/cloudfoundry/cli && git remote add your_name https://github.com/your_name/cli`
 
@@ -107,11 +115,14 @@ Developing
 ==========
 
 1. Install [Mercurial](http://mercurial.selenic.com/)
-1. Run `go get code.google.com/p/go.tools/cmd/vet`
+1. Run `go get golang.org/x/tools/cmd/vet`
 1. Write a Ginkgo test.
 1. Run `bin/test` and watch the test fail.
 1. Make the test pass.
 1. Submit a pull request to the `master` branch.
+
+**_*_ For development guide on writing a cli plugin, see [here](https://github.com/cloudfoundry/cli/tree/master/plugin_examples)**
+
 
 Contributing
 ============

@@ -8,17 +8,20 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"reflect"
 	"runtime"
 	"strings"
 	"time"
 
 	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/api/authentication"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	. "github.com/cloudfoundry/cli/cf/net"
+	"github.com/cloudfoundry/cli/cf/net/fakes"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -27,10 +30,12 @@ var _ = Describe("Gateway", func() {
 	var (
 		ccGateway   Gateway
 		uaaGateway  Gateway
-		config      configuration.ReadWriter
+		config      core_config.ReadWriter
 		authRepo    authentication.AuthenticationRepository
 		currentTime time.Time
 		clock       func() time.Time
+
+		client *fakes.FakeHttpClientInterface
 	)
 
 	BeforeEach(func() {
@@ -38,18 +43,55 @@ var _ = Describe("Gateway", func() {
 		clock = func() time.Time { return currentTime }
 		config = testconfig.NewRepository()
 
-		ccGateway = NewCloudControllerGateway(config, clock)
+		ccGateway = NewCloudControllerGateway(config, clock, &testterm.FakeUI{})
 		ccGateway.PollingThrottle = 3 * time.Millisecond
-		uaaGateway = NewUAAGateway(config)
+		uaaGateway = NewUAAGateway(config, &testterm.FakeUI{})
 	})
 
 	Describe("async timeout", func() {
 		Context("when the config has a positive async timeout", func() {
 			It("inherits the async timeout from the config", func() {
 				config.SetAsyncTimeout(9001)
-				ccGateway = NewCloudControllerGateway((config), time.Now)
+				ccGateway = NewCloudControllerGateway((config), time.Now, &testterm.FakeUI{})
 				Expect(ccGateway.AsyncTimeout()).To(Equal(9001 * time.Minute))
 			})
+		})
+	})
+
+	Describe("Connection errors", func() {
+		var oldNewHttpClient func(tr *http.Transport) HttpClientInterface
+
+		BeforeEach(func() {
+			client = &fakes.FakeHttpClientInterface{}
+
+			oldNewHttpClient = NewHttpClient
+			NewHttpClient = func(tr *http.Transport) HttpClientInterface {
+				return client
+			}
+		})
+
+		AfterEach(func() {
+			NewHttpClient = oldNewHttpClient
+		})
+
+		It("only retry when response body is nil and error occurred", func() {
+			client.DoReturns(&http.Response{Status: "internal error", StatusCode: 500}, errors.New("internal error"))
+			request, apiErr := ccGateway.NewRequest("GET", "https://example.com/v2/apps", "BEARER my-access-token", nil)
+			Expect(apiErr).ToNot(HaveOccurred())
+
+			_, apiErr = ccGateway.PerformRequest(request)
+			Expect(client.DoCallCount()).To(Equal(1))
+			Expect(apiErr).To(HaveOccurred())
+		})
+
+		It("Retries 3 times if we cannot contact the server", func() {
+			client.DoReturns(nil, errors.New("Connection refused"))
+			request, apiErr := ccGateway.NewRequest("GET", "https://example.com/v2/apps", "BEARER my-access-token", nil)
+			Expect(apiErr).ToNot(HaveOccurred())
+
+			_, apiErr = ccGateway.PerformRequest(request)
+			Expect(apiErr).To(HaveOccurred())
+			Expect(client.DoCallCount()).To(Equal(3))
 		})
 	})
 
@@ -59,22 +101,42 @@ var _ = Describe("Gateway", func() {
 			apiErr  error
 		)
 
-		BeforeEach(func() {
-			request, apiErr = ccGateway.NewRequest("GET", "https://example.com/v2/apps", "BEARER my-access-token", nil)
-			Expect(apiErr).NotTo(HaveOccurred())
+		Context("when the body is nil", func() {
+			BeforeEach(func() {
+				request, apiErr = ccGateway.NewRequest("GET", "https://example.com/v2/apps", "BEARER my-access-token", nil)
+				Expect(apiErr).NotTo(HaveOccurred())
+			})
+
+			It("does not use a ProgressReader as the SeekableBody", func() {
+				Expect(reflect.TypeOf(request.SeekableBody)).To(BeNil())
+			})
+
+			It("sets the Authorization header", func() {
+				Expect(request.HttpReq.Header.Get("Authorization")).To(Equal("BEARER my-access-token"))
+			})
+
+			It("sets the accept header to application/json", func() {
+				Expect(request.HttpReq.Header.Get("accept")).To(Equal("application/json"))
+			})
+
+			It("sets the user agent header", func() {
+				Expect(request.HttpReq.Header.Get("User-Agent")).To(Equal("go-cli " + cf.Version + " / " + runtime.GOOS))
+			})
 		})
 
-		It("sets the Authorization header", func() {
-			Expect(request.HttpReq.Header.Get("Authorization")).To(Equal("BEARER my-access-token"))
+		Context("when the body is a file", func() {
+			BeforeEach(func() {
+				f, _ := os.Open("../../fixtures/test.file")
+				request, apiErr = ccGateway.NewRequestForFile("PUT", "https://example.com/v2/apps", "BEARER my-access-token", f)
+				Expect(apiErr).NotTo(HaveOccurred())
+			})
+
+			It("Uses a ProgressReader as the SeekableBody", func() {
+				Expect(reflect.TypeOf(request.SeekableBody).String()).To(ContainSubstring("ProgressReader"))
+			})
+
 		})
 
-		It("sets the accept header to application/json", func() {
-			Expect(request.HttpReq.Header.Get("accept")).To(Equal("application/json"))
-		})
-
-		It("sets the user agent header", func() {
-			Expect(request.HttpReq.Header.Get("User-Agent")).To(Equal("go-cli " + cf.Version + " / " + runtime.GOOS))
-		})
 	})
 
 	Describe("CRUD methods", func() {
@@ -133,13 +195,13 @@ var _ = Describe("Gateway", func() {
 				})
 
 				It("deletes a resource", func() {
-					err := ccGateway.DeleteResource(apiServer.URL + "/v2/foobars/SOME_GUID")
+					err := ccGateway.DeleteResource(apiServer.URL, "/v2/foobars/SOME_GUID")
 					Expect(err).ToNot(HaveOccurred())
 				})
 
 				Context("when the request would take longer than the async timeout", func() {
 					It("returns an error", func() {
-						apiErr := ccGateway.DeleteResource(apiServer.URL + "/v2/foobars/TIMEOUT")
+						apiErr := ccGateway.DeleteResource(apiServer.URL, "/v2/foobars/TIMEOUT")
 						Expect(apiErr).To(HaveOccurred())
 						Expect(apiErr).To(BeAssignableToTypeOf(errors.NewAsyncTimeoutError("http://some.url")))
 					})
@@ -207,7 +269,7 @@ var _ = Describe("Gateway", func() {
 			}()
 
 			request, _ := ccGateway.NewRequest("GET", config.ApiEndpoint()+"/v2/foo", config.AccessToken(), nil)
-			_, apiErr := ccGateway.PerformPollingRequestForJSONResponse(request, new(struct{}), 500*time.Millisecond)
+			_, apiErr := ccGateway.PerformPollingRequestForJSONResponse(config.ApiEndpoint(), request, new(struct{}), 500*time.Millisecond)
 			Expect(apiErr).NotTo(HaveOccurred())
 		})
 
@@ -218,7 +280,7 @@ var _ = Describe("Gateway", func() {
 			}()
 
 			request, _ := ccGateway.NewRequest("GET", config.ApiEndpoint()+"/v2/foo", config.AccessToken(), nil)
-			_, apiErr := ccGateway.PerformPollingRequestForJSONResponse(request, new(struct{}), 500*time.Millisecond)
+			_, apiErr := ccGateway.PerformPollingRequestForJSONResponse(config.ApiEndpoint(), request, new(struct{}), 500*time.Millisecond)
 			Expect(apiErr.Error()).To(ContainSubstring("he's dead, Jim"))
 		})
 
@@ -228,7 +290,7 @@ var _ = Describe("Gateway", func() {
 				statusChannel <- "OHNOES"
 			}()
 			request, _ := ccGateway.NewRequest("GET", config.ApiEndpoint()+"/v2/foo", config.AccessToken(), nil)
-			_, apiErr := ccGateway.PerformPollingRequestForJSONResponse(request, new(struct{}), 10*time.Millisecond)
+			_, apiErr := ccGateway.PerformPollingRequestForJSONResponse(config.ApiEndpoint(), request, new(struct{}), 10*time.Millisecond)
 			Expect(apiErr).To(HaveOccurred())
 			Expect(apiErr).To(BeAssignableToTypeOf(errors.NewAsyncTimeoutError("http://some.url")))
 		})
@@ -263,7 +325,7 @@ var _ = Describe("Gateway", func() {
 			ccGateway.SetTokenRefresher(auth)
 			ccGateway.SetTrustedCerts(apiServer.TLS.Certificates)
 
-			request, apiErr = ccGateway.NewRequest("POST", config.ApiEndpoint()+"/v2/foo", config.AccessToken(), fileToUpload)
+			request, apiErr = ccGateway.NewRequestForFile("POST", config.ApiEndpoint()+"/v2/foo", config.AccessToken(), fileToUpload)
 		})
 
 		AfterEach(func() {
@@ -534,14 +596,14 @@ func refreshTokenApiEndPoint(unauthorizedBody string, secondReqResp testnet.Test
 	}
 }
 
-func createAuthenticationRepository(apiServer *httptest.Server, authServer *httptest.Server) (configuration.ReadWriter, authentication.AuthenticationRepository) {
+func createAuthenticationRepository(apiServer *httptest.Server, authServer *httptest.Server) (core_config.ReadWriter, authentication.AuthenticationRepository) {
 	config := testconfig.NewRepository()
 	config.SetAuthenticationEndpoint(authServer.URL)
 	config.SetApiEndpoint(apiServer.URL)
 	config.SetAccessToken("bearer initial-access-token")
 	config.SetRefreshToken("initial-refresh-token")
 
-	authGateway := NewUAAGateway(config)
+	authGateway := NewUAAGateway(config, &testterm.FakeUI{})
 	authGateway.SetTrustedCerts(authServer.TLS.Certificates)
 
 	authenticator := authentication.NewUAAAuthenticationRepository(authGateway, config)

@@ -39,8 +39,7 @@ var _ = Describe("enable-service-access command", func() {
 
 	Describe("requirements", func() {
 		It("requires the user to be logged in", func() {
-			runCommand([]string{"foo"})
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand([]string{"foo"})).To(BeFalse())
 		})
 
 		It("fails with usage when it does not recieve any arguments", func() {
@@ -58,6 +57,18 @@ var _ = Describe("enable-service-access command", func() {
 		It("Refreshes the auth token", func() {
 			runCommand([]string{"service"})
 			Expect(tokenRefresher.RefreshTokenCalled).To(BeTrue())
+		})
+
+		Context("when refreshing the auth token fails", func() {
+			It("fails and returns the error", func() {
+				tokenRefresher.RefreshTokenError = errors.New("Refreshing went wrong")
+				runCommand([]string{"service"})
+
+				Expect(ui.Outputs).To(ContainSubstrings(
+					[]string{"Refreshing went wrong"},
+					[]string{"FAILED"},
+				))
+			})
 		})
 
 		Context("when the named service exists", func() {

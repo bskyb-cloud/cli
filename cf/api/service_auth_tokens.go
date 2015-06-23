@@ -2,13 +2,14 @@ package api
 
 import (
 	"fmt"
+	"net/url"
+	"strings"
+
 	"github.com/cloudfoundry/cli/cf/api/resources"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
-	"net/url"
-	"strings"
 )
 
 type ServiceAuthTokenRepository interface {
@@ -21,10 +22,10 @@ type ServiceAuthTokenRepository interface {
 
 type CloudControllerServiceAuthTokenRepository struct {
 	gateway net.Gateway
-	config  configuration.Reader
+	config  core_config.Reader
 }
 
-func NewCloudControllerServiceAuthTokenRepository(config configuration.Reader, gateway net.Gateway) (repo CloudControllerServiceAuthTokenRepository) {
+func NewCloudControllerServiceAuthTokenRepository(config core_config.Reader, gateway net.Gateway) (repo CloudControllerServiceAuthTokenRepository) {
 	repo.gateway = gateway
 	repo.config = config
 	return
@@ -68,17 +69,17 @@ func (repo CloudControllerServiceAuthTokenRepository) findAllWithPath(path strin
 
 func (repo CloudControllerServiceAuthTokenRepository) Create(authToken models.ServiceAuthTokenFields) (apiErr error) {
 	body := fmt.Sprintf(`{"label":"%s","provider":"%s","token":"%s"}`, authToken.Label, authToken.Provider, authToken.Token)
-	path := fmt.Sprintf("%s/v2/service_auth_tokens", repo.config.ApiEndpoint())
-	return repo.gateway.CreateResource(path, strings.NewReader(body))
+	path := "/v2/service_auth_tokens"
+	return repo.gateway.CreateResource(repo.config.ApiEndpoint(), path, strings.NewReader(body))
 }
 
 func (repo CloudControllerServiceAuthTokenRepository) Delete(authToken models.ServiceAuthTokenFields) (apiErr error) {
-	path := fmt.Sprintf("%s/v2/service_auth_tokens/%s", repo.config.ApiEndpoint(), authToken.Guid)
-	return repo.gateway.DeleteResource(path)
+	path := fmt.Sprintf("/v2/service_auth_tokens/%s", authToken.Guid)
+	return repo.gateway.DeleteResource(repo.config.ApiEndpoint(), path)
 }
 
 func (repo CloudControllerServiceAuthTokenRepository) Update(authToken models.ServiceAuthTokenFields) (apiErr error) {
 	body := fmt.Sprintf(`{"token":"%s"}`, authToken.Token)
-	path := fmt.Sprintf("%s/v2/service_auth_tokens/%s", repo.config.ApiEndpoint(), authToken.Guid)
-	return repo.gateway.UpdateResource(path, strings.NewReader(body))
+	path := fmt.Sprintf("/v2/service_auth_tokens/%s", authToken.Guid)
+	return repo.gateway.UpdateResource(repo.config.ApiEndpoint(), path, strings.NewReader(body))
 }

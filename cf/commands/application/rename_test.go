@@ -1,8 +1,8 @@
 package application_test
 
 import (
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	testApplication "github.com/cloudfoundry/cli/cf/api/applications/fakes"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -19,19 +19,19 @@ var _ = Describe("Rename command", func() {
 	var (
 		ui                  *testterm.FakeUI
 		requirementsFactory *testreq.FakeReqFactory
-		configRepo          configuration.ReadWriter
-		appRepo             *testapi.FakeApplicationRepository
+		configRepo          core_config.ReadWriter
+		appRepo             *testApplication.FakeApplicationRepository
 	)
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
 		requirementsFactory = &testreq.FakeReqFactory{}
-		appRepo = &testapi.FakeApplicationRepository{}
+		appRepo = &testApplication.FakeApplicationRepository{}
 	})
 
-	runCommand := func(args ...string) {
-		testcmd.RunCommand(NewRenameApp(ui, configRepo, appRepo), args, requirementsFactory)
+	runCommand := func(args ...string) bool {
+		return testcmd.RunCommand(NewRenameApp(ui, configRepo, appRepo), args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
@@ -42,8 +42,12 @@ var _ = Describe("Rename command", func() {
 		})
 
 		It("fails when not logged in", func() {
-			runCommand("my-app", "my-new-app")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("my-app", "my-new-app")).To(BeFalse())
+		})
+		It("fails if a space is not targeted", func() {
+			requirementsFactory.LoginSuccess = true
+			requirementsFactory.TargetedSpaceSuccess = false
+			Expect(runCommand("my-app", "my-new-app")).To(BeFalse())
 		})
 	})
 
@@ -52,6 +56,7 @@ var _ = Describe("Rename command", func() {
 		app.Name = "my-app"
 		app.Guid = "my-app-guid"
 		requirementsFactory.LoginSuccess = true
+		requirementsFactory.TargetedSpaceSuccess = true
 		requirementsFactory.Application = app
 		runCommand("my-app", "my-new-app")
 

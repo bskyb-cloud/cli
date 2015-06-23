@@ -24,8 +24,14 @@ var _ = Describe("delete-orphaned-routes command", func() {
 	})
 
 	It("fails requirements when not logged in", func() {
-		callDeleteOrphanedRoutes("y", []string{}, reqFactory, routeRepo)
-		Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+		_, passed := callDeleteOrphanedRoutes("y", []string{}, reqFactory, routeRepo)
+		Expect(passed).To(BeFalse())
+	})
+	It("should fail with usage when provided any arguments", func() {
+		reqFactory.LoginSuccess = true
+		ui, passed := callDeleteOrphanedRoutes("y", []string{"blahblah"}, reqFactory, routeRepo)
+		Expect(passed).To(BeFalse())
+		Expect(ui.FailedWithUsage).To(BeTrue())
 	})
 
 	Context("when logged in successfully", func() {
@@ -35,8 +41,8 @@ var _ = Describe("delete-orphaned-routes command", func() {
 		})
 
 		It("passes requirements when logged in", func() {
-			callDeleteOrphanedRoutes("y", []string{}, reqFactory, routeRepo)
-			Expect(testcmd.CommandDidPassRequirements).To(BeTrue())
+			_, passed := callDeleteOrphanedRoutes("y", []string{}, reqFactory, routeRepo)
+			Expect(passed).To(BeTrue())
 		})
 
 		It("passes when confirmation is provided", func() {
@@ -58,7 +64,7 @@ var _ = Describe("delete-orphaned-routes command", func() {
 
 			routeRepo.Routes = []models.Route{route, route2}
 
-			ui = callDeleteOrphanedRoutes("y", []string{}, reqFactory, routeRepo)
+			ui, _ = callDeleteOrphanedRoutes("y", []string{}, reqFactory, routeRepo)
 
 			Expect(ui.Prompts).To(ContainSubstrings(
 				[]string{"Really delete orphaned routes"},
@@ -90,7 +96,7 @@ var _ = Describe("delete-orphaned-routes command", func() {
 
 			routeRepo.Routes = []models.Route{route, route2}
 
-			ui = callDeleteOrphanedRoutes("", []string{"-f"}, reqFactory, routeRepo)
+			ui, _ = callDeleteOrphanedRoutes("", []string{"-f"}, reqFactory, routeRepo)
 
 			Expect(len(ui.Prompts)).To(Equal(0))
 
@@ -103,10 +109,11 @@ var _ = Describe("delete-orphaned-routes command", func() {
 	})
 })
 
-func callDeleteOrphanedRoutes(confirmation string, args []string, reqFactory *testreq.FakeReqFactory, routeRepo *testapi.FakeRouteRepository) (ui *testterm.FakeUI) {
-	ui = &testterm.FakeUI{Inputs: []string{confirmation}}
+func callDeleteOrphanedRoutes(confirmation string, args []string, reqFactory *testreq.FakeReqFactory, routeRepo *testapi.FakeRouteRepository) (*testterm.FakeUI, bool) {
+	ui := &testterm.FakeUI{Inputs: []string{confirmation}}
 	configRepo := testconfig.NewRepositoryWithDefaults()
 	cmd := NewDeleteOrphanedRoutes(ui, configRepo, routeRepo)
-	testcmd.RunCommand(cmd, args, reqFactory)
-	return
+	passed := testcmd.RunCommand(cmd, args, reqFactory)
+
+	return ui, passed
 }

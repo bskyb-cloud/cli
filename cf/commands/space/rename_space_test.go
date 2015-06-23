@@ -3,7 +3,7 @@ package space_test
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/space"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -18,7 +18,7 @@ import (
 var _ = Describe("rename-space command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		configRepo          configuration.ReadWriter
+		configRepo          core_config.ReadWriter
 		requirementsFactory *testreq.FakeReqFactory
 		spaceRepo           *testapi.FakeSpaceRepository
 	)
@@ -30,24 +30,24 @@ var _ = Describe("rename-space command", func() {
 		spaceRepo = &testapi.FakeSpaceRepository{}
 	})
 
-	var callRenameSpace = func(args []string) {
+	var callRenameSpace = func(args []string) bool {
 		cmd := NewRenameSpace(ui, configRepo, spaceRepo)
-		testcmd.RunCommand(cmd, args, requirementsFactory)
+		return testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	Describe("when the user is not logged in", func() {
 		It("does not pass requirements", func() {
 			requirementsFactory.LoginSuccess = false
-			callRenameSpace([]string{"my-space", "my-new-space"})
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+
+			Expect(callRenameSpace([]string{"my-space", "my-new-space"})).To(BeFalse())
 		})
 	})
 
 	Describe("when the user has not targeted an org", func() {
 		It("does not pass requirements", func() {
 			requirementsFactory.TargetedOrgSuccess = false
-			callRenameSpace([]string{"my-space", "my-new-space"})
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+
+			Expect(callRenameSpace([]string{"my-space", "my-new-space"})).To(BeFalse())
 		})
 	})
 

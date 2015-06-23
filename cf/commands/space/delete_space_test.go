@@ -3,7 +3,7 @@ package space_test
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/space"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -20,15 +20,14 @@ var _ = Describe("delete-space command", func() {
 	var (
 		ui                  *testterm.FakeUI
 		space               models.Space
-		config              configuration.ReadWriter
+		config              core_config.ReadWriter
 		spaceRepo           *testapi.FakeSpaceRepository
 		requirementsFactory *testreq.FakeReqFactory
 	)
 
-	runCommand := func(args ...string) {
+	runCommand := func(args ...string) bool {
 		cmd := NewDeleteSpace(ui, config, spaceRepo)
-		testcmd.RunCommand(cmd, args, requirementsFactory)
-		return
+		return testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	BeforeEach(func() {
@@ -54,14 +53,14 @@ var _ = Describe("delete-space command", func() {
 		})
 		It("fails when not logged in", func() {
 			requirementsFactory.LoginSuccess = false
-			runCommand("my-space")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+
+			Expect(runCommand("my-space")).To(BeFalse())
 		})
 
 		It("fails when not targeting a space", func() {
 			requirementsFactory.TargetedOrgSuccess = false
-			runCommand("my-space")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+
+			Expect(runCommand("my-space")).To(BeFalse())
 		})
 	})
 
@@ -92,6 +91,13 @@ var _ = Describe("delete-space command", func() {
 	It("clears the space from the config, when deleting the space currently targeted", func() {
 		config.SetSpaceFields(space.SpaceFields)
 		runCommand("-f", "space-to-delete")
+
+		Expect(config.HasSpace()).To(Equal(false))
+	})
+
+	It("clears the space from the config, when deleting the space currently targeted even if space name is case insensitive", func() {
+		config.SetSpaceFields(space.SpaceFields)
+		runCommand("-f", "Space-To-Delete")
 
 		Expect(config.HasSpace()).To(Equal(false))
 	})

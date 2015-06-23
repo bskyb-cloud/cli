@@ -3,7 +3,7 @@ package user_test
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/user"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -19,7 +19,7 @@ var _ = Describe("org-users command", func() {
 	var (
 		ui                  *testterm.FakeUI
 		requirementsFactory *testreq.FakeReqFactory
-		configRepo          configuration.ReadWriter
+		configRepo          core_config.ReadWriter
 		userRepo            *testapi.FakeUserRepository
 	)
 
@@ -30,8 +30,8 @@ var _ = Describe("org-users command", func() {
 		requirementsFactory = &testreq.FakeReqFactory{}
 	})
 
-	runCommand := func(args ...string) {
-		testcmd.RunCommand(NewOrgUsers(ui, configRepo, userRepo), args, requirementsFactory)
+	runCommand := func(args ...string) bool {
+		return testcmd.RunCommand(NewOrgUsers(ui, configRepo, userRepo), args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
@@ -43,8 +43,7 @@ var _ = Describe("org-users command", func() {
 		})
 
 		It("fails when not logged in", func() {
-			runCommand("say-hello-to-my-little-org")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("say-hello-to-my-little-org")).To(BeFalse())
 		})
 	})
 
@@ -109,6 +108,31 @@ var _ = Describe("org-users command", func() {
 					[]string{"user1"},
 					[]string{"user2"},
 				))
+			})
+		})
+
+		Context("when cc api verson is >= 2.21.0", func() {
+			BeforeEach(func() {
+				userRepo.ListUsersInOrgForRole_CallCount = 0
+				userRepo.ListUsersInOrgForRoleWithNoUAA_CallCount = 0
+			})
+
+			It("calls ListUsersInOrgForRoleWithNoUAA()", func() {
+				configRepo.SetApiVersion("2.22.0")
+				runCommand("the-org")
+
+				Expect(userRepo.ListUsersInOrgForRoleWithNoUAA_CallCount).To(BeNumerically(">=", 1))
+				Expect(userRepo.ListUsersInOrgForRole_CallCount).To(Equal(0))
+			})
+		})
+
+		Context("when cc api verson is < 2.21.0", func() {
+			It("calls ListUsersInOrgForRole()", func() {
+				configRepo.SetApiVersion("2.20.0")
+				runCommand("the-org")
+
+				Expect(userRepo.ListUsersInOrgForRoleWithNoUAA_CallCount).To(Equal(0))
+				Expect(userRepo.ListUsersInOrgForRole_CallCount).To(BeNumerically(">=", 1))
 			})
 		})
 	})

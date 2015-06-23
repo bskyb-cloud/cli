@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/cloudfoundry/cli/cf/api/resources"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
 )
@@ -18,11 +18,11 @@ type ServicePlanVisibilityRepository interface {
 }
 
 type CloudControllerServicePlanVisibilityRepository struct {
-	config  configuration.Reader
+	config  core_config.Reader
 	gateway net.Gateway
 }
 
-func NewCloudControllerServicePlanVisibilityRepository(config configuration.Reader, gateway net.Gateway) CloudControllerServicePlanVisibilityRepository {
+func NewCloudControllerServicePlanVisibilityRepository(config core_config.Reader, gateway net.Gateway) CloudControllerServicePlanVisibilityRepository {
 	return CloudControllerServicePlanVisibilityRepository{
 		config:  config,
 		gateway: gateway,
@@ -30,9 +30,9 @@ func NewCloudControllerServicePlanVisibilityRepository(config configuration.Read
 }
 
 func (repo CloudControllerServicePlanVisibilityRepository) Create(serviceGuid, orgGuid string) error {
-	url := repo.config.ApiEndpoint() + "/v2/service_plan_visibilities"
+	url := "/v2/service_plan_visibilities"
 	data := fmt.Sprintf(`{"service_plan_guid":"%s", "organization_guid":"%s"}`, serviceGuid, orgGuid)
-	return repo.gateway.CreateResource(url, strings.NewReader(data))
+	return repo.gateway.CreateResource(repo.config.ApiEndpoint(), url, strings.NewReader(data))
 }
 
 func (repo CloudControllerServicePlanVisibilityRepository) List() (visibilities []models.ServicePlanVisibilityFields, err error) {
@@ -50,8 +50,8 @@ func (repo CloudControllerServicePlanVisibilityRepository) List() (visibilities 
 }
 
 func (repo CloudControllerServicePlanVisibilityRepository) Delete(servicePlanGuid string) error {
-	path := fmt.Sprintf("%s/v2/service_plan_visibilities/%s", repo.config.ApiEndpoint(), servicePlanGuid)
-	return repo.gateway.DeleteResource(path)
+	path := fmt.Sprintf("/v2/service_plan_visibilities/%s", servicePlanGuid)
+	return repo.gateway.DeleteResource(repo.config.ApiEndpoint(), path)
 }
 
 func (repo CloudControllerServicePlanVisibilityRepository) Search(queryParams map[string]string) ([]models.ServicePlanVisibilityFields, error) {

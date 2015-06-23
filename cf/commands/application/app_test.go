@@ -1,9 +1,12 @@
 package application_test
 
 import (
+	"time"
+
+	testAppInstanaces "github.com/cloudfoundry/cli/cf/api/app_instances/fakes"
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/application"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/formatters"
 	"github.com/cloudfoundry/cli/cf/models"
@@ -21,16 +24,19 @@ import (
 var _ = Describe("app Command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		configRepo          configuration.ReadWriter
+		configRepo          core_config.ReadWriter
 		appSummaryRepo      *testapi.FakeAppSummaryRepo
-		appInstancesRepo    *testapi.FakeAppInstancesRepo
+		appInstancesRepo    *testAppInstanaces.FakeAppInstancesRepository
+		appLogsNoaaRepo     *testapi.FakeLogsNoaaRepository
 		requirementsFactory *testreq.FakeReqFactory
+		app                 models.Application
 	)
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		appSummaryRepo = &testapi.FakeAppSummaryRepo{}
-		appInstancesRepo = &testapi.FakeAppInstancesRepo{}
+		appLogsNoaaRepo = &testapi.FakeLogsNoaaRepository{}
+		appInstancesRepo = &testAppInstanaces.FakeAppInstancesRepository{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
 		requirementsFactory = &testreq.FakeReqFactory{
 			LoginSuccess:         true,
@@ -38,35 +44,33 @@ var _ = Describe("app Command", func() {
 		}
 	})
 
-	runCommand := func(args ...string) {
-		cmd := NewShowApp(ui, configRepo, appSummaryRepo, appInstancesRepo)
-		testcmd.RunCommand(cmd, args, requirementsFactory)
+	runCommand := func(args ...string) bool {
+		cmd := NewShowApp(ui, configRepo, appSummaryRepo, appInstancesRepo, appLogsNoaaRepo)
+		return testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
 		It("fails if not logged in", func() {
 			requirementsFactory.LoginSuccess = false
-			runCommand("cf-plays-dwarf-fortress")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("cf-plays-dwarf-fortress")).To(BeFalse())
 		})
 
 		It("fails if a space is not targeted", func() {
 			requirementsFactory.TargetedSpaceSuccess = false
-			runCommand("cf-plays-dwarf-fortress")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("cf-plays-dwarf-fortress")).To(BeFalse())
 		})
 
-		It("fails with usage when no arguments are given", func() {
-			runCommand()
+		It("fails with usage when not provided exactly one arg", func() {
+			passed := runCommand()
 			Expect(ui.FailedWithUsage).To(BeTrue())
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(passed).To(BeFalse())
 		})
 
 	})
 
 	Describe("displaying a summary of an app", func() {
 		BeforeEach(func() {
-			app := makeAppWithRoute("my-app")
+			app = makeAppWithRoute("my-app")
 			appInstance := models.AppInstanceFields{
 				State:     models.InstanceRunning,
 				Since:     testtime.MustParse("Mon Jan 2 15:04:05 -0700 MST 2006", "Mon Jan 2 15:04:05 -0700 MST 2012"),
@@ -78,15 +82,36 @@ var _ = Describe("app Command", func() {
 			}
 
 			appInstance2 := models.AppInstanceFields{
-				State: models.InstanceDown,
-				Since: testtime.MustParse("Mon Jan 2 15:04:05 -0700 MST 2006", "Mon Apr 1 15:04:05 -0700 MST 2012"),
+				State:   models.InstanceDown,
+				Details: "failure",
+				Since:   testtime.MustParse("Mon Jan 2 15:04:05 -0700 MST 2006", "Mon Apr 1 15:04:05 -0700 MST 2012"),
 			}
 
 			instances := []models.AppInstanceFields{appInstance, appInstance2}
 
 			appSummaryRepo.GetSummarySummary = app
-			appInstancesRepo.GetInstancesResponses = [][]models.AppInstanceFields{instances}
+			appInstancesRepo.GetInstancesReturns(instances, nil)
 			requirementsFactory.Application = app
+		})
+
+		Context("When app is a diego app", func() {
+			It("uses noaa log library to gather metrics", func() {
+				app.Diego = true
+				appSummaryRepo.GetSummarySummary = app
+				requirementsFactory.Application = app
+				runCommand("my-app")
+				Ω(appLogsNoaaRepo.GetContainerMetricsCallCount()).To(Equal(1))
+			})
+		})
+
+		Context("When app is not a diego app", func() {
+			It("does not use noaa log library to gather metrics", func() {
+				app.Diego = false
+				appSummaryRepo.GetSummarySummary = app
+				requirementsFactory.Application = app
+				runCommand("my-app")
+				Ω(appLogsNoaaRepo.GetContainerMetricsCallCount()).To(Equal(0))
+			})
 		})
 
 		It("displays a summary of the app", func() {
@@ -100,9 +125,24 @@ var _ = Describe("app Command", func() {
 				[]string{"instances", "2/2"},
 				[]string{"usage", "256M x 2 instances"},
 				[]string{"urls", "my-app.example.com", "foo.example.com"},
+				[]string{"last uploaded", "Wed Oct 24 19:54:00 UTC 2012"},
 				[]string{"#0", "running", "2012-01-02 03:04:05 PM", "100.0%", "13 of 64M", "32M of 1G"},
-				[]string{"#1", "down", "2012-04-01 03:04:05 PM", "0%", "0 of 0", "0 of 0"},
+				[]string{"#1", "down", "2012-04-01 03:04:05 PM", "0%", "0 of 0", "0 of 0", "failure"},
+				[]string{"stack", "fake_stack"},
 			))
+		})
+
+		Describe("when the package updated at is nil", func() {
+			BeforeEach(func() {
+				appSummaryRepo.GetSummarySummary.PackageUpdatedAt = nil
+			})
+
+			It("should output whatever greg sez", func() {
+				runCommand("my-app")
+				Expect(ui.Outputs).To(ContainSubstrings(
+					[]string{"last uploaded", "unknown"},
+				))
+			})
 		})
 	})
 
@@ -115,6 +155,8 @@ var _ = Describe("app Command", func() {
 			application.InstanceCount = 2
 			application.RunningInstances = 0
 			application.Memory = 256
+			now := time.Now()
+			application.PackageUpdatedAt = &now
 
 			appSummaryRepo.GetSummarySummary = application
 			requirementsFactory.Application = application
@@ -125,7 +167,7 @@ var _ = Describe("app Command", func() {
 			runCommand("my-app")
 
 			Expect(appSummaryRepo.GetSummaryAppGuid).To(Equal("my-app-guid"))
-			Expect(appInstancesRepo.GetInstancesAppGuid).To(Equal("my-app-guid"))
+			Expect(appInstancesRepo.GetInstancesArgsForCall(0)).To(Equal("my-app-guid"))
 
 			Expect(ui.Outputs).To(ContainSubstrings(
 				[]string{"Showing health and status", "my-app", "my-org", "my-space", "my-user"},
@@ -141,7 +183,7 @@ var _ = Describe("app Command", func() {
 			runCommand("my-app")
 
 			Expect(appSummaryRepo.GetSummaryAppGuid).To(Equal("my-app-guid"))
-			Expect(appInstancesRepo.GetInstancesAppGuid).To(Equal("my-app-guid"))
+			Expect(appInstancesRepo.GetInstancesArgsForCall(0)).To(Equal("my-app-guid"))
 
 			Expect(ui.Outputs).To(ContainSubstrings(
 				[]string{"Showing health and status", "my-app", "my-org", "my-space", "my-user"},
@@ -175,7 +217,7 @@ var _ = Describe("app Command", func() {
 			instances := []models.AppInstanceFields{appInstance, appInstance2}
 
 			appSummaryRepo.GetSummarySummary = app
-			appInstancesRepo.GetInstancesResponses = [][]models.AppInstanceFields{instances}
+			appInstancesRepo.GetInstancesReturns(instances, nil)
 			requirementsFactory.Application = app
 		})
 
@@ -196,6 +238,26 @@ var _ = Describe("app Command", func() {
 			))
 		})
 	})
+
+	Describe("when the user passes the --guid flag", func() {
+		var app models.Application
+		BeforeEach(func() {
+			app = makeAppWithRoute("my-app")
+
+			requirementsFactory.Application = app
+		})
+
+		It("displays guid for the requested app", func() {
+			runCommand("--guid", "my-app")
+
+			Expect(ui.Outputs).To(ContainSubstrings(
+				[]string{app.Guid},
+			))
+			Expect(ui.Outputs).ToNot(ContainSubstrings(
+				[]string{"Showing health and status", "my-app"},
+			))
+		})
+	})
 })
 
 func makeAppWithRoute(appName string) models.Application {
@@ -208,12 +270,18 @@ func makeAppWithRoute(appName string) models.Application {
 
 	route := models.RouteSummary{Host: "foo", Domain: domain}
 	secondRoute := models.RouteSummary{Host: appName, Domain: domain}
+	packgeUpdatedAt, _ := time.Parse("2006-01-02T15:04:05Z07:00", "2012-10-24T19:54:00Z")
 
 	application.State = "started"
 	application.InstanceCount = 2
 	application.RunningInstances = 2
 	application.Memory = 256
+	application.Stack = &models.Stack{
+		Name: "fake_stack",
+		Guid: "123-123-123",
+	}
 	application.Routes = []models.RouteSummary{route, secondRoute}
+	application.PackageUpdatedAt = &packgeUpdatedAt
 
 	return application
 }

@@ -1,6 +1,8 @@
 package serviceaccess_test
 
 import (
+	"errors"
+
 	testactor "github.com/cloudfoundry/cli/cf/actors/fakes"
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	"github.com/cloudfoundry/cli/cf/models"
@@ -41,6 +43,11 @@ var _ = Describe("service-access command", func() {
 		It("requires the user to be logged in", func() {
 			requirementsFactory.LoginSuccess = false
 			Expect(runCommand()).ToNot(HavePassedRequirements())
+		})
+		It("should fail with usage when provided any arguments", func() {
+			requirementsFactory.LoginSuccess = true
+			Expect(runCommand("blahblah")).To(BeFalse())
+			Expect(ui.FailedWithUsage).To(BeTrue())
 		})
 	})
 
@@ -83,15 +90,27 @@ var _ = Describe("service-access command", func() {
 		})
 
 		It("refreshes the auth token", func() {
-			runCommand("service")
+			runCommand()
 			Expect(tokenRefresher.RefreshTokenCalled).To(BeTrue())
+		})
+
+		Context("when refreshing the auth token fails", func() {
+			It("fails and returns the error", func() {
+				tokenRefresher.RefreshTokenError = errors.New("Refreshing went wrong")
+				runCommand()
+
+				Expect(ui.Outputs).To(ContainSubstrings(
+					[]string{"Refreshing went wrong"},
+					[]string{"FAILED"},
+				))
+			})
 		})
 
 		Context("When no flags are provided", func() {
 			It("tells the user it is obtaining the service access", func() {
 				runCommand()
 				Expect(ui.Outputs).To(ContainSubstrings(
-					[]string{"getting service access as", "my-user"},
+					[]string{"Getting service access as", "my-user"},
 				))
 			})
 
@@ -115,7 +134,7 @@ var _ = Describe("service-access command", func() {
 			It("tells the user it is obtaining the services access for a particular broker", func() {
 				runCommand("-b", "brokername1")
 				Expect(ui.Outputs).To(ContainSubstrings(
-					[]string{"getting service access", "for broker brokername1 as", "my-user"},
+					[]string{"Getting service access", "for broker brokername1 as", "my-user"},
 				))
 			})
 		})
@@ -124,7 +143,7 @@ var _ = Describe("service-access command", func() {
 			It("tells the user it is obtaining the service access for a particular service", func() {
 				runCommand("-e", "my-service-1")
 				Expect(ui.Outputs).To(ContainSubstrings(
-					[]string{"getting service access", "for service my-service-1 as", "my-user"},
+					[]string{"Getting service access", "for service my-service-1 as", "my-user"},
 				))
 			})
 		})
@@ -133,7 +152,7 @@ var _ = Describe("service-access command", func() {
 			It("tells the user it is obtaining the service access for a particular org", func() {
 				runCommand("-o", "fwip")
 				Expect(ui.Outputs).To(ContainSubstrings(
-					[]string{"getting service access", "for organization fwip as", "my-user"},
+					[]string{"Getting service access", "for organization fwip as", "my-user"},
 				))
 			})
 		})
@@ -142,7 +161,7 @@ var _ = Describe("service-access command", func() {
 			It("tells the user it is obtaining the service access for a particular broker and service", func() {
 				runCommand("-b", "brokername1", "-e", "my-service-1")
 				Expect(ui.Outputs).To(ContainSubstrings(
-					[]string{"getting service access", "for broker brokername1", "and service my-service-1", "as", "my-user"},
+					[]string{"Getting service access", "for broker brokername1", "and service my-service-1", "as", "my-user"},
 				))
 			})
 		})
@@ -151,7 +170,7 @@ var _ = Describe("service-access command", func() {
 			It("tells the user it is obtaining the service access for a particular broker and org", func() {
 				runCommand("-b", "brokername1", "-o", "fwip")
 				Expect(ui.Outputs).To(ContainSubstrings(
-					[]string{"getting service access", "for broker brokername1", "and organization fwip", "as", "my-user"},
+					[]string{"Getting service access", "for broker brokername1", "and organization fwip", "as", "my-user"},
 				))
 			})
 		})
@@ -160,7 +179,7 @@ var _ = Describe("service-access command", func() {
 			It("tells the user it is obtaining the service access for a particular service and org", func() {
 				runCommand("-e", "my-service-1", "-o", "fwip")
 				Expect(ui.Outputs).To(ContainSubstrings(
-					[]string{"getting service access", "for service my-service-1", "and organization fwip", "as", "my-user"},
+					[]string{"Getting service access", "for service my-service-1", "and organization fwip", "as", "my-user"},
 				))
 			})
 		})
@@ -169,7 +188,7 @@ var _ = Describe("service-access command", func() {
 			It("tells the user it is filtering on all options", func() {
 				runCommand("-b", "brokername1", "-e", "my-service-1", "-o", "fwip")
 				Expect(ui.Outputs).To(ContainSubstrings(
-					[]string{"getting service access", "for broker brokername1", "and service my-service-1", "and organization fwip", "as", "my-user"},
+					[]string{"Getting service access", "for broker brokername1", "and service my-service-1", "and organization fwip", "as", "my-user"},
 				))
 			})
 		})

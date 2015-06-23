@@ -3,7 +3,7 @@ package user_test
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/user"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -21,12 +21,12 @@ var _ = Describe("set-space-role command", func() {
 		requirementsFactory *testreq.FakeReqFactory
 		spaceRepo           *testapi.FakeSpaceRepository
 		userRepo            *testapi.FakeUserRepository
-		configRepo          configuration.ReadWriter
+		configRepo          core_config.ReadWriter
 	)
 
 	BeforeEach(func() {
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		accessToken, err := testconfig.EncodeAccessToken(configuration.TokenInfo{Username: "current-user"})
+		accessToken, err := testconfig.EncodeAccessToken(core_config.TokenInfo{Username: "current-user"})
 		Expect(err).NotTo(HaveOccurred())
 		configRepo.SetAccessToken(accessToken)
 
@@ -36,8 +36,8 @@ var _ = Describe("set-space-role command", func() {
 		userRepo = &testapi.FakeUserRepository{}
 	})
 
-	runCommand := func(args ...string) {
-		testcmd.RunCommand(NewSetSpaceRole(ui, configRepo, spaceRepo, userRepo), args, requirementsFactory)
+	runCommand := func(args ...string) bool {
+		return testcmd.RunCommand(NewSetSpaceRole(ui, configRepo, spaceRepo, userRepo), args, requirementsFactory)
 	}
 
 	It("fails with usage when not provided exactly four args", func() {
@@ -52,16 +52,14 @@ var _ = Describe("set-space-role command", func() {
 
 	Describe("requirements", func() {
 		It("fails when not logged in", func() {
-			runCommand("username", "org", "space", "role")
-
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("username", "org", "space", "role")).To(BeFalse())
 		})
 
 		It("succeeds when logged in", func() {
 			requirementsFactory.LoginSuccess = true
-			runCommand("username", "org", "space", "role")
+			passed := runCommand("username", "org", "space", "role")
 
-			Expect(testcmd.CommandDidPassRequirements).To(BeTrue())
+			Expect(passed).To(BeTrue())
 			Expect(requirementsFactory.UserUsername).To(Equal("username"))
 			Expect(requirementsFactory.OrganizationName).To(Equal("org"))
 		})

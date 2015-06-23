@@ -9,8 +9,8 @@ import (
 	"text/template"
 	"unicode/utf8"
 
+	"github.com/cloudfoundry/cli/cf/configuration/plugin_config"
 	. "github.com/cloudfoundry/cli/cf/i18n"
-
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/codegangsta/cli"
 )
@@ -64,6 +64,33 @@ func newAppPresenter(app *cli.App) (presenter appPresenter) {
 		return
 	}
 
+	presentPluginCommands := func() []cmdPresenter {
+		pluginConfig := plugin_config.NewPluginConfig(func(err error) {
+			//fail silently when running help?
+		})
+
+		plugins := pluginConfig.Plugins()
+		var presenters []cmdPresenter
+		var pluginPresenter cmdPresenter
+
+		for _, pluginMetadata := range plugins {
+			for _, cmd := range pluginMetadata.Commands {
+
+				if cmd.Alias == "" {
+					pluginPresenter.Name = cmd.Name
+				} else {
+					pluginPresenter.Name = cmd.Name + ", " + cmd.Alias
+				}
+
+				padding := strings.Repeat(" ", maxNameLen-utf8.RuneCountInString(pluginPresenter.Name))
+				pluginPresenter.Name = pluginPresenter.Name + padding
+				pluginPresenter.Description = cmd.HelpText
+				presenters = append(presenters, pluginPresenter)
+			}
+		}
+
+		return presenters
+	}
 	presenter.Name = app.Name
 	presenter.Flags = app.Flags
 	presenter.Usage = app.Usage
@@ -99,6 +126,7 @@ func newAppPresenter(app *cli.App) (presenter appPresenter) {
 					presentCommand("stop"),
 					presentCommand("restart"),
 					presentCommand("restage"),
+					presentCommand("restart-app-instance"),
 				}, {
 					presentCommand("events"),
 					presentCommand("files"),
@@ -109,6 +137,11 @@ func newAppPresenter(app *cli.App) (presenter appPresenter) {
 					presentCommand("unset-env"),
 				}, {
 					presentCommand("stacks"),
+					presentCommand("stack"),
+				}, {
+					presentCommand("copy-source"),
+				}, {
+					presentCommand("create-app-manifest"),
 				}, {
 					presentCommand("ssh"),
 				},
@@ -122,10 +155,16 @@ func newAppPresenter(app *cli.App) (presenter appPresenter) {
 					presentCommand("service"),
 				}, {
 					presentCommand("create-service"),
+					presentCommand("update-service"),
 					presentCommand("delete-service"),
 					presentCommand("rename-service"),
 					presentCommand("set-schema"),
 					presentCommand("get-schema"),
+				}, {
+					presentCommand("create-service-key"),
+					presentCommand("service-keys"),
+					presentCommand("service-key"),
+					presentCommand("delete-service-key"),
 				}, {
 					presentCommand("bind-service"),
 					presentCommand("unbind-service"),
@@ -175,6 +214,7 @@ func newAppPresenter(app *cli.App) (presenter appPresenter) {
 				{
 					presentCommand("routes"),
 					presentCommand("create-route"),
+					presentCommand("check-route"),
 					presentCommand("map-route"),
 					presentCommand("unmap-route"),
 					presentCommand("delete-route"),
@@ -220,13 +260,17 @@ func newAppPresenter(app *cli.App) (presenter appPresenter) {
 					presentCommand("delete-quota"),
 					presentCommand("update-quota"),
 				},
+				{
+					presentCommand("share-private-domain"),
+					presentCommand("unshare-private-domain"),
+				},
 			},
 		}, {
 			Name: T("SPACE ADMIN"),
 			CommandSubGroups: [][]cmdPresenter{
 				{
-					presentCommand("space-quota"),
 					presentCommand("space-quotas"),
+					presentCommand("space-quota"),
 					presentCommand("create-space-quota"),
 					presentCommand("update-space-quota"),
 					presentCommand("delete-space-quota"),
@@ -279,15 +323,62 @@ func newAppPresenter(app *cli.App) (presenter appPresenter) {
 				},
 			},
 		}, {
+			Name: T("ENVIRONMENT VARIABLE GROUPS"),
+			CommandSubGroups: [][]cmdPresenter{
+				{
+					presentCommand("running-environment-variable-group"),
+					presentCommand("staging-environment-variable-group"),
+					presentCommand("set-staging-environment-variable-group"),
+					presentCommand("set-running-environment-variable-group"),
+				},
+			},
+		},
+		{
+			Name: T("FEATURE FLAGS"),
+			CommandSubGroups: [][]cmdPresenter{
+				{
+					presentCommand("feature-flags"),
+					presentCommand("feature-flag"),
+					presentCommand("enable-feature-flag"),
+					presentCommand("disable-feature-flag"),
+				},
+			},
+		}, {
 			Name: T("ADVANCED"),
 			CommandSubGroups: [][]cmdPresenter{
 				{
 					presentCommand("curl"),
 					presentCommand("config"),
+					presentCommand("oauth-token"),
 				},
+			},
+		}, {
+			Name: T("ADD/REMOVE PLUGIN REPOSITORY"),
+			CommandSubGroups: [][]cmdPresenter{
+				{
+					presentCommand("add-plugin-repo"),
+					presentCommand("remove-plugin-repo"),
+					presentCommand("list-plugin-repos"),
+					presentCommand("repo-plugins"),
+				},
+			},
+		}, {
+			Name: T("ADD/REMOVE PLUGIN"),
+			CommandSubGroups: [][]cmdPresenter{
+				{
+					presentCommand("plugins"),
+					presentCommand("install-plugin"),
+					presentCommand("uninstall-plugin"),
+				},
+			},
+		}, {
+			Name: T("INSTALLED PLUGIN COMMANDS"),
+			CommandSubGroups: [][]cmdPresenter{
+				presentPluginCommands(),
 			},
 		},
 	}
+
 	return
 }
 

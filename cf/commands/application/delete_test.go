@@ -1,9 +1,10 @@
 package application_test
 
 import (
+	testApplication "github.com/cloudfoundry/cli/cf/api/applications/fakes"
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/application"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
@@ -21,8 +22,8 @@ var _ = Describe("delete app command", func() {
 		cmd                 *DeleteApp
 		ui                  *testterm.FakeUI
 		app                 models.Application
-		configRepo          configuration.ReadWriter
-		appRepo             *testapi.FakeApplicationRepository
+		configRepo          core_config.ReadWriter
+		appRepo             *testApplication.FakeApplicationRepository
 		routeRepo           *testapi.FakeRouteRepository
 		requirementsFactory *testreq.FakeReqFactory
 	)
@@ -33,7 +34,7 @@ var _ = Describe("delete app command", func() {
 		app.Guid = "app-to-delete-guid"
 
 		ui = &testterm.FakeUI{}
-		appRepo = &testapi.FakeApplicationRepository{}
+		appRepo = &testApplication.FakeApplicationRepository{}
 		routeRepo = &testapi.FakeRouteRepository{}
 		requirementsFactory = &testreq.FakeReqFactory{}
 
@@ -41,22 +42,27 @@ var _ = Describe("delete app command", func() {
 		cmd = NewDeleteApp(ui, configRepo, appRepo, routeRepo)
 	})
 
-	runCommand := func(args ...string) {
-		testcmd.RunCommand(cmd, args, requirementsFactory)
+	runCommand := func(args ...string) bool {
+		return testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	It("fails requirements when not logged in", func() {
 		requirementsFactory.LoginSuccess = false
-		runCommand("-f", "delete-this-app-plz")
-		Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+		Expect(runCommand("-f", "delete-this-app-plz")).To(BeFalse())
+	})
+	It("fails if a space is not targeted", func() {
+		requirementsFactory.LoginSuccess = true
+		requirementsFactory.TargetedSpaceSuccess = false
+		Expect(runCommand("-f", "delete-this-app-plz")).To(BeFalse())
 	})
 
 	Context("when logged in", func() {
 		BeforeEach(func() {
 			requirementsFactory.LoginSuccess = true
+			requirementsFactory.TargetedSpaceSuccess = true
 		})
 
-		It("provides the user usage text when no app name is given", func() {
+		It("fails with usage when not provided exactly one arg", func() {
 			runCommand()
 			Expect(ui.FailedWithUsage).To(BeTrue())
 		})

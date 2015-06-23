@@ -2,12 +2,13 @@ package api
 
 import (
 	"encoding/json"
-	. "github.com/cloudfoundry/cli/cf/i18n"
 	"strings"
+
+	. "github.com/cloudfoundry/cli/cf/i18n"
 
 	"github.com/cloudfoundry/cli/cf/api/resources"
 	"github.com/cloudfoundry/cli/cf/api/strategy"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
@@ -15,7 +16,8 @@ import (
 
 type DomainRepository interface {
 	ListDomainsForOrg(orgGuid string, cb func(models.DomainFields) bool) error
-	FindByName(name string) (domain models.DomainFields, apiErr error)
+	FindSharedByName(name string) (domain models.DomainFields, apiErr error)
+	FindPrivateByName(name string) (domain models.DomainFields, apiErr error)
 	FindByNameInOrg(name string, owningOrgGuid string) (domain models.DomainFields, apiErr error)
 	Create(domainName string, owningOrgGuid string) (createdDomain models.DomainFields, apiErr error)
 	CreateSharedDomain(domainName string) (apiErr error)
@@ -25,12 +27,12 @@ type DomainRepository interface {
 }
 
 type CloudControllerDomainRepository struct {
-	config   configuration.Reader
+	config   core_config.Reader
 	gateway  net.Gateway
 	strategy strategy.EndpointStrategy
 }
 
-func NewCloudControllerDomainRepository(config configuration.Reader, gateway net.Gateway, strategy strategy.EndpointStrategy) CloudControllerDomainRepository {
+func NewCloudControllerDomainRepository(config core_config.Reader, gateway net.Gateway, strategy strategy.EndpointStrategy) CloudControllerDomainRepository {
 	return CloudControllerDomainRepository{
 		config:   config,
 		gateway:  gateway,
@@ -61,8 +63,12 @@ func (repo CloudControllerDomainRepository) isOrgDomain(orgGuid string, domain m
 	return orgGuid == domain.OwningOrganizationGuid || domain.Shared
 }
 
-func (repo CloudControllerDomainRepository) FindByName(name string) (domain models.DomainFields, apiErr error) {
-	return repo.findOneWithPath(repo.strategy.DomainURL(name), name)
+func (repo CloudControllerDomainRepository) FindSharedByName(name string) (domain models.DomainFields, apiErr error) {
+	return repo.findOneWithPath(repo.strategy.SharedDomainURL(name), name)
+}
+
+func (repo CloudControllerDomainRepository) FindPrivateByName(name string) (domain models.DomainFields, apiErr error) {
+	return repo.findOneWithPath(repo.strategy.PrivateDomainURL(name), name)
 }
 
 func (repo CloudControllerDomainRepository) FindByNameInOrg(name string, orgGuid string) (domain models.DomainFields, apiErr error) {
@@ -70,7 +76,7 @@ func (repo CloudControllerDomainRepository) FindByNameInOrg(name string, orgGuid
 
 	switch apiErr.(type) {
 	case *errors.ModelNotFoundError:
-		domain, apiErr = repo.FindByName(name)
+		domain, apiErr = repo.FindSharedByName(name)
 		if !domain.Shared {
 			apiErr = errors.NewModelNotFoundError("Domain", name)
 		}
@@ -107,7 +113,8 @@ func (repo CloudControllerDomainRepository) Create(domainName string, owningOrgG
 
 	resource := new(resources.DomainResource)
 	err = repo.gateway.CreateResource(
-		repo.config.ApiEndpoint()+repo.strategy.PrivateDomainsURL(),
+		repo.config.ApiEndpoint(),
+		repo.strategy.PrivateDomainsURL(),
 		strings.NewReader(string(data)),
 		resource)
 
@@ -130,7 +137,8 @@ func (repo CloudControllerDomainRepository) CreateSharedDomain(domainName string
 	}
 
 	apiErr = repo.gateway.CreateResource(
-		repo.config.ApiEndpoint()+repo.strategy.SharedDomainsURL(),
+		repo.config.ApiEndpoint(),
+		repo.strategy.SharedDomainsURL(),
 		strings.NewReader(string(data)))
 
 	return
@@ -138,12 +146,14 @@ func (repo CloudControllerDomainRepository) CreateSharedDomain(domainName string
 
 func (repo CloudControllerDomainRepository) Delete(domainGuid string) error {
 	return repo.gateway.DeleteResource(
-		repo.config.ApiEndpoint() + repo.strategy.DeleteDomainURL(domainGuid))
+		repo.config.ApiEndpoint(),
+		repo.strategy.DeleteDomainURL(domainGuid))
 }
 
 func (repo CloudControllerDomainRepository) DeleteSharedDomain(domainGuid string) error {
 	return repo.gateway.DeleteResource(
-		repo.config.ApiEndpoint() + repo.strategy.DeleteSharedDomainURL(domainGuid))
+		repo.config.ApiEndpoint(),
+		repo.strategy.DeleteSharedDomainURL(domainGuid))
 }
 
 func (repo CloudControllerDomainRepository) FirstOrDefault(orgGuid string, name *string) (domain models.DomainFields, error error) {

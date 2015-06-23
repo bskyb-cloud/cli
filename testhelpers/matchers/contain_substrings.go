@@ -23,23 +23,32 @@ func (matcher *SliceMatcher) Match(actual interface{}) (success bool, err error)
 		return false, nil
 	}
 
-	matcher.failedAtIndex = 0
-	for _, actualValue := range actualStrings {
-		allStringsFound := true
-		for _, expectedValue := range matcher.expected[matcher.failedAtIndex] {
-			allStringsFound = allStringsFound && strings.Contains(terminal.Decolorize(actualValue), expectedValue)
-		}
+	allStringsMatched := make([]bool, len(matcher.expected))
 
-		if allStringsFound {
-			matcher.failedAtIndex++
-			if matcher.failedAtIndex == len(matcher.expected) {
-				matcher.failedAtIndex--
-				return true, nil
+	for index, expectedArray := range matcher.expected {
+		for _, actualValue := range actualStrings {
+
+			allStringsFound := true
+
+			for _, expectedValue := range expectedArray {
+				allStringsFound = allStringsFound && strings.Contains(terminal.Decolorize(actualValue), expectedValue)
+			}
+
+			if allStringsFound {
+				allStringsMatched[index] = true
+				break
 			}
 		}
 	}
 
-	return false, nil
+	for index, value := range allStringsMatched {
+		if !value {
+			matcher.failedAtIndex = index
+			return false, nil
+		}
+	}
+
+	return true, nil
 }
 
 func (matcher *SliceMatcher) FailureMessage(actual interface{}) string {

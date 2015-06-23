@@ -2,7 +2,8 @@ package api
 
 import (
 	"fmt"
-	"github.com/cloudfoundry/cli/cf/configuration"
+
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
 )
@@ -29,6 +30,9 @@ func (resource ServiceInstancesSummaries) ToModels() (instances []models.Service
 
 		instance := models.ServiceInstance{}
 		instance.Name = instanceSummary.Name
+		instance.LastOperation.Type = instanceSummary.LastOperation.Type
+		instance.LastOperation.State = instanceSummary.LastOperation.State
+		instance.LastOperation.Description = instanceSummary.LastOperation.Description
 		instance.ApplicationNames = applicationNames
 		instance.ServicePlan = servicePlan
 		instance.ServiceOffering = serviceOffering
@@ -56,9 +60,16 @@ type ServiceInstanceSummaryApp struct {
 	ServiceNames []string `json:"service_names"`
 }
 
+type LastOperationSummary struct {
+	Type        string `json:"type"`
+	State       string `json:"state"`
+	Description string `json:"description"`
+}
+
 type ServiceInstanceSummary struct {
-	Name        string
-	ServicePlan ServicePlanSummary `json:"service_plan"`
+	Name          string
+	LastOperation LastOperationSummary `json:"last_operation"`
+	ServicePlan   ServicePlanSummary   `json:"service_plan"`
 }
 
 type ServicePlanSummary struct {
@@ -78,11 +89,11 @@ type ServiceSummaryRepository interface {
 }
 
 type CloudControllerServiceSummaryRepository struct {
-	config  configuration.Reader
+	config  core_config.Reader
 	gateway net.Gateway
 }
 
-func NewCloudControllerServiceSummaryRepository(config configuration.Reader, gateway net.Gateway) (repo CloudControllerServiceSummaryRepository) {
+func NewCloudControllerServiceSummaryRepository(config core_config.Reader, gateway net.Gateway) (repo CloudControllerServiceSummaryRepository) {
 	repo.config = config
 	repo.gateway = gateway
 	return

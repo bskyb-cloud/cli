@@ -2,12 +2,13 @@ package service
 
 import (
 	"encoding/json"
+
 	. "github.com/cloudfoundry/cli/cf/i18n"
 
 	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/flag_helpers"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -16,12 +17,12 @@ import (
 
 type UpdateUserProvidedService struct {
 	ui                              terminal.UI
-	config                          configuration.Reader
+	config                          core_config.Reader
 	userProvidedServiceInstanceRepo api.UserProvidedServiceInstanceRepository
 	serviceInstanceReq              requirements.ServiceInstanceRequirement
 }
 
-func NewUpdateUserProvidedService(ui terminal.UI, config configuration.Reader, userProvidedServiceInstanceRepo api.UserProvidedServiceInstanceRepository) (cmd *UpdateUserProvidedService) {
+func NewUpdateUserProvidedService(ui terminal.UI, config core_config.Reader, userProvidedServiceInstanceRepo api.UserProvidedServiceInstanceRepository) (cmd *UpdateUserProvidedService) {
 	cmd = new(UpdateUserProvidedService)
 	cmd.ui = ui
 	cmd.config = config
@@ -34,13 +35,13 @@ func (cmd *UpdateUserProvidedService) Metadata() command_metadata.CommandMetadat
 		Name:        "update-user-provided-service",
 		ShortName:   "uups",
 		Description: T("Update user-provided service instance name value pairs"),
-		Usage: T(`CF_NAME update-user-provided-service SERVICE_INSTANCE [-p PARAMETERS] [-l SYSLOG-DRAIN-URL]'
+		Usage: T(`CF_NAME update-user-provided-service SERVICE_INSTANCE [-p CREDENTIALS] [-l SYSLOG-DRAIN-URL]'
 
 EXAMPLE:
-   CF_NAME update-user-provided-service oracle-db-mine -p '{"username":"admin","password":"pa55woRD"}'
+   CF_NAME update-user-provided-service my-db-mine -p '{"username":"admin","password":"pa55woRD"}'
    CF_NAME update-user-provided-service my-drain-service -l syslog://example.com`),
 		Flags: []cli.Flag{
-			flag_helpers.NewStringFlag("p", T("Parameters")),
+			flag_helpers.NewStringFlag("p", T("Credentials")),
 			flag_helpers.NewStringFlag("l", T("Syslog Drain Url")),
 		},
 	}

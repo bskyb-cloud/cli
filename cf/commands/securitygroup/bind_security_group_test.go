@@ -2,9 +2,10 @@ package securitygroup_test
 
 import (
 	"github.com/cloudfoundry/cli/cf/api/fakes"
+	test_org "github.com/cloudfoundry/cli/cf/api/organizations/fakes"
 	testapi "github.com/cloudfoundry/cli/cf/api/security_groups/fakes"
 	zoidberg "github.com/cloudfoundry/cli/cf/api/security_groups/spaces/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
@@ -22,17 +23,17 @@ var _ = Describe("bind-security-group command", func() {
 	var (
 		ui                    *testterm.FakeUI
 		cmd                   BindSecurityGroup
-		configRepo            configuration.ReadWriter
+		configRepo            core_config.ReadWriter
 		fakeSecurityGroupRepo *testapi.FakeSecurityGroupRepo
 		requirementsFactory   *testreq.FakeReqFactory
 		fakeSpaceRepo         *fakes.FakeSpaceRepository
-		fakeOrgRepo           *fakes.FakeOrgRepository
+		fakeOrgRepo           *test_org.FakeOrganizationRepository
 		fakeSpaceBinder       *zoidberg.FakeSecurityGroupSpaceBinder
 	)
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
-		fakeOrgRepo = &fakes.FakeOrgRepository{}
+		fakeOrgRepo = &test_org.FakeOrganizationRepository{}
 		fakeSpaceRepo = &fakes.FakeSpaceRepository{}
 		requirementsFactory = &testreq.FakeReqFactory{}
 		fakeSecurityGroupRepo = &testapi.FakeSecurityGroupRepo{}
@@ -41,22 +42,19 @@ var _ = Describe("bind-security-group command", func() {
 		cmd = NewBindSecurityGroup(ui, configRepo, fakeSecurityGroupRepo, fakeSpaceRepo, fakeOrgRepo, fakeSpaceBinder)
 	})
 
-	runCommand := func(args ...string) {
-		testcmd.RunCommand(cmd, args, requirementsFactory)
+	runCommand := func(args ...string) bool {
+		return testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
 		It("fails when the user is not logged in", func() {
-			runCommand("my-craaaaaazy-security-group", "my-org", "my-space")
-
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("my-craaaaaazy-security-group", "my-org", "my-space")).To(BeFalse())
 		})
 
 		It("succeeds when the user is logged in", func() {
 			requirementsFactory.LoginSuccess = true
-			runCommand("my-craaaaaazy-security-group", "my-org", "my-space")
 
-			Expect(testcmd.CommandDidPassRequirements).To(BeTrue())
+			Expect(runCommand("my-craaaaaazy-security-group", "my-org", "my-space")).To(BeTrue())
 		})
 
 		It("fails with usage when not provided the name of a security group, org, and space", func() {
@@ -90,13 +88,13 @@ var _ = Describe("bind-security-group command", func() {
 
 		Context("when the org does not exist", func() {
 			BeforeEach(func() {
-				fakeOrgRepo.FindByNameNotFound = true
+				fakeOrgRepo.FindByNameReturns(models.Organization{}, errors.New("Org org not found"))
 			})
 
 			It("fails and tells the user", func() {
 				runCommand("sec group", "org", "space")
 
-				Expect(fakeOrgRepo.FindByNameName).To(Equal("org"))
+				Expect(fakeOrgRepo.FindByNameArgsForCall(0)).To(Equal("org"))
 				Expect(ui.Outputs).To(ContainSubstrings(
 					[]string{"FAILED"},
 					[]string{"Org", "org", "not found"},
@@ -109,7 +107,8 @@ var _ = Describe("bind-security-group command", func() {
 				org := models.Organization{}
 				org.Name = "org-name"
 				org.Guid = "org-guid"
-				fakeOrgRepo.Organizations = append(fakeOrgRepo.Organizations, org) // TODO: replace this with countfeiter
+				fakeOrgRepo.ListOrgsReturns([]models.Organization{org}, nil)
+				fakeOrgRepo.FindByNameReturns(org, nil)
 				fakeSpaceRepo.FindByNameInOrgError = errors.NewModelNotFoundError("Space", "space-name")
 			})
 
@@ -130,7 +129,7 @@ var _ = Describe("bind-security-group command", func() {
 				org := models.Organization{}
 				org.Name = "org-name"
 				org.Guid = "org-guid"
-				fakeOrgRepo.Organizations = append(fakeOrgRepo.Organizations, org) // TODO: replace this with countfeiter
+				fakeOrgRepo.ListOrgsReturns([]models.Organization{org}, nil)
 
 				space := models.Space{}
 				space.Name = "space-name"
@@ -155,8 +154,9 @@ var _ = Describe("bind-security-group command", func() {
 
 			It("describes what it is doing for the user's benefit", func() {
 				Expect(ui.Outputs).To(ContainSubstrings(
-					[]string{"Assigning", "security-group", "space-name", "org-name", "my-user"},
+					[]string{"Assigning security group security-group to space space-name in org org-name as my-user"},
 					[]string{"OK"},
+					[]string{"TIP: Changes will not apply to existing running applications until they are restarted."},
 				))
 			})
 		})

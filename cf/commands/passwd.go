@@ -1,9 +1,9 @@
 package commands
 
 import (
-	"github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/api/password"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
@@ -13,11 +13,11 @@ import (
 
 type Password struct {
 	ui      terminal.UI
-	pwdRepo api.PasswordRepository
-	config  configuration.ReadWriter
+	pwdRepo password.PasswordRepository
+	config  core_config.ReadWriter
 }
 
-func NewPassword(ui terminal.UI, pwdRepo api.PasswordRepository, config configuration.ReadWriter) (cmd Password) {
+func NewPassword(ui terminal.UI, pwdRepo password.PasswordRepository, config core_config.ReadWriter) (cmd Password) {
 	cmd.ui = ui
 	cmd.pwdRepo = pwdRepo
 	cmd.config = config

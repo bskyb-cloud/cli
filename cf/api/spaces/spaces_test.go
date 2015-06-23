@@ -12,6 +12,7 @@ import (
 	"github.com/cloudfoundry/cli/cf/net"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/cf/api/spaces"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -122,7 +123,7 @@ var _ = Describe("Space Repository", func() {
 		})
 	})
 
-	It("creates spaces", func() {
+	It("creates spaces without a space-quota", func() {
 		request := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
 			Method:  "POST",
 			Path:    "/v2/spaces",
@@ -141,10 +142,38 @@ var _ = Describe("Space Repository", func() {
 		ts, handler, repo := createSpacesRepo(request)
 		defer ts.Close()
 
-		space, apiErr := repo.Create("space-name", "my-org-guid")
+		space, apiErr := repo.Create("space-name", "my-org-guid", "")
 		Expect(handler).To(HaveAllRequestsCalled())
 		Expect(apiErr).NotTo(HaveOccurred())
 		Expect(space.Guid).To(Equal("space-guid"))
+		Expect(space.SpaceQuotaGuid).To(Equal(""))
+	})
+
+	It("creates spaces with a space-quota", func() {
+		request := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+			Method:  "POST",
+			Path:    "/v2/spaces",
+			Matcher: testnet.RequestBodyMatcher(`{"name":"space-name","organization_guid":"my-org-guid","space_quota_definition_guid":"space-quota-guid"}`),
+			Response: testnet.TestResponse{Status: http.StatusCreated, Body: `
+			{
+				"metadata": {
+					"guid": "space-guid"
+				},
+				"entity": {
+					"name": "space-name",
+					"space_quota_definition_guid":"space-quota-guid"
+				}
+			}`},
+		})
+
+		ts, handler, repo := createSpacesRepo(request)
+		defer ts.Close()
+
+		space, apiErr := repo.Create("space-name", "my-org-guid", "space-quota-guid")
+		Expect(handler).To(HaveAllRequestsCalled())
+		Expect(apiErr).NotTo(HaveOccurred())
+		Expect(space.Guid).To(Equal("space-guid"))
+		Expect(space.SpaceQuotaGuid).To(Equal("space-quota-guid"))
 	})
 
 	It("renames spaces", func() {
@@ -296,7 +325,7 @@ func createSpacesRepo(reqs ...testnet.TestRequest) (ts *httptest.Server, handler
 	ts, handler = testnet.NewServer(reqs)
 	configRepo := testconfig.NewRepositoryWithDefaults()
 	configRepo.SetApiEndpoint(ts.URL)
-	gateway := net.NewCloudControllerGateway(configRepo, time.Now)
+	gateway := net.NewCloudControllerGateway(configRepo, time.Now, &testterm.FakeUI{})
 	repo = NewCloudControllerSpaceRepository(configRepo, gateway)
 	return
 }

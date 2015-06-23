@@ -4,7 +4,7 @@ import (
 	"github.com/cloudfoundry/cli/cf/actors"
 	"github.com/cloudfoundry/cli/cf/api/authentication"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/flag_helpers"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -15,12 +15,12 @@ import (
 
 type EnableServiceAccess struct {
 	ui             terminal.UI
-	config         configuration.Reader
+	config         core_config.Reader
 	actor          actors.ServicePlanActor
 	tokenRefresher authentication.TokenRefresher
 }
 
-func NewEnableServiceAccess(ui terminal.UI, config configuration.Reader, actor actors.ServicePlanActor, tokenRefresher authentication.TokenRefresher) (cmd *EnableServiceAccess) {
+func NewEnableServiceAccess(ui terminal.UI, config core_config.Reader, actor actors.ServicePlanActor, tokenRefresher authentication.TokenRefresher) (cmd *EnableServiceAccess) {
 	return &EnableServiceAccess{
 		ui:             ui,
 		config:         config,
@@ -43,14 +43,17 @@ func (cmd *EnableServiceAccess) Metadata() command_metadata.CommandMetadata {
 		Description: T("Enable access to a service or service plan for one or all orgs"),
 		Usage:       "CF_NAME enable-service-access SERVICE [-p PLAN] [-o ORG]",
 		Flags: []cli.Flag{
-			flag_helpers.NewStringFlag("p", T("Enable access to a particular service plan")),
-			flag_helpers.NewStringFlag("o", T("Enable access to a particular organization")),
+			flag_helpers.NewStringFlag("p", T("Enable access to a specified service plan")),
+			flag_helpers.NewStringFlag("o", T("Enable access for a specified organization")),
 		},
 	}
 }
 
 func (cmd *EnableServiceAccess) Run(c *cli.Context) {
-	cmd.tokenRefresher.RefreshAuthToken()
+	_, err := cmd.tokenRefresher.RefreshAuthToken()
+	if err != nil {
+		cmd.ui.Failed(err.Error())
+	}
 
 	serviceName := c.Args()[0]
 	planName := c.String("p")
@@ -65,7 +68,7 @@ func (cmd *EnableServiceAccess) Run(c *cli.Context) {
 	} else {
 		cmd.enableAllPlansForService(serviceName)
 	}
-	cmd.ui.Say("OK")
+	cmd.ui.Ok()
 }
 
 func (cmd *EnableServiceAccess) enablePlanAndOrgForService(serviceName string, planName string, orgName string) {

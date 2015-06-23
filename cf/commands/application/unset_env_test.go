@@ -1,8 +1,8 @@
 package application_test
 
 import (
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	testApplication "github.com/cloudfoundry/cli/cf/api/applications/fakes"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -19,8 +19,8 @@ var _ = Describe("unset-env command", func() {
 	var (
 		ui                  *testterm.FakeUI
 		app                 models.Application
-		appRepo             *testapi.FakeApplicationRepository
-		configRepo          configuration.ReadWriter
+		appRepo             *testApplication.FakeApplicationRepository
+		configRepo          core_config.ReadWriter
 		requirementsFactory *testreq.FakeReqFactory
 	)
 
@@ -29,30 +29,28 @@ var _ = Describe("unset-env command", func() {
 		app = models.Application{}
 		app.Name = "my-app"
 		app.Guid = "my-app-guid"
-		appRepo = &testapi.FakeApplicationRepository{}
+		appRepo = &testApplication.FakeApplicationRepository{}
 		requirementsFactory = &testreq.FakeReqFactory{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
 	})
 
-	runCommand := func(args ...string) {
-		testcmd.RunCommand(NewUnsetEnv(ui, configRepo, appRepo), args, requirementsFactory)
+	runCommand := func(args ...string) bool {
+		return testcmd.RunCommand(NewUnsetEnv(ui, configRepo, appRepo), args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
 		It("fails when not logged in", func() {
 			requirementsFactory.TargetedSpaceSuccess = true
 			requirementsFactory.Application = app
-			runCommand("foo", "bar")
 
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("foo", "bar")).To(BeFalse())
 		})
 
 		It("fails when a space is not targeted", func() {
 			requirementsFactory.LoginSuccess = true
 			requirementsFactory.Application = app
-			runCommand("foo", "bar")
 
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("foo", "bar")).To(BeFalse())
 		})
 
 		It("fails with usage when not provided with exactly 2 args", func() {
@@ -60,14 +58,13 @@ var _ = Describe("unset-env command", func() {
 			requirementsFactory.TargetedSpaceSuccess = true
 			requirementsFactory.Application = app
 
-			runCommand("too", "many", "args")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("too", "many", "args")).To(BeFalse())
 		})
 	})
 
 	Context("when logged in, a space is targeted and provided enough args", func() {
 		BeforeEach(func() {
-			app.EnvironmentVars = map[string]string{"foo": "bar", "DATABASE_URL": "mysql://example.com/my-db"}
+			app.EnvironmentVars = map[string]interface{}{"foo": "bar", "DATABASE_URL": "mysql://example.com/my-db"}
 
 			requirementsFactory.Application = app
 			requirementsFactory.LoginSuccess = true
@@ -84,7 +81,7 @@ var _ = Describe("unset-env command", func() {
 
 			Expect(requirementsFactory.ApplicationName).To(Equal("my-app"))
 			Expect(appRepo.UpdateAppGuid).To(Equal("my-app-guid"))
-			Expect(*appRepo.UpdateParams.EnvironmentVars).To(Equal(map[string]string{
+			Expect(*appRepo.UpdateParams.EnvironmentVars).To(Equal(map[string]interface{}{
 				"foo": "bar",
 			}))
 		})

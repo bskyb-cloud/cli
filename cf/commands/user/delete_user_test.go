@@ -3,7 +3,7 @@ package user_test
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/user"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -18,7 +18,7 @@ import (
 var _ = Describe("delete-user command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		configRepo          configuration.ReadWriter
+		configRepo          core_config.ReadWriter
 		userRepo            *testapi.FakeUserRepository
 		requirementsFactory *testreq.FakeReqFactory
 	)
@@ -29,7 +29,7 @@ var _ = Describe("delete-user command", func() {
 		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true}
 		configRepo = testconfig.NewRepositoryWithDefaults()
 
-		token, err := testconfig.EncodeAccessToken(configuration.TokenInfo{
+		token, err := testconfig.EncodeAccessToken(core_config.TokenInfo{
 			UserGuid: "admin-user-guid",
 			Username: "admin-user",
 		})
@@ -37,16 +37,16 @@ var _ = Describe("delete-user command", func() {
 		configRepo.SetAccessToken(token)
 	})
 
-	runCommand := func(args ...string) {
+	runCommand := func(args ...string) bool {
 		cmd := NewDeleteUser(ui, configRepo, userRepo)
-		testcmd.RunCommand(cmd, args, requirementsFactory)
+		return testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
 		It("fails when not logged in", func() {
 			requirementsFactory.LoginSuccess = false
-			runCommand("my-user")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+
+			Expect(runCommand("my-user")).To(BeFalse())
 		})
 
 		It("fails with usage when no arguments are given", func() {

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/cloudfoundry/cli/cf/api/resources"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
@@ -26,11 +26,11 @@ type SpaceQuotaRepository interface {
 }
 
 type CloudControllerSpaceQuotaRepository struct {
-	config  configuration.Reader
+	config  core_config.Reader
 	gateway net.Gateway
 }
 
-func NewCloudControllerSpaceQuotaRepository(config configuration.Reader, gateway net.Gateway) (repo CloudControllerSpaceQuotaRepository) {
+func NewCloudControllerSpaceQuotaRepository(config core_config.Reader, gateway net.Gateway) (repo CloudControllerSpaceQuotaRepository) {
 	repo.config = config
 	repo.gateway = gateway
 	return
@@ -93,26 +93,26 @@ func (repo CloudControllerSpaceQuotaRepository) FindByGuid(guid string) (quota m
 }
 
 func (repo CloudControllerSpaceQuotaRepository) Create(quota models.SpaceQuota) error {
-	path := fmt.Sprintf("%s/v2/space_quota_definitions", repo.config.ApiEndpoint())
-	return repo.gateway.CreateResourceFromStruct(path, quota)
+	path := "/v2/space_quota_definitions"
+	return repo.gateway.CreateResourceFromStruct(repo.config.ApiEndpoint(), path, quota)
 }
 
 func (repo CloudControllerSpaceQuotaRepository) Update(quota models.SpaceQuota) error {
-	path := fmt.Sprintf("%s/v2/space_quota_definitions/%s", repo.config.ApiEndpoint(), quota.Guid)
-	return repo.gateway.UpdateResourceFromStruct(path, quota)
+	path := fmt.Sprintf("/v2/space_quota_definitions/%s", quota.Guid)
+	return repo.gateway.UpdateResourceFromStruct(repo.config.ApiEndpoint(), path, quota)
 }
 
 func (repo CloudControllerSpaceQuotaRepository) AssociateSpaceWithQuota(spaceGuid string, quotaGuid string) error {
-	path := fmt.Sprintf("%s/v2/space_quota_definitions/%s/spaces/%s", repo.config.ApiEndpoint(), quotaGuid, spaceGuid)
-	return repo.gateway.UpdateResource(path, strings.NewReader(""))
+	path := fmt.Sprintf("/v2/space_quota_definitions/%s/spaces/%s", quotaGuid, spaceGuid)
+	return repo.gateway.UpdateResource(repo.config.ApiEndpoint(), path, strings.NewReader(""))
 }
 
 func (repo CloudControllerSpaceQuotaRepository) UnassignQuotaFromSpace(spaceGuid string, quotaGuid string) error {
-	path := fmt.Sprintf("%s/v2/space_quota_definitions/%s/spaces/%s", repo.config.ApiEndpoint(), quotaGuid, spaceGuid)
-	return repo.gateway.DeleteResource(path)
+	path := fmt.Sprintf("/v2/space_quota_definitions/%s/spaces/%s", quotaGuid, spaceGuid)
+	return repo.gateway.DeleteResource(repo.config.ApiEndpoint(), path)
 }
 
 func (repo CloudControllerSpaceQuotaRepository) Delete(quotaGuid string) (apiErr error) {
-	path := fmt.Sprintf("%s/v2/space_quota_definitions/%s", repo.config.ApiEndpoint(), quotaGuid)
-	return repo.gateway.DeleteResource(path)
+	path := fmt.Sprintf("/v2/space_quota_definitions/%s", quotaGuid)
+	return repo.gateway.DeleteResource(repo.config.ApiEndpoint(), path)
 }

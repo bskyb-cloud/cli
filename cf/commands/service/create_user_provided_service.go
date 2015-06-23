@@ -2,12 +2,13 @@ package service
 
 import (
 	"encoding/json"
-	. "github.com/cloudfoundry/cli/cf/i18n"
 	"strings"
+
+	. "github.com/cloudfoundry/cli/cf/i18n"
 
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/flag_helpers"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -16,11 +17,11 @@ import (
 
 type CreateUserProvidedService struct {
 	ui                              terminal.UI
-	config                          configuration.Reader
+	config                          core_config.Reader
 	userProvidedServiceInstanceRepo api.UserProvidedServiceInstanceRepository
 }
 
-func NewCreateUserProvidedService(ui terminal.UI, config configuration.Reader, userProvidedServiceInstanceRepo api.UserProvidedServiceInstanceRepository) (cmd CreateUserProvidedService) {
+func NewCreateUserProvidedService(ui terminal.UI, config core_config.Reader, userProvidedServiceInstanceRepo api.UserProvidedServiceInstanceRepository) (cmd CreateUserProvidedService) {
 	cmd.ui = ui
 	cmd.config = config
 	cmd.userProvidedServiceInstanceRepo = userProvidedServiceInstanceRepo
@@ -32,21 +33,29 @@ func (cmd CreateUserProvidedService) Metadata() command_metadata.CommandMetadata
 		Name:        "create-user-provided-service",
 		ShortName:   "cups",
 		Description: T("Make a user-provided service instance available to cf apps"),
-		Usage: T(`CF_NAME create-user-provided-service SERVICE_INSTANCE [-p PARAMETERS] [-l SYSLOG-DRAIN-URL]
+		Usage: T(`CF_NAME create-user-provided-service SERVICE_INSTANCE [-p CREDENTIALS] [-l SYSLOG-DRAIN-URL]
 
-   Pass comma separated parameter names to enable interactive mode:
+   Pass comma separated credential parameter names to enable interactive mode:
    CF_NAME create-user-provided-service SERVICE_INSTANCE -p "comma, separated, parameter, names"
 
-   Pass parameters as JSON to create a service non-interactively:
+   Pass credential parameters as JSON to create a service non-interactively:
    CF_NAME create-user-provided-service SERVICE_INSTANCE -p '{"name":"value","name":"value"}'
 
-EXAMPLE:
-   CF_NAME create-user-provided-service oracle-db-mine -p "host, port, dbname, username, password"
-   CF_NAME create-user-provided-service oracle-db-mine -p '{"username":"admin","password":"pa55woRD"}'
-   CF_NAME create-user-provided-service my-drain-service -l syslog://example.com
+EXAMPLE 
+      CF_NAME create-user-provided-service my-db-mine -p "username, password"
+      CF_NAME create-user-provided-service my-drain-service -l syslog://example.com
+
+   Linux/Mac:
+      CF_NAME create-user-provided-service my-db-mine -p '{"username":"admin","password":"pa55woRD"}'
+
+   Windows Command Line
+      CF_NAME create-user-provided-service my-db-mine -p "{\"username\":\"admin\",\"password\":\"pa55woRD\"}"
+
+   Windows PowerShell
+      CF_NAME create-user-provided-service my-db-mine -p '{\"username\":\"admin\",\"password\":\"pa55woRD\"}'
 `),
 		Flags: []cli.Flag{
-			flag_helpers.NewStringFlag("p", T("Parameters")),
+			flag_helpers.NewStringFlag("p", T("Credentials")),
 			flag_helpers.NewStringFlag("l", T("Syslog Drain Url")),
 		},
 	}
@@ -57,7 +66,10 @@ func (cmd CreateUserProvidedService) GetRequirements(requirementsFactory require
 		cmd.ui.FailWithUsage(c)
 	}
 
-	reqs = append(reqs, requirementsFactory.NewLoginRequirement())
+	reqs = []requirements.Requirement{
+		requirementsFactory.NewLoginRequirement(),
+		requirementsFactory.NewTargetedSpaceRequirement(),
+	}
 	return
 }
 

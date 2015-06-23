@@ -3,10 +3,12 @@ package space
 import (
 	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/api/organizations"
+	"github.com/cloudfoundry/cli/cf/api/space_quotas"
 	"github.com/cloudfoundry/cli/cf/api/spaces"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/commands/user"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/flag_helpers"
 	. "github.com/cloudfoundry/cli/cf/i18n"
@@ -18,20 +20,22 @@ import (
 
 type CreateSpace struct {
 	ui              terminal.UI
-	config          configuration.Reader
+	config          core_config.Reader
 	spaceRepo       spaces.SpaceRepository
-	orgRepo         api.OrganizationRepository
+	orgRepo         organizations.OrganizationRepository
 	userRepo        api.UserRepository
 	spaceRoleSetter user.SpaceRoleSetter
+	spaceQuotaRepo  space_quotas.SpaceQuotaRepository
 }
 
-func NewCreateSpace(ui terminal.UI, config configuration.Reader, spaceRoleSetter user.SpaceRoleSetter, spaceRepo spaces.SpaceRepository, orgRepo api.OrganizationRepository, userRepo api.UserRepository) (cmd CreateSpace) {
+func NewCreateSpace(ui terminal.UI, config core_config.Reader, spaceRoleSetter user.SpaceRoleSetter, spaceRepo spaces.SpaceRepository, orgRepo organizations.OrganizationRepository, userRepo api.UserRepository, spaceQuotaRepo space_quotas.SpaceQuotaRepository) (cmd CreateSpace) {
 	cmd.ui = ui
 	cmd.config = config
 	cmd.spaceRoleSetter = spaceRoleSetter
 	cmd.spaceRepo = spaceRepo
 	cmd.orgRepo = orgRepo
 	cmd.userRepo = userRepo
+	cmd.spaceQuotaRepo = spaceQuotaRepo
 	return
 }
 
@@ -39,15 +43,16 @@ func (cmd CreateSpace) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "create-space",
 		Description: T("Create a space"),
-		Usage:       T("CF_NAME create-space SPACE [-o ORG]"),
+		Usage:       T("CF_NAME create-space SPACE [-o ORG] [-q SPACE-QUOTA]"),
 		Flags: []cli.Flag{
 			flag_helpers.NewStringFlag("o", T("Organization")),
+			flag_helpers.NewStringFlag("q", T("Quota to assign to the newly created space (excluding this option results in assignment of default quota)")),
 		},
 	}
 }
 
 func (cmd CreateSpace) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
-	if len(c.Args()) == 0 {
+	if len(c.Args()) != 1 {
 		cmd.ui.FailWithUsage(c)
 	}
 
@@ -62,6 +67,7 @@ func (cmd CreateSpace) GetRequirements(requirementsFactory requirements.Factory,
 func (cmd CreateSpace) Run(c *cli.Context) {
 	spaceName := c.Args()[0]
 	orgName := c.String("o")
+	spaceQuotaName := c.String("q")
 	orgGuid := ""
 	if orgName == "" {
 		orgName = cmd.config.OrganizationFields().Name
@@ -74,6 +80,15 @@ func (cmd CreateSpace) Run(c *cli.Context) {
 			"OrgName":     terminal.EntityNameColor(orgName),
 			"CurrentUser": terminal.EntityNameColor(cmd.config.Username()),
 		}))
+
+	var spaceQuotaGuid string
+	if spaceQuotaName != "" {
+		spaceQuota, err := cmd.spaceQuotaRepo.FindByName(spaceQuotaName)
+		if err != nil {
+			cmd.ui.Failed(err.Error())
+		}
+		spaceQuotaGuid = spaceQuota.Guid
+	}
 
 	if orgGuid == "" {
 		org, apiErr := cmd.orgRepo.FindByName(orgName)
@@ -94,7 +109,7 @@ func (cmd CreateSpace) Run(c *cli.Context) {
 		orgGuid = org.Guid
 	}
 
-	space, err := cmd.spaceRepo.Create(spaceName, orgGuid)
+	space, err := cmd.spaceRepo.Create(spaceName, orgGuid, spaceQuotaGuid)
 	if err != nil {
 		if httpErr, ok := err.(errors.HttpError); ok && httpErr.ErrorCode() == errors.SPACE_EXISTS {
 			cmd.ui.Ok()

@@ -2,7 +2,7 @@ package domain_test
 
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
@@ -21,7 +21,7 @@ var _ = Describe("delete-shared-domain command", func() {
 		ui                  *testterm.FakeUI
 		domainRepo          *testapi.FakeDomainRepository
 		requirementsFactory *testreq.FakeReqFactory
-		configRepo          configuration.ReadWriter
+		configRepo          core_config.ReadWriter
 	)
 
 	BeforeEach(func() {
@@ -31,21 +31,21 @@ var _ = Describe("delete-shared-domain command", func() {
 		configRepo = testconfig.NewRepositoryWithDefaults()
 	})
 
-	RunCommand := func(args ...string) {
-		testcmd.RunCommand(NewDeleteSharedDomain(ui, configRepo, domainRepo), args, requirementsFactory)
+	runCommand := func(args ...string) bool {
+		return testcmd.RunCommand(NewDeleteSharedDomain(ui, configRepo, domainRepo), args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
 		It("fails if you are not logged in", func() {
 			requirementsFactory.TargetedOrgSuccess = true
-			RunCommand("foo.com")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+
+			Expect(runCommand("foo.com")).To(BeFalse())
 		})
 
 		It("fails if an organiztion is not targeted", func() {
 			requirementsFactory.LoginSuccess = true
-			RunCommand("foo.com")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+
+			Expect(runCommand("foo.com")).To(BeFalse())
 		})
 	})
 
@@ -53,10 +53,12 @@ var _ = Describe("delete-shared-domain command", func() {
 		BeforeEach(func() {
 			requirementsFactory.LoginSuccess = true
 			requirementsFactory.TargetedOrgSuccess = true
-			domainRepo.FindByNameInOrgDomain = models.DomainFields{
-				Name:   "foo.com",
-				Guid:   "foo-guid",
-				Shared: true,
+			domainRepo.FindByNameInOrgDomain = []models.DomainFields{
+				models.DomainFields{
+					Name:   "foo.com",
+					Guid:   "foo-guid",
+					Shared: true,
+				},
 			}
 		})
 
@@ -67,7 +69,7 @@ var _ = Describe("delete-shared-domain command", func() {
 
 			It("when the domain is not found it tells the user", func() {
 				domainRepo.FindByNameInOrgApiResponse = errors.NewModelNotFoundError("Domain", "foo.com")
-				RunCommand("foo.com")
+				runCommand("foo.com")
 
 				Expect(ui.Outputs).To(ContainSubstrings(
 					[]string{"Deleting domain", "foo.com"},
@@ -78,7 +80,7 @@ var _ = Describe("delete-shared-domain command", func() {
 
 			It("fails when the api returns an error", func() {
 				domainRepo.FindByNameInOrgApiResponse = errors.New("couldn't find the droids you're lookin for")
-				RunCommand("foo.com")
+				runCommand("foo.com")
 
 				Expect(ui.Outputs).To(ContainSubstrings(
 					[]string{"Deleting domain", "foo.com"},
@@ -90,7 +92,7 @@ var _ = Describe("delete-shared-domain command", func() {
 
 			It("fails when deleting the domain encounters an error", func() {
 				domainRepo.DeleteSharedApiResponse = errors.New("failed badly")
-				RunCommand("foo.com")
+				runCommand("foo.com")
 
 				Expect(domainRepo.DeleteSharedDomainGuid).To(Equal("foo-guid"))
 				Expect(ui.Outputs).To(ContainSubstrings(
@@ -102,7 +104,7 @@ var _ = Describe("delete-shared-domain command", func() {
 			})
 
 			It("Prompts a user to delete the shared domain", func() {
-				RunCommand("foo.com")
+				runCommand("foo.com")
 
 				Expect(domainRepo.DeleteSharedDomainGuid).To(Equal("foo-guid"))
 				Expect(ui.Prompts).To(ContainSubstrings([]string{"delete", "domain", "foo.com"}))
@@ -114,7 +116,7 @@ var _ = Describe("delete-shared-domain command", func() {
 		})
 
 		It("skips confirmation if the force flag is passed", func() {
-			RunCommand("-f", "foo.com")
+			runCommand("-f", "foo.com")
 
 			Expect(domainRepo.DeleteSharedDomainGuid).To(Equal("foo-guid"))
 			Expect(ui.Prompts).To(BeEmpty())

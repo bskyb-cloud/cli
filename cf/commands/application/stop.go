@@ -2,11 +2,12 @@ package application
 
 import (
 	"errors"
+
 	. "github.com/cloudfoundry/cli/cf/i18n"
 
-	"github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/api/applications"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -14,17 +15,17 @@ import (
 )
 
 type ApplicationStopper interface {
-	ApplicationStop(app models.Application) (updatedApp models.Application, err error)
+	ApplicationStop(app models.Application, orgName string, spaceName string) (updatedApp models.Application, err error)
 }
 
 type Stop struct {
 	ui      terminal.UI
-	config  configuration.Reader
-	appRepo api.ApplicationRepository
+	config  core_config.Reader
+	appRepo applications.ApplicationRepository
 	appReq  requirements.ApplicationRequirement
 }
 
-func NewStop(ui terminal.UI, config configuration.Reader, appRepo api.ApplicationRepository) (cmd *Stop) {
+func NewStop(ui terminal.UI, config core_config.Reader, appRepo applications.ApplicationRepository) (cmd *Stop) {
 	cmd = new(Stop)
 	cmd.ui = ui
 	cmd.config = config
@@ -38,7 +39,7 @@ func (cmd *Stop) Metadata() command_metadata.CommandMetadata {
 		Name:        "stop",
 		ShortName:   "sp",
 		Description: T("Stop an app"),
-		Usage:       T("CF_NAME stop APP"),
+		Usage:       T("CF_NAME stop APP_NAME"),
 	}
 }
 
@@ -47,13 +48,18 @@ func (cmd *Stop) GetRequirements(requirementsFactory requirements.Factory, c *cl
 		cmd.ui.FailWithUsage(c)
 	}
 
-	cmd.appReq = requirementsFactory.NewApplicationRequirement(c.Args()[0])
+	if cmd.appReq == nil {
+		cmd.appReq = requirementsFactory.NewApplicationRequirement(c.Args()[0])
+	} else {
+		cmd.appReq.SetApplicationName(c.Args()[0])
+	}
 
-	reqs = []requirements.Requirement{requirementsFactory.NewLoginRequirement(), cmd.appReq}
+	reqs = []requirements.Requirement{requirementsFactory.NewLoginRequirement(),
+		requirementsFactory.NewTargetedSpaceRequirement(), cmd.appReq}
 	return
 }
 
-func (cmd *Stop) ApplicationStop(app models.Application) (updatedApp models.Application, err error) {
+func (cmd *Stop) ApplicationStop(app models.Application, orgName, spaceName string) (updatedApp models.Application, err error) {
 	if app.State == "stopped" {
 		updatedApp = app
 		return
@@ -62,8 +68,8 @@ func (cmd *Stop) ApplicationStop(app models.Application) (updatedApp models.Appl
 	cmd.ui.Say(T("Stopping app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
 		map[string]interface{}{
 			"AppName":     terminal.EntityNameColor(app.Name),
-			"OrgName":     terminal.EntityNameColor(cmd.config.OrganizationFields().Name),
-			"SpaceName":   terminal.EntityNameColor(cmd.config.SpaceFields().Name),
+			"OrgName":     terminal.EntityNameColor(orgName),
+			"SpaceName":   terminal.EntityNameColor(spaceName),
 			"CurrentUser": terminal.EntityNameColor(cmd.config.Username())}))
 
 	state := "STOPPED"
@@ -83,6 +89,6 @@ func (cmd *Stop) Run(c *cli.Context) {
 	if app.State == "stopped" {
 		cmd.ui.Say(terminal.WarningColor(T("App ") + app.Name + T(" is already stopped")))
 	} else {
-		cmd.ApplicationStop(app)
+		cmd.ApplicationStop(app, cmd.config.OrganizationFields().Name, cmd.config.SpaceFields().Name)
 	}
 }

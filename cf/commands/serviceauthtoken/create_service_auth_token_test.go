@@ -2,7 +2,7 @@ package serviceauthtoken_test
 
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -18,7 +18,7 @@ import (
 var _ = Describe("create-service-auth-token command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		configRepo          configuration.ReadWriter
+		configRepo          core_config.ReadWriter
 		authTokenRepo       *testapi.FakeAuthTokenRepo
 		requirementsFactory *testreq.FakeReqFactory
 	)
@@ -30,9 +30,9 @@ var _ = Describe("create-service-auth-token command", func() {
 		requirementsFactory = &testreq.FakeReqFactory{}
 	})
 
-	runCommand := func(args ...string) {
+	runCommand := func(args ...string) bool {
 		cmd := NewCreateServiceAuthToken(ui, configRepo, authTokenRepo)
-		testcmd.RunCommand(cmd, args, requirementsFactory)
+		return testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
@@ -44,9 +44,7 @@ var _ = Describe("create-service-auth-token command", func() {
 		})
 
 		It("fails when not logged in", func() {
-			runCommand("just", "enough", "args")
-
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("just", "enough", "args")).To(BeFalse())
 		})
 	})
 

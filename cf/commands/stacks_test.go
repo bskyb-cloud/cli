@@ -1,7 +1,7 @@
 package commands_test
 
 import (
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	testapi "github.com/cloudfoundry/cli/cf/api/stacks/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
@@ -33,8 +33,18 @@ var _ = Describe("stacks command", func() {
 	Describe("login requirements", func() {
 		It("fails if the user is not logged in", func() {
 			requirementsFactory.LoginSuccess = false
-			testcmd.RunCommand(cmd, []string{}, requirementsFactory)
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+
+			Expect(testcmd.RunCommand(cmd, []string{}, requirementsFactory)).To(BeFalse())
+		})
+
+		It("should fail with usage when provided any arguments", func() {
+			requirementsFactory.LoginSuccess = true
+			Expect(testcmd.RunCommand(cmd, []string{"etcetc"}, requirementsFactory)).To(BeFalse())
+			Expect(ui.FailedWithUsage).To(BeTrue())
+			Expect(ui.Outputs).To(ContainSubstrings(
+				[]string{"FAILED"},
+				[]string{"Incorrect Usage."},
+			))
 		})
 	})
 
@@ -48,7 +58,7 @@ var _ = Describe("stacks command", func() {
 			Description: "Stack 2 Description",
 		}
 
-		repo.FindAllStacks = []models.Stack{stack1, stack2}
+		repo.FindAllReturns([]models.Stack{stack1, stack2}, nil)
 		testcmd.RunCommand(cmd, []string{}, requirementsFactory)
 
 		Expect(ui.Outputs).To(ContainSubstrings(

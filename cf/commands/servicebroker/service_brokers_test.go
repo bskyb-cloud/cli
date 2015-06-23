@@ -3,7 +3,7 @@ package servicebroker_test
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/servicebroker"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -27,7 +27,7 @@ func callListServiceBrokers(args []string, serviceBrokerRepo *testapi.FakeServic
 var _ = Describe("service-brokers command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		config              configuration.Repository
+		config              core_config.Repository
 		cmd                 ListServiceBrokers
 		repo                *testapi.FakeServiceBrokerRepo
 		requirementsFactory *testreq.FakeReqFactory
@@ -44,8 +44,12 @@ var _ = Describe("service-brokers command", func() {
 	Describe("login requirements", func() {
 		It("fails if the user is not logged in", func() {
 			requirementsFactory.LoginSuccess = false
-			testcmd.RunCommand(cmd, []string{}, requirementsFactory)
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(testcmd.RunCommand(cmd, []string{}, requirementsFactory)).To(BeFalse())
+		})
+		It("should fail with usage when provided any arguments", func() {
+			requirementsFactory.LoginSuccess = true
+			Expect(testcmd.RunCommand(cmd, []string{"blahblah"}, requirementsFactory)).To(BeFalse())
+			Expect(ui.FailedWithUsage).To(BeTrue())
 		})
 	})
 
@@ -72,6 +76,37 @@ var _ = Describe("service-brokers command", func() {
 			[]string{"service-broker-to-list-a", "http://service-a-url.com"},
 			[]string{"service-broker-to-list-b", "http://service-b-url.com"},
 			[]string{"service-broker-to-list-c", "http://service-c-url.com"},
+		))
+	})
+
+	It("lists service brokers by alphabetical order", func() {
+		repo.ServiceBrokers = []models.ServiceBroker{models.ServiceBroker{
+			Name: "z-service-broker-to-list",
+			Guid: "z-service-broker-to-list-guid-a",
+			Url:  "http://service-a-url.com",
+		}, models.ServiceBroker{
+			Name: "a-service-broker-to-list",
+			Guid: "a-service-broker-to-list-guid-c",
+			Url:  "http://service-c-url.com",
+		}, models.ServiceBroker{
+			Name: "fun-service-broker-to-list",
+			Guid: "fun-service-broker-to-list-guid-b",
+			Url:  "http://service-b-url.com",
+		}, models.ServiceBroker{
+			Name: "123-service-broker-to-list",
+			Guid: "123-service-broker-to-list-guid-c",
+			Url:  "http://service-d-url.com",
+		}}
+
+		testcmd.RunCommand(cmd, []string{}, requirementsFactory)
+
+		Expect(ui.Outputs).To(BeInDisplayOrder(
+			[]string{"Getting service brokers as", "my-user"},
+			[]string{"name", "url"},
+			[]string{"123-service-broker-to-list", "http://service-d-url.com"},
+			[]string{"a-service-broker-to-list", "http://service-c-url.com"},
+			[]string{"fun-service-broker-to-list", "http://service-b-url.com"},
+			[]string{"z-service-broker-to-list", "http://service-a-url.com"},
 		))
 	})
 

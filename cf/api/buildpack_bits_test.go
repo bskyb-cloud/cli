@@ -14,11 +14,12 @@ import (
 	"time"
 
 	"github.com/cloudfoundry/cli/cf/app_files"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/cf/api"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -29,7 +30,7 @@ import (
 var _ = Describe("BuildpackBitsRepository", func() {
 	var (
 		buildpacksDir     string
-		configRepo        configuration.Repository
+		configRepo        core_config.Repository
 		repo              CloudControllerBuildpackBitsRepository
 		buildpack         models.Buildpack
 		testServer        *httptest.Server
@@ -38,7 +39,7 @@ var _ = Describe("BuildpackBitsRepository", func() {
 
 	BeforeEach(func() {
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		gateway := net.NewCloudControllerGateway((configRepo), time.Now)
+		gateway := net.NewCloudControllerGateway(configRepo, time.Now, &testterm.FakeUI{})
 		pwd, _ := os.Getwd()
 
 		buildpacksDir = filepath.Join(pwd, "../../fixtures/buildpacks")

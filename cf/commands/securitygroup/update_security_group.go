@@ -6,7 +6,7 @@ import (
 
 	"github.com/cloudfoundry/cli/cf/api/security_groups"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/cloudfoundry/cli/json"
@@ -16,10 +16,10 @@ import (
 type UpdateSecurityGroup struct {
 	ui                terminal.UI
 	securityGroupRepo security_groups.SecurityGroupRepo
-	configRepo        configuration.Reader
+	configRepo        core_config.Reader
 }
 
-func NewUpdateSecurityGroup(ui terminal.UI, configRepo configuration.Reader, securityGroupRepo security_groups.SecurityGroupRepo) UpdateSecurityGroup {
+func NewUpdateSecurityGroup(ui terminal.UI, configRepo core_config.Reader, securityGroupRepo security_groups.SecurityGroupRepo) UpdateSecurityGroup {
 	return UpdateSecurityGroup{
 		ui:                ui,
 		configRepo:        configRepo,
@@ -30,10 +30,11 @@ func NewUpdateSecurityGroup(ui terminal.UI, configRepo configuration.Reader, sec
 func (cmd UpdateSecurityGroup) Metadata() command_metadata.CommandMetadata {
 	primaryUsage := T("CF_NAME update-security-group SECURITY_GROUP PATH_TO_JSON_RULES_FILE")
 	secondaryUsage := T("   The provided path can be an absolute or relative path to a file.\n   It should have a single array with JSON objects inside describing the rules.")
+	tipUsage := T("TIP: Changes will not apply to existing running applications until they are restarted.")
 	return command_metadata.CommandMetadata{
 		Name:        "update-security-group",
 		Description: T("Update a security group"),
-		Usage:       strings.Join([]string{primaryUsage, secondaryUsage}, "\n\n"),
+		Usage:       strings.Join([]string{primaryUsage, secondaryUsage, tipUsage}, "\n\n"),
 	}
 }
 
@@ -54,7 +55,7 @@ func (cmd UpdateSecurityGroup) Run(context *cli.Context) {
 	}
 
 	pathToJSONFile := context.Args()[1]
-	rules, err := json.ParseJSON(pathToJSONFile)
+	rules, err := json.ParseJsonArray(pathToJSONFile)
 	if err != nil {
 		cmd.ui.Failed(err.Error())
 	}
@@ -70,4 +71,6 @@ func (cmd UpdateSecurityGroup) Run(context *cli.Context) {
 	}
 
 	cmd.ui.Ok()
+	cmd.ui.Say("\n\n")
+	cmd.ui.Say(T("TIP: Changes will not apply to existing running applications until they are restarted."))
 }

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	term "github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/codegangsta/cli"
 )
@@ -15,6 +15,7 @@ const QuietPanic = "I should not print anything"
 
 type FakeUI struct {
 	Outputs                    []string
+	UncapturedOutput           []string
 	WarnOutputs                []string
 	Prompts                    []string
 	PasswordPrompts            []string
@@ -36,6 +37,15 @@ func (ui *FakeUI) PrintPaginator(rows []string, err error) {
 	for _, row := range rows {
 		ui.Say(row)
 	}
+}
+
+func (ui *FakeUI) PrintCapturingNoOutput(message string, args ...interface{}) {
+	ui.sayMutex.Lock()
+	defer ui.sayMutex.Unlock()
+
+	message = fmt.Sprintf(message, args...)
+	ui.UncapturedOutput = append(ui.UncapturedOutput, strings.Split(message, "\n")...)
+	return
 }
 
 func (ui *FakeUI) Say(message string, args ...interface{}) {
@@ -139,7 +149,7 @@ func (ui *FakeUI) ClearOutputs() {
 	ui.Outputs = []string{}
 }
 
-func (ui *FakeUI) ShowConfiguration(config configuration.Reader) {
+func (ui *FakeUI) ShowConfiguration(config core_config.Reader) {
 	ui.ShowConfigurationCalled = true
 }
 

@@ -1,12 +1,13 @@
 package manifest_test
 
 import (
+	"runtime"
+	"strings"
+
 	"github.com/cloudfoundry/cli/cf/manifest"
 	"github.com/cloudfoundry/cli/generic"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"runtime"
-	"strings"
 
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 )
@@ -65,7 +66,24 @@ var _ = Describe("Manifests", func() {
 
 		_, err := m.Applications()
 		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("memory"))
+		Expect(err.Error()).To(ContainSubstring("Invalid value for 'memory': 512"))
+	})
+
+	//candiedyaml returns an integer value when no unit is provided
+	It("returns an error when the memory limit is a non-string", func() {
+		m := NewManifest("/some/path/manifest.yml", generic.NewMap(map[interface{}]interface{}{
+			"instances": "3",
+			"memory":    128,
+			"applications": []interface{}{
+				map[interface{}]interface{}{
+					"name": "bitcoin-miner",
+				},
+			},
+		}))
+
+		_, err := m.Applications()
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("Invalid value for 'memory': 128"))
 	})
 
 	It("sets applications' health check timeouts", func() {
@@ -81,6 +99,17 @@ var _ = Describe("Manifests", func() {
 		apps, err := m.Applications()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(*apps[0].HealthCheckTimeout).To(Equal(360))
+	})
+
+	It("allows boolean env var values", func() {
+		m := NewManifest("/some/path/manifest.yml", generic.NewMap(map[interface{}]interface{}{
+			"env": generic.NewMap(map[interface{}]interface{}{
+				"bar": true,
+			}),
+		}))
+
+		_, err := m.Applications()
+		Expect(err).ToNot(HaveOccurred())
 	})
 
 	It("does not allow nil values for environment variables", func() {
@@ -172,6 +201,7 @@ var _ = Describe("Manifests", func() {
 					"instances":    nil,
 					"timeout":      nil,
 					"no-route":     nil,
+					"no-hostname":  nil,
 					"services":     nil,
 					"env":          nil,
 					"random-route": nil,
@@ -183,11 +213,29 @@ var _ = Describe("Manifests", func() {
 		Expect(err).To(HaveOccurred())
 		errorSlice := strings.Split(err.Error(), "\n")
 		manifestKeys := []string{"disk_quota", "domain", "host", "name", "path", "stack",
-			"memory", "instances", "timeout", "no-route", "services", "env", "random-route"}
+			"memory", "instances", "timeout", "no-route", "no-hostname", "services", "env", "random-route"}
 
 		for _, key := range manifestKeys {
 			Expect(errorSlice).To(ContainSubstrings([]string{key, "not be null"}))
 		}
+	})
+
+	It("returns errors when hosts/domains is not valid slice", func() {
+		m := NewManifest("/some/path", generic.NewMap(map[interface{}]interface{}{
+			"applications": []interface{}{
+				map[interface{}]interface{}{
+					"hosts":   "bad-value",
+					"domains": []interface{}{"val1", "val2", false, true},
+				},
+			},
+		}))
+
+		_, err := m.Applications()
+		Expect(err).To(HaveOccurred())
+		errorSlice := strings.Split(err.Error(), "\n")
+
+		Expect(errorSlice).To(ContainSubstrings([]string{"hosts", "to be a list of strings"}))
+		Expect(errorSlice).To(ContainSubstrings([]string{"domains", "to be a list of strings"}))
 	})
 
 	It("parses known manifest keys", func() {
@@ -197,13 +245,16 @@ var _ = Describe("Manifests", func() {
 					"buildpack":    "my-buildpack",
 					"disk_quota":   "512M",
 					"domain":       "my-domain",
+					"domains":      []interface{}{"domain1.test", "domain2.test"},
 					"host":         "my-hostname",
+					"hosts":        []interface{}{"host-1", "host-2"},
 					"name":         "my-app-name",
 					"stack":        "my-stack",
 					"memory":       "256M",
 					"instances":    1,
 					"timeout":      11,
 					"no-route":     true,
+					"no-hostname":  true,
 					"random-route": true,
 				},
 			},
@@ -215,15 +266,39 @@ var _ = Describe("Manifests", func() {
 
 		Expect(*apps[0].BuildpackUrl).To(Equal("my-buildpack"))
 		Expect(*apps[0].DiskQuota).To(Equal(int64(512)))
-		Expect(*apps[0].Domain).To(Equal("my-domain"))
-		Expect(*apps[0].Host).To(Equal("my-hostname"))
+		Expect(*apps[0].Domains).To(Equal([]string{"domain1.test", "domain2.test", "my-domain"}))
+		Expect(*apps[0].Hosts).To(Equal([]string{"host-1", "host-2", "my-hostname"}))
 		Expect(*apps[0].Name).To(Equal("my-app-name"))
 		Expect(*apps[0].StackName).To(Equal("my-stack"))
 		Expect(*apps[0].Memory).To(Equal(int64(256)))
 		Expect(*apps[0].InstanceCount).To(Equal(1))
 		Expect(*apps[0].HealthCheckTimeout).To(Equal(11))
 		Expect(apps[0].NoRoute).To(BeTrue())
+		Expect(apps[0].NoHostname).To(BeTrue())
 		Expect(apps[0].UseRandomHostname).To(BeTrue())
+	})
+
+	It("removes duplicated values in 'hosts' and 'domains'", func() {
+		m := NewManifest("/some/path", generic.NewMap(map[interface{}]interface{}{
+			"applications": []interface{}{
+				map[interface{}]interface{}{
+					"domain":  "my-domain",
+					"domains": []interface{}{"my-domain", "domain1.test", "domain1.test", "domain2.test"},
+					"host":    "my-hostname",
+					"hosts":   []interface{}{"my-hostname", "host-1", "host-1", "host-2"},
+					"name":    "my-app-name",
+				},
+			},
+		}))
+
+		apps, err := m.Applications()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(len(apps)).To(Equal(1))
+
+		Expect(len(*apps[0].Domains)).To(Equal(3))
+		Expect(*apps[0].Domains).To(Equal([]string{"my-domain", "domain1.test", "domain2.test"}))
+		Expect(len(*apps[0].Hosts)).To(Equal(3))
+		Expect(*apps[0].Hosts).To(Equal([]string{"my-hostname", "host-1", "host-2"}))
 	})
 
 	Describe("old-style property syntax", func() {
@@ -349,11 +424,11 @@ var _ = Describe("Manifests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect((*app[0].EnvironmentVars)["string-key"]).To(Equal("value"))
-			Expect((*app[0].EnvironmentVars)["int-key"]).To(Equal("1"))
-			Expect((*app[0].EnvironmentVars)["float-key"]).To(ContainSubstring("11.1"))
+			Expect((*app[0].EnvironmentVars)["int-key"]).To(Equal(1))
+			Expect((*app[0].EnvironmentVars)["float-key"]).To(Equal(11.1))
 		})
 
-		It("handles values that cannot be converted to strings", func() {
+		XIt("handles values that cannot be converted to strings", func() {
 			m := NewManifest("/some/path/manifest.yml", generic.NewMap(map[interface{}]interface{}{
 				"applications": []interface{}{
 					generic.NewMap(map[interface{}]interface{}{

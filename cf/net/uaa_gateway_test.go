@@ -2,14 +2,16 @@ package net_test
 
 import (
 	"fmt"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"net/http"
+	"net/http/httptest"
+
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	. "github.com/cloudfoundry/cli/cf/net"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"net/http"
-	"net/http/httptest"
 )
 
 var failingUAARequest = func(writer http.ResponseWriter, request *http.Request) {
@@ -20,11 +22,11 @@ var failingUAARequest = func(writer http.ResponseWriter, request *http.Request) 
 
 var _ = Describe("UAA Gateway", func() {
 	var gateway Gateway
-	var config configuration.Reader
+	var config core_config.Reader
 
 	BeforeEach(func() {
 		config = testconfig.NewRepository()
-		gateway = NewUAAGateway(config)
+		gateway = NewUAAGateway(config, &testterm.FakeUI{})
 	})
 
 	It("parses error responses", func() {

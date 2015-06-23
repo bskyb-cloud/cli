@@ -22,6 +22,18 @@ func (f *TestCommandFactory) GetByCmdName(cmdName string) (cmd command.Command, 
 	return
 }
 
+func (f *TestCommandFactory) GetCommandFlags(cmdName string) []string {
+	return []string{}
+}
+
+func (f *TestCommandFactory) GetCommandTotalArgs(cmdName string) (int, error) {
+	return 0, nil
+}
+
+func (f *TestCommandFactory) CheckIfCoreCmdExists(cmdName string) bool {
+	return true
+}
+
 func (fake *TestCommandFactory) CommandMetadatas() []command_metadata.CommandMetadata {
 	return []command_metadata.CommandMetadata{}
 }
@@ -70,7 +82,7 @@ var _ = Describe("Requirements runner", func() {
 		}
 
 		cmdFactory := &TestCommandFactory{Cmd: &cmd}
-		runner := NewRunner(cmdFactory, nil)
+		runner := NewRunner(cmdFactory, nil, nil)
 
 		ctxt := testcmd.NewContext("login", []string{})
 		err := runner.RunCmdByName("some-cmd", ctxt)

@@ -1,12 +1,13 @@
 package actors_test
 
 import (
-	"errors"
+	"github.com/cloudfoundry/cli/cf/errors"
 
 	"github.com/cloudfoundry/cli/cf/actors"
 	fake_plan_builder "github.com/cloudfoundry/cli/cf/actors/plan_builder/fakes"
 	fake_service_builder "github.com/cloudfoundry/cli/cf/actors/service_builder/fakes"
-	"github.com/cloudfoundry/cli/cf/api/fakes"
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	fake_orgs "github.com/cloudfoundry/cli/cf/api/organizations/fakes"
 	"github.com/cloudfoundry/cli/cf/models"
 
 	. "github.com/onsi/ginkgo"
@@ -17,9 +18,9 @@ var _ = Describe("Service Plans", func() {
 	var (
 		actor actors.ServicePlanActor
 
-		servicePlanRepo           *fakes.FakeServicePlanRepo
-		servicePlanVisibilityRepo *fakes.FakeServicePlanVisibilityRepository
-		orgRepo                   *fakes.FakeOrgRepository
+		servicePlanRepo           *testapi.FakeServicePlanRepo
+		servicePlanVisibilityRepo *testapi.FakeServicePlanVisibilityRepository
+		orgRepo                   *fake_orgs.FakeOrganizationRepository
 
 		planBuilder    *fake_plan_builder.FakePlanBuilder
 		serviceBuilder *fake_service_builder.FakeServiceBuilder
@@ -44,9 +45,9 @@ var _ = Describe("Service Plans", func() {
 	)
 
 	BeforeEach(func() {
-		servicePlanRepo = &fakes.FakeServicePlanRepo{}
-		servicePlanVisibilityRepo = &fakes.FakeServicePlanVisibilityRepository{}
-		orgRepo = &fakes.FakeOrgRepository{}
+		servicePlanRepo = &testapi.FakeServicePlanRepo{}
+		servicePlanVisibilityRepo = &testapi.FakeServicePlanVisibilityRepository{}
+		orgRepo = &fake_orgs.FakeOrganizationRepository{}
 		planBuilder = &fake_plan_builder.FakePlanBuilder{}
 		serviceBuilder = &fake_service_builder.FakeServiceBuilder{}
 
@@ -60,10 +61,7 @@ var _ = Describe("Service Plans", func() {
 		org2.Name = "org-2"
 		org2.Guid = "org-2-guid"
 
-		orgRepo.Organizations = []models.Organization{
-			org1,
-			org2,
-		}
+		orgRepo.FindByNameReturns(org1, nil)
 
 		publicServicePlanVisibilityFields = models.ServicePlanVisibilityFields{
 			Guid:            "public-service-plan-visibility-guid",
@@ -169,13 +167,13 @@ var _ = Describe("Service Plans", func() {
 		})
 
 		It("Returns an error if the service cannot be found", func() {
-			serviceBuilder.GetServiceByNameReturns(models.ServiceOffering{}, errors.New("service was not found"))
+			serviceBuilder.GetServiceByNameWithPlansWithOrgNamesReturns(models.ServiceOffering{}, errors.New("service was not found"))
 			_, err := actor.UpdateAllPlansForService("not-a-service", true)
 			Expect(err.Error()).To(Equal("service was not found"))
 		})
 
 		It("Removes the service plan visibilities for any non-public service plans", func() {
-			serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+			serviceBuilder.GetServiceByNameWithPlansWithOrgNamesReturns(mixedService, nil)
 			_, err := actor.UpdateAllPlansForService("my-mixed-service", true)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -185,7 +183,7 @@ var _ = Describe("Service Plans", func() {
 
 		Context("when setting all plans to public", func() {
 			It("Sets all non-public service plans to public", func() {
-				serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+				serviceBuilder.GetServiceByNameWithPlansWithOrgNamesReturns(mixedService, nil)
 				_, err := actor.UpdateAllPlansForService("my-mixed-service", true)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -196,7 +194,7 @@ var _ = Describe("Service Plans", func() {
 			})
 
 			It("Returns true if all the plans were public", func() {
-				serviceBuilder.GetServiceByNameReturns(publicService, nil)
+				serviceBuilder.GetServiceByNameWithPlansWithOrgNamesReturns(publicService, nil)
 
 				servicesOriginallyPublic, err := actor.UpdateAllPlansForService("my-public-service", true)
 				Expect(err).NotTo(HaveOccurred())
@@ -204,7 +202,7 @@ var _ = Describe("Service Plans", func() {
 			})
 
 			It("Returns false if any of the plans were not public", func() {
-				serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+				serviceBuilder.GetServiceByNameWithPlansWithOrgNamesReturns(mixedService, nil)
 
 				servicesOriginallyPublic, err := actor.UpdateAllPlansForService("my-mixed-service", true)
 				Expect(err).NotTo(HaveOccurred())
@@ -228,7 +226,7 @@ var _ = Describe("Service Plans", func() {
 
 		Context("when setting all plans to private", func() {
 			It("Sets all public service plans to private", func() {
-				serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+				serviceBuilder.GetServiceByNameWithPlansWithOrgNamesReturns(mixedService, nil)
 
 				_, err := actor.UpdateAllPlansForService("my-mixed-service", false)
 				Expect(err).ToNot(HaveOccurred())
@@ -240,7 +238,7 @@ var _ = Describe("Service Plans", func() {
 			})
 
 			It("Returns true if all plans were already private", func() {
-				serviceBuilder.GetServiceByNameReturns(privateService, nil)
+				serviceBuilder.GetServiceByNameWithPlansWithOrgNamesReturns(privateService, nil)
 
 				allPlansAlreadyPrivate, err := actor.UpdateAllPlansForService("my-private-service", false)
 				Expect(err).NotTo(HaveOccurred())
@@ -248,7 +246,7 @@ var _ = Describe("Service Plans", func() {
 			})
 
 			It("Returns false if any of the plans were not private", func() {
-				serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+				serviceBuilder.GetServiceByNameWithPlansWithOrgNamesReturns(mixedService, nil)
 
 				allPlansAlreadyPrivate, err := actor.UpdateAllPlansForService("my-mixed-service", false)
 				Expect(err).NotTo(HaveOccurred())
@@ -256,7 +254,7 @@ var _ = Describe("Service Plans", func() {
 			})
 
 			It("Does not try to update service plans if they are all already private", func() {
-				serviceBuilder.GetServiceByNameReturns(privateService, nil)
+				serviceBuilder.GetServiceByNameWithPlansWithOrgNamesReturns(privateService, nil)
 
 				_, err := actor.UpdateAllPlansForService("my-private-service", false)
 				Expect(err).ToNot(HaveOccurred())
@@ -268,13 +266,13 @@ var _ = Describe("Service Plans", func() {
 
 	Describe(".UpdateOrgForService", func() {
 		BeforeEach(func() {
-			serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+			serviceBuilder.GetServiceByNameForOrgReturns(mixedService, nil)
 
-			orgRepo.FindByNameOrganization = org1
+			orgRepo.FindByNameReturns(org1, nil)
 		})
 
 		It("Returns an error if the service cannot be found", func() {
-			serviceBuilder.GetServiceByNameReturns(models.ServiceOffering{}, errors.New("service was not found"))
+			serviceBuilder.GetServiceByNameForOrgReturns(models.ServiceOffering{}, errors.New("service was not found"))
 
 			_, err := actor.UpdateOrgForService("not-a-service", "org-1", true)
 			Expect(err.Error()).To(Equal("service was not found"))
@@ -293,21 +291,21 @@ var _ = Describe("Service Plans", func() {
 			})
 
 			It("Returns true if all the plans were already public", func() {
-				serviceBuilder.GetServiceByNameReturns(publicService, nil)
+				serviceBuilder.GetServiceByNameForOrgReturns(publicService, nil)
 				allPlansSet, err := actor.UpdateOrgForService("my-public-service", "org-1", true)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(allPlansSet).To(BeTrue())
 			})
 
 			It("Returns false if any of the plans were not public", func() {
-				serviceBuilder.GetServiceByNameReturns(privateService, nil)
+				serviceBuilder.GetServiceByNameForOrgReturns(privateService, nil)
 				allPlansSet, err := actor.UpdateOrgForService("my-private-service", "org-1", true)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(allPlansSet).To(BeFalse())
 			})
 
 			It("Does not try to update service plans if they are all already public or the org already has access", func() {
-				serviceBuilder.GetServiceByNameReturns(publicAndLimitedService, nil)
+				serviceBuilder.GetServiceByNameForOrgReturns(publicAndLimitedService, nil)
 
 				allPlansWereSet, err := actor.UpdateOrgForService("my-public-and-limited-service", "org-1", true)
 				Expect(err).ToNot(HaveOccurred())
@@ -318,19 +316,22 @@ var _ = Describe("Service Plans", func() {
 
 		Context("when disabling access to all plans for a single org", func() {
 			It("deletes the associated visibilities for all limited plans", func() {
-				serviceBuilder.GetServiceByNameReturns(publicAndLimitedService, nil)
+				serviceBuilder.GetServiceByNameForOrgReturns(publicAndLimitedService, nil)
 				servicePlanVisibilityRepo.SearchReturns([]models.ServicePlanVisibilityFields{visibility1}, nil)
 				allPlansSet, err := actor.UpdateOrgForService("my-public-and-limited-service", "org-1", false)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(servicePlanVisibilityRepo.DeleteCallCount()).To(Equal(1))
-
 				Expect(allPlansSet).To(BeFalse())
+
+				services := servicePlanVisibilityRepo.SearchArgsForCall(0)
+				Expect(services["organization_guid"]).To(Equal("org-1-guid"))
+
 				visibilityGuid := servicePlanVisibilityRepo.DeleteArgsForCall(0)
 				Expect(visibilityGuid).To(Equal("visibility-guid-1"))
 			})
 
 			It("Does not try to update service plans if they are all public", func() {
-				serviceBuilder.GetServiceByNameReturns(publicService, nil)
+				serviceBuilder.GetServiceByNameForOrgReturns(publicService, nil)
 
 				allPlansWereSet, err := actor.UpdateOrgForService("my-public-and-limited-service", "org-1", false)
 				Expect(err).ToNot(HaveOccurred())
@@ -339,7 +340,7 @@ var _ = Describe("Service Plans", func() {
 			})
 
 			It("Does not try to update service plans if the org already did not have visibility", func() {
-				serviceBuilder.GetServiceByNameReturns(privateService, nil)
+				serviceBuilder.GetServiceByNameForOrgReturns(privateService, nil)
 
 				allPlansWereSet, err := actor.UpdateOrgForService("my-private-service", "org-1", false)
 				Expect(err).ToNot(HaveOccurred())
@@ -351,34 +352,34 @@ var _ = Describe("Service Plans", func() {
 
 	Describe(".UpdateSinglePlanForService", func() {
 		It("Returns an error if the service cannot be found", func() {
-			serviceBuilder.GetServiceByNameReturns(models.ServiceOffering{}, errors.New("service was not found"))
+			serviceBuilder.GetServiceByNameWithPlansWithOrgNamesReturns(models.ServiceOffering{}, errors.New("service was not found"))
 			_, err := actor.UpdateSinglePlanForService("not-a-service", "public-service-plan", true)
 			Expect(err.Error()).To(Equal("service was not found"))
 		})
 
 		It("Returns None if the original plan was private", func() {
-			serviceBuilder.GetServiceByNameReturns(privateService, nil)
+			serviceBuilder.GetServiceByNameWithPlansWithOrgNamesReturns(privateService, nil)
 			originalAccessValue, err := actor.UpdateSinglePlanForService("my-mixed-service", "private-service-plan", true)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(originalAccessValue).To(Equal(actors.None))
 		})
 
 		It("Returns All if the original plan was public", func() {
-			serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+			serviceBuilder.GetServiceByNameWithPlansWithOrgNamesReturns(mixedService, nil)
 			originalAccessValue, err := actor.UpdateSinglePlanForService("my-mixed-service", "public-service-plan", true)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(originalAccessValue).To(Equal(actors.All))
 		})
 
 		It("Returns an error if the plan cannot be found", func() {
-			serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+			serviceBuilder.GetServiceByNameWithPlansWithOrgNamesReturns(mixedService, nil)
 			_, err := actor.UpdateSinglePlanForService("my-mixed-service", "not-a-service-plan", true)
 			Expect(err.Error()).To(Equal("The plan not-a-service-plan could not be found for service my-mixed-service"))
 		})
 
 		Context("when setting a public service plan to public", func() {
 			It("Does not try to update the service plan", func() {
-				serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+				serviceBuilder.GetServiceByNameWithPlansWithOrgNamesReturns(mixedService, nil)
 				_, err := actor.UpdateSinglePlanForService("my-mixed-service", "public-service-plan", true)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(servicePlanRepo.UpdateCallCount()).To(Equal(0))
@@ -392,7 +393,7 @@ var _ = Describe("Service Plans", func() {
 			})
 
 			It("removes the service plan visibilities for the service plan", func() {
-				serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+				serviceBuilder.GetServiceByNameWithPlansWithOrgNamesReturns(mixedService, nil)
 				_, err := actor.UpdateSinglePlanForService("my-mixed-service", "private-service-plan", true)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -401,7 +402,7 @@ var _ = Describe("Service Plans", func() {
 			})
 
 			It("sets a service plan to public", func() {
-				serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+				serviceBuilder.GetServiceByNameWithPlansWithOrgNamesReturns(mixedService, nil)
 				_, err := actor.UpdateSinglePlanForService("my-mixed-service", "private-service-plan", true)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -414,7 +415,7 @@ var _ = Describe("Service Plans", func() {
 
 		Context("when setting a private service plan to private", func() {
 			It("Does not try to update the service plan", func() {
-				serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+				serviceBuilder.GetServiceByNameWithPlansWithOrgNamesReturns(mixedService, nil)
 				_, err := actor.UpdateSinglePlanForService("my-mixed-service", "private-service-plan", false)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(servicePlanRepo.UpdateCallCount()).To(Equal(0))
@@ -428,7 +429,7 @@ var _ = Describe("Service Plans", func() {
 			})
 
 			It("removes the service plan visibilities for the service plan", func() {
-				serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+				serviceBuilder.GetServiceByNameWithPlansWithOrgNamesReturns(mixedService, nil)
 				_, err := actor.UpdateSinglePlanForService("my-mixed-service", "public-service-plan", false)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -437,7 +438,7 @@ var _ = Describe("Service Plans", func() {
 			})
 
 			It("sets the plan to private", func() {
-				serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+				serviceBuilder.GetServiceByNameWithPlansWithOrgNamesReturns(mixedService, nil)
 				_, err := actor.UpdateSinglePlanForService("my-mixed-service", "public-service-plan", false)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -451,24 +452,24 @@ var _ = Describe("Service Plans", func() {
 
 	Describe(".UpdatePlanAndOrgForService", func() {
 		BeforeEach(func() {
-			orgRepo.FindByNameOrganization = org1
+			orgRepo.FindByNameReturns(org1, nil)
 		})
 
 		It("returns an error if the service cannot be found", func() {
-			serviceBuilder.GetServiceByNameReturns(models.ServiceOffering{}, errors.New("service was not found"))
+			serviceBuilder.GetServiceByNameForOrgReturns(models.ServiceOffering{}, errors.New("service was not found"))
 
 			_, err := actor.UpdatePlanAndOrgForService("not-a-service", "public-service-plan", "public-org", true)
 			Expect(err.Error()).To(Equal("service was not found"))
 		})
 
 		It("returns an error if the org cannot be found", func() {
-			orgRepo.Organizations = []models.Organization{}
+			orgRepo.FindByNameReturns(models.Organization{}, errors.NewModelNotFoundError("organization", "not-an-org"))
 			_, err := actor.UpdatePlanAndOrgForService("a-real-service", "public-service-plan", "not-an-org", true)
 			Expect(err).To(HaveOccurred())
 		})
 
 		It("returns an error if the plan cannot be found", func() {
-			serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+			serviceBuilder.GetServiceByNameForOrgReturns(mixedService, nil)
 
 			_, err := actor.UpdatePlanAndOrgForService("a-real-service", "not-a-plan", "org-1", true)
 			Expect(err).To(HaveOccurred())
@@ -477,7 +478,7 @@ var _ = Describe("Service Plans", func() {
 		Context("when disabling access to a single plan for a single org", func() {
 			Context("for a public plan", func() {
 				It("returns All", func() {
-					serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+					serviceBuilder.GetServiceByNameForOrgReturns(mixedService, nil)
 					originalAccessValue, err := actor.UpdatePlanAndOrgForService("my-mixed-service", "public-service-plan", "org-1", false)
 
 					Expect(err).NotTo(HaveOccurred())
@@ -485,7 +486,7 @@ var _ = Describe("Service Plans", func() {
 				})
 
 				It("does not try and delete the visibility", func() {
-					serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+					serviceBuilder.GetServiceByNameForOrgReturns(mixedService, nil)
 					originalAccessValue, err := actor.UpdatePlanAndOrgForService("my-mixed-service", "public-service-plan", "org-1", false)
 
 					Expect(servicePlanVisibilityRepo.DeleteCallCount()).To(Equal(0))
@@ -497,14 +498,14 @@ var _ = Describe("Service Plans", func() {
 			Context("for a private plan", func() {
 				Context("with no service plan visibilities", func() {
 					It("returns None", func() {
-						serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+						serviceBuilder.GetServiceByNameForOrgReturns(mixedService, nil)
 						originalAccessValue, err := actor.UpdatePlanAndOrgForService("my-mixed-service", "private-service-plan", "org-1", false)
 
 						Expect(err).NotTo(HaveOccurred())
 						Expect(originalAccessValue).To(Equal(actors.None))
 					})
 					It("does not try and delete the visibility", func() {
-						serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+						serviceBuilder.GetServiceByNameForOrgReturns(mixedService, nil)
 						originalAccessValue, err := actor.UpdatePlanAndOrgForService("my-mixed-service", "private-service-plan", "org-1", false)
 
 						Expect(servicePlanVisibilityRepo.DeleteCallCount()).To(Equal(0))
@@ -520,7 +521,7 @@ var _ = Describe("Service Plans", func() {
 
 					})
 					It("deletes a service plan visibility", func() {
-						serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+						serviceBuilder.GetServiceByNameForOrgReturns(mixedService, nil)
 						originalAccessValue, err := actor.UpdatePlanAndOrgForService("my-mixed-service", "limited-service-plan", "org-1", false)
 
 						servicePlanVisGuid := servicePlanVisibilityRepo.DeleteArgsForCall(0)
@@ -530,7 +531,8 @@ var _ = Describe("Service Plans", func() {
 					})
 
 					It("does not call delete if the specified service plan visibility does not exist", func() {
-						serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+						serviceBuilder.GetServiceByNameForOrgReturns(mixedService, nil)
+						orgRepo.FindByNameReturns(org2, nil)
 						originalAccessValue, err := actor.UpdatePlanAndOrgForService("my-mixed-service", "limited-service-plan", "org-2", false)
 
 						Expect(servicePlanVisibilityRepo.DeleteCallCount()).To(Equal(0))
@@ -544,7 +546,7 @@ var _ = Describe("Service Plans", func() {
 		Context("when enabling access", func() {
 			Context("for a public plan", func() {
 				It("returns All", func() {
-					serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+					serviceBuilder.GetServiceByNameForOrgReturns(mixedService, nil)
 					originalAccessValue, err := actor.UpdatePlanAndOrgForService("my-mixed-service", "public-service-plan", "org-1", true)
 
 					Expect(err).NotTo(HaveOccurred())
@@ -552,7 +554,7 @@ var _ = Describe("Service Plans", func() {
 				})
 
 				It("does not try and create the visibility", func() {
-					serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+					serviceBuilder.GetServiceByNameForOrgReturns(mixedService, nil)
 					originalAccessValue, err := actor.UpdatePlanAndOrgForService("my-mixed-service", "public-service-plan", "org-1", true)
 
 					Expect(servicePlanVisibilityRepo.CreateCallCount()).To(Equal(0))
@@ -563,7 +565,7 @@ var _ = Describe("Service Plans", func() {
 
 			Context("for a limited plan", func() {
 				BeforeEach(func() {
-					serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+					serviceBuilder.GetServiceByNameForOrgReturns(mixedService, nil)
 				})
 				It("returns Limited", func() {
 					originalAccessValue, err := actor.UpdatePlanAndOrgForService("my-mixed-service", "limited-service-plan", "org-1", true)
@@ -583,7 +585,7 @@ var _ = Describe("Service Plans", func() {
 				})
 				Context("when the org does not have access", func() {
 					It("creates the visibility", func() {
-						orgRepo.FindByNameOrganization = org2
+						orgRepo.FindByNameReturns(org2, nil)
 
 						originalAccessValue, err := actor.UpdatePlanAndOrgForService("my-mixed-service", "limited-service-plan", "org-2", true)
 
@@ -596,7 +598,7 @@ var _ = Describe("Service Plans", func() {
 
 			Context("for a private plan", func() {
 				It("returns None", func() {
-					serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+					serviceBuilder.GetServiceByNameForOrgReturns(mixedService, nil)
 					originalAccessValue, err := actor.UpdatePlanAndOrgForService("my-mixed-service", "private-service-plan", "org-1", true)
 
 					Expect(err).NotTo(HaveOccurred())
@@ -604,7 +606,7 @@ var _ = Describe("Service Plans", func() {
 				})
 
 				It("creates a service plan visibility", func() {
-					serviceBuilder.GetServiceByNameReturns(mixedService, nil)
+					serviceBuilder.GetServiceByNameForOrgReturns(mixedService, nil)
 					originalAccessValue, err := actor.UpdatePlanAndOrgForService("my-mixed-service", "private-service-plan", "org-1", true)
 
 					servicePlanGuid, orgGuid := servicePlanVisibilityRepo.CreateArgsForCall(0)

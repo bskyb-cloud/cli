@@ -1,9 +1,9 @@
 package organization_test
 
 import (
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	test_org "github.com/cloudfoundry/cli/cf/api/organizations/fakes"
 	"github.com/cloudfoundry/cli/cf/commands/organization"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -18,29 +18,35 @@ import (
 var _ = Describe("org command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		orgRepo             *testapi.FakeOrgRepository
-		configRepo          configuration.ReadWriter
+		orgRepo             *test_org.FakeOrganizationRepository
+		configRepo          core_config.ReadWriter
 		requirementsFactory *testreq.FakeReqFactory
 	)
 
-	runCommand := func() {
+	runCommand := func(args ...string) bool {
 		cmd := organization.NewListOrgs(ui, configRepo, orgRepo)
-		testcmd.RunCommand(cmd, []string{}, requirementsFactory)
+		return testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		orgRepo = &testapi.FakeOrgRepository{}
+		orgRepo = &test_org.FakeOrganizationRepository{}
 		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true}
 	})
 
 	Describe("requirements", func() {
 		It("fails when not logged in", func() {
 			requirementsFactory.LoginSuccess = false
-			runCommand()
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+
+			Expect(runCommand()).To(BeFalse())
 		})
+		It("should fail with usage when provided any arguments", func() {
+			requirementsFactory.LoginSuccess = true
+			Expect(runCommand("blahblah")).To(BeFalse())
+			Expect(ui.FailedWithUsage).To(BeTrue())
+		})
+
 	})
 
 	Context("when there are orgs to be listed", func() {
@@ -54,7 +60,7 @@ var _ = Describe("org command", func() {
 			org3 := models.Organization{}
 			org3.Name = "Organization-3"
 
-			orgRepo.Organizations = []models.Organization{org1, org2, org3}
+			orgRepo.ListOrgsReturns([]models.Organization{org1, org2, org3}, nil)
 		})
 
 		It("lists orgs", func() {
@@ -70,6 +76,7 @@ var _ = Describe("org command", func() {
 	})
 
 	It("tells the user when no orgs were found", func() {
+		orgRepo.ListOrgsReturns([]models.Organization{}, nil)
 		runCommand()
 
 		Expect(ui.Outputs).To(ContainSubstrings(

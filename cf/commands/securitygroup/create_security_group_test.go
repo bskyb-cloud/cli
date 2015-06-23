@@ -5,7 +5,7 @@ import (
 	"os"
 
 	fakeSecurityGroup "github.com/cloudfoundry/cli/cf/api/security_groups/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -23,7 +23,7 @@ var _ = Describe("create-security-group command", func() {
 		ui                  *testterm.FakeUI
 		securityGroupRepo   *fakeSecurityGroup.FakeSecurityGroupRepo
 		requirementsFactory *testreq.FakeReqFactory
-		configRepo          configuration.ReadWriter
+		configRepo          core_config.ReadWriter
 	)
 
 	BeforeEach(func() {
@@ -33,15 +33,14 @@ var _ = Describe("create-security-group command", func() {
 		configRepo = testconfig.NewRepositoryWithDefaults()
 	})
 
-	runCommand := func(args ...string) {
+	runCommand := func(args ...string) bool {
 		cmd := NewCreateSecurityGroup(ui, configRepo, securityGroupRepo)
-		testcmd.RunCommand(cmd, args, requirementsFactory)
+		return testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
 		It("fails when the user is not logged in", func() {
-			runCommand("the-security-group")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("the-security-group")).To(BeFalse())
 		})
 
 		It("fails with usage when a name is not provided", func() {
@@ -128,6 +127,8 @@ var _ = Describe("create-security-group command", func() {
 			It("freaks out", func() {
 				Expect(ui.Outputs).To(ContainSubstrings(
 					[]string{"FAILED"},
+					[]string{"Incorrect json format: file:", tempFile.Name()},
+					[]string{"Valid json file exampl"},
 				))
 			})
 		})

@@ -1,9 +1,9 @@
 package application
 
 import (
-	"github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/api/applications"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/flag_helpers"
 	"github.com/cloudfoundry/cli/cf/formatters"
 	. "github.com/cloudfoundry/cli/cf/i18n"
@@ -15,13 +15,13 @@ import (
 
 type Scale struct {
 	ui        terminal.UI
-	config    configuration.Reader
+	config    core_config.Reader
 	restarter ApplicationRestarter
 	appReq    requirements.ApplicationRequirement
-	appRepo   api.ApplicationRepository
+	appRepo   applications.ApplicationRepository
 }
 
-func NewScale(ui terminal.UI, config configuration.Reader, restarter ApplicationRestarter, appRepo api.ApplicationRepository) (cmd *Scale) {
+func NewScale(ui terminal.UI, config core_config.Reader, restarter ApplicationRestarter, appRepo applications.ApplicationRepository) (cmd *Scale) {
 	cmd = new(Scale)
 	cmd.ui = ui
 	cmd.config = config
@@ -34,7 +34,7 @@ func (cmd *Scale) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "scale",
 		Description: T("Change or view the instance count, disk space limit, and memory limit for an app"),
-		Usage:       T("CF_NAME scale APP [-i INSTANCES] [-k DISK] [-m MEMORY] [-f]"),
+		Usage:       T("CF_NAME scale APP_NAME [-i INSTANCES] [-k DISK] [-m MEMORY] [-f]"),
 		Flags: []cli.Flag{
 			flag_helpers.NewIntFlag("i", T("Number of instances")),
 			flag_helpers.NewStringFlag("k", T("Disk limit (e.g. 256M, 1024M, 1G)")),
@@ -49,7 +49,11 @@ func (cmd *Scale) GetRequirements(requirementsFactory requirements.Factory, c *c
 		cmd.ui.FailWithUsage(c)
 	}
 
-	cmd.appReq = requirementsFactory.NewApplicationRequirement(c.Args()[0])
+	if cmd.appReq == nil {
+		cmd.appReq = requirementsFactory.NewApplicationRequirement(c.Args()[0])
+	} else {
+		cmd.appReq.SetApplicationName(c.Args()[0])
+	}
 
 	reqs = []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
@@ -143,7 +147,7 @@ func (cmd *Scale) Run(c *cli.Context) {
 	cmd.ui.Ok()
 
 	if shouldRestart {
-		cmd.restarter.ApplicationRestart(updatedApp)
+		cmd.restarter.ApplicationRestart(updatedApp, cmd.config.OrganizationFields().Name, cmd.config.SpaceFields().Name)
 	}
 }
 

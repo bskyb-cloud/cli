@@ -6,12 +6,13 @@ import (
 	"time"
 
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/cf/api"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -23,7 +24,7 @@ var _ = Describe("ServiceAuthTokensRepo", func() {
 	var (
 		testServer  *httptest.Server
 		testHandler *testnet.TestHandler
-		configRepo  configuration.ReadWriter
+		configRepo  core_config.ReadWriter
 		repo        CloudControllerServiceAuthTokenRepository
 	)
 
@@ -35,7 +36,7 @@ var _ = Describe("ServiceAuthTokensRepo", func() {
 	BeforeEach(func() {
 		configRepo = testconfig.NewRepositoryWithDefaults()
 
-		gateway := net.NewCloudControllerGateway((configRepo), time.Now)
+		gateway := net.NewCloudControllerGateway(configRepo, time.Now, &testterm.FakeUI{})
 		repo = NewCloudControllerServiceAuthTokenRepository(configRepo, gateway)
 	})
 

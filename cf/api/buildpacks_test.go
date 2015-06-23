@@ -6,12 +6,13 @@ import (
 	"time"
 
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/cf/api"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -23,13 +24,13 @@ var _ = Describe("Buildpacks repo", func() {
 	var (
 		ts      *httptest.Server
 		handler *testnet.TestHandler
-		config  configuration.ReadWriter
+		config  core_config.ReadWriter
 		repo    BuildpackRepository
 	)
 
 	BeforeEach(func() {
 		config = testconfig.NewRepositoryWithDefaults()
-		gateway := net.NewCloudControllerGateway((config), time.Now)
+		gateway := net.NewCloudControllerGateway((config), time.Now, &testterm.FakeUI{})
 		repo = NewCloudControllerBuildpackRepository(config, gateway)
 	})
 
@@ -92,7 +93,7 @@ var _ = Describe("Buildpacks repo", func() {
 
 		one := 1
 		two := 2
-		Expect(buildpacks).To(Equal([]models.Buildpack{
+		Expect(buildpacks).To(ConsistOf([]models.Buildpack{
 			{
 				Guid:     "buildpack1-guid",
 				Name:     "Buildpack1",

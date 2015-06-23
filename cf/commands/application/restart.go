@@ -2,6 +2,7 @@ package application
 
 import (
 	"github.com/cloudfoundry/cli/cf/command_metadata"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
@@ -11,18 +12,20 @@ import (
 
 type Restart struct {
 	ui      terminal.UI
+	config  core_config.Reader
 	starter ApplicationStarter
 	stopper ApplicationStopper
 	appReq  requirements.ApplicationRequirement
 }
 
 type ApplicationRestarter interface {
-	ApplicationRestart(app models.Application)
+	ApplicationRestart(app models.Application, orgName string, spaceName string)
 }
 
-func NewRestart(ui terminal.UI, starter ApplicationStarter, stopper ApplicationStopper) (cmd *Restart) {
+func NewRestart(ui terminal.UI, config core_config.Reader, starter ApplicationStarter, stopper ApplicationStopper) (cmd *Restart) {
 	cmd = new(Restart)
 	cmd.ui = ui
+	cmd.config = config
 	cmd.starter = starter
 	cmd.stopper = stopper
 	return
@@ -33,16 +36,20 @@ func (cmd *Restart) Metadata() command_metadata.CommandMetadata {
 		Name:        "restart",
 		ShortName:   "rs",
 		Description: T("Restart an app"),
-		Usage:       T("CF_NAME restart APP"),
+		Usage:       T("CF_NAME restart APP_NAME"),
 	}
 }
 
 func (cmd *Restart) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
-	if len(c.Args()) == 0 {
+	if len(c.Args()) != 1 {
 		cmd.ui.FailWithUsage(c)
 	}
 
-	cmd.appReq = requirementsFactory.NewApplicationRequirement(c.Args()[0])
+	if cmd.appReq == nil {
+		cmd.appReq = requirementsFactory.NewApplicationRequirement(c.Args()[0])
+	} else {
+		cmd.appReq.SetApplicationName(c.Args()[0])
+	}
 
 	reqs = []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
@@ -54,11 +61,11 @@ func (cmd *Restart) GetRequirements(requirementsFactory requirements.Factory, c 
 
 func (cmd *Restart) Run(c *cli.Context) {
 	app := cmd.appReq.GetApplication()
-	cmd.ApplicationRestart(app)
+	cmd.ApplicationRestart(app, cmd.config.OrganizationFields().Name, cmd.config.SpaceFields().Name)
 }
 
-func (cmd *Restart) ApplicationRestart(app models.Application) {
-	stoppedApp, err := cmd.stopper.ApplicationStop(app)
+func (cmd *Restart) ApplicationRestart(app models.Application, orgName, spaceName string) {
+	stoppedApp, err := cmd.stopper.ApplicationStop(app, orgName, spaceName)
 	if err != nil {
 		cmd.ui.Failed(err.Error())
 		return
@@ -66,7 +73,7 @@ func (cmd *Restart) ApplicationRestart(app models.Application) {
 
 	cmd.ui.Say("")
 
-	_, err = cmd.starter.ApplicationStart(stoppedApp)
+	_, err = cmd.starter.ApplicationStart(stoppedApp, orgName, spaceName)
 	if err != nil {
 		cmd.ui.Failed(err.Error())
 		return

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/cloudfoundry/cli/cf/api/organizations"
+
 	"github.com/cloudfoundry/cli/cf/actors/plan_builder"
 	"github.com/cloudfoundry/cli/cf/actors/service_builder"
 	"github.com/cloudfoundry/cli/cf/api"
@@ -11,7 +13,7 @@ import (
 )
 
 type ServicePlanActor interface {
-	FindServiceAccess(string) (ServiceAccess, error)
+	FindServiceAccess(string, string) (ServiceAccess, error)
 	UpdateAllPlansForService(string, bool) (bool, error)
 	UpdateOrgForService(string, string, bool) (bool, error)
 	UpdateSinglePlanForService(string, string, bool) (PlanAccess, error)
@@ -43,12 +45,12 @@ const (
 type ServicePlanHandler struct {
 	servicePlanRepo           api.ServicePlanRepository
 	servicePlanVisibilityRepo api.ServicePlanVisibilityRepository
-	orgRepo                   api.OrganizationRepository
+	orgRepo                   organizations.OrganizationRepository
 	serviceBuilder            service_builder.ServiceBuilder
 	planBuilder               plan_builder.PlanBuilder
 }
 
-func NewServicePlanHandler(plan api.ServicePlanRepository, vis api.ServicePlanVisibilityRepository, org api.OrganizationRepository, planBuilder plan_builder.PlanBuilder, serviceBuilder service_builder.ServiceBuilder) ServicePlanHandler {
+func NewServicePlanHandler(plan api.ServicePlanRepository, vis api.ServicePlanVisibilityRepository, org organizations.OrganizationRepository, planBuilder plan_builder.PlanBuilder, serviceBuilder service_builder.ServiceBuilder) ServicePlanHandler {
 	return ServicePlanHandler{
 		servicePlanRepo:           plan,
 		servicePlanVisibilityRepo: vis,
@@ -59,7 +61,7 @@ func NewServicePlanHandler(plan api.ServicePlanRepository, vis api.ServicePlanVi
 }
 
 func (actor ServicePlanHandler) UpdateAllPlansForService(serviceName string, setPlanVisibility bool) (bool, error) {
-	service, err := actor.serviceBuilder.GetServiceByName(serviceName)
+	service, err := actor.serviceBuilder.GetServiceByNameWithPlansWithOrgNames(serviceName)
 	if err != nil {
 		return false, err
 	}
@@ -81,7 +83,7 @@ func (actor ServicePlanHandler) UpdateOrgForService(serviceName string, orgName 
 	var err error
 	var service models.ServiceOffering
 
-	service, err = actor.serviceBuilder.GetServiceByName(serviceName)
+	service, err = actor.serviceBuilder.GetServiceByNameForOrg(serviceName, orgName)
 	if err != nil {
 		return false, err
 	}
@@ -97,7 +99,7 @@ func (actor ServicePlanHandler) UpdateOrgForService(serviceName string, orgName 
 		if plan.Public || visibilityExists == setPlanVisibility {
 			continue
 		} else if visibilityExists && !setPlanVisibility {
-			actor.deleteServicePlanVisibilities(map[string]string{"org_guid": org.Guid, "service_plan_guid": plan.Guid})
+			actor.deleteServicePlanVisibilities(map[string]string{"organization_guid": org.Guid, "service_plan_guid": plan.Guid})
 		} else if !visibilityExists && setPlanVisibility {
 			err = actor.servicePlanVisibilityRepo.Create(plan.Guid, org.Guid)
 			if err != nil {
@@ -111,7 +113,7 @@ func (actor ServicePlanHandler) UpdateOrgForService(serviceName string, orgName 
 }
 
 func (actor ServicePlanHandler) UpdatePlanAndOrgForService(serviceName, planName, orgName string, setPlanVisibility bool) (PlanAccess, error) {
-	service, err := actor.serviceBuilder.GetServiceByName(serviceName)
+	service, err := actor.serviceBuilder.GetServiceByNameForOrg(serviceName, orgName)
 	if err != nil {
 		return PlanAccessError, err
 	}
@@ -158,7 +160,7 @@ func (actor ServicePlanHandler) UpdatePlanAndOrgForService(serviceName, planName
 }
 
 func (actor ServicePlanHandler) UpdateSinglePlanForService(serviceName string, planName string, setPlanVisibility bool) (PlanAccess, error) {
-	serviceOffering, err := actor.serviceBuilder.GetServiceByName(serviceName)
+	serviceOffering, err := actor.serviceBuilder.GetServiceByNameWithPlansWithOrgNames(serviceName)
 	if err != nil {
 		return PlanAccessError, err
 	}
@@ -219,8 +221,8 @@ func (actor ServicePlanHandler) updateServicePlanAvailability(serviceGuid string
 	return actor.servicePlanRepo.Update(servicePlan, serviceGuid, setPlanVisibility)
 }
 
-func (actor ServicePlanHandler) FindServiceAccess(serviceName string) (ServiceAccess, error) {
-	service, err := actor.serviceBuilder.GetServiceByName(serviceName)
+func (actor ServicePlanHandler) FindServiceAccess(serviceName string, orgName string) (ServiceAccess, error) {
+	service, err := actor.serviceBuilder.GetServiceByNameForOrg(serviceName, orgName)
 	if err != nil {
 		return ServiceAccessError, err
 	}

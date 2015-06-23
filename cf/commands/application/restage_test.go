@@ -1,9 +1,9 @@
 package application_test
 
 import (
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	testApplication "github.com/cloudfoundry/cli/cf/api/applications/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/application"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
@@ -19,8 +19,8 @@ var _ = Describe("restage command", func() {
 	var (
 		ui                  *testterm.FakeUI
 		app                 models.Application
-		appRepo             *testapi.FakeApplicationRepository
-		configRepo          configuration.ReadWriter
+		appRepo             *testApplication.FakeApplicationRepository
+		configRepo          core_config.ReadWriter
 		requirementsFactory *testreq.FakeReqFactory
 		stagingWatcher      *fakeStagingWatcher
 	)
@@ -30,31 +30,36 @@ var _ = Describe("restage command", func() {
 
 		app = models.Application{}
 		app.Name = "my-app"
-		appRepo = &testapi.FakeApplicationRepository{}
+		app.PackageState = "STAGED"
+		appRepo = &testApplication.FakeApplicationRepository{}
 		appRepo.ReadReturns.App = app
 
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true}
+		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: true}
 
 		stagingWatcher = &fakeStagingWatcher{}
 	})
 
-	runCommand := func(args ...string) {
+	runCommand := func(args ...string) bool {
 		cmd := NewRestage(ui, configRepo, appRepo, stagingWatcher)
-		testcmd.RunCommand(cmd, args, requirementsFactory)
+		return testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	Describe("Requirements", func() {
 		It("fails when the user is not logged in", func() {
 			requirementsFactory.LoginSuccess = false
-			runCommand("my-app")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("my-app")).To(BeFalse())
 		})
 
 		It("fails with usage when no arguments are given", func() {
-			runCommand()
+			passed := runCommand()
 			Expect(ui.FailedWithUsage).To(BeTrue())
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(passed).To(BeFalse())
+		})
+		It("fails if a space is not targeted", func() {
+			requirementsFactory.LoginSuccess = true
+			requirementsFactory.TargetedSpaceSuccess = false
+			Expect(runCommand("my-app")).To(BeFalse())
 		})
 	})
 
@@ -85,18 +90,29 @@ var _ = Describe("restage command", func() {
 			))
 		})
 
+		It("resets app's PackageState", func() {
+			runCommand("my-app")
+			Expect(stagingWatcher.watched.PackageState).ToNot(Equal("STAGED"))
+		})
+
 		It("watches the staging output", func() {
 			runCommand("my-app")
 			Expect(stagingWatcher.watched).To(Equal(app))
+			Expect(stagingWatcher.orgName).To(Equal(configRepo.OrganizationFields().Name))
+			Expect(stagingWatcher.spaceName).To(Equal(configRepo.SpaceFields().Name))
 		})
 	})
 })
 
 type fakeStagingWatcher struct {
-	watched models.Application
+	watched   models.Application
+	orgName   string
+	spaceName string
 }
 
-func (f *fakeStagingWatcher) ApplicationWatchStaging(app models.Application, start func(models.Application) (models.Application, error)) (updatedApp models.Application, err error) {
+func (f *fakeStagingWatcher) ApplicationWatchStaging(app models.Application, orgName, spaceName string, start func(models.Application) (models.Application, error)) (updatedApp models.Application, err error) {
 	f.watched = app
+	f.orgName = orgName
+	f.spaceName = spaceName
 	return start(app)
 }

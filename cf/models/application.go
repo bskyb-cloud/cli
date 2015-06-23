@@ -3,12 +3,14 @@ package models
 import (
 	"reflect"
 	"strings"
+	"time"
 )
 
 type Application struct {
 	ApplicationFields
-	Stack  *Stack
-	Routes []RouteSummary
+	Stack    *Stack
+	Routes   []RouteSummary
+	Services []ServicePlanSummary
 }
 
 func (model Application) HasRoute(route Route) bool {
@@ -43,31 +45,38 @@ func (model Application) ToParams() (params AppParams) {
 }
 
 type ApplicationFields struct {
-	Guid             string
-	Name             string
-	BuildpackUrl     string
-	Command          string
-	DiskQuota        int64 // in Megabytes
-	EnvironmentVars  map[string]string
-	InstanceCount    int
-	Memory           int64 // in Megabytes
-	RunningInstances int
-	State            string
-	SpaceGuid        string
+	Guid                 string
+	Name                 string
+	BuildpackUrl         string
+	Command              string
+	Diego                bool
+	DetectedStartCommand string
+	DiskQuota            int64 // in Megabytes
+	EnvironmentVars      map[string]interface{}
+	InstanceCount        int
+	Memory               int64 // in Megabytes
+	RunningInstances     int
+	HealthCheckTimeout   int
+	State                string
+	SpaceGuid            string
+	PackageUpdatedAt     *time.Time
+	PackageState         string
+	StagingFailedReason  string
 }
 
 type AppParams struct {
 	BuildpackUrl       *string
 	Command            *string
 	DiskQuota          *int64
-	Domain             *string
-	EnvironmentVars    *map[string]string
+	Domains            *[]string
+	EnvironmentVars    *map[string]interface{}
 	Guid               *string
 	HealthCheckTimeout *int
-	Host               *string
+	Hosts              *[]string
 	InstanceCount      *int
 	Memory             *int64
 	Name               *string
+	NoHostname         bool
 	NoRoute            bool
 	UseRandomHostname  bool
 	Path               *string
@@ -88,8 +97,8 @@ func (app *AppParams) Merge(other *AppParams) {
 	if other.DiskQuota != nil {
 		app.DiskQuota = other.DiskQuota
 	}
-	if other.Domain != nil {
-		app.Domain = other.Domain
+	if other.Domains != nil {
+		app.Domains = other.Domains
 	}
 	if other.EnvironmentVars != nil {
 		app.EnvironmentVars = other.EnvironmentVars
@@ -100,8 +109,8 @@ func (app *AppParams) Merge(other *AppParams) {
 	if other.HealthCheckTimeout != nil {
 		app.HealthCheckTimeout = other.HealthCheckTimeout
 	}
-	if other.Host != nil {
-		app.Host = other.Host
+	if other.Hosts != nil {
+		app.Hosts = other.Hosts
 	}
 	if other.InstanceCount != nil {
 		app.InstanceCount = other.InstanceCount
@@ -135,9 +144,14 @@ func (app *AppParams) Merge(other *AppParams) {
 	}
 
 	app.NoRoute = app.NoRoute || other.NoRoute
+	app.NoHostname = app.NoHostname || other.NoHostname
 	app.UseRandomHostname = app.UseRandomHostname || other.UseRandomHostname
 }
 
 func (app *AppParams) IsEmpty() bool {
 	return reflect.DeepEqual(*app, AppParams{})
+}
+
+func (app *AppParams) IsHostEmpty() bool {
+	return app.Hosts == nil || len(*app.Hosts) == 0
 }

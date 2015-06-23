@@ -2,9 +2,9 @@ package application
 
 import (
 	"github.com/cloudfoundry/cli/cf"
-	"github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/api/applications"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
@@ -14,12 +14,12 @@ import (
 
 type UnsetEnv struct {
 	ui      terminal.UI
-	config  configuration.Reader
-	appRepo api.ApplicationRepository
+	config  core_config.Reader
+	appRepo applications.ApplicationRepository
 	appReq  requirements.ApplicationRequirement
 }
 
-func NewUnsetEnv(ui terminal.UI, config configuration.Reader, appRepo api.ApplicationRepository) (cmd *UnsetEnv) {
+func NewUnsetEnv(ui terminal.UI, config core_config.Reader, appRepo applications.ApplicationRepository) (cmd *UnsetEnv) {
 	cmd = new(UnsetEnv)
 	cmd.ui = ui
 	cmd.config = config
@@ -31,7 +31,7 @@ func (cmd *UnsetEnv) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "unset-env",
 		Description: T("Remove an env variable"),
-		Usage:       T("CF_NAME unset-env APP NAME"),
+		Usage:       T("CF_NAME unset-env APP_NAME ENV_VAR_NAME"),
 	}
 }
 
@@ -40,7 +40,12 @@ func (cmd *UnsetEnv) GetRequirements(requirementsFactory requirements.Factory, c
 		cmd.ui.FailWithUsage(c)
 	}
 
-	cmd.appReq = requirementsFactory.NewApplicationRequirement(c.Args()[0])
+	if cmd.appReq == nil {
+		cmd.appReq = requirementsFactory.NewApplicationRequirement(c.Args()[0])
+	} else {
+		cmd.appReq.SetApplicationName(c.Args()[0])
+	}
+
 	reqs = []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 		requirementsFactory.NewTargetedSpaceRequirement(),

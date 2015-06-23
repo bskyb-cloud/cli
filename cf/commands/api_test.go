@@ -6,7 +6,7 @@ import (
 	"github.com/cloudfoundry/cli/cf"
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -18,7 +18,7 @@ import (
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 )
 
-func callApi(args []string, config configuration.ReadWriter, endpointRepo *testapi.FakeEndpointRepo) (ui *testterm.FakeUI) {
+func callApi(args []string, config core_config.ReadWriter, endpointRepo *testapi.FakeEndpointRepo) (ui *testterm.FakeUI) {
 	ui = new(testterm.FakeUI)
 
 	cmd := NewApi(ui, config, endpointRepo)
@@ -29,7 +29,7 @@ func callApi(args []string, config configuration.ReadWriter, endpointRepo *testa
 
 var _ = Describe("api command", func() {
 	var (
-		config       configuration.ReadWriter
+		config       core_config.ReadWriter
 		endpointRepo *testapi.FakeEndpointRepo
 	)
 
@@ -67,16 +67,24 @@ var _ = Describe("api command", func() {
 				requirementsFactory = &testreq.FakeReqFactory{}
 			})
 
-			JustBeforeEach(func() {
+			It("prints out the api endpoint and appropriately sets the config", func() {
 				testcmd.RunCommand(NewApi(ui, config, endpointRepo), []string{}, requirementsFactory)
-			})
 
-			It("prints out the api endpoint", func() {
 				Expect(ui.Outputs).To(ContainSubstrings([]string{"https://api.run.pivotal.io", "2.0"}))
+				Expect(config.IsSSLDisabled()).To(BeTrue())
 			})
 
-			It("should not change the SSL setting in the config", func() {
-				Expect(config.IsSSLDisabled()).To(BeTrue())
+			Context("when the --unset flag is passed", func() {
+				It("unsets the ApiEndpoint", func() {
+					testcmd.RunCommand(NewApi(ui, config, endpointRepo), []string{"--unset"}, requirementsFactory)
+
+					Expect(ui.Outputs).To(ContainSubstrings(
+						[]string{"Unsetting api endpoint..."},
+						[]string{"OK"},
+						[]string{"No api endpoint set."},
+					))
+					Expect(config.ApiEndpoint()).To(Equal(""))
+				})
 			})
 		})
 
@@ -114,6 +122,39 @@ var _ = Describe("api command", func() {
 			})
 		})
 
+		Context("when the user passed in the unset flag", func() {
+			Context("when the config.ApiEndpoint is set", func() {
+				BeforeEach(func() {
+					config.SetApiEndpoint("some-silly-thing")
+				})
+
+				It("unsets the ApiEndpoint", func() {
+					ui = callApi([]string{"--unset", "https://example.com"}, config, endpointRepo)
+
+					Expect(ui.Outputs).To(ContainSubstrings(
+						[]string{"Unsetting api endpoint..."},
+						[]string{"OK"},
+						[]string{"No api endpoint set."},
+					))
+					Expect(config.ApiEndpoint()).To(Equal(""))
+				})
+			})
+
+			Context("when the config.ApiEndpoint is empty", func() {
+				It("unsets the ApiEndpoint", func() {
+					ui = callApi([]string{"--unset", "https://example.com"}, config, endpointRepo)
+
+					Expect(ui.Outputs).To(ContainSubstrings(
+						[]string{"Unsetting api endpoint..."},
+						[]string{"OK"},
+						[]string{"No api endpoint set."},
+					))
+					Expect(config.ApiEndpoint()).To(Equal(""))
+				})
+			})
+
+		})
+
 		Context("when the ssl certificate is valid", func() {
 			It("updates the api endpoint with the given url", func() {
 				ui = callApi([]string{"https://example.com"}, config, endpointRepo)
@@ -145,7 +186,7 @@ var _ = Describe("api command", func() {
 				Expect(config.ApiEndpoint()).To(Equal(""))
 				Expect(ui.Outputs).To(ContainSubstrings(
 					[]string{"Invalid SSL Cert", "https://example.com"},
-					[]string{"TIP"},
+					[]string{"TIP", "api"},
 				))
 			})
 		})

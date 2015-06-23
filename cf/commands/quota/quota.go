@@ -3,10 +3,11 @@ package quota
 import (
 	"fmt"
 	. "github.com/cloudfoundry/cli/cf/i18n"
+	"strconv"
 
 	"github.com/cloudfoundry/cli/cf/api/quotas"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/formatters"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -15,11 +16,11 @@ import (
 
 type showQuota struct {
 	ui        terminal.UI
-	config    configuration.Reader
+	config    core_config.Reader
 	quotaRepo quotas.QuotaRepository
 }
 
-func NewShowQuota(ui terminal.UI, config configuration.Reader, quotaRepo quotas.QuotaRepository) *showQuota {
+func NewShowQuota(ui terminal.UI, config core_config.Reader, quotaRepo quotas.QuotaRepository) *showQuota {
 	return &showQuota{
 		ui:        ui,
 		config:    config,
@@ -56,11 +57,22 @@ func (cmd *showQuota) Run(context *cli.Context) {
 
 	cmd.ui.Ok()
 
+	var megabytes string
+	if quota.InstanceMemoryLimit == -1 {
+		megabytes = T("unlimited")
+	} else {
+		megabytes = formatters.ByteSize(quota.InstanceMemoryLimit * formatters.MEGABYTE)
+	}
+
+	servicesLimit := strconv.Itoa(quota.ServicesLimit)
+	if servicesLimit == "-1" {
+		servicesLimit = T("unlimited")
+	}
 	table := terminal.NewTable(cmd.ui, []string{"", ""})
 	table.Add(T("Total Memory"), formatters.ByteSize(quota.MemoryLimit*formatters.MEGABYTE))
-	table.Add(T("Instance Memory"), formatters.ByteSize(quota.InstanceMemoryLimit*formatters.MEGABYTE))
+	table.Add(T("Instance Memory"), megabytes)
 	table.Add(T("Routes"), fmt.Sprintf("%d", quota.RoutesLimit))
-	table.Add(T("Services"), fmt.Sprintf("%d", quota.ServicesLimit))
+	table.Add(T("Services"), servicesLimit)
 	table.Add(T("Paid service plans"), formatters.Allowed(quota.NonBasicServicesAllowed))
 	table.Print()
 }

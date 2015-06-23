@@ -3,7 +3,7 @@ package user
 import (
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
@@ -13,13 +13,13 @@ import (
 
 type SetOrgRole struct {
 	ui       terminal.UI
-	config   configuration.Reader
+	config   core_config.Reader
 	userRepo api.UserRepository
 	userReq  requirements.UserRequirement
 	orgReq   requirements.OrganizationRequirement
 }
 
-func NewSetOrgRole(ui terminal.UI, config configuration.Reader, userRepo api.UserRepository) (cmd *SetOrgRole) {
+func NewSetOrgRole(ui terminal.UI, config core_config.Reader, userRepo api.UserRepository) (cmd *SetOrgRole) {
 	cmd = new(SetOrgRole)
 	cmd.ui = ui
 	cmd.config = config
@@ -45,7 +45,11 @@ func (cmd *SetOrgRole) GetRequirements(requirementsFactory requirements.Factory,
 	}
 
 	cmd.userReq = requirementsFactory.NewUserRequirement(c.Args()[0])
-	cmd.orgReq = requirementsFactory.NewOrganizationRequirement(c.Args()[1])
+	if cmd.orgReq == nil {
+		cmd.orgReq = requirementsFactory.NewOrganizationRequirement(c.Args()[1])
+	} else {
+		cmd.orgReq.SetOrganizationName(c.Args()[1])
+	}
 
 	reqs = []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),

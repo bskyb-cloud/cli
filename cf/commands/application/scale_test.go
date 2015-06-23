@@ -1,9 +1,10 @@
 package application_test
 
 import (
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	testApplication "github.com/cloudfoundry/cli/cf/api/applications/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/application"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	"github.com/cloudfoundry/cli/testhelpers/maker"
@@ -18,20 +19,21 @@ import (
 var _ = Describe("scale command", func() {
 	var (
 		requirementsFactory *testreq.FakeReqFactory
-		restarter           *testcmd.FakeAppRestarter
-		appRepo             *testapi.FakeApplicationRepository
+		restarter           *testcmd.FakeApplicationRestarter
+		appRepo             *testApplication.FakeApplicationRepository
 		ui                  *testterm.FakeUI
-		configRepo          configuration.Repository
+		config              core_config.ReadWriter
 		cmd                 *Scale
+		app                 models.Application
 	)
 
 	BeforeEach(func() {
 		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: true}
-		restarter = &testcmd.FakeAppRestarter{}
-		appRepo = &testapi.FakeApplicationRepository{}
+		restarter = &testcmd.FakeApplicationRestarter{}
+		appRepo = &testApplication.FakeApplicationRepository{}
 		ui = new(testterm.FakeUI)
-		configRepo = testconfig.NewRepositoryWithDefaults()
-		cmd = NewScale(ui, configRepo, restarter, appRepo)
+		config = testconfig.NewRepositoryWithDefaults()
+		cmd = NewScale(ui, config, restarter, appRepo)
 	})
 
 	Describe("requirements", func() {
@@ -41,36 +43,32 @@ var _ = Describe("scale command", func() {
 			requirementsFactory.LoginSuccess = false
 			requirementsFactory.TargetedSpaceSuccess = true
 
-			testcmd.RunCommand(cmd, args, requirementsFactory)
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(testcmd.RunCommand(cmd, args, requirementsFactory)).To(BeFalse())
 
 			requirementsFactory.LoginSuccess = true
 			requirementsFactory.TargetedSpaceSuccess = false
 
-			testcmd.RunCommand(cmd, args, requirementsFactory)
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(testcmd.RunCommand(cmd, args, requirementsFactory)).To(BeFalse())
 		})
 
 		It("requires an app to be specified", func() {
-			testcmd.RunCommand(cmd, []string{"-m", "1G"}, requirementsFactory)
+			passed := testcmd.RunCommand(cmd, []string{"-m", "1G"}, requirementsFactory)
 
 			Expect(ui.FailedWithUsage).To(BeTrue())
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(passed).To(BeFalse())
 		})
 
 		It("does not require any flags", func() {
 			requirementsFactory.LoginSuccess = true
 			requirementsFactory.TargetedSpaceSuccess = true
 
-			testcmd.RunCommand(cmd, []string{"my-app"}, requirementsFactory)
-
-			Expect(testcmd.CommandDidPassRequirements).To(BeTrue())
+			Expect(testcmd.RunCommand(cmd, []string{"my-app"}, requirementsFactory)).To(BeTrue())
 		})
 	})
 
 	Describe("scaling an app", func() {
 		BeforeEach(func() {
-			app := maker.NewApp(maker.Overrides{"name": "my-app", "guid": "my-app-guid"})
+			app = maker.NewApp(maker.Overrides{"name": "my-app", "guid": "my-app-guid"})
 			app.InstanceCount = 42
 			app.DiskQuota = 1024
 			app.Memory = 256
@@ -100,14 +98,18 @@ var _ = Describe("scale command", func() {
 				ui.Inputs = []string{"whatever"}
 				testcmd.RunCommand(cmd, []string{"-i", "5", "-m", "512M", "-k", "2G", "my-app"}, requirementsFactory)
 
-				Expect(restarter.AppToRestart.Guid).To(Equal(""))
+				Expect(restarter.ApplicationRestartCallCount()).To(Equal(0))
 			})
 		})
 
 		Context("when the user provides the -f flag", func() {
 			It("does not prompt the user", func() {
 				testcmd.RunCommand(cmd, []string{"-f", "-i", "5", "-m", "512M", "-k", "2G", "my-app"}, requirementsFactory)
-				Expect(restarter.AppToRestart.Guid).To(Equal("my-app-guid"))
+
+				application, orgName, spaceName := restarter.ApplicationRestartArgsForCall(0)
+				Expect(application).To(Equal(app))
+				Expect(orgName).To(Equal(config.OrganizationFields().Name))
+				Expect(spaceName).To(Equal(config.SpaceFields().Name))
 			})
 		})
 
@@ -125,7 +127,12 @@ var _ = Describe("scale command", func() {
 				))
 
 				Expect(ui.Prompts).To(ContainSubstrings([]string{"This will cause the app to restart", "Are you sure", "my-app"}))
-				Expect(restarter.AppToRestart.Guid).To(Equal("my-app-guid"))
+
+				application, orgName, spaceName := restarter.ApplicationRestartArgsForCall(0)
+				Expect(application).To(Equal(app))
+				Expect(orgName).To(Equal(config.OrganizationFields().Name))
+				Expect(spaceName).To(Equal(config.SpaceFields().Name))
+
 				Expect(appRepo.UpdateAppGuid).To(Equal("my-app-guid"))
 				Expect(*appRepo.UpdateParams.Memory).To(Equal(int64(512)))
 				Expect(*appRepo.UpdateParams.InstanceCount).To(Equal(5))
@@ -135,7 +142,8 @@ var _ = Describe("scale command", func() {
 			It("does not scale the memory and disk limits if they are not specified", func() {
 				testcmd.RunCommand(cmd, []string{"-i", "5", "my-app"}, requirementsFactory)
 
-				Expect(restarter.AppToRestart.Guid).To(Equal(""))
+				Expect(restarter.ApplicationRestartCallCount()).To(Equal(0))
+
 				Expect(appRepo.UpdateAppGuid).To(Equal("my-app-guid"))
 				Expect(*appRepo.UpdateParams.InstanceCount).To(Equal(5))
 				Expect(appRepo.UpdateParams.DiskQuota).To(BeNil())
@@ -145,7 +153,11 @@ var _ = Describe("scale command", func() {
 			It("does not scale the app's instance count if it is not specified", func() {
 				testcmd.RunCommand(cmd, []string{"-m", "512M", "my-app"}, requirementsFactory)
 
-				Expect(restarter.AppToRestart.Guid).To(Equal("my-app-guid"))
+				application, orgName, spaceName := restarter.ApplicationRestartArgsForCall(0)
+				Expect(application).To(Equal(app))
+				Expect(orgName).To(Equal(config.OrganizationFields().Name))
+				Expect(spaceName).To(Equal(config.SpaceFields().Name))
+
 				Expect(appRepo.UpdateAppGuid).To(Equal("my-app-guid"))
 				Expect(*appRepo.UpdateParams.Memory).To(Equal(int64(512)))
 				Expect(appRepo.UpdateParams.DiskQuota).To(BeNil())

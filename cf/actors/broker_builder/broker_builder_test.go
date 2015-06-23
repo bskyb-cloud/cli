@@ -89,10 +89,11 @@ var _ = Describe("Broker Builder", func() {
 			},
 		}
 
-		services = models.ServiceOfferings{
-			service1,
-			service2,
-		}
+		services = models.ServiceOfferings(
+			[]models.ServiceOffering{
+				service1,
+				service2,
+			})
 
 		brokerRepo.FindByGuidServiceBroker = serviceBroker1
 	})
@@ -121,11 +122,12 @@ var _ = Describe("Broker Builder", func() {
 					privateServicePlan,
 				},
 			}
-			services = models.ServiceOfferings{
-				service1,
-				service2,
-				brokerlessService,
-			}
+			services = models.ServiceOfferings(
+				[]models.ServiceOffering{
+					service1,
+					service2,
+					brokerlessService,
+				})
 
 			brokers, err := brokerBuilder.AttachBrokersToServices(services)
 			Expect(err).NotTo(HaveOccurred())
@@ -217,14 +219,14 @@ var _ = Describe("Broker Builder", func() {
 
 	Describe(".GetBrokerWithSpecifiedService", func() {
 		It("returns an error if a broker containeing the specific service cannot be found", func() {
-			serviceBuilder.GetServiceByNameReturns(models.ServiceOffering{}, errors.New("Asplosions"))
+			serviceBuilder.GetServiceByNameWithPlansWithOrgNamesReturns(models.ServiceOffering{}, errors.New("Asplosions"))
 			_, err := brokerBuilder.GetBrokerWithSpecifiedService("totally-not-a-service")
 
 			Expect(err).To(HaveOccurred())
 		})
 
 		It("returns the service broker populated with the specific service", func() {
-			serviceBuilder.GetServiceByNameReturns(service1, nil)
+			serviceBuilder.GetServiceByNameWithPlansWithOrgNamesReturns(service1, nil)
 			brokerRepo.FindByGuidServiceBroker = serviceBroker1
 
 			broker, err := brokerBuilder.GetBrokerWithSpecifiedService("my-public-service")

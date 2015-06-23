@@ -1,9 +1,9 @@
 package commands
 
 import (
-	"github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/api/stacks"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -12,11 +12,11 @@ import (
 
 type ListStacks struct {
 	ui         terminal.UI
-	config     configuration.Reader
-	stacksRepo api.StackRepository
+	config     core_config.Reader
+	stacksRepo stacks.StackRepository
 }
 
-func NewListStacks(ui terminal.UI, config configuration.Reader, stacksRepo api.StackRepository) (cmd ListStacks) {
+func NewListStacks(ui terminal.UI, config core_config.Reader, stacksRepo stacks.StackRepository) (cmd ListStacks) {
 	cmd.ui = ui
 	cmd.config = config
 	cmd.stacksRepo = stacksRepo
@@ -32,6 +32,10 @@ func (cmd ListStacks) Metadata() command_metadata.CommandMetadata {
 }
 
 func (cmd ListStacks) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
+	if len(c.Args()) != 0 {
+		cmd.ui.FailWithUsage(c)
+	}
+
 	reqs = append(reqs, requirementsFactory.NewLoginRequirement())
 	return
 }

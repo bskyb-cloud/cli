@@ -5,9 +5,14 @@ import (
 	"path/filepath"
 	"syscall"
 
+	fakeactors "github.com/cloudfoundry/cli/cf/actors/fakes"
+	testApplication "github.com/cloudfoundry/cli/cf/api/applications/fakes"
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	"github.com/cloudfoundry/cli/cf/api/resources"
+	testStacks "github.com/cloudfoundry/cli/cf/api/stacks/fakes"
+	fakeappfiles "github.com/cloudfoundry/cli/cf/app_files/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/application"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/manifest"
 	"github.com/cloudfoundry/cli/cf/models"
@@ -18,8 +23,7 @@ import (
 	testmanifest "github.com/cloudfoundry/cli/testhelpers/manifest"
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
-	testwords "github.com/cloudfoundry/cli/testhelpers/words"
-	"github.com/cloudfoundry/cli/words"
+	testwords "github.com/cloudfoundry/cli/words/generator/fakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -30,44 +34,50 @@ var _ = Describe("Push Command", func() {
 	var (
 		cmd                 *Push
 		ui                  *testterm.FakeUI
-		configRepo          configuration.ReadWriter
+		configRepo          core_config.ReadWriter
 		manifestRepo        *testmanifest.FakeManifestRepository
-		starter             *testcmd.FakeAppStarter
-		stopper             *testcmd.FakeAppStopper
+		starter             *testcmd.FakeApplicationStarter
+		stopper             *testcmd.FakeApplicationStopper
 		serviceBinder       *testcmd.FakeAppBinder
-		appRepo             *testapi.FakeApplicationRepository
+		appRepo             *testApplication.FakeApplicationRepository
 		domainRepo          *testapi.FakeDomainRepository
 		routeRepo           *testapi.FakeRouteRepository
-		stackRepo           *testapi.FakeStackRepository
-		appBitsRepo         *testapi.FakeApplicationBitsRepository
+		stackRepo           *testStacks.FakeStackRepository
 		serviceRepo         *testapi.FakeServiceRepo
-		wordGenerator       words.WordGenerator
+		wordGenerator       *testwords.FakeWordGenerator
 		requirementsFactory *testreq.FakeReqFactory
 		authRepo            *testapi.FakeAuthenticationRepository
+		actor               *fakeactors.FakePushActor
+		app_files           *fakeappfiles.FakeAppFiles
+		zipper              *fakeappfiles.FakeZipper
 	)
 
 	BeforeEach(func() {
 		manifestRepo = &testmanifest.FakeManifestRepository{}
-		starter = &testcmd.FakeAppStarter{}
-		stopper = &testcmd.FakeAppStopper{}
+		starter = &testcmd.FakeApplicationStarter{}
+		stopper = &testcmd.FakeApplicationStopper{}
 		serviceBinder = &testcmd.FakeAppBinder{}
-		appRepo = &testapi.FakeApplicationRepository{}
+		appRepo = &testApplication.FakeApplicationRepository{}
 
 		domainRepo = &testapi.FakeDomainRepository{}
 		sharedDomain := maker.NewSharedDomainFields(maker.Overrides{"name": "foo.cf-app.com", "guid": "foo-domain-guid"})
 		domainRepo.ListDomainsForOrgDomains = []models.DomainFields{sharedDomain}
 
 		routeRepo = &testapi.FakeRouteRepository{}
-		stackRepo = &testapi.FakeStackRepository{}
-		appBitsRepo = &testapi.FakeApplicationBitsRepository{CallbackZipSize: 1, CallbackFileCount: 1}
+		stackRepo = &testStacks.FakeStackRepository{}
 		serviceRepo = &testapi.FakeServiceRepo{}
 		authRepo = &testapi.FakeAuthenticationRepository{}
-		wordGenerator = testwords.NewFakeWordGenerator("laughing-cow")
+		wordGenerator = new(testwords.FakeWordGenerator)
+		wordGenerator.BabbleReturns("laughing-cow")
 
 		ui = new(testterm.FakeUI)
 		configRepo = testconfig.NewRepositoryWithDefaults()
 
 		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: true}
+
+		zipper = &fakeappfiles.FakeZipper{}
+		app_files = &fakeappfiles.FakeAppFiles{}
+		actor = &fakeactors.FakePushActor{}
 
 		cmd = NewPush(ui, configRepo, manifestRepo, starter, stopper, serviceBinder,
 			appRepo,
@@ -75,45 +85,55 @@ var _ = Describe("Push Command", func() {
 			routeRepo,
 			stackRepo,
 			serviceRepo,
-			appBitsRepo,
 			authRepo,
-			wordGenerator)
+			wordGenerator,
+			actor,
+			zipper,
+			app_files)
 	})
 
-	callPush := func(args ...string) {
-		testcmd.RunCommand(cmd, args, requirementsFactory)
+	callPush := func(args ...string) bool {
+		return testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
 		It("passes when logged in and a space is targeted", func() {
-			callPush()
-			Expect(testcmd.CommandDidPassRequirements).To(BeTrue())
+			Expect(callPush()).To(BeTrue())
 		})
 
 		It("fails when not logged in", func() {
 			requirementsFactory.LoginSuccess = false
-			callPush()
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(callPush()).To(BeFalse())
 		})
 
 		It("fails when a space is not targeted", func() {
 			requirementsFactory.TargetedSpaceSuccess = false
-			callPush()
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(callPush()).To(BeFalse())
 		})
 
 		// yes, we're aware that the args here should probably be provided in a different order
 		// erg: app-name -p some/path some-extra-arg
 		// but the test infrastructure for parsing args and flags is sorely lacking
 		It("fails when provided too many args", func() {
-			callPush("-p", "path", "too-much", "app-name")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(callPush("-p", "path", "too-much", "app-name")).To(BeFalse())
 		})
 	})
 
 	Describe("when pushing a new app", func() {
 		BeforeEach(func() {
 			appRepo.ReadReturns.Error = errors.NewModelNotFoundError("App", "the-app")
+
+			zipper.ZipReturns(nil)
+			zipper.GetZipSizeReturns(9001, nil)
+			actor.GatherFilesReturns(nil, true, nil)
+			actor.UploadAppReturns(nil)
+		})
+
+		It("does not call Zip() when there is no file to be uploaded", func() {
+			actor.GatherFilesReturns(nil, false, nil)
+			callPush("my-new-app")
+
+			Expect(zipper.ZipCallCount()).To(Equal(0))
 		})
 
 		Context("when the default route for the app already exists", func() {
@@ -162,6 +182,9 @@ var _ = Describe("Push Command", func() {
 				It("it displays an error", func() {
 					callPush("of-bel-air")
 
+					Expect(ui.Outputs).ToNot(ContainSubstrings(
+						[]string{"Error refreshing auth token"},
+					))
 					Expect(ui.Outputs).To(ContainSubstrings(
 						[]string{"FAILED"},
 						[]string{"accidentally the UAA"},
@@ -169,8 +192,66 @@ var _ = Describe("Push Command", func() {
 				})
 			})
 
+			Context("when multiple domains are specified in manifest", func() {
+
+				BeforeEach(func() {
+					domainRepo.FindByNameInOrgDomain = []models.DomainFields{
+						models.DomainFields{Name: "example1.com", Guid: "example-domain-guid"},
+						models.DomainFields{Name: "example2.com", Guid: "example-domain-guid"},
+					}
+
+					manifestRepo.ReadManifestReturns.Manifest = multipleDomainsManifest()
+				})
+
+				It("creates a route for each domain", func() {
+					callPush()
+
+					Expect(ui.Outputs).To(ContainSubstrings(
+						[]string{"Creating", "manifest-host.example1.com"},
+						[]string{"OK"},
+						[]string{"Binding", "manifest-host.example1.com"},
+						[]string{"OK"},
+						[]string{"Creating", "manifest-host.example2.com"},
+						[]string{"OK"},
+						[]string{"Binding", "manifest-host.example2.com"},
+						[]string{"OK"},
+					))
+				})
+
+				It("creates a route for each host on every domains", func() {
+					callPush()
+
+					Expect(ui.Outputs).To(ContainSubstrings(
+						[]string{"Creating", "manifest-host.example1.com"},
+						[]string{"Binding", "manifest-host.example1.com"},
+						[]string{"Creating", "host2.example1.com"},
+						[]string{"Binding", "host2.example1.com"},
+						[]string{"Creating", "manifest-host.example2.com"},
+						[]string{"Binding", "manifest-host.example2.com"},
+						[]string{"Creating", "host2.example2.com"},
+						[]string{"Binding", "host2.example2.com"},
+					))
+				})
+
+				It("`-d` from argument will override the domains in manifest", func() {
+					callPush("-d", "example1.com")
+
+					Expect(ui.Outputs).To(ContainSubstrings(
+						[]string{"Creating", "manifest-host.example1.com"},
+						[]string{"OK"},
+						[]string{"Binding", "manifest-host.example1.com"},
+					))
+
+					Expect(ui.Outputs).ToNot(ContainSubstrings(
+						[]string{"Creating", "manifest-host.example2.com"},
+					))
+				})
+
+			})
+
 			It("creates an app", func() {
 				callPush("-t", "111", "my-new-app")
+				Expect(ui.Outputs).ToNot(ContainSubstrings([]string{"FAILED"}))
 
 				Expect(*appRepo.CreatedAppParams().Name).To(Equal("my-new-app"))
 				Expect(*appRepo.CreatedAppParams().SpaceGuid).To(Equal("my-space-guid"))
@@ -181,7 +262,8 @@ var _ = Describe("Push Command", func() {
 				Expect(routeRepo.BoundAppGuid).To(Equal("my-new-app-guid"))
 				Expect(routeRepo.BoundRouteGuid).To(Equal("my-new-app-route-guid"))
 
-				Expect(appBitsRepo.UploadedAppGuid).To(Equal("my-new-app-guid"))
+				appGuid, _, _ := actor.UploadAppArgsForCall(0)
+				Expect(appGuid).To(Equal("my-new-app-guid"))
 
 				Expect(ui.Outputs).To(ContainSubstrings(
 					[]string{"Creating app", "my-new-app", "my-org", "my-space"},
@@ -194,10 +276,14 @@ var _ = Describe("Push Command", func() {
 					[]string{"OK"},
 				))
 
-				Expect(stopper.AppToStop.Guid).To(Equal(""))
-				Expect(starter.AppToStart.Guid).To(Equal("my-new-app-guid"))
-				Expect(starter.AppToStart.Name).To(Equal("my-new-app"))
-				Expect(starter.Timeout).To(Equal(111))
+				Expect(stopper.ApplicationStopCallCount()).To(Equal(0))
+
+				app, orgName, spaceName := starter.ApplicationStartArgsForCall(0)
+				Expect(app.Guid).To(Equal(appGuid))
+				Expect(app.Name).To(Equal("my-new-app"))
+				Expect(orgName).To(Equal(configRepo.OrganizationFields().Name))
+				Expect(spaceName).To(Equal(configRepo.SpaceFields().Name))
+				Expect(starter.SetStartTimeoutInSecondsArgsForCall(0)).To(Equal(111))
 			})
 
 			It("strips special characters when creating a default route", func() {
@@ -215,14 +301,16 @@ var _ = Describe("Push Command", func() {
 			})
 
 			It("sets the app params from the flags", func() {
-				domainRepo.FindByNameInOrgDomain = models.DomainFields{
-					Name: "bar.cf-app.com",
-					Guid: "bar-domain-guid",
+				domainRepo.FindByNameInOrgDomain = []models.DomainFields{
+					models.DomainFields{
+						Name: "bar.cf-app.com",
+						Guid: "bar-domain-guid",
+					},
 				}
-				stackRepo.FindByNameStack = models.Stack{
+				stackRepo.FindByNameReturns(models.Stack{
 					Name: "customLinux",
 					Guid: "custom-linux-guid",
-				}
+				}, nil)
 
 				callPush(
 					"-c", "unicorn -c config/unicorn.rb -D",
@@ -250,7 +338,7 @@ var _ = Describe("Push Command", func() {
 					[]string{"OK"},
 				))
 
-				Expect(stackRepo.FindByNameName).To(Equal("customLinux"))
+				Expect(stackRepo.FindByNameArgsForCall(0)).To(Equal("customLinux"))
 
 				Expect(*appRepo.CreatedAppParams().Name).To(Equal("my-new-app"))
 				Expect(*appRepo.CreatedAppParams().Command).To(Equal("unicorn -c config/unicorn.rb -D"))
@@ -269,9 +357,10 @@ var _ = Describe("Push Command", func() {
 				Expect(routeRepo.BoundAppGuid).To(Equal("my-new-app-guid"))
 				Expect(routeRepo.BoundRouteGuid).To(Equal("my-hostname-route-guid"))
 
-				Expect(appBitsRepo.UploadedAppGuid).To(Equal("my-new-app-guid"))
+				appGuid, _, _ := actor.UploadAppArgsForCall(0)
+				Expect(appGuid).To(Equal("my-new-app-guid"))
 
-				Expect(starter.AppToStart.Name).To(Equal(""))
+				Expect(starter.ApplicationStartCallCount()).To(Equal(0))
 			})
 
 			Context("when there is a shared domain", func() {
@@ -366,15 +455,19 @@ var _ = Describe("Push Command", func() {
 				})
 			})
 
-			It("pushes the contents of the directory specified using the -p flag", func() {
-				callPush("-p", "../some/path-to/an-app", "app-with-path")
-				Expect(appBitsRepo.UploadedDir).To(Equal("../some/path-to/an-app"))
+			It("pushes the contents of the app directory or zip file specified using the -p flag", func() {
+				callPush("-p", "../some/path-to/an-app/zip-file", "app-with-path")
+
+				appDir, _ := actor.GatherFilesArgsForCall(0)
+				Expect(appDir).To(Equal("../some/path-to/an-app/zip-file"))
 			})
 
 			It("pushes the contents of the current working directory by default", func() {
 				callPush("app-with-default-path")
 				dir, _ := os.Getwd()
-				Expect(appBitsRepo.UploadedDir).To(Equal(dir))
+
+				appDir, _ := actor.GatherFilesArgsForCall(0)
+				Expect(appDir).To(Equal(dir))
 			})
 
 			It("fails when given a bad manifest path", func() {
@@ -430,9 +523,11 @@ var _ = Describe("Push Command", func() {
 			})
 
 			It("pushes an app when provided a manifest with one app defined", func() {
-				domainRepo.FindByNameInOrgDomain = models.DomainFields{
-					Name: "manifest-example.com",
-					Guid: "bar-domain-guid",
+				domainRepo.FindByNameInOrgDomain = []models.DomainFields{
+					models.DomainFields{
+						Name: "manifest-example.com",
+						Guid: "bar-domain-guid",
+					},
 				}
 
 				manifestRepo.ReadManifestReturns.Manifest = singleAppManifest()
@@ -452,12 +547,35 @@ var _ = Describe("Push Command", func() {
 				Expect(*appRepo.CreatedAppParams().StackName).To(Equal("custom-stack"))
 				Expect(*appRepo.CreatedAppParams().BuildpackUrl).To(Equal("some-buildpack"))
 				Expect(*appRepo.CreatedAppParams().Command).To(Equal("JAVA_HOME=$PWD/.openjdk JAVA_OPTS=\"-Xss995K\" ./bin/start.sh run"))
-				Expect(appBitsRepo.UploadedDir).To(Equal(filepath.Clean("some/path/from/manifest")))
+				// Expect(actor.UploadedDir).To(Equal(filepath.Clean("some/path/from/manifest"))) TODO: Re-enable this once we develop a strategy
 
-				Expect(*appRepo.CreatedAppParams().EnvironmentVars).To(Equal(map[string]string{
+				Expect(*appRepo.CreatedAppParams().EnvironmentVars).To(Equal(map[string]interface{}{
 					"PATH": "/u/apps/my-app/bin",
 					"FOO":  "baz",
 				}))
+			})
+
+			It("pushes an app with multiple routes when multiple hosts are provided", func() {
+				domainRepo.FindByNameInOrgDomain = []models.DomainFields{
+					models.DomainFields{
+						Name: "manifest-example.com",
+						Guid: "bar-domain-guid",
+					},
+				}
+
+				manifestRepo.ReadManifestReturns.Manifest = multipleHostManifest()
+
+				callPush()
+
+				Expect(ui.Outputs).To(ContainSubstrings(
+					[]string{"Creating route", "manifest-host-1.manifest-example.com"},
+					[]string{"OK"},
+					[]string{"Binding", "manifest-host-1.manifest-example.com"},
+					[]string{"Creating route", "manifest-host-2.manifest-example.com"},
+					[]string{"OK"},
+					[]string{"Binding", "manifest-host-2.manifest-example.com"},
+					[]string{"manifest-app-name"},
+				))
 			})
 
 			It("fails when parsing the manifest has errors", func() {
@@ -474,9 +592,11 @@ var _ = Describe("Push Command", func() {
 			})
 
 			It("does not create a route when provided the --no-route flag", func() {
-				domainRepo.FindByNameInOrgDomain = models.DomainFields{
-					Name: "bar.cf-app.com",
-					Guid: "bar-domain-guid",
+				domainRepo.FindByNameInOrgDomain = []models.DomainFields{
+					models.DomainFields{
+						Name: "bar.cf-app.com",
+						Guid: "bar-domain-guid",
+					},
 				}
 
 				callPush("--no-route", "my-new-app")
@@ -576,7 +696,7 @@ var _ = Describe("Push Command", func() {
 			existingApp.Name = "existing-app"
 			existingApp.Guid = "existing-app-guid"
 			existingApp.Command = "unicorn -c config/unicorn.rb -D"
-			existingApp.EnvironmentVars = map[string]string{
+			existingApp.EnvironmentVars = map[string]interface{}{
 				"crazy": "pants",
 				"FOO":   "NotYoBaz",
 				"foo":   "manchu",
@@ -623,8 +743,14 @@ var _ = Describe("Push Command", func() {
 
 			callPush("existing-app")
 
-			Expect(stopper.AppToStop.Guid).To(Equal(existingApp.Guid))
-			Expect(appBitsRepo.UploadedAppGuid).To(Equal(existingApp.Guid))
+			app, orgName, spaceName := stopper.ApplicationStopArgsForCall(0)
+			Expect(app.Guid).To(Equal(existingApp.Guid))
+			Expect(app.Name).To(Equal("existing-app"))
+			Expect(orgName).To(Equal(configRepo.OrganizationFields().Name))
+			Expect(spaceName).To(Equal(configRepo.SpaceFields().Name))
+
+			appGuid, _, _ := actor.UploadAppArgsForCall(0)
+			Expect(appGuid).To(Equal(existingApp.Guid))
 		})
 
 		It("does not stop the app when it is already stopped", func() {
@@ -634,7 +760,7 @@ var _ = Describe("Push Command", func() {
 
 			callPush("existing-app")
 
-			Expect(stopper.AppToStop.Guid).To(Equal(""))
+			Expect(stopper.ApplicationStopCallCount()).To(Equal(0))
 		})
 
 		It("updates the app", func() {
@@ -645,10 +771,10 @@ var _ = Describe("Push Command", func() {
 			appRepo.ReadReturns.App = existingApp
 			appRepo.UpdateAppResult = existingApp
 
-			stackRepo.FindByNameStack = models.Stack{
+			stackRepo.FindByNameReturns(models.Stack{
 				Name: "differentStack",
 				Guid: "differentStack-guid",
-			}
+			}, nil)
 
 			callPush(
 				"-c", "different start command",
@@ -713,7 +839,8 @@ var _ = Describe("Push Command", func() {
 					It("does not add a route to the app", func() {
 						callPush("existing-app")
 
-						Expect(appBitsRepo.UploadedAppGuid).To(Equal("existing-app-guid"))
+						appGuid, _, _ := actor.UploadAppArgsForCall(0)
+						Expect(appGuid).To(Equal("existing-app-guid"))
 						Expect(domainRepo.FindByNameInOrgName).To(Equal(""))
 						Expect(routeRepo.FindByHostAndDomainCalledWith.Domain.Name).To(Equal(""))
 						Expect(routeRepo.FindByHostAndDomainCalledWith.Host).To(Equal(""))
@@ -728,9 +855,8 @@ var _ = Describe("Push Command", func() {
 
 						routeRepo.FindByHostAndDomainReturns.Error = errors.NewModelNotFoundError("Org", "uh oh")
 
-						domainRepo.FindByNameInOrgDomain = models.DomainFields{
-							Name: "example.com",
-							Guid: "example-domain-guid",
+						domainRepo.FindByNameInOrgDomain = []models.DomainFields{
+							models.DomainFields{Name: "example.com", Guid: "example-domain-guid"},
 						}
 					})
 
@@ -742,9 +868,10 @@ var _ = Describe("Push Command", func() {
 			})
 
 			It("creates and binds a route when a different domain is specified", func() {
-				newDomain := models.DomainFields{Guid: "domain-guid", Name: "newdomain.com"}
 				routeRepo.FindByHostAndDomainReturns.Error = errors.NewModelNotFoundError("Org", "existing-app.newdomain.com")
-				domainRepo.FindByNameInOrgDomain = newDomain
+				domainRepo.FindByNameInOrgDomain = []models.DomainFields{
+					models.DomainFields{Guid: "domain-guid", Name: "newdomain.com"},
+				}
 
 				callPush("-d", "newdomain.com", "existing-app")
 
@@ -782,7 +909,8 @@ var _ = Describe("Push Command", func() {
 			It("removes the route when the --no-route flag is given", func() {
 				callPush("--no-route", "existing-app")
 
-				Expect(appBitsRepo.UploadedAppGuid).To(Equal("existing-app-guid"))
+				appGuid, _, _ := actor.UploadAppArgsForCall(0)
+				Expect(appGuid).To(Equal("existing-app-guid"))
 				Expect(domainRepo.FindByNameInOrgName).To(Equal(""))
 				Expect(routeRepo.FindByHostAndDomainCalledWith.Domain.Name).To(Equal(""))
 				Expect(routeRepo.FindByHostAndDomainCalledWith.Host).To(Equal(""))
@@ -904,32 +1032,24 @@ var _ = Describe("Push Command", func() {
 
 	Describe("displaying information about files being uploaded", func() {
 		It("displays information about the files being uploaded", func() {
-			appRepo.ReadReturns.Error = errors.NewModelNotFoundError("App", "the-app")
-			appBitsRepo.CallbackPath = "path/to/app"
-			appBitsRepo.CallbackZipSize = 61 * 1024 * 1024
-			appBitsRepo.CallbackFileCount = 11
+			app_files.CountFilesReturns(11)
+			zipper.ZipReturns(nil)
+			zipper.GetZipSizeReturns(6100000, nil)
+			actor.GatherFilesReturns([]resources.AppFileResource{resources.AppFileResource{Path: "path/to/app"}, resources.AppFileResource{Path: "bar"}}, true, nil)
+
+			curDir, err := os.Getwd()
+			Expect(err).NotTo(HaveOccurred())
 
 			callPush("appName")
 			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Uploading", "path/to/app"},
-				[]string{"61M", "11 files"},
-			))
-		})
-
-		It("omits the size when there are no files being uploaded", func() {
-			appRepo.ReadReturns.Error = errors.NewModelNotFoundError("App", "the-app")
-			appBitsRepo.CallbackPath = "path/to/app"
-			appBitsRepo.CallbackFileCount = 0
-
-			callPush("appName")
-			Expect(ui.WarnOutputs).To(ContainSubstrings(
-				[]string{"None of your application files have changed", "Nothing will be uploaded"},
+				[]string{"Uploading", curDir},
+				[]string{"5.8M", "11 files"},
 			))
 		})
 	})
 
 	It("fails when the app can't be uploaded", func() {
-		appBitsRepo.UploadAppErr = true
+		actor.UploadAppReturns(errors.New("Boom!"))
 
 		callPush("app")
 
@@ -972,7 +1092,7 @@ var _ = Describe("Push Command", func() {
 		callPush()
 		Expect(ui.Outputs).To(ContainSubstrings(
 			[]string{"FAILED"},
-			[]string{"App name"},
+			[]string{"Manifest file is not found"},
 		))
 	})
 })
@@ -988,6 +1108,59 @@ func existingAppManifest() *manifest.Manifest {
 					"instances": 1,
 					"host":      "new-manifest-host",
 					"domain":    "example.com",
+					"stack":     "custom-stack",
+					"timeout":   360,
+					"buildpack": "some-buildpack",
+					"command":   `JAVA_HOME=$PWD/.openjdk JAVA_OPTS="-Xss995K" ./bin/start.sh run`,
+					"path":      filepath.Clean("some/path/from/manifest"),
+					"env": generic.NewMap(map[interface{}]interface{}{
+						"FOO":  "baz",
+						"PATH": "/u/apps/my-app/bin",
+					}),
+				}),
+			},
+		}),
+	}
+}
+
+func multipleHostManifest() *manifest.Manifest {
+	return &manifest.Manifest{
+		Path: "manifest.yml",
+		Data: generic.NewMap(map[interface{}]interface{}{
+			"applications": []interface{}{
+				generic.NewMap(map[interface{}]interface{}{
+					"name":      "manifest-app-name",
+					"memory":    "128MB",
+					"instances": 1,
+					"hosts":     []interface{}{"manifest-host-1", "manifest-host-2"},
+					"domain":    "manifest-example.com",
+					"stack":     "custom-stack",
+					"timeout":   360,
+					"buildpack": "some-buildpack",
+					"command":   `JAVA_HOME=$PWD/.openjdk JAVA_OPTS="-Xss995K" ./bin/start.sh run`,
+					"path":      filepath.Clean("some/path/from/manifest"),
+					"env": generic.NewMap(map[interface{}]interface{}{
+						"FOO":  "baz",
+						"PATH": "/u/apps/my-app/bin",
+					}),
+				}),
+			},
+		}),
+	}
+}
+
+func multipleDomainsManifest() *manifest.Manifest {
+	return &manifest.Manifest{
+		Path: "manifest.yml",
+		Data: generic.NewMap(map[interface{}]interface{}{
+			"applications": []interface{}{
+				generic.NewMap(map[interface{}]interface{}{
+					"name":      "manifest-app-name",
+					"memory":    "128MB",
+					"instances": 1,
+					"host":      "manifest-host",
+					"hosts":     []interface{}{"host2"},
+					"domains":   []interface{}{"example1.com", "example2.com"},
 					"stack":     "custom-stack",
 					"timeout":   360,
 					"buildpack": "some-buildpack",

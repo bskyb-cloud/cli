@@ -1,27 +1,34 @@
 package service
 
 import (
+	"encoding/json"
+
+	"github.com/cloudfoundry/cli/cf/actors/service_builder"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/flag_helpers"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
+	cli_json "github.com/cloudfoundry/cli/json"
 	"github.com/codegangsta/cli"
 )
 
 type CreateService struct {
-	ui          terminal.UI
-	config      configuration.Reader
-	serviceRepo api.ServiceRepository
+	ui             terminal.UI
+	config         core_config.Reader
+	serviceRepo    api.ServiceRepository
+	serviceBuilder service_builder.ServiceBuilder
 }
 
-func NewCreateService(ui terminal.UI, config configuration.Reader, serviceRepo api.ServiceRepository) (cmd CreateService) {
+func NewCreateService(ui terminal.UI, config core_config.Reader, serviceRepo api.ServiceRepository, serviceBuilder service_builder.ServiceBuilder) (cmd CreateService) {
 	cmd.ui = ui
 	cmd.config = config
 	cmd.serviceRepo = serviceRepo
+	cmd.serviceBuilder = serviceBuilder
 	return
 }
 
@@ -33,10 +40,13 @@ func (cmd CreateService) Metadata() command_metadata.CommandMetadata {
 		Usage: T(`CF_NAME create-service SERVICE PLAN SERVICE_INSTANCE
 
 EXAMPLE:
-   CF_NAME create-service cleardb spark clear-db-mine
+   CF_NAME create-service dbaas silver mydb
 
 TIP:
    Use 'CF_NAME create-user-provided-service' to make user-provided services available to cf apps`),
+		Flags: []cli.Flag{
+			flag_helpers.NewStringFlag("c", T("Valid JSON object containing service-specific configuration parameters, provided either in-line or in a file. For a list of supported configuration parameters, see documentation for the particular service offering.")),
+		},
 	}
 }
 
@@ -57,8 +67,15 @@ func (cmd CreateService) Run(c *cli.Context) {
 	serviceName := c.Args()[0]
 	planName := c.Args()[1]
 	serviceInstanceName := c.Args()[2]
+	params := c.String("c")
 
-	cmd.ui.Say(T("Creating service {{.ServiceName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
+	paramsMap := make(map[string]interface{})
+	paramsMap, err := cmd.parseArbitraryParams(params)
+	if err != nil && params != "" {
+		cmd.ui.Failed(T("Invalid JSON provided in -c argument"))
+	}
+
+	cmd.ui.Say(T("Creating service instance {{.ServiceName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
 		map[string]interface{}{
 			"ServiceName": terminal.EntityNameColor(serviceInstanceName),
 			"OrgName":     terminal.EntityNameColor(cmd.config.OrganizationFields().Name),
@@ -66,11 +83,25 @@ func (cmd CreateService) Run(c *cli.Context) {
 			"CurrentUser": terminal.EntityNameColor(cmd.config.Username()),
 		}))
 
-	err := cmd.CreateService(serviceName, planName, serviceInstanceName)
+	plan, err := cmd.CreateService(serviceName, planName, serviceInstanceName, paramsMap)
 
 	switch err.(type) {
 	case nil:
-		cmd.ui.Ok()
+		err := printSuccessMessageForServiceInstance(serviceInstanceName, cmd.serviceRepo, cmd.ui)
+		if err != nil {
+			cmd.ui.Failed(err.Error())
+		}
+
+		if !plan.Free {
+			cmd.ui.Say("")
+			cmd.ui.Say(T("Attention: The plan `{{.PlanName}}` of service `{{.ServiceName}}` is not free.  The instance `{{.ServiceInstanceName}}` will incur a cost.  Contact your administrator if you think this is in error.",
+				map[string]interface{}{
+					"PlanName":            terminal.EntityNameColor(plan.Name),
+					"ServiceName":         terminal.EntityNameColor(serviceName),
+					"ServiceInstanceName": terminal.EntityNameColor(serviceInstanceName),
+				}))
+			cmd.ui.Say("")
+		}
 	case *errors.ModelAlreadyExistsError:
 		cmd.ui.Ok()
 		cmd.ui.Warn(err.Error())
@@ -79,32 +110,34 @@ func (cmd CreateService) Run(c *cli.Context) {
 	}
 }
 
-func (cmd CreateService) CreateService(serviceName string, planName string, serviceInstanceName string) (apiErr error) {
-	offerings, apiErr := cmd.serviceRepo.FindServiceOfferingsForSpaceByLabel(cmd.config.SpaceFields().Guid, serviceName)
+func (cmd CreateService) CreateService(serviceName, planName, serviceInstanceName string, params map[string]interface{}) (models.ServicePlanFields, error) {
+	offerings, apiErr := cmd.serviceBuilder.GetServicesByNameForSpaceWithPlans(cmd.config.SpaceFields().Guid, serviceName)
 	if apiErr != nil {
-		return
+		return models.ServicePlanFields{}, apiErr
 	}
+
 	plan, apiErr := findPlanFromOfferings(offerings, planName)
 	if apiErr != nil {
-		return
+		return plan, apiErr
 	}
 
-	return cmd.serviceRepo.CreateServiceInstance(serviceInstanceName, plan.Guid)
+	apiErr = cmd.serviceRepo.CreateServiceInstance(serviceInstanceName, plan.Guid, params)
+	return plan, apiErr
 }
 
-func findOfferings(offerings []models.ServiceOffering, name string) (matchingOfferings models.ServiceOfferings, err error) {
-	for _, offering := range offerings {
-		if name == offering.Label {
-			matchingOfferings = append(matchingOfferings, offering)
+func (cmd CreateService) parseArbitraryParams(paramsFileOrJson string) (map[string]interface{}, error) {
+	var paramsMap map[string]interface{}
+	var err error
+
+	paramsMap, err = cli_json.ParseJsonHash(paramsFileOrJson)
+	if err != nil {
+		paramsMap = make(map[string]interface{})
+		err = json.Unmarshal([]byte(paramsFileOrJson), &paramsMap)
+		if err != nil && paramsFileOrJson != "" {
+			return nil, err
 		}
 	}
-
-	if len(matchingOfferings) == 0 {
-		err = errors.New(T("Could not find any offerings with name {{.ServiceOfferingName}}",
-			map[string]interface{}{"ServiceOfferingName": name},
-		))
-	}
-	return
+	return paramsMap, nil
 }
 
 func findPlanFromOfferings(offerings models.ServiceOfferings, name string) (plan models.ServicePlanFields, err error) {

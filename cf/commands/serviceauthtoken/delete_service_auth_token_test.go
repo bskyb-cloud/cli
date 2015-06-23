@@ -3,7 +3,7 @@ package serviceauthtoken_test
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/serviceauthtoken"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	. "github.com/onsi/ginkgo"
@@ -20,7 +20,7 @@ import (
 var _ = Describe("delete-service-auth-token command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		configRepo          configuration.ReadWriter
+		configRepo          core_config.ReadWriter
 		authTokenRepo       *testapi.FakeAuthTokenRepo
 		requirementsFactory *testreq.FakeReqFactory
 	)
@@ -32,9 +32,9 @@ var _ = Describe("delete-service-auth-token command", func() {
 		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true}
 	})
 
-	runCommand := func(args ...string) {
+	runCommand := func(args ...string) bool {
 		cmd := NewDeleteServiceAuthToken(ui, configRepo, authTokenRepo)
-		testcmd.RunCommand(cmd, args, requirementsFactory)
+		return testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
@@ -45,8 +45,7 @@ var _ = Describe("delete-service-auth-token command", func() {
 
 		It("fails when not logged in", func() {
 			requirementsFactory.LoginSuccess = false
-			runCommand()
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand()).To(BeFalse())
 		})
 	})
 

@@ -12,13 +12,18 @@ type FakeDomainRepository struct {
 
 	FindByNameInOrgName        string
 	FindByNameInOrgGuid        string
-	FindByNameInOrgDomain      models.DomainFields
+	FindByNameInOrgDomain      []models.DomainFields
 	FindByNameInOrgApiResponse error
 
-	FindByNameName     string
-	FindByNameDomain   models.DomainFields
-	FindByNameNotFound bool
-	FindByNameErr      bool
+	FindSharedByNameName     string
+	FindSharedByNameDomain   models.DomainFields
+	FindSharedByNameNotFound bool
+	FindSharedByNameErr      bool
+
+	FindPrivateByNameName     string
+	FindPrivateByNameDomain   models.DomainFields
+	FindPrivateByNameNotFound bool
+	FindPrivateByNameErr      bool
 
 	CreateDomainName          string
 	CreateDomainOwningOrgGuid string
@@ -30,6 +35,8 @@ type FakeDomainRepository struct {
 
 	DeleteSharedDomainGuid  string
 	DeleteSharedApiResponse error
+
+	domainCursor int
 }
 
 func (repo *FakeDomainRepository) ListDomainsForOrg(orgGuid string, cb func(models.DomainFields) bool) error {
@@ -40,14 +47,28 @@ func (repo *FakeDomainRepository) ListDomainsForOrg(orgGuid string, cb func(mode
 	return repo.ListDomainsForOrgApiResponse
 }
 
-func (repo *FakeDomainRepository) FindByName(name string) (domain models.DomainFields, apiErr error) {
-	repo.FindByNameName = name
-	domain = repo.FindByNameDomain
+func (repo *FakeDomainRepository) FindSharedByName(name string) (domain models.DomainFields, apiErr error) {
+	repo.FindSharedByNameName = name
+	domain = repo.FindSharedByNameDomain
 
-	if repo.FindByNameNotFound {
+	if repo.FindSharedByNameNotFound {
 		apiErr = errors.NewModelNotFoundError("Domain", name)
 	}
-	if repo.FindByNameErr {
+	if repo.FindSharedByNameErr {
+		apiErr = errors.New("Error finding domain")
+	}
+
+	return
+}
+
+func (repo *FakeDomainRepository) FindPrivateByName(name string) (domain models.DomainFields, apiErr error) {
+	repo.FindPrivateByNameName = name
+	domain = repo.FindPrivateByNameDomain
+
+	if repo.FindPrivateByNameNotFound {
+		apiErr = errors.NewModelNotFoundError("Domain", name)
+	}
+	if repo.FindPrivateByNameErr {
 		apiErr = errors.New("Error finding domain")
 	}
 
@@ -57,7 +78,12 @@ func (repo *FakeDomainRepository) FindByName(name string) (domain models.DomainF
 func (repo *FakeDomainRepository) FindByNameInOrg(name string, owningOrgGuid string) (domain models.DomainFields, apiErr error) {
 	repo.FindByNameInOrgName = name
 	repo.FindByNameInOrgGuid = owningOrgGuid
-	domain = repo.FindByNameInOrgDomain
+	if len(repo.FindByNameInOrgDomain) == 0 {
+		domain = models.DomainFields{}
+	} else {
+		domain = repo.FindByNameInOrgDomain[repo.domainCursor]
+		repo.domainCursor++
+	}
 	apiErr = repo.FindByNameInOrgApiResponse
 	return
 }

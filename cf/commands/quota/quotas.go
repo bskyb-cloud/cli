@@ -3,10 +3,11 @@ package quota
 import (
 	"fmt"
 	. "github.com/cloudfoundry/cli/cf/i18n"
+	"strconv"
 
 	"github.com/cloudfoundry/cli/cf/api/quotas"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/formatters"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -15,11 +16,11 @@ import (
 
 type ListQuotas struct {
 	ui        terminal.UI
-	config    configuration.Reader
+	config    core_config.Reader
 	quotaRepo quotas.QuotaRepository
 }
 
-func NewListQuotas(ui terminal.UI, config configuration.Reader, quotaRepo quotas.QuotaRepository) (cmd *ListQuotas) {
+func NewListQuotas(ui terminal.UI, config core_config.Reader, quotaRepo quotas.QuotaRepository) (cmd *ListQuotas) {
 	return &ListQuotas{
 		ui:        ui,
 		config:    config,
@@ -36,6 +37,9 @@ func (cmd *ListQuotas) Metadata() command_metadata.CommandMetadata {
 }
 
 func (cmd *ListQuotas) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
+	if len(c.Args()) != 0 {
+		cmd.ui.FailWithUsage(c)
+	}
 	reqs = []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 	}
@@ -56,13 +60,25 @@ func (cmd *ListQuotas) Run(c *cli.Context) {
 
 	table := terminal.NewTable(cmd.ui, []string{T("name"), T("total memory limit"), T("instance memory limit"), T("routes"), T("service instances"), T("paid service plans")})
 
+	var megabytes string
 	for _, quota := range quotas {
+		if quota.InstanceMemoryLimit == -1 {
+			megabytes = T("unlimited")
+		} else {
+			megabytes = formatters.ByteSize(quota.InstanceMemoryLimit * formatters.MEGABYTE)
+		}
+
+		servicesLimit := strconv.Itoa(quota.ServicesLimit)
+		if quota.ServicesLimit == -1 {
+			servicesLimit = T("unlimited")
+		}
+
 		table.Add(
 			quota.Name,
 			formatters.ByteSize(quota.MemoryLimit*formatters.MEGABYTE),
-			formatters.ByteSize(quota.InstanceMemoryLimit*formatters.MEGABYTE),
+			megabytes,
 			fmt.Sprintf("%d", quota.RoutesLimit),
-			fmt.Sprintf("%d", quota.ServicesLimit),
+			fmt.Sprintf(servicesLimit),
 			formatters.Allowed(quota.NonBasicServicesAllowed),
 		)
 	}

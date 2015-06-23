@@ -3,7 +3,7 @@ package route
 import (
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
@@ -14,10 +14,10 @@ import (
 type DeleteOrphanedRoutes struct {
 	ui        terminal.UI
 	routeRepo api.RouteRepository
-	config    configuration.Reader
+	config    core_config.Reader
 }
 
-func NewDeleteOrphanedRoutes(ui terminal.UI, config configuration.Reader, routeRepo api.RouteRepository) (cmd DeleteOrphanedRoutes) {
+func NewDeleteOrphanedRoutes(ui terminal.UI, config core_config.Reader, routeRepo api.RouteRepository) (cmd DeleteOrphanedRoutes) {
 	cmd.ui = ui
 	cmd.config = config
 	cmd.routeRepo = routeRepo
@@ -36,6 +36,9 @@ func (cmd DeleteOrphanedRoutes) Metadata() command_metadata.CommandMetadata {
 }
 
 func (cmd DeleteOrphanedRoutes) GetRequirements(reqFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
+	if len(c.Args()) != 0 {
+		cmd.ui.FailWithUsage(c)
+	}
 	reqs = append(reqs, reqFactory.NewLoginRequirement())
 	return
 }

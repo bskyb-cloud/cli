@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	test_org "github.com/cloudfoundry/cli/cf/api/organizations/fakes"
 	"github.com/cloudfoundry/cli/cf/api/space_quotas/fakes"
 	"github.com/cloudfoundry/cli/cf/errors"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
@@ -20,41 +20,39 @@ var _ = Describe("create-quota command", func() {
 	var (
 		ui                  *testterm.FakeUI
 		quotaRepo           *fakes.FakeSpaceQuotaRepository
-		orgRepo             *testapi.FakeOrgRepository
+		orgRepo             *test_org.FakeOrganizationRepository
 		requirementsFactory *testreq.FakeReqFactory
 	)
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		quotaRepo = &fakes.FakeSpaceQuotaRepository{}
-		orgRepo = &testapi.FakeOrgRepository{}
+		orgRepo = &test_org.FakeOrganizationRepository{}
 		requirementsFactory = &testreq.FakeReqFactory{}
 
 		org := models.Organization{}
 		org.Name = "my-org"
 		org.Guid = "my-org-guid"
-		orgRepo.Organizations = []models.Organization{org}
-		orgRepo.FindByNameName = org.Name
+		orgRepo.ListOrgsReturns([]models.Organization{org}, nil)
+		orgRepo.FindByNameReturns(org, nil)
 	})
 
-	runCommand := func(args ...string) {
+	runCommand := func(args ...string) bool {
 		cmd := NewCreateSpaceQuota(ui, configuration.NewRepositoryWithDefaults(), quotaRepo, orgRepo)
-		testcmd.RunCommand(cmd, args, requirementsFactory)
+		return testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	Context("requirements", func() {
 		It("requires the user to be logged in", func() {
 			requirementsFactory.LoginSuccess = false
-			runCommand("my-quota", "-m", "50G")
 
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("my-quota", "-m", "50G")).To(BeFalse())
 		})
 
 		It("requires the user to target an org", func() {
 			requirementsFactory.TargetedOrgSuccess = false
-			runCommand("my-quota", "-m", "50G")
 
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("my-quota", "-m", "50G")).To(BeFalse())
 		})
 	})
 
@@ -78,6 +76,14 @@ var _ = Describe("create-quota command", func() {
 				[]string{"Creating space quota", "my-org", "my-quota", "my-user", "..."},
 				[]string{"OK"},
 			))
+		})
+
+		Context("when the -i flag is not provided", func() {
+			It("sets the instance memory limit to unlimiited", func() {
+				runCommand("my-quota")
+
+				Expect(quotaRepo.CreateArgsForCall(0).InstanceMemoryLimit).To(Equal(int64(-1)))
+			})
 		})
 
 		Context("when the -m flag is provided", func() {

@@ -3,7 +3,7 @@ package route
 import (
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/flag_helpers"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
@@ -13,13 +13,13 @@ import (
 
 type UnmapRoute struct {
 	ui        terminal.UI
-	config    configuration.Reader
+	config    core_config.Reader
 	routeRepo api.RouteRepository
 	appReq    requirements.ApplicationRequirement
 	domainReq requirements.DomainRequirement
 }
 
-func NewUnmapRoute(ui terminal.UI, config configuration.Reader, routeRepo api.RouteRepository) (cmd *UnmapRoute) {
+func NewUnmapRoute(ui terminal.UI, config core_config.Reader, routeRepo api.RouteRepository) (cmd *UnmapRoute) {
 	cmd = new(UnmapRoute)
 	cmd.ui = ui
 	cmd.config = config
@@ -31,7 +31,7 @@ func (cmd *UnmapRoute) Metadata() command_metadata.CommandMetadata {
 	return command_metadata.CommandMetadata{
 		Name:        "unmap-route",
 		Description: T("Remove a url route from an app"),
-		Usage:       T("CF_NAME unmap-route APP DOMAIN [-n HOSTNAME]"),
+		Usage:       T("CF_NAME unmap-route APP_NAME DOMAIN [-n HOSTNAME]"),
 		Flags: []cli.Flag{
 			flag_helpers.NewStringFlag("n", T("Hostname")),
 		},
@@ -43,10 +43,14 @@ func (cmd *UnmapRoute) GetRequirements(requirementsFactory requirements.Factory,
 		cmd.ui.FailWithUsage(c)
 	}
 
-	appName := c.Args()[0]
 	domainName := c.Args()[1]
 
-	cmd.appReq = requirementsFactory.NewApplicationRequirement(appName)
+	if cmd.appReq == nil {
+		cmd.appReq = requirementsFactory.NewApplicationRequirement(c.Args()[0])
+	} else {
+		cmd.appReq.SetApplicationName(c.Args()[0])
+	}
+
 	cmd.domainReq = requirementsFactory.NewDomainRequirement(domainName)
 
 	reqs = []requirements.Requirement{
@@ -74,11 +78,21 @@ func (cmd *UnmapRoute) Run(c *cli.Context) {
 			"SpaceName": terminal.EntityNameColor(cmd.config.SpaceFields().Name),
 			"Username":  terminal.EntityNameColor(cmd.config.Username())}))
 
-	apiErr = cmd.routeRepo.Unbind(route.Guid, app.Guid)
-	if apiErr != nil {
-		cmd.ui.Failed(apiErr.Error())
-		return
+	var routeFound bool
+	for _, routeApp := range route.Apps {
+		if routeApp.Guid == app.Guid {
+			routeFound = true
+			apiErr = cmd.routeRepo.Unbind(route.Guid, app.Guid)
+			if apiErr != nil {
+				cmd.ui.Failed(apiErr.Error())
+				return
+			}
+		}
+	}
+	cmd.ui.Ok()
+
+	if !routeFound {
+		cmd.ui.Warn(T("\nRoute to be unmapped is not currently mapped to the application."))
 	}
 
-	cmd.ui.Ok()
 }

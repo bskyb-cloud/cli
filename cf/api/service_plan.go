@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/cloudfoundry/cli/cf/api/resources"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
 )
@@ -17,11 +17,11 @@ type ServicePlanRepository interface {
 }
 
 type CloudControllerServicePlanRepository struct {
-	config  configuration.Reader
+	config  core_config.Reader
 	gateway net.Gateway
 }
 
-func NewCloudControllerServicePlanRepository(config configuration.Reader, gateway net.Gateway) CloudControllerServicePlanRepository {
+func NewCloudControllerServicePlanRepository(config core_config.Reader, gateway net.Gateway) CloudControllerServicePlanRepository {
 	return CloudControllerServicePlanRepository{
 		config:  config,
 		gateway: gateway,
@@ -39,8 +39,8 @@ func (repo CloudControllerServicePlanRepository) Update(servicePlan models.Servi
 		serviceGuid,
 	)
 
-	url := fmt.Sprintf("%s/v2/service_plans/%s", repo.config.ApiEndpoint(), servicePlan.Guid)
-	return repo.gateway.UpdateResource(url, strings.NewReader(body))
+	url := fmt.Sprintf("/v2/service_plans/%s", servicePlan.Guid)
+	return repo.gateway.UpdateResource(repo.config.ApiEndpoint(), url, strings.NewReader(body))
 }
 
 func (repo CloudControllerServicePlanRepository) Search(queryParams map[string]string) (plans []models.ServicePlanFields, err error) {

@@ -3,7 +3,7 @@ package space
 import (
 	"github.com/cloudfoundry/cli/cf/api/spaces"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
@@ -13,11 +13,11 @@ import (
 
 type ListSpaces struct {
 	ui        terminal.UI
-	config    configuration.Reader
+	config    core_config.Reader
 	spaceRepo spaces.SpaceRepository
 }
 
-func NewListSpaces(ui terminal.UI, config configuration.Reader, spaceRepo spaces.SpaceRepository) (cmd ListSpaces) {
+func NewListSpaces(ui terminal.UI, config core_config.Reader, spaceRepo spaces.SpaceRepository) (cmd ListSpaces) {
 	cmd.ui = ui
 	cmd.config = config
 	cmd.spaceRepo = spaceRepo
@@ -33,6 +33,9 @@ func (cmd ListSpaces) Metadata() command_metadata.CommandMetadata {
 }
 
 func (cmd ListSpaces) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
+	if len(c.Args()) != 0 {
+		cmd.ui.FailWithUsage(c)
+	}
 	reqs = []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 		requirementsFactory.NewTargetedOrgRequirement(),

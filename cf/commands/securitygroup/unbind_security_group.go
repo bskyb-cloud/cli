@@ -1,12 +1,14 @@
 package securitygroup
 
 import (
-	"github.com/cloudfoundry/cli/cf/api"
+	"strings"
+
+	"github.com/cloudfoundry/cli/cf/api/organizations"
 	"github.com/cloudfoundry/cli/cf/api/security_groups"
 	sgbinder "github.com/cloudfoundry/cli/cf/api/security_groups/spaces"
 	"github.com/cloudfoundry/cli/cf/api/spaces"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -15,14 +17,14 @@ import (
 
 type UnbindSecurityGroup struct {
 	ui                terminal.UI
-	configRepo        configuration.Reader
+	configRepo        core_config.Reader
 	securityGroupRepo security_groups.SecurityGroupRepo
-	orgRepo           api.OrganizationRepository
+	orgRepo           organizations.OrganizationRepository
 	spaceRepo         spaces.SpaceRepository
 	secBinder         sgbinder.SecurityGroupSpaceBinder
 }
 
-func NewUnbindSecurityGroup(ui terminal.UI, configRepo configuration.Reader, securityGroupRepo security_groups.SecurityGroupRepo, orgRepo api.OrganizationRepository, spaceRepo spaces.SpaceRepository, secBinder sgbinder.SecurityGroupSpaceBinder) UnbindSecurityGroup {
+func NewUnbindSecurityGroup(ui terminal.UI, configRepo core_config.Reader, securityGroupRepo security_groups.SecurityGroupRepo, orgRepo organizations.OrganizationRepository, spaceRepo spaces.SpaceRepository, secBinder sgbinder.SecurityGroupSpaceBinder) UnbindSecurityGroup {
 	return UnbindSecurityGroup{
 		ui:                ui,
 		configRepo:        configRepo,
@@ -34,10 +36,12 @@ func NewUnbindSecurityGroup(ui terminal.UI, configRepo configuration.Reader, sec
 }
 
 func (cmd UnbindSecurityGroup) Metadata() command_metadata.CommandMetadata {
+	primaryUsage := T("CF_NAME unbind-security-group SECURITY_GROUP ORG SPACE")
+	tipUsage := T("TIP: Changes will not apply to existing running applications until they are restarted.")
 	return command_metadata.CommandMetadata{
 		Name:        "unbind-security-group",
 		Description: T("Unbind a security group from a space"),
-		Usage:       T("CF_NAME unbind-security-group SECURITY_GROUP ORG SPACE"),
+		Usage:       strings.Join([]string{primaryUsage, tipUsage}, "\n\n"),
 	}
 }
 
@@ -82,6 +86,8 @@ func (cmd UnbindSecurityGroup) Run(context *cli.Context) {
 		cmd.ui.Failed(err.Error())
 	}
 	cmd.ui.Ok()
+	cmd.ui.Say("\n\n")
+	cmd.ui.Say(T("TIP: Changes will not apply to existing running applications until they are restarted."))
 }
 
 func (cmd UnbindSecurityGroup) flavorText(secName string, orgName string, spaceName string) {

@@ -2,18 +2,23 @@ package application
 
 import (
 	"fmt"
-	. "github.com/cloudfoundry/cli/cf/i18n"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 
+	. "github.com/cloudfoundry/cli/cf/i18n"
+	"github.com/cloudfoundry/cli/fileutils"
+
 	"github.com/cloudfoundry/cli/cf/actors"
 	"github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/api/applications"
 	"github.com/cloudfoundry/cli/cf/api/authentication"
+	"github.com/cloudfoundry/cli/cf/api/stacks"
+	"github.com/cloudfoundry/cli/cf/app_files"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/commands/service"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/flag_helpers"
 	"github.com/cloudfoundry/cli/cf/formatters"
@@ -21,32 +26,35 @@ import (
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/words"
+	"github.com/cloudfoundry/cli/words/generator"
 	"github.com/codegangsta/cli"
 )
 
 type Push struct {
 	ui            terminal.UI
-	config        configuration.Reader
+	config        core_config.Reader
 	manifestRepo  manifest.ManifestRepository
 	appStarter    ApplicationStarter
 	appStopper    ApplicationStopper
 	serviceBinder service.ServiceBinder
-	appRepo       api.ApplicationRepository
+	appRepo       applications.ApplicationRepository
 	domainRepo    api.DomainRepository
 	routeRepo     api.RouteRepository
 	serviceRepo   api.ServiceRepository
-	stackRepo     api.StackRepository
-	appBitsRepo   api.ApplicationBitsRepository
+	stackRepo     stacks.StackRepository
 	authRepo      authentication.AuthenticationRepository
-	wordGenerator words.WordGenerator
+	wordGenerator generator.WordGenerator
+	actor         actors.PushActor
+	zipper        app_files.Zipper
+	app_files     app_files.AppFiles
 }
 
-func NewPush(ui terminal.UI, config configuration.Reader, manifestRepo manifest.ManifestRepository,
+func NewPush(ui terminal.UI, config core_config.Reader, manifestRepo manifest.ManifestRepository,
 	starter ApplicationStarter, stopper ApplicationStopper, binder service.ServiceBinder,
-	appRepo api.ApplicationRepository, domainRepo api.DomainRepository, routeRepo api.RouteRepository,
-	stackRepo api.StackRepository, serviceRepo api.ServiceRepository, appBitsRepo api.ApplicationBitsRepository,
-	authRepo authentication.AuthenticationRepository, wordGenerator words.WordGenerator) *Push {
+	appRepo applications.ApplicationRepository, domainRepo api.DomainRepository, routeRepo api.RouteRepository,
+	stackRepo stacks.StackRepository, serviceRepo api.ServiceRepository,
+	authRepo authentication.AuthenticationRepository, wordGenerator generator.WordGenerator,
+	actor actors.PushActor, zipper app_files.Zipper, app_files app_files.AppFiles) *Push {
 	return &Push{
 		ui:            ui,
 		config:        config,
@@ -59,9 +67,11 @@ func NewPush(ui terminal.UI, config configuration.Reader, manifestRepo manifest.
 		routeRepo:     routeRepo,
 		serviceRepo:   serviceRepo,
 		stackRepo:     stackRepo,
-		appBitsRepo:   appBitsRepo,
 		authRepo:      authRepo,
 		wordGenerator: wordGenerator,
+		actor:         actor,
+		zipper:        zipper,
+		app_files:     app_files,
 	}
 }
 
@@ -70,11 +80,11 @@ func (cmd *Push) Metadata() command_metadata.CommandMetadata {
 		Name:        "push",
 		ShortName:   "p",
 		Description: T("Push a new app or sync changes to an existing app"),
-		Usage: T("Push a single app (with or without a manifest):\n") + T("   CF_NAME push APP [-b BUILDPACK_NAME] [-c COMMAND] [-d DOMAIN] [-f MANIFEST_PATH]\n") + T("   [-i NUM_INSTANCES] [-k DISK] [-m MEMORY] [-n HOST] [-p PATH] [-s STACK] [-t TIMEOUT]\n") +
+		Usage: T("Push a single app (with or without a manifest):\n") + T("   CF_NAME push APP_NAME [-b BUILDPACK_NAME] [-c COMMAND] [-d DOMAIN] [-f MANIFEST_PATH]\n") + T("   [-i NUM_INSTANCES] [-k DISK] [-m MEMORY] [-n HOST] [-p PATH] [-s STACK] [-t TIMEOUT]\n") +
 			"   [--no-hostname] [--no-manifest] [--no-route] [--no-start]\n" +
 			"\n" + T("   Push multiple apps with a manifest:\n") + T("   CF_NAME push [-f MANIFEST_PATH]\n"),
 		Flags: []cli.Flag{
-			flag_helpers.NewStringFlag("b", T("Custom buildpack by name (e.g. my-buildpack) or GIT URL (e.g. https://github.com/heroku/heroku-buildpack-play.git)")),
+			flag_helpers.NewStringFlag("b", T("Custom buildpack by name (e.g. my-buildpack) or GIT URL (e.g. 'https://github.com/heroku/heroku-buildpack-play.git') or GIT BRANCH URL (e.g. 'https://github.com/heroku/heroku-buildpack-play.git#develop' for 'develop' branch). Use built-in buildpacks only by setting value to 'null' or 'default'")),
 			flag_helpers.NewStringFlag("c", T("Startup command, set to null to reset to default start command")),
 			flag_helpers.NewStringFlag("d", T("Domain (e.g. example.com)")),
 			flag_helpers.NewStringFlag("f", T("Path to manifest")),
@@ -82,12 +92,12 @@ func (cmd *Push) Metadata() command_metadata.CommandMetadata {
 			flag_helpers.NewStringFlag("k", T("Disk limit (e.g. 256M, 1024M, 1G)")),
 			flag_helpers.NewStringFlag("m", T("Memory limit (e.g. 256M, 1024M, 1G)")),
 			flag_helpers.NewStringFlag("n", T("Hostname (e.g. my-subdomain)")),
-			flag_helpers.NewStringFlag("p", T("Path to app directory or file")),
+			flag_helpers.NewStringFlag("p", T("Path to app directory or to a zip file of the contents of the app directory")),
 			flag_helpers.NewStringFlag("s", T("Stack to use (a stack is a pre-built file system, including an operating system, that can run apps)")),
-			flag_helpers.NewStringFlag("t", T("Start timeout in seconds")),
+			flag_helpers.NewStringFlag("t", T("Maximum time (in seconds) for CLI to wait for application start, other server side timeouts may apply")),
 			cli.BoolFlag{Name: "no-hostname", Usage: T("Map the root domain to this app")},
 			cli.BoolFlag{Name: "no-manifest", Usage: T("Ignore manifest file")},
-			cli.BoolFlag{Name: "no-route", Usage: T("Do not map a route to this app")},
+			cli.BoolFlag{Name: "no-route", Usage: T("Do not map a route to this app and remove routes from previous pushes of this app.")},
 			cli.BoolFlag{Name: "no-start", Usage: T("Do not start an app after pushing")},
 			cli.BoolFlag{Name: "random-route", Usage: T("Create a random route for this app")},
 		},
@@ -110,23 +120,22 @@ func (cmd *Push) Run(c *cli.Context) {
 	appSet := cmd.findAndValidateAppsToPush(c)
 	_, apiErr := cmd.authRepo.RefreshAuthToken()
 	if apiErr != nil {
-		cmd.ui.Failed(fmt.Sprintf("Error refreshing auth token.\n%s", apiErr.Error()))
+		cmd.ui.Failed(apiErr.Error())
 		return
 	}
 
 	routeActor := actors.NewRouteActor(cmd.ui, cmd.routeRepo)
-	noHostname := c.Bool("no-hostname")
 
 	for _, appParams := range appSet {
 		cmd.fetchStackGuid(&appParams)
 		app := cmd.createOrUpdateApp(appParams)
 
-		cmd.updateRoutes(routeActor, app, appParams, noHostname)
+		cmd.updateRoutes(routeActor, app, appParams)
 
 		cmd.ui.Say(T("Uploading {{.AppName}}...",
 			map[string]interface{}{"AppName": terminal.EntityNameColor(app.Name)}))
 
-		apiErr := cmd.appBitsRepo.UploadApp(app.Guid, *appParams.Path, cmd.describeUploadOperation)
+		apiErr := cmd.uploadApp(app.Guid, *appParams.Path)
 		if apiErr != nil {
 			cmd.ui.Failed(fmt.Sprintf(T("Error uploading application.\n{{.ApiErr}}",
 				map[string]interface{}{"ApiErr": apiErr.Error()})))
@@ -142,19 +151,40 @@ func (cmd *Push) Run(c *cli.Context) {
 	}
 }
 
-func (cmd *Push) updateRoutes(routeActor actors.RouteActor, app models.Application, appParams models.AppParams, noHostName bool) {
+func (cmd *Push) updateRoutes(routeActor actors.RouteActor, app models.Application, appParams models.AppParams) {
 	defaultRouteAcceptable := len(app.Routes) == 0
-	routeDefined := appParams.Domain != nil || appParams.Host != nil || noHostName
-
-	domain := cmd.findDomain(appParams.Domain)
-	hostname := cmd.hostnameForApp(appParams.Host, appParams.UseRandomHostname, app.Name, noHostName)
+	routeDefined := appParams.Domains != nil || !appParams.IsHostEmpty() || appParams.NoHostname
 
 	if appParams.NoRoute {
 		cmd.removeRoutes(app, routeActor)
-	} else if routeDefined || defaultRouteAcceptable {
-		route := routeActor.FindOrCreateRoute(hostname, domain)
-		routeActor.BindRoute(app, route)
+		return
 	}
+
+	if routeDefined || defaultRouteAcceptable {
+		if appParams.Domains == nil {
+			cmd.processDomainsAndBindRoutes(appParams, routeActor, app, cmd.findDomain(nil))
+		} else {
+			for _, d := range *(appParams.Domains) {
+				cmd.processDomainsAndBindRoutes(appParams, routeActor, app, cmd.findDomain(&d))
+			}
+		}
+	}
+}
+
+func (cmd *Push) processDomainsAndBindRoutes(appParams models.AppParams, routeActor actors.RouteActor, app models.Application, domain models.DomainFields) {
+	if appParams.IsHostEmpty() {
+		cmd.createAndBindRoute(nil, appParams.UseRandomHostname, routeActor, app, appParams.NoHostname, domain)
+	} else {
+		for _, host := range *(appParams.Hosts) {
+			cmd.createAndBindRoute(&host, appParams.UseRandomHostname, routeActor, app, appParams.NoHostname, domain)
+		}
+	}
+}
+
+func (cmd *Push) createAndBindRoute(host *string, UseRandomHostname bool, routeActor actors.RouteActor, app models.Application, noHostName bool, domain models.DomainFields) {
+	hostname := cmd.hostnameForApp(host, UseRandomHostname, app.Name, noHostName)
+	route := routeActor.FindOrCreateRoute(hostname, domain)
+	routeActor.BindRoute(app, route)
 }
 
 func (cmd *Push) removeRoutes(app models.Application, routeActor actors.RouteActor) {
@@ -235,18 +265,6 @@ func (cmd *Push) bindAppToServices(services []string, app models.Application) {
 	}
 }
 
-func (cmd *Push) describeUploadOperation(path string, zipFileBytes, fileCount int64) {
-	if fileCount > 0 {
-		cmd.ui.Say(T("Uploading app files from: {{.Path}}", map[string]interface{}{"Path": path}))
-		cmd.ui.Say(T("Uploading {{.ZipFileBytes}}, {{.FileCount}} files",
-			map[string]interface{}{
-				"ZipFileBytes": formatters.ByteSize(zipFileBytes),
-				"FileCount":    fileCount}))
-	} else {
-		cmd.ui.Warn(T("None of your application files have changed. Nothing will be uploaded."))
-	}
-}
-
 func (cmd *Push) fetchStackGuid(appParams *models.AppParams) {
 	if appParams.StackName == nil {
 		return
@@ -269,7 +287,7 @@ func (cmd *Push) fetchStackGuid(appParams *models.AppParams) {
 func (cmd *Push) restart(app models.Application, params models.AppParams, c *cli.Context) {
 	if app.State != T("stopped") {
 		cmd.ui.Say("")
-		app, _ = cmd.appStopper.ApplicationStop(app)
+		app, _ = cmd.appStopper.ApplicationStop(app, cmd.config.OrganizationFields().Name, cmd.config.SpaceFields().Name)
 	}
 
 	cmd.ui.Say("")
@@ -282,7 +300,7 @@ func (cmd *Push) restart(app models.Application, params models.AppParams, c *cli
 		cmd.appStarter.SetStartTimeoutInSeconds(*params.HealthCheckTimeout)
 	}
 
-	cmd.appStarter.ApplicationStart(app)
+	cmd.appStarter.ApplicationStart(app, cmd.config.OrganizationFields().Name, cmd.config.SpaceFields().Name)
 }
 
 func (cmd *Push) createOrUpdateApp(appParams models.AppParams) (app models.Application) {
@@ -401,7 +419,11 @@ func (cmd *Push) createAppSetFromContextAndManifest(contextApp models.AppParams,
 
 	switch len(manifestApps) {
 	case 0:
-		err = addApp(&apps, contextApp)
+		if contextApp.Name == nil {
+			err = errors.New(T("Manifest file is not found in the current directory, please provide either an app name or manifest"))
+		} else {
+			err = addApp(&apps, contextApp)
+		}
 	case 1:
 		manifestApps[0].Merge(&contextApp)
 		err = addApp(&apps, manifestApps[0])
@@ -465,10 +487,10 @@ func (cmd *Push) getAppParamsFromContext(c *cli.Context) (appParams models.AppPa
 
 	appParams.NoRoute = c.Bool("no-route")
 	appParams.UseRandomHostname = c.Bool("random-route")
+	appParams.NoHostname = c.Bool("no-hostname")
 
 	if c.String("n") != "" {
-		hostname := c.String("n")
-		appParams.Host = &hostname
+		appParams.Hosts = &[]string{c.String("n")}
 	}
 
 	if c.String("b") != "" {
@@ -488,8 +510,7 @@ func (cmd *Push) getAppParamsFromContext(c *cli.Context) (appParams models.AppPa
 	}
 
 	if c.String("d") != "" {
-		domain := c.String("d")
-		appParams.Domain = &domain
+		appParams.Domains = &[]string{c.String("d")}
 	}
 
 	if c.IsSet("i") {
@@ -540,4 +561,77 @@ func (cmd *Push) getAppParamsFromContext(c *cli.Context) (appParams models.AppPa
 	}
 
 	return
+}
+
+func (cmd *Push) uploadApp(appGuid string, appDir string) (apiErr error) {
+	fileutils.TempDir("apps", func(uploadDir string, err error) {
+		if err != nil {
+			apiErr = err
+			return
+		}
+
+		presentFiles, hasFileToUpload, err := cmd.actor.GatherFiles(appDir, uploadDir)
+		if err != nil {
+			apiErr = err
+			return
+		}
+
+		fileutils.TempFile("uploads", func(zipFile *os.File, err error) {
+			if hasFileToUpload {
+				err = cmd.zipAppFiles(zipFile, appDir, uploadDir)
+				if err != nil {
+					apiErr = err
+					return
+				}
+			}
+
+			err = cmd.actor.UploadApp(appGuid, zipFile, presentFiles)
+			if err != nil {
+				apiErr = err
+				return
+			}
+		})
+		return
+	})
+	return
+}
+
+func (cmd *Push) zipAppFiles(zipFile *os.File, appDir string, uploadDir string) (zipErr error) {
+	zipErr = cmd.zipWithBetterErrors(uploadDir, zipFile)
+	if zipErr != nil {
+		return
+	}
+
+	zipFileSize, zipErr := cmd.zipper.GetZipSize(zipFile)
+	if zipErr != nil {
+		return
+	}
+
+	zipFileCount := cmd.app_files.CountFiles(uploadDir)
+
+	cmd.describeUploadOperation(appDir, zipFileSize, zipFileCount)
+	return
+}
+
+func (cmd *Push) zipWithBetterErrors(uploadDir string, zipFile *os.File) error {
+	zipError := cmd.zipper.Zip(uploadDir, zipFile)
+	switch err := zipError.(type) {
+	case nil:
+		return nil
+	case *errors.EmptyDirError:
+		zipFile = nil
+		return zipError
+	default:
+		return errors.NewWithError(T("Error zipping application"), err)
+	}
+}
+
+func (cmd *Push) describeUploadOperation(path string, zipFileBytes, fileCount int64) {
+	if fileCount > 0 {
+		cmd.ui.Say(T("Uploading app files from: {{.Path}}", map[string]interface{}{"Path": path}))
+		cmd.ui.Say(T("Uploading {{.ZipFileBytes}}, {{.FileCount}} files",
+			map[string]interface{}{
+				"ZipFileBytes": formatters.ByteSize(zipFileBytes),
+				"FileCount":    fileCount}))
+	}
 }

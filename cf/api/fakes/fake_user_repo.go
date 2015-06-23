@@ -14,9 +14,10 @@ type FakeUserRepository struct {
 	ListUsersSpaceGuid        string
 	ListUsersByRole           map[string][]models.UserFields
 
-	CreateUserUsername string
-	CreateUserPassword string
-	CreateUserExists   bool
+	CreateUserUsername         string
+	CreateUserPassword         string
+	CreateUserExists           bool
+	CreateUserReturnsHttpError bool
 
 	DeleteUserGuid string
 
@@ -36,6 +37,11 @@ type FakeUserRepository struct {
 	UnsetSpaceRoleUserGuid  string
 	UnsetSpaceRoleSpaceGuid string
 	UnsetSpaceRoleRole      string
+
+	ListUsersInOrgForRoleWithNoUAA_CallCount   int
+	ListUsersInOrgForRole_CallCount            int
+	ListUsersInSpaceForRoleWithNoUAA_CallCount int
+	ListUsersInSpaceForRole_CallCount          int
 }
 
 func (repo *FakeUserRepository) FindByUsername(username string) (user models.UserFields, apiErr error) {
@@ -49,13 +55,27 @@ func (repo *FakeUserRepository) FindByUsername(username string) (user models.Use
 	return
 }
 
+func (repo *FakeUserRepository) ListUsersInOrgForRoleWithNoUAA(orgGuid string, roleName string) ([]models.UserFields, error) {
+	repo.ListUsersOrganizationGuid = orgGuid
+	repo.ListUsersInOrgForRoleWithNoUAA_CallCount++
+	return repo.ListUsersByRole[roleName], nil
+}
+
 func (repo *FakeUserRepository) ListUsersInOrgForRole(orgGuid string, roleName string) ([]models.UserFields, error) {
 	repo.ListUsersOrganizationGuid = orgGuid
+	repo.ListUsersInOrgForRole_CallCount++
 	return repo.ListUsersByRole[roleName], nil
 }
 
 func (repo *FakeUserRepository) ListUsersInSpaceForRole(spaceGuid string, roleName string) ([]models.UserFields, error) {
 	repo.ListUsersSpaceGuid = spaceGuid
+	repo.ListUsersInSpaceForRole_CallCount++
+	return repo.ListUsersByRole[roleName], nil
+}
+
+func (repo *FakeUserRepository) ListUsersInSpaceForRoleWithNoUAA(spaceGuid string, roleName string) ([]models.UserFields, error) {
+	repo.ListUsersSpaceGuid = spaceGuid
+	repo.ListUsersInSpaceForRoleWithNoUAA_CallCount++
 	return repo.ListUsersByRole[roleName], nil
 }
 
@@ -63,6 +83,9 @@ func (repo *FakeUserRepository) Create(username, password string) (apiErr error)
 	repo.CreateUserUsername = username
 	repo.CreateUserPassword = password
 
+	if repo.CreateUserReturnsHttpError {
+		apiErr = errors.NewHttpError(403, "403", "Forbidden")
+	}
 	if repo.CreateUserExists {
 		apiErr = errors.NewModelAlreadyExistsError("User", username)
 	}

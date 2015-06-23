@@ -3,7 +3,7 @@ package user_test
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/user"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -28,7 +28,7 @@ var _ = Describe("set-org-role command", func() {
 		ui                  *testterm.FakeUI
 		requirementsFactory *testreq.FakeReqFactory
 		userRepo            *testapi.FakeUserRepository
-		configRepo          configuration.ReadWriter
+		configRepo          core_config.ReadWriter
 	)
 
 	BeforeEach(func() {
@@ -39,14 +39,13 @@ var _ = Describe("set-org-role command", func() {
 		userRepo = &testapi.FakeUserRepository{}
 	})
 
-	runCommand := func(args ...string) {
-		testcmd.RunCommand(NewSetOrgRole(ui, configRepo, userRepo), args, requirementsFactory)
+	runCommand := func(args ...string) bool {
+		return testcmd.RunCommand(NewSetOrgRole(ui, configRepo, userRepo), args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
 		It("fails when not logged in", func() {
-			runCommand("hey", "there", "jude")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("hey", "there", "jude")).To(BeFalse())
 		})
 
 		It("fails with usage when not provided exactly three args", func() {

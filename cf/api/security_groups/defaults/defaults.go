@@ -4,19 +4,19 @@ import (
 	"fmt"
 
 	"github.com/cloudfoundry/cli/cf/api/resources"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
 )
 
 type DefaultSecurityGroupsRepoBase struct {
-	ConfigRepo configuration.Reader
+	ConfigRepo core_config.Reader
 	Gateway    net.Gateway
 }
 
 func (repo *DefaultSecurityGroupsRepoBase) Bind(groupGuid string, path string) error {
-	updatedPath := fmt.Sprintf("%s%s/%s", repo.ConfigRepo.ApiEndpoint(), path, groupGuid)
-	return repo.Gateway.UpdateResourceFromStruct(updatedPath, "")
+	updatedPath := fmt.Sprintf("%s/%s", path, groupGuid)
+	return repo.Gateway.UpdateResourceFromStruct(repo.ConfigRepo.ApiEndpoint(), updatedPath, "")
 }
 
 func (repo *DefaultSecurityGroupsRepoBase) List(path string) ([]models.SecurityGroupFields, error) {
@@ -39,6 +39,6 @@ func (repo *DefaultSecurityGroupsRepoBase) List(path string) ([]models.SecurityG
 }
 
 func (repo *DefaultSecurityGroupsRepoBase) Delete(groupGuid string, path string) error {
-	updatedPath := fmt.Sprintf("%s%s/%s", repo.ConfigRepo.ApiEndpoint(), path, groupGuid)
-	return repo.Gateway.DeleteResource(updatedPath)
+	updatedPath := fmt.Sprintf("%s/%s", path, groupGuid)
+	return repo.Gateway.DeleteResource(repo.ConfigRepo.ApiEndpoint(), updatedPath)
 }

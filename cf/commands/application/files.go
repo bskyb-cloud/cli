@@ -1,9 +1,9 @@
 package application
 
 import (
-	"github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/api/app_files"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/flag_helpers"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
@@ -13,12 +13,12 @@ import (
 
 type Files struct {
 	ui           terminal.UI
-	config       configuration.Reader
-	appFilesRepo api.AppFilesRepository
+	config       core_config.Reader
+	appFilesRepo app_files.AppFilesRepository
 	appReq       requirements.ApplicationRequirement
 }
 
-func NewFiles(ui terminal.UI, config configuration.Reader, appFilesRepo api.AppFilesRepository) (cmd *Files) {
+func NewFiles(ui terminal.UI, config core_config.Reader, appFilesRepo app_files.AppFilesRepository) (cmd *Files) {
 	cmd = new(Files)
 	cmd.ui = ui
 	cmd.config = config
@@ -31,7 +31,7 @@ func (cmd *Files) Metadata() command_metadata.CommandMetadata {
 		Name:        "files",
 		ShortName:   "f",
 		Description: T("Print out a list of files in a directory or the contents of a specific file"),
-		Usage:       T("CF_NAME files APP [-i INSTANCE] [PATH]"),
+		Usage:       T("CF_NAME files APP_NAME [PATH] [-i INSTANCE]"),
 		Flags: []cli.Flag{
 			flag_helpers.NewIntFlag("i", T("Instance")),
 		},
@@ -43,7 +43,11 @@ func (cmd *Files) GetRequirements(requirementsFactory requirements.Factory, c *c
 		cmd.ui.FailWithUsage(c)
 	}
 
-	cmd.appReq = requirementsFactory.NewApplicationRequirement(c.Args()[0])
+	if cmd.appReq == nil {
+		cmd.appReq = requirementsFactory.NewApplicationRequirement(c.Args()[0])
+	} else {
+		cmd.appReq.SetApplicationName(c.Args()[0])
+	}
 
 	reqs = []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
@@ -94,5 +98,10 @@ func (cmd *Files) Run(c *cli.Context) {
 
 	cmd.ui.Ok()
 	cmd.ui.Say("")
-	cmd.ui.Say("%s", list)
+
+	if list == "" {
+		cmd.ui.Say("No files found")
+	} else {
+		cmd.ui.Say("%s", list)
+	}
 }

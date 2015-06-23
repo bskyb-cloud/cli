@@ -28,15 +28,20 @@ var _ = Describe("quotas command", func() {
 		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true}
 	})
 
-	runCommand := func() bool {
+	runCommand := func(args ...string) bool {
 		cmd := NewListQuotas(ui, testconfig.NewRepositoryWithDefaults(), quotaRepo)
-		return testcmd.RunCommand(cmd, []string{}, requirementsFactory)
+		return testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
 		It("requires the user to be logged in", func() {
 			requirementsFactory.LoginSuccess = false
 			Expect(runCommand()).ToNot(HavePassedRequirements())
+		})
+		It("should fail with usage when provided any arguments", func() {
+			requirementsFactory.LoginSuccess = true
+			Expect(runCommand("blahblah")).To(BeFalse())
+			Expect(ui.FailedWithUsage).To(BeTrue())
 		})
 	})
 
@@ -54,7 +59,7 @@ var _ = Describe("quotas command", func() {
 				models.QuotaFields{
 					Name:                    "quota-non-basic-not-allowed",
 					MemoryLimit:             434,
-					InstanceMemoryLimit:     3,
+					InstanceMemoryLimit:     -1,
 					RoutesLimit:             1,
 					ServicesLimit:           2,
 					NonBasicServicesAllowed: false,
@@ -69,7 +74,24 @@ var _ = Describe("quotas command", func() {
 				[]string{"OK"},
 				[]string{"name", "total memory limit", "instance memory limit", "routes", "service instances", "paid service plans"},
 				[]string{"quota-name", "1G", "512M", "111", "222", "allowed"},
-				[]string{"quota-non-basic-not-allowed", "434M", "3M", "1", "2", "disallowed"},
+				[]string{"quota-non-basic-not-allowed", "434M", "unlimited", "1", "2", "disallowed"},
+			))
+		})
+
+		It("displays unlimited services properly", func() {
+			quotaRepo.FindAllReturns([]models.QuotaFields{
+				models.QuotaFields{
+					Name:                    "quota-with-no-limit-to-services",
+					MemoryLimit:             434,
+					InstanceMemoryLimit:     1,
+					RoutesLimit:             2,
+					ServicesLimit:           -1,
+					NonBasicServicesAllowed: false,
+				},
+			}, nil)
+			Expect(Expect(runCommand()).To(HavePassedRequirements())).To(HavePassedRequirements())
+			Expect(ui.Outputs).To(ContainSubstrings(
+				[]string{"quota-with-no-limit-to-services", "434M", "1", "2", "unlimited", "disallowed"},
 			))
 		})
 	})

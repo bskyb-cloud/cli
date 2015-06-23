@@ -3,7 +3,7 @@ package space_test
 import (
 	"github.com/cloudfoundry/cli/cf/api/space_quotas/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/space"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -20,7 +20,7 @@ var _ = Describe("space command", func() {
 		ui                  *testterm.FakeUI
 		requirementsFactory *testreq.FakeReqFactory
 		quotaRepo           *fakes.FakeSpaceQuotaRepository
-		configRepo          configuration.ReadWriter
+		configRepo          core_config.ReadWriter
 	)
 
 	BeforeEach(func() {
@@ -30,21 +30,21 @@ var _ = Describe("space command", func() {
 		requirementsFactory = &testreq.FakeReqFactory{}
 	})
 
-	runCommand := func(args ...string) {
-		testcmd.RunCommand(NewShowSpace(ui, configRepo, quotaRepo), args, requirementsFactory)
+	runCommand := func(args ...string) bool {
+		return testcmd.RunCommand(NewShowSpace(ui, configRepo, quotaRepo), args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
 		It("fails when not logged in", func() {
 			requirementsFactory.TargetedOrgSuccess = true
-			runCommand("some-space")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+
+			Expect(runCommand("some-space")).To(BeFalse())
 		})
 
 		It("fails when an org is not targeted", func() {
 			requirementsFactory.LoginSuccess = true
-			runCommand("some-space")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+
+			Expect(runCommand("some-space")).To(BeFalse())
 		})
 	})
 
@@ -68,12 +68,17 @@ var _ = Describe("space command", func() {
 			serviceInstance.Guid = "service1-guid"
 			services := []models.ServiceInstanceFields{serviceInstance}
 
-			securityGroup1 := models.SecurityGroupFields{Name: "Nacho Security"}
-			securityGroup2 := models.SecurityGroupFields{Name: "Nacho Prime"}
+			securityGroup1 := models.SecurityGroupFields{Name: "Nacho Security", Rules: []map[string]interface{}{
+				{"protocol": "all", "destination": "0.0.0.0-9.255.255.255"},
+			}}
+			securityGroup2 := models.SecurityGroupFields{Name: "Nacho Prime", Rules: []map[string]interface{}{
+				{"protocol": "udp", "ports": "8080-9090", "destination": "198.41.191.47/1"},
+			}}
 			securityGroups := []models.SecurityGroupFields{securityGroup1, securityGroup2}
 
 			space := models.Space{}
 			space.Name = "whose-space-is-it-anyway"
+			space.Guid = "whose-space-is-it-anyway-guid"
 			space.Organization = org
 			space.Applications = apps
 			space.Domains = domains
@@ -95,6 +100,36 @@ var _ = Describe("space command", func() {
 			requirementsFactory.Space = space
 
 			quotaRepo.FindByGuidReturns(quota, nil)
+		})
+
+		Context("when the guid flag is passed", func() {
+			It("shows only the space guid", func() {
+				runCommand("--guid", "whose-space-is-it-anyway")
+
+				Expect(ui.Outputs).To(ContainSubstrings(
+					[]string{"whose-space-is-it-anyway-guid"},
+				))
+
+				Expect(ui.Outputs).ToNot(ContainSubstrings(
+					[]string{"Getting info for space", "whose-space-is-it-anyway", "my-org", "my-user"},
+				))
+			})
+		})
+
+		Context("when the security-group-rules flag is passed", func() {
+			It("it shows space information and security group rules", func() {
+				runCommand("--security-group-rules", "whose-space-is-it-anyway")
+
+				Expect(ui.Outputs).To(ContainSubstrings(
+					[]string{"Getting rules for the security group", "Nacho Security"},
+					[]string{"protocol", "all"},
+					[]string{"destination", "0.0.0.0-9.255.255.255"},
+					[]string{"Getting rules for the security group", "Nacho Prime"},
+					[]string{"protocol", "udp"},
+					[]string{"ports", "8080-9090"},
+					[]string{"destination", "198.41.191.47/1"},
+				))
+			})
 		})
 
 		Context("when the space has a space quota", func() {

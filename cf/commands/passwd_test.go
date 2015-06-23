@@ -3,7 +3,7 @@ package commands_test
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -24,8 +24,8 @@ var _ = Describe("password command", func() {
 
 	It("does not pass requirements if you are not logged in", func() {
 		deps.ReqFactory.LoginSuccess = false
-		callPassword([]string{}, deps)
-		Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+		_, passed := callPassword([]string{}, deps)
+		Expect(passed).To(BeFalse())
 	})
 
 	Context("when logged in successfully", func() {
@@ -34,13 +34,13 @@ var _ = Describe("password command", func() {
 		})
 
 		It("passes requirements", func() {
-			callPassword([]string{"", "", ""}, deps)
-			Expect(testcmd.CommandDidPassRequirements).To(BeTrue())
+			_, passed := callPassword([]string{"", "", ""}, deps)
+			Expect(passed).To(BeTrue())
 		})
 
 		It("changes your password when given a new password", func() {
 			deps.PwdRepo.UpdateUnauthorized = false
-			ui := callPassword([]string{"old-password", "new-password", "new-password"}, deps)
+			ui, _ := callPassword([]string{"old-password", "new-password", "new-password"}, deps)
 
 			Expect(ui.PasswordPrompts).To(ContainSubstrings(
 				[]string{"Current Password"},
@@ -63,7 +63,7 @@ var _ = Describe("password command", func() {
 		})
 
 		It("fails when the password verification does not match", func() {
-			ui := callPassword([]string{"old-password", "new-password", "new-password-with-error"}, deps)
+			ui, _ := callPassword([]string{"old-password", "new-password", "new-password-with-error"}, deps)
 
 			Expect(ui.PasswordPrompts).To(ContainSubstrings(
 				[]string{"Current Password"},
@@ -81,7 +81,7 @@ var _ = Describe("password command", func() {
 
 		It("fails when the current password does not match", func() {
 			deps.PwdRepo.UpdateUnauthorized = true
-			ui := callPassword([]string{"old-password", "new-password", "new-password"}, deps)
+			ui, _ := callPassword([]string{"old-password", "new-password", "new-password"}, deps)
 
 			Expect(ui.PasswordPrompts).To(ContainSubstrings(
 				[]string{"Current Password"},
@@ -104,7 +104,7 @@ var _ = Describe("password command", func() {
 type passwordDeps struct {
 	ReqFactory *testreq.FakeReqFactory
 	PwdRepo    *testapi.FakePasswordRepo
-	Config     configuration.ReadWriter
+	Config     core_config.ReadWriter
 }
 
 func getPasswordDeps() passwordDeps {
@@ -115,10 +115,10 @@ func getPasswordDeps() passwordDeps {
 	}
 }
 
-func callPassword(inputs []string, deps passwordDeps) (ui *testterm.FakeUI) {
-	ui = &testterm.FakeUI{Inputs: inputs}
+func callPassword(inputs []string, deps passwordDeps) (*testterm.FakeUI, bool) {
+	ui := &testterm.FakeUI{Inputs: inputs}
 	cmd := NewPassword(ui, deps.PwdRepo, deps.Config)
-	testcmd.RunCommand(cmd, []string{}, deps.ReqFactory)
+	passed := testcmd.RunCommand(cmd, []string{}, deps.ReqFactory)
 
-	return
+	return ui, passed
 }

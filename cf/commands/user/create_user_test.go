@@ -3,7 +3,7 @@ package user_test
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/user"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
@@ -19,7 +19,7 @@ var _ = Describe("Create user command", func() {
 		requirementsFactory *testreq.FakeReqFactory
 		ui                  *testterm.FakeUI
 		userRepo            *testapi.FakeUserRepository
-		configRepo          configuration.ReadWriter
+		configRepo          core_config.ReadWriter
 	)
 
 	BeforeEach(func() {
@@ -27,16 +27,15 @@ var _ = Describe("Create user command", func() {
 		ui = new(testterm.FakeUI)
 		userRepo = &testapi.FakeUserRepository{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		accessToken, _ := testconfig.EncodeAccessToken(configuration.TokenInfo{
+		accessToken, _ := testconfig.EncodeAccessToken(core_config.TokenInfo{
 			Username: "current-user",
 		})
 		configRepo.SetAccessToken(accessToken)
 	})
 
-	runCommand := func(args ...string) {
+	runCommand := func(args ...string) bool {
 		cmd := NewCreateUser(ui, configRepo, userRepo)
-		testcmd.RunCommand(cmd, args, requirementsFactory)
-		return
+		return testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	It("creates a user", func() {
@@ -51,16 +50,30 @@ var _ = Describe("Create user command", func() {
 		Expect(userRepo.CreateUserUsername).To(Equal("my-user"))
 	})
 
-	It("prints a warning when the given user already exists", func() {
-		userRepo.CreateUserExists = true
+	Context("when creating the user returns an error", func() {
+		It("prints a warning when the given user already exists", func() {
+			userRepo.CreateUserExists = true
 
-		runCommand("my-user", "my-password")
+			runCommand("my-user", "my-password")
 
-		Expect(ui.WarnOutputs).To(ContainSubstrings(
-			[]string{"already exists"},
-		))
+			Expect(ui.WarnOutputs).To(ContainSubstrings(
+				[]string{"already exists"},
+			))
 
-		Expect(ui.Outputs).ToNot(ContainSubstrings([]string{"FAILED"}))
+			Expect(ui.Outputs).ToNot(ContainSubstrings([]string{"FAILED"}))
+		})
+		It("fails when any error other than alreadyExists is returned", func() {
+			userRepo.CreateUserReturnsHttpError = true
+
+			runCommand("my-user", "my-password")
+
+			Expect(ui.Outputs).To(ContainSubstrings(
+				[]string{"Forbidden"},
+			))
+
+			Expect(ui.Outputs).To(ContainSubstrings([]string{"FAILED"}))
+
+		})
 	})
 
 	It("fails when no arguments are passed", func() {
@@ -71,7 +84,6 @@ var _ = Describe("Create user command", func() {
 	It("fails when the user is not logged in", func() {
 		requirementsFactory.LoginSuccess = false
 
-		runCommand("my-user", "my-password")
-		Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+		Expect(runCommand("my-user", "my-password")).To(BeFalse())
 	})
 })

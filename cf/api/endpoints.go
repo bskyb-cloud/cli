@@ -2,11 +2,12 @@ package api
 
 import (
 	"fmt"
-	"github.com/cloudfoundry/cli/cf/configuration"
-	"github.com/cloudfoundry/cli/cf/errors"
-	"github.com/cloudfoundry/cli/cf/net"
 	"regexp"
 	"strings"
+
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/net"
 )
 
 type EndpointRepository interface {
@@ -14,17 +15,19 @@ type EndpointRepository interface {
 }
 
 type RemoteEndpointRepository struct {
-	config  configuration.ReadWriter
+	config  core_config.ReadWriter
 	gateway net.Gateway
 }
 
 type endpointResource struct {
-	ApiVersion            string `json:"api_version"`
-	AuthorizationEndpoint string `json:"authorization_endpoint"`
-	LoggregatorEndpoint   string `json:"logging_endpoint"`
+	ApiVersion               string `json:"api_version"`
+	AuthorizationEndpoint    string `json:"authorization_endpoint"`
+	LoggregatorEndpoint      string `json:"logging_endpoint"`
+	MinCliVersion            string `json:"min_cli_version"`
+	MinRecommendedCliVersion string `json:"min_recommended_cli_version"`
 }
 
-func NewEndpointRepository(config configuration.ReadWriter, gateway net.Gateway) (repo RemoteEndpointRepository) {
+func NewEndpointRepository(config core_config.ReadWriter, gateway net.Gateway) (repo RemoteEndpointRepository) {
 	repo.config = config
 	repo.gateway = gateway
 	return
@@ -73,12 +76,18 @@ func (repo RemoteEndpointRepository) attemptUpdate(endpoint string) error {
 	repo.config.SetApiEndpoint(endpoint)
 	repo.config.SetApiVersion(serverResponse.ApiVersion)
 	repo.config.SetAuthenticationEndpoint(serverResponse.AuthorizationEndpoint)
+	repo.config.SetMinCliVersion(serverResponse.MinCliVersion)
+	repo.config.SetMinRecommendedCliVersion(serverResponse.MinRecommendedCliVersion)
 
 	if serverResponse.LoggregatorEndpoint == "" {
 		repo.config.SetLoggregatorEndpoint(defaultLoggregatorEndpoint(endpoint))
 	} else {
 		repo.config.SetLoggregatorEndpoint(serverResponse.LoggregatorEndpoint)
 	}
+
+	//* 3/5/15: loggregator endpoint will be renamed to doppler eventually,
+	//          we just have to use the loggregator endpoint as doppler for now
+	repo.config.SetDopplerEndpoint(strings.Replace(repo.config.LoggregatorEndpoint(), "loggregator", "doppler", 1))
 
 	return nil
 }

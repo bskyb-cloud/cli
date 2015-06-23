@@ -19,6 +19,8 @@ type FakeReqFactory struct {
 	TargetedOrgSuccess      bool
 	BuildpackSuccess        bool
 
+	ServiceInstanceNotFound bool
+
 	SpaceName string
 	Space     models.Space
 
@@ -37,6 +39,11 @@ type FakeReqFactory struct {
 	UserFields   models.UserFields
 
 	Buildpack models.Buildpack
+
+	MinCCApiVersionCommandName string
+	MinCCApiVersionMajor       int
+	MinCCApiVersionMinor       int
+	MinCCApiVersionPatch       int
 }
 
 func (f *FakeReqFactory) NewApplicationRequirement(name string) requirements.ApplicationRequirement {
@@ -46,7 +53,7 @@ func (f *FakeReqFactory) NewApplicationRequirement(name string) requirements.App
 
 func (f *FakeReqFactory) NewServiceInstanceRequirement(name string) requirements.ServiceInstanceRequirement {
 	f.ServiceInstanceName = name
-	return FakeRequirement{f, true}
+	return FakeRequirement{f, !f.ServiceInstanceNotFound}
 }
 
 func (f *FakeReqFactory) NewLoginRequirement() requirements.Requirement {
@@ -90,6 +97,14 @@ func (f *FakeReqFactory) NewApiEndpointRequirement() requirements.Requirement {
 	return FakeRequirement{f, f.ApiEndpointSuccess}
 }
 
+func (f *FakeReqFactory) NewMinCCApiVersionRequirement(commandName string, major, minor, patch int) requirements.Requirement {
+	f.MinCCApiVersionCommandName = commandName
+	f.MinCCApiVersionMajor = major
+	f.MinCCApiVersionMinor = minor
+	f.MinCCApiVersionPatch = patch
+	return FakeRequirement{f, true}
+}
+
 type FakeRequirement struct {
 	factory *FakeReqFactory
 	success bool
@@ -97,6 +112,9 @@ type FakeRequirement struct {
 
 func (r FakeRequirement) Execute() (success bool) {
 	return r.success
+}
+
+func (r FakeRequirement) SetApplicationName(name string) {
 }
 
 func (r FakeRequirement) GetApplication() models.Application {
@@ -107,8 +125,14 @@ func (r FakeRequirement) GetServiceInstance() models.ServiceInstance {
 	return r.factory.ServiceInstance
 }
 
+func (r FakeRequirement) SetSpaceName(name string) {
+}
+
 func (r FakeRequirement) GetSpace() models.Space {
 	return r.factory.Space
+}
+
+func (r FakeRequirement) SetOrganizationName(name string) {
 }
 
 func (r FakeRequirement) GetOrganization() models.Organization {

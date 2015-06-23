@@ -3,7 +3,7 @@ package user_test
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/user"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -19,13 +19,13 @@ var _ = Describe("unset-org-role command", func() {
 	var (
 		ui                  *testterm.FakeUI
 		userRepo            *testapi.FakeUserRepository
-		configRepo          configuration.ReadWriter
+		configRepo          core_config.ReadWriter
 		requirementsFactory *testreq.FakeReqFactory
 	)
 
-	runCommand := func(args ...string) {
+	runCommand := func(args ...string) bool {
 		cmd := NewUnsetOrgRole(ui, configRepo, userRepo)
-		testcmd.RunCommand(cmd, args, requirementsFactory)
+		return testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	BeforeEach(func() {
@@ -46,14 +46,14 @@ var _ = Describe("unset-org-role command", func() {
 	Describe("requirements", func() {
 		It("fails when not logged in", func() {
 			requirementsFactory.LoginSuccess = false
-			runCommand("username", "org", "role")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+
+			Expect(runCommand("username", "org", "role")).To(BeFalse())
 		})
 
 		It("succeeds when logged in", func() {
 			requirementsFactory.LoginSuccess = true
-			runCommand("username", "org", "role")
-			Expect(testcmd.CommandDidPassRequirements).To(BeTrue())
+			passed := runCommand("username", "org", "role")
+			Expect(passed).To(BeTrue())
 
 			Expect(requirementsFactory.UserUsername).To(Equal("username"))
 			Expect(requirementsFactory.OrganizationName).To(Equal("org"))

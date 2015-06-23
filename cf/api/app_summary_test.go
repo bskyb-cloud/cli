@@ -9,6 +9,7 @@ import (
 	"github.com/cloudfoundry/cli/cf/net"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/cf/api"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -36,7 +37,7 @@ var _ = Describe("AppSummaryRepository", func() {
 		testServer, handler = testnet.NewServer([]testnet.TestRequest{getAppSummariesRequest})
 		configRepo := testconfig.NewRepositoryWithDefaults()
 		configRepo.SetApiEndpoint(testServer.URL)
-		gateway := net.NewCloudControllerGateway(configRepo, time.Now)
+		gateway := net.NewCloudControllerGateway(configRepo, time.Now, &testterm.FakeUI{})
 		repo = NewCloudControllerAppSummaryRepository(configRepo, gateway)
 	})
 
@@ -49,7 +50,7 @@ var _ = Describe("AppSummaryRepository", func() {
 		Expect(handler).To(HaveAllRequestsCalled())
 
 		Expect(apiErr).NotTo(HaveOccurred())
-		Expect(2).To(Equal(len(apps)))
+		Expect(3).To(Equal(len(apps)))
 
 		app1 := apps[0]
 		Expect(app1.Name).To(Equal("app1"))
@@ -61,6 +62,7 @@ var _ = Describe("AppSummaryRepository", func() {
 		Expect(app1.InstanceCount).To(Equal(1))
 		Expect(app1.RunningInstances).To(Equal(1))
 		Expect(app1.Memory).To(Equal(int64(128)))
+		Expect(app1.PackageUpdatedAt.Format("2006-01-02T15:04:05Z07:00")).To(Equal("2014-10-24T19:54:00Z"))
 
 		app2 := apps[1]
 		Expect(app2.Name).To(Equal("app2"))
@@ -73,6 +75,10 @@ var _ = Describe("AppSummaryRepository", func() {
 		Expect(app2.InstanceCount).To(Equal(3))
 		Expect(app2.RunningInstances).To(Equal(1))
 		Expect(app2.Memory).To(Equal(int64(512)))
+		Expect(app2.PackageUpdatedAt.Format("2006-01-02T15:04:05Z07:00")).To(Equal("2012-10-24T19:55:00Z"))
+
+		nullUpdateAtApp := apps[2]
+		Expect(nullUpdateAtApp.PackageUpdatedAt).To(BeNil())
 	})
 })
 
@@ -98,7 +104,8 @@ const getAppSummariesResponseBody string = `
       "state":"STARTED",
       "service_names":[
       	"my-service-instance"
-      ]
+      ],
+			"package_updated_at":"2014-10-24T19:54:00+00:00"
     },{
       "guid":"app-2-guid",
       "routes":[
@@ -126,7 +133,29 @@ const getAppSummariesResponseBody string = `
       "state":"STARTED",
       "service_names":[
       	"my-service-instance"
-      ]
+      ],
+			"package_updated_at":"2012-10-24T19:55:00+00:00"
+    },{
+      "guid":"app-with-null-updated-at-guid",
+      "routes":[
+        {
+          "guid":"route-3-guid",
+          "host":"app3",
+          "domain":{
+            "guid":"domain-3-guid",
+            "name":"cfapps.io"
+          }
+        }
+      ],
+      "running_instances":1,
+      "name":"app-with-null-updated-at",
+      "memory":512,
+      "instances":3,
+      "state":"STARTED",
+      "service_names":[
+      	"my-service-instance"
+      ],
+			"package_updated_at":null
     }
   ]
 }`

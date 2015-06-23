@@ -2,10 +2,11 @@ package api
 
 import (
 	"fmt"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"strings"
+
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
-	"strings"
 )
 
 type ServiceBindingRepository interface {
@@ -14,23 +15,23 @@ type ServiceBindingRepository interface {
 }
 
 type CloudControllerServiceBindingRepository struct {
-	config  configuration.Reader
+	config  core_config.Reader
 	gateway net.Gateway
 }
 
-func NewCloudControllerServiceBindingRepository(config configuration.Reader, gateway net.Gateway) (repo CloudControllerServiceBindingRepository) {
+func NewCloudControllerServiceBindingRepository(config core_config.Reader, gateway net.Gateway) (repo CloudControllerServiceBindingRepository) {
 	repo.config = config
 	repo.gateway = gateway
 	return
 }
 
 func (repo CloudControllerServiceBindingRepository) Create(instanceGuid, appGuid string) (apiErr error) {
-	path := fmt.Sprintf("%s/v2/service_bindings", repo.config.ApiEndpoint())
+	path := "/v2/service_bindings"
 	body := fmt.Sprintf(
 		`{"app_guid":"%s","service_instance_guid":"%s","async":true}`,
 		appGuid, instanceGuid,
 	)
-	return repo.gateway.CreateResource(path, strings.NewReader(body))
+	return repo.gateway.CreateResource(repo.config.ApiEndpoint(), path, strings.NewReader(body))
 }
 
 func (repo CloudControllerServiceBindingRepository) Delete(instance models.ServiceInstance, appGuid string) (found bool, apiErr error) {
@@ -38,7 +39,7 @@ func (repo CloudControllerServiceBindingRepository) Delete(instance models.Servi
 
 	for _, binding := range instance.ServiceBindings {
 		if binding.AppGuid == appGuid {
-			path = repo.config.ApiEndpoint() + binding.Url
+			path = binding.Url
 			break
 		}
 	}
@@ -49,6 +50,6 @@ func (repo CloudControllerServiceBindingRepository) Delete(instance models.Servi
 		found = true
 	}
 
-	apiErr = repo.gateway.DeleteResource(path)
+	apiErr = repo.gateway.DeleteResource(repo.config.ApiEndpoint(), path)
 	return
 }

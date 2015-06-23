@@ -2,7 +2,7 @@ package route_test
 
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -20,7 +20,7 @@ var _ = Describe("create-route command", func() {
 		ui                  *testterm.FakeUI
 		routeRepo           *testapi.FakeRouteRepository
 		requirementsFactory *testreq.FakeReqFactory
-		config              configuration.ReadWriter
+		config              core_config.ReadWriter
 	)
 
 	BeforeEach(func() {
@@ -30,21 +30,21 @@ var _ = Describe("create-route command", func() {
 		config = testconfig.NewRepositoryWithDefaults()
 	})
 
-	runCommand := func(args ...string) {
-		testcmd.RunCommand(NewCreateRoute(ui, config, routeRepo), args, requirementsFactory)
+	runCommand := func(args ...string) bool {
+		return testcmd.RunCommand(NewCreateRoute(ui, config, routeRepo), args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
 		It("fails when not logged in", func() {
 			requirementsFactory.TargetedOrgSuccess = true
-			runCommand("my-space", "example.com", "-n", "foo")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+
+			Expect(runCommand("my-space", "example.com", "-n", "foo")).To(BeFalse())
 		})
 
 		It("fails when an org is not targeted", func() {
 			requirementsFactory.LoginSuccess = true
-			runCommand("my-space", "example.com", "-n", "foo")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+
+			Expect(runCommand("my-space", "example.com", "-n", "foo")).To(BeFalse())
 		})
 
 		It("fails with usage when not provided two args", func() {

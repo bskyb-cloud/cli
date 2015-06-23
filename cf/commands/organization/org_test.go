@@ -1,7 +1,7 @@
 package organization_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -17,7 +17,7 @@ import (
 func callShowOrg(args []string, requirementsFactory *testreq.FakeReqFactory) (ui *testterm.FakeUI) {
 	ui = new(testterm.FakeUI)
 
-	token := configuration.TokenInfo{Username: "my-user"}
+	token := core_config.TokenInfo{Username: "my-user"}
 
 	spaceFields := models.SpaceFields{}
 	spaceFields.Name = "my-space"
@@ -37,7 +37,7 @@ func callShowOrg(args []string, requirementsFactory *testreq.FakeReqFactory) (ui
 var _ = Describe("org command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		configRepo          configuration.ReadWriter
+		configRepo          core_config.ReadWriter
 		requirementsFactory *testreq.FakeReqFactory
 	)
 
@@ -47,14 +47,13 @@ var _ = Describe("org command", func() {
 		configRepo = testconfig.NewRepositoryWithDefaults()
 	})
 
-	runCommand := func(args ...string) {
-		testcmd.RunCommand(NewShowOrg(ui, configRepo), args, requirementsFactory)
+	runCommand := func(args ...string) bool {
+		return testcmd.RunCommand(NewShowOrg(ui, configRepo), args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
 		It("fails when not logged in", func() {
-			runCommand("whoops")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("whoops")).To(BeFalse())
 		})
 
 		It("fails with usage when not provided exactly one arg", func() {
@@ -78,9 +77,13 @@ var _ = Describe("org command", func() {
 			org := models.Organization{}
 			org.Name = "my-org"
 			org.Guid = "my-org-guid"
-			org.QuotaDefinition = models.NewQuotaFields("cantina-quota", 512, 2, 5, true)
+			org.QuotaDefinition = models.NewQuotaFields("cantina-quota", 512, 256, 2, 5, true)
 			org.Spaces = []models.SpaceFields{developmentSpaceFields, stagingSpaceFields}
 			org.Domains = []models.DomainFields{domainFields, cfAppDomainFields}
+			org.SpaceQuotas = []models.SpaceQuota{
+				{Name: "space-quota-1"},
+				{Name: "space-quota-2"},
+			}
 
 			requirementsFactory.LoginSuccess = true
 			requirementsFactory.Organization = org
@@ -94,10 +97,25 @@ var _ = Describe("org command", func() {
 				[]string{"Getting info for org", "my-org", "my-user"},
 				[]string{"OK"},
 				[]string{"my-org"},
-				[]string{"  domains:", "cfapps.io", "cf-app.com"},
-				[]string{"  quota: ", "cantina-quota", "512M", "2 routes", "5 services", "paid services allowed"},
-				[]string{"  spaces:", "development", "staging"},
+				[]string{"domains:", "cfapps.io", "cf-app.com"},
+				[]string{"quota: ", "cantina-quota", "512M", "256M instance memory limit", "2 routes", "5 services", "paid services allowed"},
+				[]string{"spaces:", "development", "staging"},
+				[]string{"space quotas:", "space-quota-1", "space-quota-2"},
 			))
+		})
+
+		Context("when the guid flag is provided", func() {
+			It("shows only the org guid", func() {
+				runCommand("--guid", "my-org")
+
+				Expect(ui.Outputs).To(ContainSubstrings(
+					[]string{"my-org-guid"},
+				))
+
+				Expect(ui.Outputs).ToNot(ContainSubstrings(
+					[]string{"Getting info for org", "my-org", "my-user"},
+				))
+			})
 		})
 	})
 })

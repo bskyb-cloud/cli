@@ -2,8 +2,9 @@ package application
 
 import (
 	"github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/api/applications"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
@@ -13,13 +14,13 @@ import (
 
 type DeleteApp struct {
 	ui        terminal.UI
-	config    configuration.Reader
-	appRepo   api.ApplicationRepository
+	config    core_config.Reader
+	appRepo   applications.ApplicationRepository
 	routeRepo api.RouteRepository
 	appReq    requirements.ApplicationRequirement
 }
 
-func NewDeleteApp(ui terminal.UI, config configuration.Reader, appRepo api.ApplicationRepository, routeRepo api.RouteRepository) (cmd *DeleteApp) {
+func NewDeleteApp(ui terminal.UI, config core_config.Reader, appRepo applications.ApplicationRepository, routeRepo api.RouteRepository) (cmd *DeleteApp) {
 	cmd = new(DeleteApp)
 	cmd.ui = ui
 	cmd.config = config
@@ -33,7 +34,7 @@ func (cmd *DeleteApp) Metadata() command_metadata.CommandMetadata {
 		Name:        "delete",
 		ShortName:   "d",
 		Description: T("Delete an app"),
-		Usage:       T("CF_NAME delete APP [-f -r]"),
+		Usage:       T("CF_NAME delete APP_NAME [-f -r]"),
 		Flags: []cli.Flag{
 			cli.BoolFlag{Name: "f", Usage: T("Force deletion without confirmation")},
 			cli.BoolFlag{Name: "r", Usage: T("Also delete any mapped routes")},
@@ -42,11 +43,12 @@ func (cmd *DeleteApp) Metadata() command_metadata.CommandMetadata {
 }
 
 func (cmd *DeleteApp) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
-	if len(c.Args()) == 0 {
+	if len(c.Args()) != 1 {
 		cmd.ui.FailWithUsage(c)
 	}
 
-	reqs = []requirements.Requirement{requirementsFactory.NewLoginRequirement()}
+	reqs = []requirements.Requirement{requirementsFactory.NewLoginRequirement(),
+		requirementsFactory.NewTargetedSpaceRequirement()}
 	return
 }
 

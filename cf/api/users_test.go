@@ -8,12 +8,13 @@ import (
 	"time"
 
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/cf/api"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -28,13 +29,13 @@ var _ = Describe("User Repository", func() {
 		uaaServer  *httptest.Server
 		uaaHandler *testnet.TestHandler
 		repo       UserRepository
-		config     configuration.ReadWriter
+		config     core_config.ReadWriter
 	)
 
 	BeforeEach(func() {
 		config = testconfig.NewRepositoryWithDefaults()
-		ccGateway := net.NewCloudControllerGateway((config), time.Now)
-		uaaGateway := net.NewUAAGateway(config)
+		ccGateway := net.NewCloudControllerGateway((config), time.Now, &testterm.FakeUI{})
+		uaaGateway := net.NewUAAGateway(config, &testterm.FakeUI{})
 		repo = NewCloudControllerUserRepository(config, uaaGateway, ccGateway)
 	})
 
@@ -57,7 +58,7 @@ var _ = Describe("User Repository", func() {
 		config.SetUaaEndpoint(uaaServer.URL)
 	}
 
-	Describe("listing the users with a given role", func() {
+	Describe("listing the users with a given role using ListUsersInOrgForRole()", func() {
 		Context("when there are no users in the given org", func() {
 			It("lists the users in a org with a given role", func() {
 				ccReqs := []testnet.TestRequest{
@@ -177,6 +178,68 @@ var _ = Describe("User Repository", func() {
 		})
 	})
 
+	Describe("listing the users with a given role using ListUsersInOrgForRoleWithNoUAA()", func() {
+		Context("when there are users in the given org", func() {
+			It("lists the users in an organization with a given role without hitting UAA endpoint", func() {
+				ccReqs, uaaReqs := createUsersByRoleEndpoints("/v2/organizations/my-org-guid/managers")
+
+				setupCCServer(ccReqs...)
+				setupUAAServer(uaaReqs...)
+
+				users, apiErr := repo.ListUsersInOrgForRoleWithNoUAA("my-org-guid", models.ORG_MANAGER)
+
+				Expect(ccHandler).To(HaveAllRequestsCalled())
+				Expect(uaaHandler).ToNot(HaveAllRequestsCalled())
+				Expect(apiErr).NotTo(HaveOccurred())
+
+				Expect(len(users)).To(Equal(3))
+				Expect(users[0].Guid).To(Equal("user-1-guid"))
+				Expect(users[0].Username).To(Equal(""))
+				Expect(users[0].Username).ToNot(Equal("Super user 1"))
+
+				Expect(users[1].Username).To(Equal("user 2 from cc"))
+				Expect(users[1].Guid).To(Equal("user-2-guid"))
+				Expect(users[1].Username).ToNot(Equal("Super user 2"))
+
+				Expect(users[2].Username).To(Equal("user 3 from cc"))
+				Expect(users[2].Guid).To(Equal("user-3-guid"))
+				Expect(users[2].Username).ToNot(Equal("Super user 3"))
+			})
+		})
+
+	})
+
+	Describe("listing the users with a given role using ListUsersInSpaceForRoleWithNoUAA()", func() {
+		Context("when there are users in the given space", func() {
+			It("lists the users in a space with a given role without hitting UAA endpoint", func() {
+				ccReqs, uaaReqs := createUsersByRoleEndpoints("/v2/spaces/my-space-guid/managers")
+
+				setupCCServer(ccReqs...)
+				setupUAAServer(uaaReqs...)
+
+				users, apiErr := repo.ListUsersInSpaceForRoleWithNoUAA("my-space-guid", models.SPACE_MANAGER)
+
+				Expect(ccHandler).To(HaveAllRequestsCalled())
+				Expect(uaaHandler).ToNot(HaveAllRequestsCalled())
+				Expect(apiErr).NotTo(HaveOccurred())
+
+				Expect(len(users)).To(Equal(3))
+				Expect(users[0].Guid).To(Equal("user-1-guid"))
+				Expect(users[0].Username).To(Equal(""))
+				Expect(users[0].Username).ToNot(Equal("Super user 1"))
+
+				Expect(users[1].Username).To(Equal("user 2 from cc"))
+				Expect(users[1].Guid).To(Equal("user-2-guid"))
+				Expect(users[1].Username).ToNot(Equal("Super user 2"))
+
+				Expect(users[2].Username).To(Equal("user 3 from cc"))
+				Expect(users[2].Guid).To(Equal("user-3-guid"))
+				Expect(users[2].Username).ToNot(Equal("Super user 3"))
+			})
+		})
+
+	})
+
 	Describe("FindByUsername", func() {
 		Context("when the user exists", func() {
 			It("finds the user", func() {
@@ -215,6 +278,37 @@ var _ = Describe("User Repository", func() {
 				_, err := repo.FindByUsername("my-user")
 				Expect(uaaHandler).To(HaveAllRequestsCalled())
 				Expect(err).To(BeAssignableToTypeOf(&errors.ModelNotFoundError{}))
+			})
+		})
+
+		Context("when the user does not have permission", func() {
+			It("returns a AccessDeniedError", func() {
+				setupUAAServer(
+					testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+						Method:   "GET",
+						Path:     "/Users?attributes=id,userName&filter=userName+Eq+%22my-user%22",
+						Response: testnet.TestResponse{Status: http.StatusForbidden, Body: `{"error":"access_denied","error_description":"Access is denied"}`},
+					}))
+
+				_, err := repo.FindByUsername("my-user")
+				Expect(uaaHandler).To(HaveAllRequestsCalled())
+				Expect(err).To(BeAssignableToTypeOf(&errors.AccessDeniedError{}))
+
+			})
+		})
+
+		Context("when the uaa endpoint request returns a non-403 error", func() {
+			It("returns the error", func() {
+				setupUAAServer(
+					testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+						Method:   "GET",
+						Path:     "/Users?attributes=id,userName&filter=userName+Eq+%22my-user%22",
+						Response: testnet.TestResponse{Status: 500, Body: `server down!`},
+					}))
+
+				_, err := repo.FindByUsername("my-user")
+				Expect(uaaHandler).To(HaveAllRequestsCalled())
+				Expect(err).To(HaveOccurred())
 			})
 		})
 	})
@@ -271,6 +365,24 @@ var _ = Describe("User Repository", func() {
 			err := repo.Create("my-user", "my-password")
 			Expect(err).To(BeAssignableToTypeOf(&errors.ModelAlreadyExistsError{}))
 		})
+		It("Returns any http error", func() {
+			setupUAAServer(
+				testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+					Method: "POST",
+					Path:   "/Users",
+					Response: testnet.TestResponse{
+						Status: http.StatusForbidden,
+						Body: `
+						{
+							"message":"Access Denied",
+							"error":"Forbidden"
+						}`,
+					},
+				}))
+
+			err := repo.Create("my-user", "my-password")
+			Expect(err.Error()).To(ContainSubstring("Forbidden"))
+		})
 	})
 
 	Describe("deleting users", func() {
@@ -319,11 +431,6 @@ var _ = Describe("User Repository", func() {
 				Expect(ccHandler).To(HaveAllRequestsCalled())
 				Expect(uaaHandler).To(HaveAllRequestsCalled())
 				Expect(err).NotTo(HaveOccurred())
-			})
-		})
-
-		PContext("when the user is not found on UAA", func() {
-			It("does something", func() {
 			})
 		})
 	})
@@ -469,8 +576,8 @@ func createUsersByRoleEndpoints(rolePath string) (ccReqs []testnet.TestRequest, 
 				Body: `
 				{
 					"resources": [
-					 	{"metadata": {"guid": "user-2-guid"}, "entity": {}},
-					 	{"metadata": {"guid": "user-3-guid"}, "entity": {}}
+					{"metadata": {"guid": "user-2-guid"}, "entity": {"username":"user 2 from cc"}},
+					{"metadata": {"guid": "user-3-guid"}, "entity": {"username":"user 3 from cc"}}
 					]
 				}`}}),
 	}

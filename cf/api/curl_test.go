@@ -5,11 +5,12 @@ import (
 	"time"
 
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/net"
 	testassert "github.com/cloudfoundry/cli/testhelpers/assert"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/cf/api"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -166,13 +167,13 @@ const expectedJSONResponse = `
 `
 
 type curlDependencies struct {
-	config  configuration.ReadWriter
+	config  core_config.ReadWriter
 	gateway net.Gateway
 }
 
 func newCurlDependencies() (deps curlDependencies) {
 	deps.config = testconfig.NewRepository()
 	deps.config.SetAccessToken("BEARER my_access_token")
-	deps.gateway = net.NewCloudControllerGateway(deps.config, time.Now)
+	deps.gateway = net.NewCloudControllerGateway(deps.config, time.Now, &testterm.FakeUI{})
 	return
 }

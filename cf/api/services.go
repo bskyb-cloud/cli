@@ -1,12 +1,14 @@
 package api
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
 
 	"github.com/cloudfoundry/cli/cf/api/resources"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
@@ -15,13 +17,16 @@ import (
 type ServiceRepository interface {
 	PurgeServiceOffering(offering models.ServiceOffering) error
 	GetServiceOfferingByGuid(serviceGuid string) (offering models.ServiceOffering, apiErr error)
-	FindServiceOfferingByLabel(name string) (offering models.ServiceOffering, apiErr error)
+	FindServiceOfferingsByLabel(name string) (offering models.ServiceOfferings, apiErr error)
 	FindServiceOfferingByLabelAndProvider(name, provider string) (offering models.ServiceOffering, apiErr error)
+
 	FindServiceOfferingsForSpaceByLabel(spaceGuid, name string) (offering models.ServiceOfferings, apiErr error)
+
 	GetAllServiceOfferings() (offerings models.ServiceOfferings, apiErr error)
 	GetServiceOfferingsForSpace(spaceGuid string) (offerings models.ServiceOfferings, apiErr error)
 	FindInstanceByName(name string) (instance models.ServiceInstance, apiErr error)
-	CreateServiceInstance(name, planGuid string) (apiErr error)
+	CreateServiceInstance(name, planGuid string, params map[string]interface{}) (apiErr error)
+	UpdateServiceInstance(instanceGuid, planGuid string) (apiErr error)
 	RenameService(instance models.ServiceInstance, newName string) (apiErr error)
 	DeleteService(instance models.ServiceInstance) (apiErr error)
 	SetSchema(instance models.ServiceInstance, schema string) (apiErr error)
@@ -33,11 +38,11 @@ type ServiceRepository interface {
 }
 
 type CloudControllerServiceRepository struct {
-	config  configuration.Reader
+	config  core_config.Reader
 	gateway net.Gateway
 }
 
-func NewCloudControllerServiceRepository(config configuration.Reader, gateway net.Gateway) (repo CloudControllerServiceRepository) {
+func NewCloudControllerServiceRepository(config core_config.Reader, gateway net.Gateway) (repo CloudControllerServiceRepository) {
 	repo.config = config
 	repo.gateway = gateway
 	return
@@ -50,9 +55,12 @@ func (repo CloudControllerServiceRepository) GetServiceOfferingByGuid(serviceGui
 	return models.ServiceOffering{ServiceOfferingFields: serviceOffering}, apiErr
 }
 
+func (repo CloudControllerServiceRepository) GetServiceOfferingsForSpace(spaceGuid string) (models.ServiceOfferings, error) {
+	return repo.getServiceOfferings(fmt.Sprintf("/v2/spaces/%s/services", spaceGuid))
+}
+
 func (repo CloudControllerServiceRepository) FindServiceOfferingsForSpaceByLabel(spaceGuid, name string) (offerings models.ServiceOfferings, err error) {
-	offerings, err = repo.getServiceOfferings(
-		fmt.Sprintf("/v2/spaces/%s/services?q=%s&inline-relations-depth=1", spaceGuid, url.QueryEscape("label:"+name)))
+	offerings, err = repo.getServiceOfferings(fmt.Sprintf("/v2/spaces/%s/services?q=%s", spaceGuid, url.QueryEscape("label:"+name)))
 
 	if httpErr, ok := err.(errors.HttpError); ok && httpErr.ErrorCode() == errors.BAD_QUERY_PARAM {
 		offerings, err = repo.findServiceOfferingsByPaginating(spaceGuid, name)
@@ -81,17 +89,12 @@ func (repo CloudControllerServiceRepository) findServiceOfferingsByPaginating(sp
 	return matchingOffering, nil
 }
 
-func (repo CloudControllerServiceRepository) GetServiceOfferingsForSpace(spaceGuid string) (models.ServiceOfferings, error) {
-	return repo.getServiceOfferings(
-		fmt.Sprintf("/v2/spaces/%s/services?inline-relations-depth=1", spaceGuid))
-}
-
 func (repo CloudControllerServiceRepository) GetAllServiceOfferings() (models.ServiceOfferings, error) {
-	return repo.getServiceOfferings("/v2/services?inline-relations-depth=1")
+	return repo.getServiceOfferings("/v2/services")
 }
 
-func (repo CloudControllerServiceRepository) getServiceOfferings(path string) (models.ServiceOfferings, error) {
-	var offerings models.ServiceOfferings
+func (repo CloudControllerServiceRepository) getServiceOfferings(path string) ([]models.ServiceOffering, error) {
+	var offerings []models.ServiceOffering
 	apiErr := repo.gateway.ListPaginatedResources(
 		repo.config.ApiEndpoint(),
 		path,
@@ -133,14 +136,22 @@ func (repo CloudControllerServiceRepository) FindInstanceByName(name string) (in
 	return
 }
 
-func (repo CloudControllerServiceRepository) CreateServiceInstance(name, planGuid string) (err error) {
-	path := fmt.Sprintf("%s/v2/service_instances", repo.config.ApiEndpoint())
-	data := fmt.Sprintf(
-		`{"name":"%s","service_plan_guid":"%s","space_guid":"%s", "async": true}`,
-		name, planGuid, repo.config.SpaceFields().Guid,
-	)
+func (repo CloudControllerServiceRepository) CreateServiceInstance(name, planGuid string, params map[string]interface{}) (err error) {
+	path := "/v2/service_instances?accepts_incomplete=true"
+	request := models.ServiceInstanceRequest{
+		Name:      name,
+		PlanGuid:  planGuid,
+		SpaceGuid: repo.config.SpaceFields().Guid,
+		Params:    params,
+	}
 
-	err = repo.gateway.CreateResource(path, strings.NewReader(data))
+	jsonBytes, err := json.Marshal(request)
+	if err != nil {
+		fmt.Println(err.Error())
+		return err
+	}
+
+	err = repo.gateway.CreateResource(repo.config.ApiEndpoint(), path, bytes.NewReader(jsonBytes))
 
 	if httpErr, ok := err.(errors.HttpError); ok && httpErr.ErrorCode() == errors.SERVICE_INSTANCE_NAME_TAKEN {
 		serviceInstance, findInstanceErr := repo.FindInstanceByName(name)
@@ -179,41 +190,50 @@ func (repo CloudControllerServiceRepository) GetSchema(instance models.ServiceIn
 	return
 }
 
+func (repo CloudControllerServiceRepository) UpdateServiceInstance(instanceGuid, planGuid string) (err error) {
+	path := fmt.Sprintf("/v2/service_instances/%s?accepts_incomplete=true", instanceGuid)
+	data := fmt.Sprintf(`{"service_plan_guid":"%s"}`, planGuid)
+
+	err = repo.gateway.UpdateResource(repo.config.ApiEndpoint(), path, strings.NewReader(data))
+
+	return
+}
+
 func (repo CloudControllerServiceRepository) RenameService(instance models.ServiceInstance, newName string) (apiErr error) {
 	body := fmt.Sprintf(`{"name":"%s"}`, newName)
-	path := fmt.Sprintf("%s/v2/service_instances/%s", repo.config.ApiEndpoint(), instance.Guid)
+	path := fmt.Sprintf("/v2/service_instances/%s?accepts_incomplete=true", instance.Guid)
 
 	if instance.IsUserProvided() {
-		path = fmt.Sprintf("%s/v2/user_provided_service_instances/%s", repo.config.ApiEndpoint(), instance.Guid)
+		path = fmt.Sprintf("/v2/user_provided_service_instances/%s", instance.Guid)
 	}
-	return repo.gateway.UpdateResource(path, strings.NewReader(body))
+	return repo.gateway.UpdateResource(repo.config.ApiEndpoint(), path, strings.NewReader(body))
 }
 
 func (repo CloudControllerServiceRepository) DeleteService(instance models.ServiceInstance) (apiErr error) {
 	if len(instance.ServiceBindings) > 0 {
 		return errors.New("Cannot delete service instance, apps are still bound to it")
 	}
-	path := fmt.Sprintf("%s/v2/service_instances/%s", repo.config.ApiEndpoint(), instance.Guid)
-	return repo.gateway.DeleteResource(path)
+	path := fmt.Sprintf("/v2/service_instances/%s?%s", instance.Guid, "accepts_incomplete=true")
+	return repo.gateway.DeleteResource(repo.config.ApiEndpoint(), path)
 }
 
 func (repo CloudControllerServiceRepository) PurgeServiceOffering(offering models.ServiceOffering) error {
-	url := fmt.Sprintf("%s/v2/services/%s?purge=true", repo.config.ApiEndpoint(), offering.Guid)
-	return repo.gateway.DeleteResource(url)
+	url := fmt.Sprintf("/v2/services/%s?purge=true", offering.Guid)
+	return repo.gateway.DeleteResource(repo.config.ApiEndpoint(), url)
 }
 
-func (repo CloudControllerServiceRepository) FindServiceOfferingByLabel(label string) (models.ServiceOffering, error) {
+func (repo CloudControllerServiceRepository) FindServiceOfferingsByLabel(label string) (models.ServiceOfferings, error) {
 	path := fmt.Sprintf("/v2/services?q=%s", url.QueryEscape("label:"+label))
 	offerings, apiErr := repo.getServiceOfferings(path)
 
 	if apiErr != nil {
-		return models.ServiceOffering{}, apiErr
+		return models.ServiceOfferings{}, apiErr
 	} else if len(offerings) == 0 {
 		apiErr = errors.NewModelNotFoundError("Service offering", label)
-		return models.ServiceOffering{}, apiErr
+		return models.ServiceOfferings{}, apiErr
 	}
 
-	return offerings[0], apiErr
+	return offerings, apiErr
 }
 
 func (repo CloudControllerServiceRepository) FindServiceOfferingByLabelAndProvider(label, provider string) (models.ServiceOffering, error) {
@@ -269,11 +289,11 @@ func (repo CloudControllerServiceRepository) ListServicesFromBroker(brokerGuid s
 }
 
 func (repo CloudControllerServiceRepository) MigrateServicePlanFromV1ToV2(v1PlanGuid, v2PlanGuid string) (changedCount int, apiErr error) {
-	path := fmt.Sprintf("%s/v2/service_plans/%s/service_instances", repo.config.ApiEndpoint(), v1PlanGuid)
+	path := fmt.Sprintf("/v2/service_plans/%s/service_instances", v1PlanGuid)
 	body := strings.NewReader(fmt.Sprintf(`{"service_plan_guid":"%s"}`, v2PlanGuid))
 	response := new(resources.ServiceMigrateV1ToV2Response)
 
-	apiErr = repo.gateway.UpdateResource(path, body, response)
+	apiErr = repo.gateway.UpdateResource(repo.config.ApiEndpoint(), path, body, response)
 	if apiErr != nil {
 		return
 	}

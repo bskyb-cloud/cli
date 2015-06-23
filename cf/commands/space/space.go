@@ -9,7 +9,7 @@ import (
 
 	"github.com/cloudfoundry/cli/cf/api/space_quotas"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/formatters"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -18,12 +18,12 @@ import (
 
 type ShowSpace struct {
 	ui        terminal.UI
-	config    configuration.Reader
+	config    core_config.Reader
 	spaceReq  requirements.SpaceRequirement
 	quotaRepo space_quotas.SpaceQuotaRepository
 }
 
-func NewShowSpace(ui terminal.UI, config configuration.Reader, quotaRepo space_quotas.SpaceQuotaRepository) (cmd *ShowSpace) {
+func NewShowSpace(ui terminal.UI, config core_config.Reader, quotaRepo space_quotas.SpaceQuotaRepository) (cmd *ShowSpace) {
 	cmd = new(ShowSpace)
 	cmd.ui = ui
 	cmd.config = config
@@ -36,6 +36,10 @@ func (cmd *ShowSpace) Metadata() command_metadata.CommandMetadata {
 		Name:        "space",
 		Description: T("Show space info"),
 		Usage:       T("CF_NAME space SPACE"),
+		Flags: []cli.Flag{
+			cli.BoolFlag{Name: "guid", Usage: T("Retrieve and display the given space's guid.  All other output for the space is suppressed.")},
+			cli.BoolFlag{Name: "security-group-rules", Usage: T("Retrive the rules for all the security groups associated with the space")},
+		},
 	}
 }
 
@@ -44,7 +48,11 @@ func (cmd *ShowSpace) GetRequirements(requirementsFactory requirements.Factory, 
 		cmd.ui.FailWithUsage(c)
 	}
 
-	cmd.spaceReq = requirementsFactory.NewSpaceRequirement(c.Args()[0])
+	if cmd.spaceReq == nil {
+		cmd.spaceReq = requirementsFactory.NewSpaceRequirement(c.Args()[0])
+	} else {
+		cmd.spaceReq.SetSpaceName(c.Args()[0])
+	}
 	reqs = []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 		requirementsFactory.NewTargetedOrgRequirement(),
@@ -55,49 +63,67 @@ func (cmd *ShowSpace) GetRequirements(requirementsFactory requirements.Factory, 
 
 func (cmd *ShowSpace) Run(c *cli.Context) {
 	space := cmd.spaceReq.GetSpace()
-	cmd.ui.Say(T("Getting info for space {{.TargetSpace}} in org {{.OrgName}} as {{.CurrentUser}}...",
-		map[string]interface{}{
-			"TargetSpace": terminal.EntityNameColor(space.Name),
-			"OrgName":     terminal.EntityNameColor(space.Organization.Name),
-			"CurrentUser": terminal.EntityNameColor(cmd.config.Username()),
-		}))
 
-	quotaString := cmd.quotaString(space)
+	if c.Bool("guid") {
+		cmd.ui.Say(space.Guid)
+	} else {
+		cmd.ui.Say(T("Getting info for space {{.TargetSpace}} in org {{.OrgName}} as {{.CurrentUser}}...",
+			map[string]interface{}{
+				"TargetSpace": terminal.EntityNameColor(space.Name),
+				"OrgName":     terminal.EntityNameColor(space.Organization.Name),
+				"CurrentUser": terminal.EntityNameColor(cmd.config.Username()),
+			}))
 
-	cmd.ui.Ok()
-	cmd.ui.Say("")
-	cmd.ui.Say(terminal.EntityNameColor(space.Name) + ":")
+		quotaString := cmd.quotaString(space)
 
-	table := terminal.NewTable(cmd.ui, []string{"", "", ""})
-	table.Add("", T("Org:"), terminal.EntityNameColor(space.Organization.Name))
+		cmd.ui.Ok()
+		cmd.ui.Say("")
+		table := terminal.NewTable(cmd.ui, []string{terminal.EntityNameColor(space.Name), "", ""})
+		table.Add("", T("Org:"), terminal.EntityNameColor(space.Organization.Name))
 
-	apps := []string{}
-	for _, app := range space.Applications {
-		apps = append(apps, terminal.EntityNameColor(app.Name))
+		apps := []string{}
+		for _, app := range space.Applications {
+			apps = append(apps, terminal.EntityNameColor(app.Name))
+		}
+		table.Add("", T("Apps:"), strings.Join(apps, ", "))
+
+		domains := []string{}
+		for _, domain := range space.Domains {
+			domains = append(domains, terminal.EntityNameColor(domain.Name))
+		}
+		table.Add("", T("Domains:"), strings.Join(domains, ", "))
+
+		services := []string{}
+		for _, service := range space.ServiceInstances {
+			services = append(services, terminal.EntityNameColor(service.Name))
+		}
+		table.Add("", T("Services:"), strings.Join(services, ", "))
+
+		securityGroups := []string{}
+		for _, group := range space.SecurityGroups {
+			securityGroups = append(securityGroups, terminal.EntityNameColor(group.Name))
+		}
+		table.Add("", T("Security Groups:"), strings.Join(securityGroups, ", "))
+
+		table.Add("", T("Space Quota:"), quotaString)
+
+		table.Print()
 	}
-	table.Add("", T("Apps:"), strings.Join(apps, ", "))
-
-	domains := []string{}
-	for _, domain := range space.Domains {
-		domains = append(domains, terminal.EntityNameColor(domain.Name))
+	if c.Bool("security-group-rules") {
+		cmd.ui.Say("")
+		for _, group := range space.SecurityGroups {
+			cmd.ui.Say(T("Getting rules for the security group  : {{.SecurityGroupName}}...",
+				map[string]interface{}{"SecurityGroupName": terminal.EntityNameColor(group.Name)}))
+			table := terminal.NewTable(cmd.ui, []string{"", "", "", ""})
+			for _, rules := range group.Rules {
+				for ruleName, ruleValue := range rules {
+					table.Add("", ruleName, ":", ruleValue.(string))
+				}
+				table.Add("", "", "", "")
+			}
+			table.Print()
+		}
 	}
-	table.Add("", T("Domains:"), strings.Join(domains, ", "))
-
-	services := []string{}
-	for _, service := range space.ServiceInstances {
-		services = append(services, terminal.EntityNameColor(service.Name))
-	}
-	table.Add("", T("Services:"), strings.Join(services, ", "))
-
-	securityGroups := []string{}
-	for _, group := range space.SecurityGroups {
-		securityGroups = append(securityGroups, terminal.EntityNameColor(group.Name))
-	}
-	table.Add("", T("Security Groups:"), strings.Join(securityGroups, ", "))
-
-	table.Add("", T("Space Quota:"), quotaString)
-
-	table.Print()
 }
 
 func (cmd *ShowSpace) quotaString(space models.Space) string {

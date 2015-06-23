@@ -3,6 +3,7 @@ package plan_builder_test
 import (
 	"github.com/cloudfoundry/cli/cf/actors/plan_builder"
 	"github.com/cloudfoundry/cli/cf/api/fakes"
+	testorg "github.com/cloudfoundry/cli/cf/api/organizations/fakes"
 	"github.com/cloudfoundry/cli/cf/models"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -14,7 +15,7 @@ var _ = Describe("Plan builder", func() {
 
 		planRepo       *fakes.FakeServicePlanRepo
 		visibilityRepo *fakes.FakeServicePlanVisibilityRepository
-		orgRepo        *fakes.FakeOrgRepository
+		orgRepo        *testorg.FakeOrganizationRepository
 
 		plan1 models.ServicePlanFields
 		plan2 models.ServicePlanFields
@@ -26,8 +27,7 @@ var _ = Describe("Plan builder", func() {
 	BeforeEach(func() {
 		planRepo = &fakes.FakeServicePlanRepo{}
 		visibilityRepo = &fakes.FakeServicePlanVisibilityRepository{}
-		orgRepo = &fakes.FakeOrgRepository{}
-
+		orgRepo = &testorg.FakeOrganizationRepository{}
 		builder = plan_builder.NewBuilder(planRepo, visibilityRepo, orgRepo)
 
 		plan1 = models.ServicePlanFields{
@@ -51,15 +51,11 @@ var _ = Describe("Plan builder", func() {
 		org2 = models.Organization{}
 		org2.Name = "org2"
 		org2.Guid = "org2-guid"
-
-		orgRepo.Organizations = []models.Organization{
-			org1,
-			org2,
-		}
 		visibilityRepo.ListReturns([]models.ServicePlanVisibilityFields{
 			{ServicePlanGuid: "service-plan1-guid", OrganizationGuid: "org1-guid"},
 			{ServicePlanGuid: "service-plan1-guid", OrganizationGuid: "org2-guid"},
 		}, nil)
+		orgRepo.ListOrgsReturns([]models.Organization{org1, org2}, nil)
 	})
 
 	Describe(".AttachOrgsToPlans", func() {
@@ -73,9 +69,21 @@ var _ = Describe("Plan builder", func() {
 		})
 	})
 
-	Describe(".GetPlansForService", func() {
+	Describe(".AttachOrgToPlans", func() {
+		It("returns plans fully populated with the orgnames that have visibility", func() {
+			orgRepo.FindByNameReturns(org1, nil)
+			barePlans := []models.ServicePlanFields{plan1, plan2}
+
+			plans, err := builder.AttachOrgToPlans(barePlans, "org1")
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(plans[0].OrgNames).To(Equal([]string{"org1"}))
+		})
+	})
+
+	Describe(".GetPlansForServiceWithOrgs", func() {
 		It("returns all the plans for the service with the provided guid", func() {
-			plans, err := builder.GetPlansForService("service-guid1")
+			plans, err := builder.GetPlansForServiceWithOrgs("service-guid1")
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(len(plans)).To(Equal(2))
@@ -85,9 +93,33 @@ var _ = Describe("Plan builder", func() {
 		})
 	})
 
+	Describe(".GetPlansForService", func() {
+		It("returns all the plans for the service with the provided guid", func() {
+			plans, err := builder.GetPlansForService("service-guid1")
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(len(plans)).To(Equal(2))
+			Expect(plans[0].Name).To(Equal("service-plan1"))
+			Expect(plans[0].OrgNames).To(BeNil())
+			Expect(plans[1].Name).To(Equal("service-plan2"))
+		})
+	})
+
+	Describe(".GetPlansForServiceForOrg", func() {
+		It("returns all the plans for the service with the provided guid", func() {
+			orgRepo.FindByNameReturns(org1, nil)
+			plans, err := builder.GetPlansForServiceForOrg("service-guid1", "org1")
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(len(plans)).To(Equal(2))
+			Expect(plans[0].Name).To(Equal("service-plan1"))
+			Expect(plans[0].OrgNames).To(Equal([]string{"org1"}))
+			Expect(plans[1].Name).To(Equal("service-plan2"))
+		})
+	})
+
 	Describe(".GetPlansVisibleToOrg", func() {
 		It("returns all the plans visible to the named org", func() {
-
 			plans, err := builder.GetPlansVisibleToOrg("org1")
 			Expect(err).ToNot(HaveOccurred())
 

@@ -1,9 +1,8 @@
 package net
 
 import (
-	"crypto/tls"
+	_ "crypto/sha512"
 	"crypto/x509"
-	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -17,13 +16,11 @@ import (
 	"github.com/cloudfoundry/cli/cf/trace"
 )
 
-func newHttpClient(trustedCerts []tls.Certificate, disableSSL bool) *http.Client {
-	tr := &http.Transport{
-		Dial:            (&net.Dialer{Timeout: 5 * time.Second}).Dial,
-		TLSClientConfig: NewTLSConfig(trustedCerts, disableSSL),
-		Proxy:           http.ProxyFromEnvironment,
-	}
+type HttpClientInterface interface {
+	Do(req *http.Request) (resp *http.Response, err error)
+}
 
+var NewHttpClient = func(tr *http.Transport) HttpClientInterface {
 	return &http.Client{
 		Transport:     tr,
 		CheckRedirect: PrepareRedirect,
@@ -36,10 +33,19 @@ func PrepareRedirect(req *http.Request, via []*http.Request) error {
 	}
 
 	prevReq := via[len(via)-1]
-	req.Header.Set("Authorization", prevReq.Header.Get("Authorization"))
+	copyHeaders(prevReq, req)
 	dumpRequest(req)
 
 	return nil
+}
+
+func copyHeaders(from *http.Request, to *http.Request) {
+	for key, values := range from.Header {
+		// do not copy POST-specific headers
+		if key != "Content-Type" && key != "Content-Length" {
+			to.Header.Set(key, strings.Join(values, ","))
+		}
+	}
 }
 
 func dumpRequest(req *http.Request) {
@@ -74,15 +80,13 @@ func WrapNetworkErrors(host string, err error) error {
 	}
 
 	if innerErr != nil {
-		switch typedErr := innerErr.(type) {
+		switch innerErr.(type) {
 		case x509.UnknownAuthorityError:
 			return errors.NewInvalidSSLCert(host, T("unknown authority"))
 		case x509.HostnameError:
 			return errors.NewInvalidSSLCert(host, T("not valid for the requested host"))
 		case x509.CertificateInvalidError:
 			return errors.NewInvalidSSLCert(host, "")
-		case *net.OpError:
-			return typedErr.Err
 		}
 	}
 

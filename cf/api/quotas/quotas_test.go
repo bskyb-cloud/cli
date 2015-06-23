@@ -6,11 +6,12 @@ import (
 	"time"
 
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/cf/api/quotas"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -22,13 +23,13 @@ var _ = Describe("CloudControllerQuotaRepository", func() {
 	var (
 		testServer  *httptest.Server
 		testHandler *testnet.TestHandler
-		configRepo  configuration.ReadWriter
+		configRepo  core_config.ReadWriter
 		repo        CloudControllerQuotaRepository
 	)
 
 	BeforeEach(func() {
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		gateway := net.NewCloudControllerGateway((configRepo), time.Now)
+		gateway := net.NewCloudControllerGateway(configRepo, time.Now, &testterm.FakeUI{})
 		repo = NewCloudControllerQuotaRepository(configRepo, gateway)
 	})
 
@@ -55,6 +56,7 @@ var _ = Describe("CloudControllerQuotaRepository", func() {
 				Guid:                    "my-quota-guid",
 				Name:                    "my-remote-quota",
 				MemoryLimit:             1024,
+				InstanceMemoryLimit:     -1,
 				RoutesLimit:             123,
 				ServicesLimit:           321,
 				NonBasicServicesAllowed: true,
@@ -111,7 +113,8 @@ var _ = Describe("CloudControllerQuotaRepository", func() {
 					"non_basic_services_allowed": false,
 					"total_services": 1,
 					"total_routes": 12,
-					"memory_limit": 123
+					"memory_limit": 123,
+					"instance_memory_limit": 0
 				}`),
 				Response: testnet.TestResponse{Status: http.StatusCreated},
 			})
@@ -140,7 +143,8 @@ var _ = Describe("CloudControllerQuotaRepository", func() {
 					"name": "amazing-quota",
 					"total_services": 1,
 					"total_routes": 12,
-					"memory_limit": 123
+					"memory_limit": 123,
+					"instance_memory_limit": 0
 				}`),
 			}))
 
@@ -187,6 +191,7 @@ var firstQuotaRequest = testapi.NewCloudControllerTestRequest(testnet.TestReques
 			  "entity": {
 			  	"name": "my-remote-quota",
 			  	"memory_limit": 1024,
+          "instance_memory_limit": -1,
 			  	"total_routes": 123,
 			  	"total_services": 321,
 			  	"non_basic_services_allowed": true

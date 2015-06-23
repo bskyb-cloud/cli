@@ -2,9 +2,9 @@ package application
 
 import (
 	"github.com/cloudfoundry/cli/cf"
-	"github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/api/applications"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
@@ -14,12 +14,12 @@ import (
 
 type SetEnv struct {
 	ui      terminal.UI
-	config  configuration.Reader
-	appRepo api.ApplicationRepository
+	config  core_config.Reader
+	appRepo applications.ApplicationRepository
 	appReq  requirements.ApplicationRequirement
 }
 
-func NewSetEnv(ui terminal.UI, config configuration.Reader, appRepo api.ApplicationRepository) *SetEnv {
+func NewSetEnv(ui terminal.UI, config core_config.Reader, appRepo applications.ApplicationRepository) *SetEnv {
 	return &SetEnv{
 		ui:      ui,
 		config:  config,
@@ -32,7 +32,7 @@ func (cmd *SetEnv) Metadata() command_metadata.CommandMetadata {
 		Name:            "set-env",
 		ShortName:       "se",
 		Description:     T("Set an env variable for an app"),
-		Usage:           T("CF_NAME set-env APP NAME VALUE"),
+		Usage:           T("CF_NAME set-env APP_NAME ENV_VAR_NAME ENV_VAR_VALUE"),
 		SkipFlagParsing: true,
 	}
 }
@@ -42,7 +42,12 @@ func (cmd *SetEnv) GetRequirements(requirementsFactory requirements.Factory, c *
 		cmd.ui.FailWithUsage(c)
 	}
 
-	cmd.appReq = requirementsFactory.NewApplicationRequirement(c.Args()[0])
+	if cmd.appReq == nil {
+		cmd.appReq = requirementsFactory.NewApplicationRequirement(c.Args()[0])
+	} else {
+		cmd.appReq.SetApplicationName(c.Args()[0])
+	}
+
 	reqs = []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 		requirementsFactory.NewTargetedSpaceRequirement(),
@@ -66,7 +71,7 @@ func (cmd *SetEnv) Run(c *cli.Context) {
 			"CurrentUser": terminal.EntityNameColor(cmd.config.Username())}))
 
 	if len(app.EnvironmentVars) == 0 {
-		app.EnvironmentVars = map[string]string{}
+		app.EnvironmentVars = map[string]interface{}{}
 	}
 	envParams := app.EnvironmentVars
 	envParams[varName] = varValue

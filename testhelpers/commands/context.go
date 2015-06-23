@@ -10,8 +10,10 @@ import (
 	"github.com/cloudfoundry/cli/cf/app"
 	"github.com/cloudfoundry/cli/cf/command_factory"
 	"github.com/cloudfoundry/cli/cf/command_runner"
+	testPluginConfig "github.com/cloudfoundry/cli/cf/configuration/plugin_config/fakes"
 	"github.com/cloudfoundry/cli/cf/manifest"
 	"github.com/cloudfoundry/cli/cf/net"
+	"github.com/cloudfoundry/cli/plugin/rpc"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
@@ -36,8 +38,8 @@ func NewContext(cmdName string, args []string) *cli.Context {
 			}
 		}
 		if firstFlagIndex > 0 {
-			args := args[0:firstFlagIndex]
 			flags := args[firstFlagIndex:]
+			args := args[0:firstFlagIndex]
 			flagSet.Parse(append(flags, args...))
 		} else {
 			flagSet.Parse(args[0:])
@@ -52,16 +54,18 @@ func NewContext(cmdName string, args []string) *cli.Context {
 func findCommand(cmdName string) (cmd cli.Command) {
 	fakeUI := &testterm.FakeUI{}
 	configRepo := testconfig.NewRepository()
+	pluginConfig := &testPluginConfig.FakePluginConfiguration{}
 	manifestRepo := manifest.NewManifestDiskRepository()
 	apiRepoLocator := api.NewRepositoryLocator(configRepo, map[string]net.Gateway{
-		"auth":             net.NewUAAGateway(configRepo),
-		"cloud-controller": net.NewCloudControllerGateway(configRepo, time.Now),
-		"uaa":              net.NewUAAGateway(configRepo),
+		"auth":             net.NewUAAGateway(configRepo, fakeUI),
+		"cloud-controller": net.NewCloudControllerGateway(configRepo, time.Now, fakeUI),
+		"uaa":              net.NewUAAGateway(configRepo, fakeUI),
 	})
 
-	cmdFactory := command_factory.NewFactory(fakeUI, configRepo, manifestRepo, apiRepoLocator)
+	rpcService, _ := rpc.NewRpcService(nil, nil, nil, nil)
+	cmdFactory := command_factory.NewFactory(fakeUI, configRepo, manifestRepo, apiRepoLocator, pluginConfig, rpcService)
 	requirementsFactory := &testreq.FakeReqFactory{}
-	cmdRunner := command_runner.NewRunner(cmdFactory, requirementsFactory)
+	cmdRunner := command_runner.NewRunner(cmdFactory, requirementsFactory, fakeUI)
 	myApp := app.NewApp(cmdRunner, cmdFactory.CommandMetadatas()...)
 
 	for _, cmd := range myApp.Commands {

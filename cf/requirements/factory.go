@@ -2,7 +2,7 @@ package requirements
 
 import (
 	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/terminal"
 )
 
@@ -22,15 +22,16 @@ type Factory interface {
 	NewUserRequirement(username string) UserRequirement
 	NewBuildpackRequirement(buildpack string) BuildpackRequirement
 	NewApiEndpointRequirement() Requirement
+	NewMinCCApiVersionRequirement(commandName string, major, minor, patch int) Requirement
 }
 
 type apiRequirementFactory struct {
 	ui          terminal.UI
-	config      configuration.Reader
+	config      core_config.Reader
 	repoLocator api.RepositoryLocator
 }
 
-func NewFactory(ui terminal.UI, config configuration.Reader, repoLocator api.RepositoryLocator) (factory apiRequirementFactory) {
+func NewFactory(ui terminal.UI, config core_config.Reader, repoLocator api.RepositoryLocator) (factory apiRequirementFactory) {
 	return apiRequirementFactory{ui, config, repoLocator}
 }
 
@@ -116,5 +117,16 @@ func (f apiRequirementFactory) NewApiEndpointRequirement() Requirement {
 	return NewApiEndpointRequirement(
 		f.ui,
 		f.config,
+	)
+}
+
+func (f apiRequirementFactory) NewMinCCApiVersionRequirement(commandName string, major, minor, patch int) Requirement {
+	return NewCCApiVersionRequirement(
+		f.ui,
+		f.config,
+		commandName,
+		major,
+		minor,
+		patch,
 	)
 }

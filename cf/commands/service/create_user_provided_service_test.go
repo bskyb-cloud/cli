@@ -3,7 +3,7 @@ package service_test
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/service"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
@@ -17,8 +17,8 @@ import (
 var _ = Describe("create-user-provided-service command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		config              configuration.ReadWriter
-		repo                *testapi.FakeUserProvidedServiceInstanceRepo
+		config              core_config.ReadWriter
+		repo                *testapi.FakeUserProvidedServiceInstanceRepository
 		requirementsFactory *testreq.FakeReqFactory
 		cmd                 CreateUserProvidedService
 	)
@@ -26,16 +26,19 @@ var _ = Describe("create-user-provided-service command", func() {
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		config = testconfig.NewRepositoryWithDefaults()
-		repo = &testapi.FakeUserProvidedServiceInstanceRepo{}
-		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true}
+		repo = &testapi.FakeUserProvidedServiceInstanceRepository{}
+		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: true}
 		cmd = NewCreateUserProvidedService(ui, config, repo)
 	})
 
 	Describe("login requirements", func() {
 		It("fails if the user is not logged in", func() {
 			requirementsFactory.LoginSuccess = false
-			testcmd.RunCommand(cmd, []string{"my-service"}, requirementsFactory)
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(testcmd.RunCommand(cmd, []string{"my-service"}, requirementsFactory)).To(BeFalse())
+		})
+		It("fails when a space is not targeted", func() {
+			requirementsFactory.TargetedSpaceSuccess = false
+			Expect(testcmd.RunCommand(cmd, []string{"my-service"}, requirementsFactory)).To(BeFalse())
 		})
 	})
 
@@ -57,12 +60,13 @@ var _ = Describe("create-user-provided-service command", func() {
 			[]string{"baz"},
 		))
 
-		Expect(repo.CreateName).To(Equal("my-custom-service"))
-		Expect(repo.CreateParams).To(Equal(map[string]interface{}{
-			"foo": "foo value",
-			"bar": "bar value",
-			"baz": "baz value",
-		}))
+		Expect(repo.CreateCallCount()).To(Equal(1))
+		name, drainUrl, params := repo.CreateArgsForCall(0)
+		Expect(name).To(Equal("my-custom-service"))
+		Expect(drainUrl).To(Equal(""))
+		Expect(params["foo"]).To(Equal("foo value"))
+		Expect(params["bar"]).To(Equal("bar value"))
+		Expect(params["baz"]).To(Equal("baz value"))
 
 		Expect(ui.Outputs).To(ContainSubstrings(
 			[]string{"Creating user provided service", "my-custom-service", "my-org", "my-space", "my-user"},
@@ -74,9 +78,11 @@ var _ = Describe("create-user-provided-service command", func() {
 		args := []string{"-p", `{"foo": "foo value", "bar": "bar value", "baz": 4}`, "my-custom-service"}
 		testcmd.RunCommand(cmd, args, requirementsFactory)
 
+		name, _, params := repo.CreateArgsForCall(0)
+		Expect(name).To(Equal("my-custom-service"))
+
 		Expect(ui.Prompts).To(BeEmpty())
-		Expect(repo.CreateName).To(Equal("my-custom-service"))
-		Expect(repo.CreateParams).To(Equal(map[string]interface{}{
+		Expect(params).To(Equal(map[string]interface{}{
 			"foo": "foo value",
 			"bar": "bar value",
 			"baz": float64(4),
@@ -92,7 +98,8 @@ var _ = Describe("create-user-provided-service command", func() {
 		args := []string{"-l", "syslog://example.com", "-p", `{"foo": "foo value", "bar": "bar value", "baz": "baz value"}`, "my-custom-service"}
 		testcmd.RunCommand(cmd, args, requirementsFactory)
 
-		Expect(repo.CreateDrainUrl).To(Equal("syslog://example.com"))
+		_, drainUrl, _ := repo.CreateArgsForCall(0)
+		Expect(drainUrl).To(Equal("syslog://example.com"))
 		Expect(ui.Outputs).To(ContainSubstrings(
 			[]string{"Creating user provided service"},
 			[]string{"OK"},

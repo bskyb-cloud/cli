@@ -2,9 +2,10 @@ package user
 
 import (
 	"errors"
+
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
@@ -16,12 +17,12 @@ var orgRoles = []string{models.ORG_MANAGER, models.BILLING_MANAGER, models.ORG_A
 
 type OrgUsers struct {
 	ui       terminal.UI
-	config   configuration.Reader
+	config   core_config.Reader
 	orgReq   requirements.OrganizationRequirement
 	userRepo api.UserRepository
 }
 
-func NewOrgUsers(ui terminal.UI, config configuration.Reader, userRepo api.UserRepository) (cmd *OrgUsers) {
+func NewOrgUsers(ui terminal.UI, config core_config.Reader, userRepo api.UserRepository) (cmd *OrgUsers) {
 	cmd = new(OrgUsers)
 	cmd.ui = ui
 	cmd.config = config
@@ -47,8 +48,11 @@ func (cmd *OrgUsers) GetRequirements(requirementsFactory requirements.Factory, c
 		return
 	}
 
-	orgName := c.Args()[0]
-	cmd.orgReq = requirementsFactory.NewOrganizationRequirement(orgName)
+	if cmd.orgReq == nil {
+		cmd.orgReq = requirementsFactory.NewOrganizationRequirement(c.Args()[0])
+	} else {
+		cmd.orgReq.SetOrganizationName(c.Args()[0])
+	}
 	reqs = append(reqs, requirementsFactory.NewLoginRequirement(), cmd.orgReq)
 
 	return
@@ -76,10 +80,16 @@ func (cmd *OrgUsers) Run(c *cli.Context) {
 		models.ORG_AUDITOR:     T("ORG AUDITOR"),
 	}
 
+	var users []models.UserFields
+	var apiErr error
 	for _, role := range roles {
 		displayName := orgRoleToDisplayName[role]
 
-		users, apiErr := cmd.userRepo.ListUsersInOrgForRole(org.Guid, role)
+		if cmd.config.IsMinApiVersion("2.21.0") {
+			users, apiErr = cmd.userRepo.ListUsersInOrgForRoleWithNoUAA(org.Guid, role)
+		} else {
+			users, apiErr = cmd.userRepo.ListUsersInOrgForRole(org.Guid, role)
+		}
 
 		cmd.ui.Say("")
 		cmd.ui.Say("%s", terminal.HeaderColor(displayName))

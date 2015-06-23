@@ -1,8 +1,8 @@
 package application_test
 
 import (
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	testApplication "github.com/cloudfoundry/cli/cf/api/applications/fakes"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -19,30 +19,35 @@ var _ = Describe("stop command", func() {
 	var (
 		ui                  *testterm.FakeUI
 		app                 models.Application
-		appRepo             *testapi.FakeApplicationRepository
+		appRepo             *testApplication.FakeApplicationRepository
 		requirementsFactory *testreq.FakeReqFactory
-		config              configuration.ReadWriter
+		config              core_config.ReadWriter
 	)
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		config = testconfig.NewRepositoryWithDefaults()
-		appRepo = &testapi.FakeApplicationRepository{}
+		appRepo = &testApplication.FakeApplicationRepository{}
 		requirementsFactory = &testreq.FakeReqFactory{}
 	})
 
-	runCommand := func(args ...string) {
-		testcmd.RunCommand(NewStop(ui, config, appRepo), args, requirementsFactory)
+	runCommand := func(args ...string) bool {
+		return testcmd.RunCommand(NewStop(ui, config, appRepo), args, requirementsFactory)
 	}
 
 	It("fails requirements when not logged in", func() {
-		runCommand("some-app-name")
-		Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+		Expect(runCommand("some-app-name")).To(BeFalse())
+	})
+	It("fails requirements when a space is not targeted", func() {
+		requirementsFactory.LoginSuccess = true
+		requirementsFactory.TargetedSpaceSuccess = false
+		Expect(runCommand("some-app-name")).To(BeFalse())
 	})
 
 	Context("when logged in and an app exists", func() {
 		BeforeEach(func() {
 			requirementsFactory.LoginSuccess = true
+			requirementsFactory.TargetedSpaceSuccess = true
 
 			app = models.Application{}
 			app.Name = "my-app"
@@ -104,7 +109,7 @@ var _ = Describe("stop command", func() {
 
 				appRepo.UpdateAppResult = expectedStoppedApp
 				stopper := NewStop(ui, config, appRepo)
-				actualStoppedApp, err := stopper.ApplicationStop(app)
+				actualStoppedApp, err := stopper.ApplicationStop(app, config.OrganizationFields().Name, config.SpaceFields().Name)
 
 				Expect(err).NotTo(HaveOccurred())
 				Expect(expectedStoppedApp).To(Equal(actualStoppedApp))
@@ -117,7 +122,7 @@ var _ = Describe("stop command", func() {
 
 				It("returns the app without updating it", func() {
 					stopper := NewStop(ui, config, appRepo)
-					updatedApp, err := stopper.ApplicationStop(app)
+					updatedApp, err := stopper.ApplicationStop(app, config.OrganizationFields().Name, config.SpaceFields().Name)
 
 					Expect(err).NotTo(HaveOccurred())
 					Expect(app).To(Equal(updatedApp))

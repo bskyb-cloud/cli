@@ -1,12 +1,13 @@
 package spaces
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
 
 	"github.com/cloudfoundry/cli/cf/api/resources"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
@@ -16,17 +17,17 @@ type SpaceRepository interface {
 	ListSpaces(func(models.Space) bool) error
 	FindByName(name string) (space models.Space, apiErr error)
 	FindByNameInOrg(name, orgGuid string) (space models.Space, apiErr error)
-	Create(name string, orgGuid string) (space models.Space, apiErr error)
+	Create(name string, orgGuid string, spaceQuotaGuid string) (space models.Space, apiErr error)
 	Rename(spaceGuid, newName string) (apiErr error)
 	Delete(spaceGuid string) (apiErr error)
 }
 
 type CloudControllerSpaceRepository struct {
-	config  configuration.Reader
+	config  core_config.Reader
 	gateway net.Gateway
 }
 
-func NewCloudControllerSpaceRepository(config configuration.Reader, gateway net.Gateway) (repo CloudControllerSpaceRepository) {
+func NewCloudControllerSpaceRepository(config core_config.Reader, gateway net.Gateway) (repo CloudControllerSpaceRepository) {
 	repo.config = config
 	repo.gateway = gateway
 	return
@@ -65,11 +66,21 @@ func (repo CloudControllerSpaceRepository) FindByNameInOrg(name, orgGuid string)
 	return
 }
 
-func (repo CloudControllerSpaceRepository) Create(name string, orgGuid string) (space models.Space, apiErr error) {
-	path := fmt.Sprintf("%s/v2/spaces?inline-relations-depth=1", repo.config.ApiEndpoint())
-	body := fmt.Sprintf(`{"name":"%s","organization_guid":"%s"}`, name, orgGuid)
+func (repo CloudControllerSpaceRepository) Create(name, orgGuid, spaceQuotaGuid string) (space models.Space, apiErr error) {
+	path := "/v2/spaces?inline-relations-depth=1"
+
+	bodyMap := map[string]string{"name": name, "organization_guid": orgGuid}
+	if spaceQuotaGuid != "" {
+		bodyMap["space_quota_definition_guid"] = spaceQuotaGuid
+	}
+
+	body, apiErr := json.Marshal(bodyMap)
+	if apiErr != nil {
+		return
+	}
+
 	resource := new(resources.SpaceResource)
-	apiErr = repo.gateway.CreateResource(path, strings.NewReader(body), resource)
+	apiErr = repo.gateway.CreateResource(repo.config.ApiEndpoint(), path, strings.NewReader(string(body)), resource)
 	if apiErr != nil {
 		return
 	}
@@ -78,12 +89,12 @@ func (repo CloudControllerSpaceRepository) Create(name string, orgGuid string) (
 }
 
 func (repo CloudControllerSpaceRepository) Rename(spaceGuid, newName string) (apiErr error) {
-	path := fmt.Sprintf("%s/v2/spaces/%s", repo.config.ApiEndpoint(), spaceGuid)
+	path := fmt.Sprintf("/v2/spaces/%s", spaceGuid)
 	body := fmt.Sprintf(`{"name":"%s"}`, newName)
-	return repo.gateway.UpdateResource(path, strings.NewReader(body))
+	return repo.gateway.UpdateResource(repo.config.ApiEndpoint(), path, strings.NewReader(body))
 }
 
 func (repo CloudControllerSpaceRepository) Delete(spaceGuid string) (apiErr error) {
-	path := fmt.Sprintf("%s/v2/spaces/%s?recursive=true", repo.config.ApiEndpoint(), spaceGuid)
-	return repo.gateway.DeleteResource(path)
+	path := fmt.Sprintf("/v2/spaces/%s?recursive=true", spaceGuid)
+	return repo.gateway.DeleteResource(repo.config.ApiEndpoint(), path)
 }

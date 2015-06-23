@@ -2,7 +2,7 @@ package service_test
 
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -18,7 +18,7 @@ import (
 var _ = Describe("rename-service command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		config              configuration.ReadWriter
+		config              core_config.ReadWriter
 		serviceRepo         *testapi.FakeServiceRepo
 		requirementsFactory *testreq.FakeReqFactory
 	)
@@ -30,8 +30,8 @@ var _ = Describe("rename-service command", func() {
 		requirementsFactory = &testreq.FakeReqFactory{}
 	})
 
-	runCommand := func(args ...string) {
-		testcmd.RunCommand(NewRenameService(ui, config, serviceRepo), args, requirementsFactory)
+	runCommand := func(args ...string) bool {
+		return testcmd.RunCommand(NewRenameService(ui, config, serviceRepo), args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
@@ -42,15 +42,14 @@ var _ = Describe("rename-service command", func() {
 
 		It("fails when not logged in", func() {
 			requirementsFactory.TargetedSpaceSuccess = true
-			runCommand("banana", "fppants")
 
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("banana", "fppants")).To(BeFalse())
 		})
 
 		It("fails when a space is not targeted", func() {
 			requirementsFactory.LoginSuccess = true
-			runCommand("banana", "faaaaasdf")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+
+			Expect(runCommand("banana", "faaaaasdf")).To(BeFalse())
 		})
 	})
 

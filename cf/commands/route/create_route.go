@@ -3,7 +3,7 @@ package route
 import (
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/flag_helpers"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
@@ -18,13 +18,13 @@ type RouteCreator interface {
 
 type CreateRoute struct {
 	ui        terminal.UI
-	config    configuration.Reader
+	config    core_config.Reader
 	routeRepo api.RouteRepository
 	spaceReq  requirements.SpaceRequirement
 	domainReq requirements.DomainRequirement
 }
 
-func NewCreateRoute(ui terminal.UI, config configuration.Reader, routeRepo api.RouteRepository) (cmd *CreateRoute) {
+func NewCreateRoute(ui terminal.UI, config core_config.Reader, routeRepo api.RouteRepository) (cmd *CreateRoute) {
 	cmd = new(CreateRoute)
 	cmd.ui = ui
 	cmd.config = config
@@ -49,10 +49,13 @@ func (cmd *CreateRoute) GetRequirements(requirementsFactory requirements.Factory
 		cmd.ui.FailWithUsage(c)
 	}
 
-	spaceName := c.Args()[0]
 	domainName := c.Args()[1]
 
-	cmd.spaceReq = requirementsFactory.NewSpaceRequirement(spaceName)
+	if cmd.spaceReq == nil {
+		cmd.spaceReq = requirementsFactory.NewSpaceRequirement(c.Args()[0])
+	} else {
+		cmd.spaceReq.SetSpaceName(c.Args()[0])
+	}
 	cmd.domainReq = requirementsFactory.NewDomainRequirement(domainName)
 
 	reqs = []requirements.Requirement{

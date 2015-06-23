@@ -3,7 +3,7 @@ package quota
 import (
 	"github.com/cloudfoundry/cli/cf/api/quotas"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/flag_helpers"
 	"github.com/cloudfoundry/cli/cf/formatters"
@@ -16,11 +16,11 @@ import (
 
 type CreateQuota struct {
 	ui        terminal.UI
-	config    configuration.Reader
+	config    core_config.Reader
 	quotaRepo quotas.QuotaRepository
 }
 
-func NewCreateQuota(ui terminal.UI, config configuration.Reader, quotaRepo quotas.QuotaRepository) CreateQuota {
+func NewCreateQuota(ui terminal.UI, config core_config.Reader, quotaRepo quotas.QuotaRepository) CreateQuota {
 	return CreateQuota{
 		ui:        ui,
 		config:    config,
@@ -34,7 +34,7 @@ func (cmd CreateQuota) Metadata() command_metadata.CommandMetadata {
 		Description: T("Define a new resource quota"),
 		Usage:       T("CF_NAME create-quota QUOTA [-m TOTAL_MEMORY] [-i INSTANCE_MEMORY] [-r ROUTES] [-s SERVICE_INSTANCES] [--allow-paid-service-plans]"),
 		Flags: []cli.Flag{
-			flag_helpers.NewStringFlag("i", T("Maximum amount of memory an application instance can have (e.g. 1024M, 1G, 10G)")),
+			flag_helpers.NewStringFlag("i", T("Maximum amount of memory an application instance can have (e.g. 1024M, 1G, 10G). -1 represents an unlimited amount.")),
 			flag_helpers.NewStringFlag("m", T("Total amount of memory (e.g. 1024M, 1G, 10G)")),
 			flag_helpers.NewIntFlag("r", T("Total number of routes")),
 			flag_helpers.NewIntFlag("s", T("Total number of service instances")),
@@ -76,12 +76,13 @@ func (cmd CreateQuota) Run(context *cli.Context) {
 	}
 
 	instanceMemoryLimit := context.String("i")
-	if instanceMemoryLimit != "" {
+	if instanceMemoryLimit == "-1" || instanceMemoryLimit == "" {
+		quota.InstanceMemoryLimit = -1
+	} else {
 		parsedMemory, errr := formatters.ToMegabytes(instanceMemoryLimit)
 		if errr != nil {
 			cmd.ui.Failed(T("Invalid instance memory limit: {{.MemoryLimit}}\n{{.Err}}", map[string]interface{}{"MemoryLimit": instanceMemoryLimit, "Err": errr}))
 		}
-
 		quota.InstanceMemoryLimit = parsedMemory
 	}
 

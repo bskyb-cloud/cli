@@ -2,10 +2,12 @@ package api
 
 import (
 	"fmt"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"strings"
+	"time"
+
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
-	"strings"
 )
 
 type ApplicationSummaries struct {
@@ -20,39 +22,57 @@ func (resource ApplicationSummaries) ToModels() (apps []models.ApplicationFields
 }
 
 type ApplicationFromSummary struct {
-	Guid             string
-	Name             string
-	Routes           []RouteSummary
-	RunningInstances int `json:"running_instances"`
-	Memory           int64
-	Instances        int
-	DiskQuota        int64 `json:"disk_quota"`
-	Urls             []string
-	State            string
-	SpaceGuid        string `json:"space_guid"`
+	Guid               string
+	Name               string
+	Routes             []RouteSummary
+	Services           []ServicePlanSummary
+	Diego              bool `json:"diego,omitempty"`
+	RunningInstances   int  `json:"running_instances"`
+	Memory             int64
+	Instances          int
+	DiskQuota          int64 `json:"disk_quota"`
+	Urls               []string
+	EnvironmentVars    map[string]interface{} `json:"environment_json,omitempty"`
+	HealthCheckTimeout int                    `json:"health_check_timeout"`
+	State              string
+	SpaceGuid          string     `json:"space_guid"`
+	PackageUpdatedAt   *time.Time `json:"package_updated_at"`
 }
 
 func (resource ApplicationFromSummary) ToFields() (app models.ApplicationFields) {
 	app = models.ApplicationFields{}
 	app.Guid = resource.Guid
 	app.Name = resource.Name
+	app.Diego = resource.Diego
 	app.State = strings.ToLower(resource.State)
 	app.InstanceCount = resource.Instances
 	app.DiskQuota = resource.DiskQuota
 	app.RunningInstances = resource.RunningInstances
 	app.Memory = resource.Memory
 	app.SpaceGuid = resource.SpaceGuid
+	app.PackageUpdatedAt = resource.PackageUpdatedAt
+	app.HealthCheckTimeout = resource.HealthCheckTimeout
 
 	return
 }
 
 func (resource ApplicationFromSummary) ToModel() (app models.Application) {
 	app.ApplicationFields = resource.ToFields()
+
 	routes := []models.RouteSummary{}
 	for _, route := range resource.Routes {
 		routes = append(routes, route.ToModel())
 	}
 	app.Routes = routes
+
+	services := []models.ServicePlanSummary{}
+	for _, service := range resource.Services {
+		services = append(services, service.ToModel())
+	}
+
+	app.EnvironmentVars = resource.EnvironmentVars
+	app.Routes = routes
+	app.Services = services
 
 	return
 }
@@ -75,6 +95,12 @@ func (resource RouteSummary) ToModel() (route models.RouteSummary) {
 	return
 }
 
+func (resource ServicePlanSummary) ToModel() (route models.ServicePlanSummary) {
+	route.Guid = resource.Guid
+	route.Name = resource.Name
+	return
+}
+
 type DomainSummary struct {
 	Guid                   string
 	Name                   string
@@ -87,11 +113,11 @@ type AppSummaryRepository interface {
 }
 
 type CloudControllerAppSummaryRepository struct {
-	config  configuration.Reader
+	config  core_config.Reader
 	gateway net.Gateway
 }
 
-func NewCloudControllerAppSummaryRepository(config configuration.Reader, gateway net.Gateway) (repo CloudControllerAppSummaryRepository) {
+func NewCloudControllerAppSummaryRepository(config core_config.Reader, gateway net.Gateway) (repo CloudControllerAppSummaryRepository) {
 	repo.config = config
 	repo.gateway = gateway
 	return
@@ -121,5 +147,6 @@ func (repo CloudControllerAppSummaryRepository) GetSummary(appGuid string) (summ
 	}
 
 	summary = summaryResponse.ToModel()
+
 	return
 }

@@ -33,10 +33,10 @@ var _ = Describe("delete-service command", func() {
 		}
 	})
 
-	runCommand := func(args ...string) {
+	runCommand := func(args ...string) bool {
 		configRepo := testconfig.NewRepositoryWithDefaults()
 		cmd := NewDeleteService(ui, configRepo, serviceRepo)
-		testcmd.RunCommand(cmd, args, requirementsFactory)
+		return testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	Context("when not logged in", func() {
@@ -45,8 +45,7 @@ var _ = Describe("delete-service command", func() {
 		})
 
 		It("does not pass requirements", func() {
-			runCommand("vestigial-service")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("vestigial-service")).To(BeFalse())
 		})
 	})
 
@@ -55,42 +54,83 @@ var _ = Describe("delete-service command", func() {
 			requirementsFactory.LoginSuccess = true
 		})
 
-		It("fails with usage when no service name is given", func() {
+		It("fails with usage when not provided exactly one arg", func() {
 			runCommand()
 			Expect(ui.FailedWithUsage).To(BeTrue())
 		})
 
 		Context("when the service exists", func() {
-			BeforeEach(func() {
-				serviceInstance = models.ServiceInstance{}
-				serviceInstance.Name = "my-service"
-				serviceInstance.Guid = "my-service-guid"
-				serviceRepo.FindInstanceByNameServiceInstance = serviceInstance
-			})
+			Context("and the service deletion is asynchronous", func() {
+				BeforeEach(func() {
+					serviceInstance = models.ServiceInstance{}
+					serviceInstance.Name = "my-service"
+					serviceInstance.Guid = "my-service-guid"
+					serviceInstance.LastOperation.Type = "delete"
+					serviceInstance.LastOperation.State = "in progress"
+					serviceInstance.LastOperation.Description = "delete"
+					serviceRepo.FindInstanceByNameServiceInstance = serviceInstance
+				})
 
-			Context("when the command is confirmed", func() {
-				It("deletes the service", func() {
-					runCommand("my-service")
+				Context("when the command is confirmed", func() {
+					It("deletes the service", func() {
+						runCommand("my-service")
 
-					Expect(ui.Prompts).To(ContainSubstrings([]string{"Really delete the service my-service"}))
+						Expect(ui.Prompts).To(ContainSubstrings([]string{"Really delete the service my-service"}))
 
+						Expect(ui.Outputs).To(ContainSubstrings(
+							[]string{"Deleting service", "my-service", "my-org", "my-space", "my-user"},
+							[]string{"OK"},
+							[]string{"Delete in progress. Use 'cf services' or 'cf service my-service' to check operation status."},
+						))
+
+						Expect(serviceRepo.DeleteServiceServiceInstance).To(Equal(serviceInstance))
+					})
+				})
+
+				It("skips confirmation when the -f flag is given", func() {
+					runCommand("-f", "foo.com")
+
+					Expect(ui.Prompts).To(BeEmpty())
 					Expect(ui.Outputs).To(ContainSubstrings(
-						[]string{"Deleting service", "my-service", "my-org", "my-space", "my-user"},
+						[]string{"Deleting service", "foo.com"},
 						[]string{"OK"},
+						[]string{"Delete in progress. Use 'cf services' or 'cf service foo.com' to check operation status."},
 					))
-
-					Expect(serviceRepo.DeleteServiceServiceInstance).To(Equal(serviceInstance))
 				})
 			})
 
-			It("skips confirmation when the -f flag is given", func() {
-				runCommand("-f", "foo.com")
+			Context("and the service deletion is synchronous", func() {
+				BeforeEach(func() {
+					serviceInstance = models.ServiceInstance{}
+					serviceInstance.Name = "my-service"
+					serviceInstance.Guid = "my-service-guid"
+					serviceRepo.FindInstanceByNameServiceInstance = serviceInstance
+				})
 
-				Expect(ui.Prompts).To(BeEmpty())
-				Expect(ui.Outputs).To(ContainSubstrings(
-					[]string{"Deleting service", "foo.com"},
-					[]string{"OK"},
-				))
+				Context("when the command is confirmed", func() {
+					It("deletes the service", func() {
+						runCommand("my-service")
+
+						Expect(ui.Prompts).To(ContainSubstrings([]string{"Really delete the service my-service"}))
+
+						Expect(ui.Outputs).To(ContainSubstrings(
+							[]string{"Deleting service", "my-service", "my-org", "my-space", "my-user"},
+							[]string{"OK"},
+						))
+
+						Expect(serviceRepo.DeleteServiceServiceInstance).To(Equal(serviceInstance))
+					})
+				})
+
+				It("skips confirmation when the -f flag is given", func() {
+					runCommand("-f", "foo.com")
+
+					Expect(ui.Prompts).To(BeEmpty())
+					Expect(ui.Outputs).To(ContainSubstrings(
+						[]string{"Deleting service", "foo.com"},
+						[]string{"OK"},
+					))
+				})
 			})
 		})
 

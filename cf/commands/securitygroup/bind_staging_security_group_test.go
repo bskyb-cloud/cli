@@ -5,7 +5,7 @@ import (
 
 	fakeStaging "github.com/cloudfoundry/cli/cf/api/security_groups/defaults/staging/fakes"
 	fakeSecurityGroup "github.com/cloudfoundry/cli/cf/api/security_groups/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -21,7 +21,7 @@ import (
 var _ = Describe("bind-staging-security-group command", func() {
 	var (
 		ui                           *testterm.FakeUI
-		configRepo                   configuration.ReadWriter
+		configRepo                   core_config.ReadWriter
 		requirementsFactory          *testreq.FakeReqFactory
 		fakeSecurityGroupRepo        *fakeSecurityGroup.FakeSecurityGroupRepo
 		fakeStagingSecurityGroupRepo *fakeStaging.FakeStagingSecurityGroupsRepo
@@ -35,15 +35,14 @@ var _ = Describe("bind-staging-security-group command", func() {
 		fakeStagingSecurityGroupRepo = &fakeStaging.FakeStagingSecurityGroupsRepo{}
 	})
 
-	runCommand := func(args ...string) {
+	runCommand := func(args ...string) bool {
 		cmd := NewBindToStagingGroup(ui, configRepo, fakeSecurityGroupRepo, fakeStagingSecurityGroupRepo)
-		testcmd.RunCommand(cmd, args, requirementsFactory)
+		return testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
 		It("fails when the user is not logged in", func() {
-			runCommand("name")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("name")).To(BeFalse())
 		})
 
 		It("fails with usage when a name is not provided", func() {

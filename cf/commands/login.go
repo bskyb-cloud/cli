@@ -1,14 +1,17 @@
 package commands
 
 import (
-	. "github.com/cloudfoundry/cli/cf/i18n"
 	"strconv"
+
+	. "github.com/cloudfoundry/cli/cf/i18n"
+	"github.com/cloudfoundry/cli/utils"
 
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/api/authentication"
+	"github.com/cloudfoundry/cli/cf/api/organizations"
 	"github.com/cloudfoundry/cli/cf/api/spaces"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/flag_helpers"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
@@ -21,18 +24,18 @@ const maxChoices = 50
 
 type Login struct {
 	ui            terminal.UI
-	config        configuration.ReadWriter
+	config        core_config.ReadWriter
 	authenticator authentication.AuthenticationRepository
 	endpointRepo  api.EndpointRepository
-	orgRepo       api.OrganizationRepository
+	orgRepo       organizations.OrganizationRepository
 	spaceRepo     spaces.SpaceRepository
 }
 
 func NewLogin(ui terminal.UI,
-	config configuration.ReadWriter,
+	config core_config.ReadWriter,
 	authenticator authentication.AuthenticationRepository,
 	endpointRepo api.EndpointRepository,
-	orgRepo api.OrganizationRepository,
+	orgRepo organizations.OrganizationRepository,
 	spaceRepo spaces.SpaceRepository) (cmd Login) {
 	return Login{
 		ui:            ui,
@@ -50,7 +53,7 @@ func (cmd Login) Metadata() command_metadata.CommandMetadata {
 		ShortName:   "l",
 		Description: T("Log user in"),
 		Usage: T("CF_NAME login [-a API_URL] [-u USERNAME] [-p PASSWORD] [-o ORG] [-s SPACE]\n\n") +
-			terminal.WarningColor(T("WARNING:\n   Providing your password as a command line option is highly discouraged\n   Your password may be visible to others and may be recorded in your shell history\n\n")) + T("EXAMPLE:\n") + T("   CF_NAME login (omit username and password to login interactively -- CF_NAME will prompt for both)\n") + T("   CF_NAME login -u name@example.com -p pa55woRD (specify username and password as arguments)\n") + T("   CF_NAME login -u name@example.com -p \"my password\" (use quotes for passwords with a space)\n") + T("   CF_NAME login -u name@example.com -p \"\\\"password\\\"\" (escape quotes if used in password)") + T("   CF_NAME login --sso (CF_NAME will provide a url to obtain a one-time password to login)"),
+			terminal.WarningColor(T("WARNING:\n   Providing your password as a command line option is highly discouraged\n   Your password may be visible to others and may be recorded in your shell history\n\n")) + T("EXAMPLE:\n") + T("   CF_NAME login (omit username and password to login interactively -- CF_NAME will prompt for both)\n") + T("   CF_NAME login -u name@example.com -p pa55woRD (specify username and password as arguments)\n") + T("   CF_NAME login -u name@example.com -p \"my password\" (use quotes for passwords with a space)\n") + T("   CF_NAME login -u name@example.com -p \"\\\"password\\\"\" (escape quotes if used in password)\n") + T("   CF_NAME login --sso (CF_NAME will provide a url to obtain a one-time password to login)"),
 		Flags: []cli.Flag{
 			flag_helpers.NewStringFlag("a", T("API endpoint (e.g. https://api.example.com)")),
 			flag_helpers.NewStringFlag("u", T("Username")),
@@ -71,7 +74,7 @@ func (cmd Login) Run(c *cli.Context) {
 	cmd.config.ClearSession()
 
 	endpoint, skipSSL := cmd.decideEndpoint(c)
-	NewApi(cmd.ui, cmd.config, cmd.endpointRepo).setApiEndpoint(endpoint, skipSSL)
+	NewApi(cmd.ui, cmd.config, cmd.endpointRepo).setApiEndpoint(endpoint, skipSSL, cmd.Metadata().Name)
 
 	defer func() {
 		cmd.ui.Say("")
@@ -99,6 +102,7 @@ func (cmd Login) Run(c *cli.Context) {
 	if orgIsSet {
 		cmd.setSpace(c)
 	}
+	utils.NotifyUpdateIfNeeded(cmd.ui, cmd.config)
 }
 
 func (cmd Login) decideEndpoint(c *cli.Context) (string, bool) {
@@ -157,15 +161,24 @@ func (cmd Login) authenticate(c *cli.Context) {
 	}
 	passwordKeys := []string{}
 	credentials := make(map[string]string)
+
+	if value, ok := prompts["username"]; ok {
+		if prompts["username"].Type == core_config.AuthPromptTypeText && usernameFlagValue != "" {
+			credentials["username"] = usernameFlagValue
+		} else {
+			credentials["username"] = cmd.ui.Ask("%s", value.DisplayName)
+		}
+	}
+
 	for key, prompt := range prompts {
-		if prompt.Type == configuration.AuthPromptTypePassword {
+		if prompt.Type == core_config.AuthPromptTypePassword {
 			if key == "passcode" {
 				continue
 			}
 
 			passwordKeys = append(passwordKeys, key)
-		} else if key == "username" && usernameFlagValue != "" {
-			credentials[key] = usernameFlagValue
+		} else if key == "username" {
+			continue
 		} else {
 			credentials[key] = cmd.ui.Ask("%s", prompt.DisplayName)
 		}
@@ -203,24 +216,28 @@ func (cmd Login) setOrganization(c *cli.Context) (isOrgSet bool) {
 
 	if orgName == "" {
 		availableOrgs := []models.Organization{}
-		apiErr := cmd.orgRepo.ListOrgs(func(o models.Organization) bool {
-			availableOrgs = append(availableOrgs, o)
-			return len(availableOrgs) < maxChoices
-		})
+		orgs, apiErr := cmd.orgRepo.ListOrgs()
 		if apiErr != nil {
 			cmd.ui.Failed(T("Error finding available orgs\n{{.ApiErr}}",
 				map[string]interface{}{"ApiErr": apiErr.Error()}))
 		}
-
-		if len(availableOrgs) == 1 {
-			cmd.targetOrganization(availableOrgs[0])
-			return true
+		for _, org := range orgs {
+			if len(availableOrgs) < maxChoices {
+				availableOrgs = append(availableOrgs, org)
+			}
 		}
 
-		orgName = cmd.promptForOrgName(availableOrgs)
-		if orgName == "" {
-			cmd.ui.Say("")
+		if len(availableOrgs) == 0 {
 			return false
+		} else if len(availableOrgs) == 1 {
+			cmd.targetOrganization(availableOrgs[0])
+			return true
+		} else {
+			orgName = cmd.promptForOrgName(availableOrgs)
+			if orgName == "" {
+				cmd.ui.Say("")
+				return false
+			}
 		}
 	}
 
@@ -263,16 +280,17 @@ func (cmd Login) setSpace(c *cli.Context) {
 				map[string]interface{}{"Err": err.Error()}))
 		}
 
-		// Target only space if possible
-		if len(availableSpaces) == 1 {
+		if len(availableSpaces) == 0 {
+			return
+		} else if len(availableSpaces) == 1 {
 			cmd.targetSpace(availableSpaces[0])
 			return
-		}
-
-		spaceName = cmd.promptForSpaceName(availableSpaces)
-		if spaceName == "" {
-			cmd.ui.Say("")
-			return
+		} else {
+			spaceName = cmd.promptForSpaceName(availableSpaces)
+			if spaceName == "" {
+				cmd.ui.Say("")
+				return
+			}
 		}
 	}
 

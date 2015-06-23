@@ -7,7 +7,7 @@ import (
 	"github.com/cloudfoundry/cli/cf/actors"
 	"github.com/cloudfoundry/cli/cf/api/authentication"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/flag_helpers"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
@@ -18,12 +18,12 @@ import (
 
 type ServiceAccess struct {
 	ui             terminal.UI
-	config         configuration.Reader
+	config         core_config.Reader
 	actor          actors.ServiceActor
 	tokenRefresher authentication.TokenRefresher
 }
 
-func NewServiceAccess(ui terminal.UI, config configuration.Reader, actor actors.ServiceActor, tokenRefresher authentication.TokenRefresher) (cmd *ServiceAccess) {
+func NewServiceAccess(ui terminal.UI, config core_config.Reader, actor actors.ServiceActor, tokenRefresher authentication.TokenRefresher) (cmd *ServiceAccess) {
 	return &ServiceAccess{
 		ui:             ui,
 		config:         config,
@@ -46,6 +46,9 @@ func (cmd *ServiceAccess) Metadata() command_metadata.CommandMetadata {
 }
 
 func (cmd *ServiceAccess) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
+	if len(c.Args()) != 0 {
+		cmd.ui.FailWithUsage(c)
+	}
 	reqs = []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 	}
@@ -53,46 +56,50 @@ func (cmd *ServiceAccess) GetRequirements(requirementsFactory requirements.Facto
 }
 
 func (cmd *ServiceAccess) Run(c *cli.Context) {
-	cmd.tokenRefresher.RefreshAuthToken()
+	_, err := cmd.tokenRefresher.RefreshAuthToken()
+	if err != nil {
+		cmd.ui.Failed(err.Error())
+	}
+
 	brokerName := c.String("b")
 	serviceName := c.String("e")
 	orgName := c.String("o")
 
 	if brokerName != "" && serviceName != "" && orgName != "" {
-		cmd.ui.Say(T("getting service access for broker {{.Broker}} and service {{.Service}} and organization {{.Organization}} as {{.Username}}...", map[string]interface{}{
+		cmd.ui.Say(T("Getting service access for broker {{.Broker}} and service {{.Service}} and organization {{.Organization}} as {{.Username}}...", map[string]interface{}{
 			"Broker":       terminal.EntityNameColor(brokerName),
 			"Service":      terminal.EntityNameColor(serviceName),
 			"Organization": terminal.EntityNameColor(orgName),
 			"Username":     terminal.EntityNameColor(cmd.config.Username())}))
 	} else if serviceName != "" && orgName != "" {
-		cmd.ui.Say(T("getting service access for service {{.Service}} and organization {{.Organization}} as {{.Username}}...", map[string]interface{}{
+		cmd.ui.Say(T("Getting service access for service {{.Service}} and organization {{.Organization}} as {{.Username}}...", map[string]interface{}{
 			"Service":      terminal.EntityNameColor(serviceName),
 			"Organization": terminal.EntityNameColor(orgName),
 			"Username":     terminal.EntityNameColor(cmd.config.Username())}))
 	} else if brokerName != "" && orgName != "" {
-		cmd.ui.Say(T("getting service access for broker {{.Broker}} and organization {{.Organization}} as {{.Username}}...", map[string]interface{}{
+		cmd.ui.Say(T("Getting service access for broker {{.Broker}} and organization {{.Organization}} as {{.Username}}...", map[string]interface{}{
 			"Broker":       terminal.EntityNameColor(brokerName),
 			"Organization": terminal.EntityNameColor(orgName),
 			"Username":     terminal.EntityNameColor(cmd.config.Username())}))
 	} else if brokerName != "" && serviceName != "" {
-		cmd.ui.Say(T("getting service access for broker {{.Broker}} and service {{.Service}} as {{.Username}}...", map[string]interface{}{
+		cmd.ui.Say(T("Getting service access for broker {{.Broker}} and service {{.Service}} as {{.Username}}...", map[string]interface{}{
 			"Broker":   terminal.EntityNameColor(brokerName),
 			"Service":  terminal.EntityNameColor(serviceName),
 			"Username": terminal.EntityNameColor(cmd.config.Username())}))
 	} else if brokerName != "" {
-		cmd.ui.Say(T("getting service access for broker {{.Broker}} as {{.Username}}...", map[string]interface{}{
+		cmd.ui.Say(T("Getting service access for broker {{.Broker}} as {{.Username}}...", map[string]interface{}{
 			"Broker":   terminal.EntityNameColor(brokerName),
 			"Username": terminal.EntityNameColor(cmd.config.Username())}))
 	} else if serviceName != "" {
-		cmd.ui.Say(T("getting service access for service {{.Service}} as {{.Username}}...", map[string]interface{}{
+		cmd.ui.Say(T("Getting service access for service {{.Service}} as {{.Username}}...", map[string]interface{}{
 			"Service":  terminal.EntityNameColor(serviceName),
 			"Username": terminal.EntityNameColor(cmd.config.Username())}))
 	} else if orgName != "" {
-		cmd.ui.Say(T("getting service access for organization {{.Organization}} as {{.Username}}...", map[string]interface{}{
+		cmd.ui.Say(T("Getting service access for organization {{.Organization}} as {{.Username}}...", map[string]interface{}{
 			"Organization": terminal.EntityNameColor(orgName),
 			"Username":     terminal.EntityNameColor(cmd.config.Username())}))
 	} else {
-		cmd.ui.Say(T("getting service access as {{.Username}}...", map[string]interface{}{
+		cmd.ui.Say(T("Getting service access as {{.Username}}...", map[string]interface{}{
 			"Username": terminal.EntityNameColor(cmd.config.Username())}))
 	}
 

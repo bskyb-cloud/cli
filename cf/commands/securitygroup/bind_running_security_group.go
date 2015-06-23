@@ -1,11 +1,13 @@
 package securitygroup
 
 import (
+	"strings"
+
 	"github.com/cloudfoundry/cli/cf/api/security_groups"
 	"github.com/cloudfoundry/cli/cf/api/security_groups/defaults/running"
 	"github.com/cloudfoundry/cli/cf/command"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -14,12 +16,12 @@ import (
 
 type bindToRunningGroup struct {
 	ui                terminal.UI
-	configRepo        configuration.Reader
+	configRepo        core_config.Reader
 	securityGroupRepo security_groups.SecurityGroupRepo
 	runningGroupRepo  running.RunningSecurityGroupsRepo
 }
 
-func NewBindToRunningGroup(ui terminal.UI, configRepo configuration.Reader, securityGroupRepo security_groups.SecurityGroupRepo, runningGroupRepo running.RunningSecurityGroupsRepo) command.Command {
+func NewBindToRunningGroup(ui terminal.UI, configRepo core_config.Reader, securityGroupRepo security_groups.SecurityGroupRepo, runningGroupRepo running.RunningSecurityGroupsRepo) command.Command {
 	return &bindToRunningGroup{
 		ui:                ui,
 		configRepo:        configRepo,
@@ -29,10 +31,12 @@ func NewBindToRunningGroup(ui terminal.UI, configRepo configuration.Reader, secu
 }
 
 func (cmd *bindToRunningGroup) Metadata() command_metadata.CommandMetadata {
+	primaryUsage := T("CF_NAME bind-running-security-group SECURITY_GROUP")
+	tipUsage := T("TIP: Changes will not apply to existing running applications until they are restarted.")
 	return command_metadata.CommandMetadata{
 		Name:        "bind-running-security-group",
 		Description: T("Bind a security group to the list of security groups to be used for running applications"),
-		Usage:       T("CF_NAME bind-running-security-group SECURITY_GROUP"),
+		Usage:       strings.Join([]string{primaryUsage, tipUsage}, "\n\n"),
 	}
 }
 
@@ -66,4 +70,6 @@ func (cmd *bindToRunningGroup) Run(context *cli.Context) {
 	}
 
 	cmd.ui.Ok()
+	cmd.ui.Say("\n\n")
+	cmd.ui.Say(T("TIP: Changes will not apply to existing running applications until they are restarted."))
 }

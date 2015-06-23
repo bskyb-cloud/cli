@@ -6,11 +6,12 @@ import (
 	"time"
 
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/cf/api/security_groups/defaults/running"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -22,13 +23,13 @@ var _ = Describe("RunningSecurityGroupsRepo", func() {
 	var (
 		testServer  *httptest.Server
 		testHandler *testnet.TestHandler
-		configRepo  configuration.ReadWriter
+		configRepo  core_config.ReadWriter
 		repo        RunningSecurityGroupsRepo
 	)
 
 	BeforeEach(func() {
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		gateway := net.NewCloudControllerGateway((configRepo), time.Now)
+		gateway := net.NewCloudControllerGateway(configRepo, time.Now, &testterm.FakeUI{})
 		repo = NewRunningSecurityGroupsRepo(configRepo, gateway)
 	})
 
@@ -106,7 +107,7 @@ var _ = Describe("RunningSecurityGroupsRepo", func() {
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(testHandler).To(HaveAllRequestsCalled())
-			Expect(defaults).To(Equal([]models.SecurityGroupFields{
+			Expect(defaults).To(ConsistOf([]models.SecurityGroupFields{
 				{
 					Name: "name-71",
 					Guid: "cd186158-b356-474d-9861-724f34f48502",

@@ -1,13 +1,11 @@
 language: go
 go:
-  - 1.2
+  - 1.2.2
 install:
   - go get -v code.google.com/p/go.tools/cmd/vet
   - go get -v github.com/tools/godep
   - go get -v github.com/onsi/ginkgo/ginkgo
-  - PATH=$PATH:$HOME/gopath/bin bin/generate-language-resources
-  - go get -v -t ./...
-script:  bin/travis
+script:  bin/test --compilers=2
 branches:
   only:
   - master

@@ -3,7 +3,7 @@ package servicebroker_test
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/servicebroker"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -17,7 +17,7 @@ import (
 var _ = Describe("delete-service-broker command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		configRepo          configuration.ReadWriter
+		configRepo          core_config.ReadWriter
 		brokerRepo          *testapi.FakeServiceBrokerRepo
 		requirementsFactory *testreq.FakeReqFactory
 	)
@@ -29,9 +29,9 @@ var _ = Describe("delete-service-broker command", func() {
 		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true}
 	})
 
-	runCommand := func(args ...string) {
+	runCommand := func(args ...string) bool {
 		cmd := NewDeleteServiceBroker(ui, configRepo, brokerRepo)
-		testcmd.RunCommand(cmd, args, requirementsFactory)
+		return testcmd.RunCommand(cmd, args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
@@ -42,8 +42,8 @@ var _ = Describe("delete-service-broker command", func() {
 
 		It("fails requirements when not logged in", func() {
 			requirementsFactory.LoginSuccess = false
-			runCommand("-f", "my-broker")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+
+			Expect(runCommand("-f", "my-broker")).To(BeFalse())
 		})
 	})
 

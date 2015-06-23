@@ -4,7 +4,7 @@ import (
 	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
@@ -15,7 +15,7 @@ import (
 
 type BindService struct {
 	ui                 terminal.UI
-	config             configuration.Reader
+	config             core_config.Reader
 	serviceBindingRepo api.ServiceBindingRepository
 	appReq             requirements.ApplicationRequirement
 	serviceInstanceReq requirements.ServiceInstanceRequirement
@@ -25,7 +25,7 @@ type ServiceBinder interface {
 	BindApplication(app models.Application, serviceInstance models.ServiceInstance) (apiErr error)
 }
 
-func NewBindService(ui terminal.UI, config configuration.Reader, serviceBindingRepo api.ServiceBindingRepository) (cmd *BindService) {
+func NewBindService(ui terminal.UI, config core_config.Reader, serviceBindingRepo api.ServiceBindingRepository) (cmd *BindService) {
 	cmd = new(BindService)
 	cmd.ui = ui
 	cmd.config = config
@@ -38,7 +38,7 @@ func (cmd *BindService) Metadata() command_metadata.CommandMetadata {
 		Name:        "bind-service",
 		ShortName:   "bs",
 		Description: T("Bind a service instance to an app"),
-		Usage:       T("CF_NAME bind-service APP SERVICE_INSTANCE"),
+		Usage:       T("CF_NAME bind-service APP_NAME SERVICE_INSTANCE"),
 	}
 }
 
@@ -48,10 +48,14 @@ func (cmd *BindService) GetRequirements(requirementsFactory requirements.Factory
 		cmd.ui.FailWithUsage(c)
 	}
 
-	appName := c.Args()[0]
 	serviceName := c.Args()[1]
 
-	cmd.appReq = requirementsFactory.NewApplicationRequirement(appName)
+	if cmd.appReq == nil {
+		cmd.appReq = requirementsFactory.NewApplicationRequirement(c.Args()[0])
+	} else {
+		cmd.appReq.SetApplicationName(c.Args()[0])
+	}
+
 	cmd.serviceInstanceReq = requirementsFactory.NewServiceInstanceRequirement(serviceName)
 
 	reqs = []requirements.Requirement{requirementsFactory.NewLoginRequirement(), cmd.appReq, cmd.serviceInstanceReq}
@@ -73,7 +77,7 @@ func (cmd *BindService) Run(c *cli.Context) {
 
 	err := cmd.BindApplication(app, serviceInstance)
 	if err != nil {
-		if err, ok := err.(errors.HttpError); ok && err.ErrorCode() == errors.APP_ALREADY_BOUND {
+		if httperr, ok := err.(errors.HttpError); ok && httperr.ErrorCode() == errors.APP_ALREADY_BOUND {
 			cmd.ui.Ok()
 			cmd.ui.Warn(T("App {{.AppName}} is already bound to {{.ServiceName}}.",
 				map[string]interface{}{
@@ -87,8 +91,8 @@ func (cmd *BindService) Run(c *cli.Context) {
 	}
 
 	cmd.ui.Ok()
-	cmd.ui.Say(T("TIP: Use '{{.CFCommand}}' to ensure your env variable changes take effect",
-		map[string]interface{}{"CFCommand": terminal.CommandColor(cf.Name() + " restage")}))
+	cmd.ui.Say(T("TIP: Use '{{.CFCommand}} {{.AppName}}' to ensure your env variable changes take effect",
+		map[string]interface{}{"CFCommand": terminal.CommandColor(cf.Name() + " restage"), "AppName": app.Name}))
 }
 
 func (cmd *BindService) BindApplication(app models.Application, serviceInstance models.ServiceInstance) (apiErr error) {

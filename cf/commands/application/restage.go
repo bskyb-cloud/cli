@@ -1,9 +1,9 @@
 package application
 
 import (
-	"github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/api/applications"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
@@ -14,12 +14,12 @@ import (
 
 type Restage struct {
 	ui                terminal.UI
-	config            configuration.Reader
-	appRepo           api.ApplicationRepository
+	config            core_config.Reader
+	appRepo           applications.ApplicationRepository
 	appStagingWatcher ApplicationStagingWatcher
 }
 
-func NewRestage(ui terminal.UI, config configuration.Reader, appRepo api.ApplicationRepository, stagingWatcher ApplicationStagingWatcher) *Restage {
+func NewRestage(ui terminal.UI, config core_config.Reader, appRepo applications.ApplicationRepository, stagingWatcher ApplicationStagingWatcher) *Restage {
 	cmd := new(Restage)
 	cmd.ui = ui
 	cmd.config = config
@@ -33,7 +33,7 @@ func (cmd *Restage) Metadata() command_metadata.CommandMetadata {
 		Name:        "restage",
 		ShortName:   "rg",
 		Description: T("Restage an app"),
-		Usage:       T("CF_NAME restage APP"),
+		Usage:       T("CF_NAME restage APP_NAME"),
 	}
 }
 
@@ -42,7 +42,11 @@ func (cmd *Restage) GetRequirements(requirementsFactory requirements.Factory, c 
 		cmd.ui.FailWithUsage(c)
 	}
 
-	return []requirements.Requirement{requirementsFactory.NewLoginRequirement()}, nil
+	reqs = []requirements.Requirement{
+		requirementsFactory.NewLoginRequirement(),
+		requirementsFactory.NewTargetedSpaceRequirement(),
+	}
+	return
 }
 
 func (cmd *Restage) Run(c *cli.Context) {
@@ -59,7 +63,9 @@ func (cmd *Restage) Run(c *cli.Context) {
 			"CurrentUser": terminal.EntityNameColor(cmd.config.Username()),
 		}))
 
-	cmd.appStagingWatcher.ApplicationWatchStaging(app, func(app models.Application) (models.Application, error) {
+	app.PackageState = ""
+
+	cmd.appStagingWatcher.ApplicationWatchStaging(app, cmd.config.OrganizationFields().Name, cmd.config.SpaceFields().Name, func(app models.Application) (models.Application, error) {
 		return app, cmd.appRepo.CreateRestageRequest(app.Guid)
 	})
 }

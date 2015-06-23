@@ -1,12 +1,14 @@
 package securitygroup
 
 import (
-	"github.com/cloudfoundry/cli/cf/api"
+	"strings"
+
+	"github.com/cloudfoundry/cli/cf/api/organizations"
 	"github.com/cloudfoundry/cli/cf/api/security_groups"
 	sgbinder "github.com/cloudfoundry/cli/cf/api/security_groups/spaces"
 	"github.com/cloudfoundry/cli/cf/api/spaces"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -15,8 +17,8 @@ import (
 
 type BindSecurityGroup struct {
 	ui                terminal.UI
-	configRepo        configuration.Reader
-	orgRepo           api.OrganizationRepository
+	configRepo        core_config.Reader
+	orgRepo           organizations.OrganizationRepository
 	spaceRepo         spaces.SpaceRepository
 	securityGroupRepo security_groups.SecurityGroupRepo
 	spaceBinder       sgbinder.SecurityGroupSpaceBinder
@@ -24,10 +26,10 @@ type BindSecurityGroup struct {
 
 func NewBindSecurityGroup(
 	ui terminal.UI,
-	configRepo configuration.Reader,
+	configRepo core_config.Reader,
 	securityGroupRepo security_groups.SecurityGroupRepo,
 	spaceRepo spaces.SpaceRepository,
-	orgRepo api.OrganizationRepository,
+	orgRepo organizations.OrganizationRepository,
 	spaceBinder sgbinder.SecurityGroupSpaceBinder,
 ) BindSecurityGroup {
 	return BindSecurityGroup{
@@ -41,10 +43,12 @@ func NewBindSecurityGroup(
 }
 
 func (cmd BindSecurityGroup) Metadata() command_metadata.CommandMetadata {
+	primaryUsage := T("CF_NAME bind-security-group SECURITY_GROUP ORG SPACE")
+	tipUsage := T("TIP: Changes will not apply to existing running applications until they are restarted.")
 	return command_metadata.CommandMetadata{
 		Name:        "bind-security-group",
 		Description: T("Bind a security group to a space"),
-		Usage:       T("CF_NAME bind-security-group SECURITY_GROUP ORG SPACE"),
+		Usage:       strings.Join([]string{primaryUsage, tipUsage}, "\n\n"),
 	}
 }
 
@@ -65,8 +69,8 @@ func (cmd BindSecurityGroup) Run(context *cli.Context) {
 	cmd.ui.Say(T("Assigning security group {{.security_group}} to space {{.space}} in org {{.organization}} as {{.username}}...",
 		map[string]interface{}{
 			"security_group": securityGroupName,
-			"space":          orgName,
-			"organization":   spaceName,
+			"space":          spaceName,
+			"organization":   orgName,
 			"username":       cmd.configRepo.Username(),
 		}))
 
@@ -94,4 +98,6 @@ func (cmd BindSecurityGroup) Run(context *cli.Context) {
 	}
 
 	cmd.ui.Ok()
+	cmd.ui.Say("\n\n")
+	cmd.ui.Say(T("TIP: Changes will not apply to existing running applications until they are restarted."))
 }

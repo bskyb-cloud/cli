@@ -15,13 +15,19 @@
 
   bin/generate-language-resources
 
+  echo -e "\n Running gi18n checkup..."
+  bin/gi18n-checkup
+
+  go get github.com/tools/godep
+
   GODEP=$(which godep)
-  if [[ -z $GODEP ]] ; then
-    echo "godep is not installed. Run 'go get github.com/tools/godep'"
-    exit 1
-  fi
 
   echo -e "\n Cleaning build artifacts..."
+
+  # Clean up old plugin binaries used in test
+
+  rm -f fixtures/plugins/*.exe
+  rm -f plugin_examples/*.exe
 
   # Clean up old .a files in GOPATH
   # It seems like `go clean` should do this but ... not so much
@@ -46,7 +52,7 @@
   go fmt ./...
 
   echo -e "\n Testing packages..."
-  ginkgo -r $@
+  CF_HOME=$(pwd)/fixtures ginkgo -r $@
 
   echo -e "\n Vetting packages for potential issues..."
   go tool vet cf/.

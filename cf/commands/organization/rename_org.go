@@ -1,9 +1,9 @@
 package organization
 
 import (
-	"github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/api/organizations"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -12,12 +12,12 @@ import (
 
 type RenameOrg struct {
 	ui      terminal.UI
-	config  configuration.ReadWriter
-	orgRepo api.OrganizationRepository
+	config  core_config.ReadWriter
+	orgRepo organizations.OrganizationRepository
 	orgReq  requirements.OrganizationRequirement
 }
 
-func NewRenameOrg(ui terminal.UI, config configuration.ReadWriter, orgRepo api.OrganizationRepository) (cmd *RenameOrg) {
+func NewRenameOrg(ui terminal.UI, config core_config.ReadWriter, orgRepo organizations.OrganizationRepository) (cmd *RenameOrg) {
 	cmd = new(RenameOrg)
 	cmd.ui = ui
 	cmd.config = config
@@ -38,7 +38,11 @@ func (cmd *RenameOrg) GetRequirements(requirementsFactory requirements.Factory, 
 		cmd.ui.FailWithUsage(c)
 	}
 
-	cmd.orgReq = requirementsFactory.NewOrganizationRequirement(c.Args()[0])
+	if cmd.orgReq == nil {
+		cmd.orgReq = requirementsFactory.NewOrganizationRequirement(c.Args()[0])
+	} else {
+		cmd.orgReq.SetOrganizationName(c.Args()[0])
+	}
 	reqs = []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 		cmd.orgReq,

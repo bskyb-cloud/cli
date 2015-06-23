@@ -4,7 +4,7 @@ import (
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/api/spaces"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
@@ -16,13 +16,13 @@ var spaceRoles = []string{models.SPACE_MANAGER, models.SPACE_DEVELOPER, models.S
 
 type SpaceUsers struct {
 	ui        terminal.UI
-	config    configuration.Reader
+	config    core_config.Reader
 	spaceRepo spaces.SpaceRepository
 	userRepo  api.UserRepository
 	orgReq    requirements.OrganizationRequirement
 }
 
-func NewSpaceUsers(ui terminal.UI, config configuration.Reader, spaceRepo spaces.SpaceRepository, userRepo api.UserRepository) (cmd *SpaceUsers) {
+func NewSpaceUsers(ui terminal.UI, config core_config.Reader, spaceRepo spaces.SpaceRepository, userRepo api.UserRepository) (cmd *SpaceUsers) {
 	cmd = new(SpaceUsers)
 	cmd.ui = ui
 	cmd.config = config
@@ -44,8 +44,11 @@ func (cmd *SpaceUsers) GetRequirements(requirementsFactory requirements.Factory,
 		cmd.ui.FailWithUsage(c)
 	}
 
-	orgName := c.Args()[0]
-	cmd.orgReq = requirementsFactory.NewOrganizationRequirement(orgName)
+	if cmd.orgReq == nil {
+		cmd.orgReq = requirementsFactory.NewOrganizationRequirement(c.Args()[0])
+	} else {
+		cmd.orgReq.SetOrganizationName(c.Args()[0])
+	}
 	reqs = append(reqs, requirementsFactory.NewLoginRequirement(), cmd.orgReq)
 
 	return
@@ -73,10 +76,15 @@ func (cmd *SpaceUsers) Run(c *cli.Context) {
 		models.SPACE_AUDITOR:   T("SPACE AUDITOR"),
 	}
 
+	var users []models.UserFields
 	for _, role := range spaceRoles {
 		displayName := spaceRoleToDisplayName[role]
 
-		users, apiErr := cmd.userRepo.ListUsersInSpaceForRole(space.Guid, role)
+		if cmd.config.IsMinApiVersion("2.21.0") {
+			users, apiErr = cmd.userRepo.ListUsersInSpaceForRoleWithNoUAA(space.Guid, role)
+		} else {
+			users, apiErr = cmd.userRepo.ListUsersInSpaceForRole(space.Guid, role)
+		}
 
 		cmd.ui.Say("")
 		cmd.ui.Say("%s", terminal.HeaderColor(displayName))

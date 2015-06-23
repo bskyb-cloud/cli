@@ -2,7 +2,7 @@ package requirements_test
 
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	. "github.com/cloudfoundry/cli/cf/requirements"
@@ -14,7 +14,7 @@ import (
 )
 
 var _ = Describe("DomainRequirement", func() {
-	var config configuration.ReadWriter
+	var config core_config.ReadWriter
 	var ui *testterm.FakeUI
 
 	BeforeEach(func() {
@@ -25,7 +25,7 @@ var _ = Describe("DomainRequirement", func() {
 
 	It("succeeds when the domain is found", func() {
 		domain := models.DomainFields{Name: "example.com", Guid: "domain-guid"}
-		domainRepo := &testapi.FakeDomainRepository{FindByNameInOrgDomain: domain}
+		domainRepo := &testapi.FakeDomainRepository{FindByNameInOrgDomain: []models.DomainFields{domain}}
 		domainReq := NewDomainRequirement("example.com", ui, config, domainRepo)
 		success := domainReq.Execute()
 

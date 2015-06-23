@@ -3,7 +3,7 @@ package service
 import (
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
@@ -13,12 +13,12 @@ import (
 
 type DeleteService struct {
 	ui                 terminal.UI
-	config             configuration.Reader
+	config             core_config.Reader
 	serviceRepo        api.ServiceRepository
 	serviceInstanceReq requirements.ServiceInstanceRequirement
 }
 
-func NewDeleteService(ui terminal.UI, config configuration.Reader, serviceRepo api.ServiceRepository) (cmd *DeleteService) {
+func NewDeleteService(ui terminal.UI, config core_config.Reader, serviceRepo api.ServiceRepository) (cmd *DeleteService) {
 	cmd = new(DeleteService)
 	cmd.ui = ui
 	cmd.config = config
@@ -39,16 +39,9 @@ func (cmd *DeleteService) Metadata() command_metadata.CommandMetadata {
 }
 
 func (cmd *DeleteService) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
-	var serviceName string
-
-	if len(c.Args()) == 1 {
-		serviceName = c.Args()[0]
-	}
-
-	if serviceName == "" {
+	if len(c.Args()) != 1 {
 		cmd.ui.FailWithUsage(c)
 	}
-
 	reqs = []requirements.Requirement{requirementsFactory.NewLoginRequirement()}
 	return
 }
@@ -89,5 +82,8 @@ func (cmd *DeleteService) Run(c *cli.Context) {
 		return
 	}
 
-	cmd.ui.Ok()
+	apiErr = printSuccessMessageForServiceInstance(serviceName, cmd.serviceRepo, cmd.ui)
+	if apiErr != nil {
+		cmd.ui.Ok()
+	}
 }

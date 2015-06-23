@@ -9,7 +9,7 @@ import (
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/cf/commands/route"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -18,7 +18,7 @@ import (
 var _ = Describe("map-route command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		configRepo          configuration.ReadWriter
+		configRepo          core_config.ReadWriter
 		routeRepo           *testapi.FakeRouteRepository
 		requirementsFactory *testreq.FakeReqFactory
 		routeCreator        *testcmd.FakeRouteCreator
@@ -32,8 +32,8 @@ var _ = Describe("map-route command", func() {
 		requirementsFactory = new(testreq.FakeReqFactory)
 	})
 
-	runCommand := func(args ...string) {
-		testcmd.RunCommand(NewMapRoute(ui, configRepo, routeRepo, routeCreator), args, requirementsFactory)
+	runCommand := func(args ...string) bool {
+		return testcmd.RunCommand(NewMapRoute(ui, configRepo, routeRepo, routeCreator), args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
@@ -43,8 +43,7 @@ var _ = Describe("map-route command", func() {
 		})
 
 		It("fails when not logged in", func() {
-			runCommand("whatever", "shuttup")
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("whatever", "shuttup")).To(BeFalse())
 		})
 	})
 
@@ -64,7 +63,7 @@ var _ = Describe("map-route command", func() {
 		})
 
 		It("maps a route, obviously", func() {
-			runCommand("-n", "my-host", "my-app", "my-domain.com")
+			passed := runCommand("-n", "my-host", "my-app", "my-domain.com")
 
 			Expect(ui.Outputs).To(ContainSubstrings(
 				[]string{"Adding route", "foo.example.com", "my-app", "my-org", "my-space", "my-user"},
@@ -73,7 +72,7 @@ var _ = Describe("map-route command", func() {
 
 			Expect(routeRepo.BoundRouteGuid).To(Equal("my-route-guid"))
 			Expect(routeRepo.BoundAppGuid).To(Equal("my-app-guid"))
-			Expect(testcmd.CommandDidPassRequirements).To(BeTrue())
+			Expect(passed).To(BeTrue())
 			Expect(requirementsFactory.ApplicationName).To(Equal("my-app"))
 			Expect(requirementsFactory.DomainName).To(Equal("my-domain.com"))
 		})

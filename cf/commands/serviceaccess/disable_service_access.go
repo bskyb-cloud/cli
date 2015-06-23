@@ -4,7 +4,7 @@ import (
 	"github.com/cloudfoundry/cli/cf/actors"
 	"github.com/cloudfoundry/cli/cf/api/authentication"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/flag_helpers"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
@@ -14,12 +14,12 @@ import (
 
 type DisableServiceAccess struct {
 	ui             terminal.UI
-	config         configuration.Reader
+	config         core_config.Reader
 	actor          actors.ServicePlanActor
 	tokenRefresher authentication.TokenRefresher
 }
 
-func NewDisableServiceAccess(ui terminal.UI, config configuration.Reader, actor actors.ServicePlanActor, tokenRefresher authentication.TokenRefresher) (cmd *DisableServiceAccess) {
+func NewDisableServiceAccess(ui terminal.UI, config core_config.Reader, actor actors.ServicePlanActor, tokenRefresher authentication.TokenRefresher) (cmd *DisableServiceAccess) {
 	return &DisableServiceAccess{
 		ui:             ui,
 		config:         config,
@@ -42,14 +42,17 @@ func (cmd *DisableServiceAccess) Metadata() command_metadata.CommandMetadata {
 		Description: T("Disable access to a service or service plan for one or all orgs"),
 		Usage:       "CF_NAME disable-service-access SERVICE [-p PLAN] [-o ORG]",
 		Flags: []cli.Flag{
-			flag_helpers.NewStringFlag("p", T("Disable access to a particular service plan")),
-			flag_helpers.NewStringFlag("o", T("Disable access to a particular organization")),
+			flag_helpers.NewStringFlag("p", T("Disable access to a specified service plan")),
+			flag_helpers.NewStringFlag("o", T("Disable access for a specified organization")),
 		},
 	}
 }
 
 func (cmd *DisableServiceAccess) Run(c *cli.Context) {
-	cmd.tokenRefresher.RefreshAuthToken()
+	_, err := cmd.tokenRefresher.RefreshAuthToken()
+	if err != nil {
+		cmd.ui.Failed(err.Error())
+	}
 
 	serviceName := c.Args()[0]
 	planName := c.String("p")
@@ -115,7 +118,7 @@ func (cmd *DisableServiceAccess) disableSinglePlanForService(serviceName string,
 
 func (cmd *DisableServiceAccess) disablePlansForSingleOrgForService(serviceName string, orgName string) {
 	cmd.ui.Say(T("Disabling access to all plans of service {{.ServiceName}} for the org {{.OrgName}} as {{.Username}}...", map[string]interface{}{"ServiceName": terminal.EntityNameColor(serviceName), "OrgName": terminal.EntityNameColor(orgName), "Username": terminal.EntityNameColor(cmd.config.Username())}))
-	serviceAccess, err := cmd.actor.FindServiceAccess(serviceName)
+	serviceAccess, err := cmd.actor.FindServiceAccess(serviceName, orgName)
 	if err != nil {
 		cmd.ui.Failed(err.Error())
 	}

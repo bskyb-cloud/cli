@@ -1,12 +1,13 @@
 package service
 
 import (
-	. "github.com/cloudfoundry/cli/cf/i18n"
 	"strings"
+
+	. "github.com/cloudfoundry/cli/cf/i18n"
 
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/codegangsta/cli"
@@ -14,11 +15,11 @@ import (
 
 type ListServices struct {
 	ui                 terminal.UI
-	config             configuration.Reader
+	config             core_config.Reader
 	serviceSummaryRepo api.ServiceSummaryRepository
 }
 
-func NewListServices(ui terminal.UI, config configuration.Reader, serviceSummaryRepo api.ServiceSummaryRepository) (cmd ListServices) {
+func NewListServices(ui terminal.UI, config core_config.Reader, serviceSummaryRepo api.ServiceSummaryRepository) (cmd ListServices) {
 	cmd.ui = ui
 	cmd.config = config
 	cmd.serviceSummaryRepo = serviceSummaryRepo
@@ -35,6 +36,9 @@ func (cmd ListServices) Metadata() command_metadata.CommandMetadata {
 }
 
 func (cmd ListServices) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
+	if len(c.Args()) != 0 {
+		cmd.ui.FailWithUsage(c)
+	}
 	reqs = append(reqs,
 		requirementsFactory.NewLoginRequirement(),
 		requirementsFactory.NewTargetedSpaceRequirement(),
@@ -65,22 +69,25 @@ func (cmd ListServices) Run(c *cli.Context) {
 		return
 	}
 
-	table := terminal.NewTable(cmd.ui, []string{T("name"), T("service"), T("plan"), T("bound apps")})
+	table := terminal.NewTable(cmd.ui, []string{T("name"), T("service"), T("plan"), T("bound apps"), T("last operation")})
 
 	for _, instance := range serviceInstances {
 		var serviceColumn string
+		var serviceStatus string
 
 		if instance.IsUserProvided() {
 			serviceColumn = T("user-provided")
 		} else {
 			serviceColumn = instance.ServiceOffering.Label
 		}
+		serviceStatus = ServiceInstanceStateToStatus(instance.LastOperation.Type, instance.LastOperation.State, instance.IsUserProvided())
 
 		table.Add(
 			instance.Name,
 			serviceColumn,
 			instance.ServicePlan.Name,
 			strings.Join(instance.ApplicationNames, ", "),
+			serviceStatus,
 		)
 	}
 

@@ -3,7 +3,7 @@ package user_test
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	. "github.com/cloudfoundry/cli/cf/commands/user"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -21,7 +21,7 @@ var _ = Describe("space-users command", func() {
 		requirementsFactory *testreq.FakeReqFactory
 		spaceRepo           *testapi.FakeSpaceRepository
 		userRepo            *testapi.FakeUserRepository
-		config              configuration.ReadWriter
+		config              core_config.ReadWriter
 	)
 
 	BeforeEach(func() {
@@ -32,22 +32,20 @@ var _ = Describe("space-users command", func() {
 		userRepo = &testapi.FakeUserRepository{}
 	})
 
-	runCommand := func(args ...string) {
-		testcmd.RunCommand(NewSpaceUsers(ui, config, spaceRepo, userRepo), args, requirementsFactory)
+	runCommand := func(args ...string) bool {
+		return testcmd.RunCommand(NewSpaceUsers(ui, config, spaceRepo, userRepo), args, requirementsFactory)
 	}
 
 	Describe("requirements", func() {
 		It("fails when not logged in", func() {
-			runCommand("my-org", "my-space")
-
-			Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+			Expect(runCommand("my-org", "my-space")).To(BeFalse())
 		})
 
 		It("succeeds when logged in", func() {
 			requirementsFactory.LoginSuccess = true
-			runCommand("some-org", "whatever-space")
+			passed := runCommand("some-org", "whatever-space")
 
-			Expect(testcmd.CommandDidPassRequirements).To(BeTrue())
+			Expect(passed).To(BeTrue())
 			Expect("some-org").To(Equal(requirementsFactory.OrganizationName))
 		})
 	})
@@ -103,6 +101,31 @@ var _ = Describe("space-users command", func() {
 				[]string{"SPACE AUDITOR"},
 				[]string{"user3"},
 			))
+		})
+
+		Context("when cc api verson is >= 2.21.0", func() {
+			BeforeEach(func() {
+				userRepo.ListUsersInSpaceForRole_CallCount = 0
+				userRepo.ListUsersInSpaceForRoleWithNoUAA_CallCount = 0
+			})
+
+			It("calls ListUsersInSpaceForRoleWithNoUAA()", func() {
+				config.SetApiVersion("2.22.0")
+				runCommand("my-org", "my-sapce")
+
+				Expect(userRepo.ListUsersInSpaceForRoleWithNoUAA_CallCount).To(BeNumerically(">=", 1))
+				Expect(userRepo.ListUsersInSpaceForRole_CallCount).To(Equal(0))
+			})
+		})
+
+		Context("when cc api verson is < 2.21.0", func() {
+			It("calls ListUsersInSpaceForRole()", func() {
+				config.SetApiVersion("2.20.0")
+				runCommand("my-org", "my-space")
+
+				Expect(userRepo.ListUsersInSpaceForRoleWithNoUAA_CallCount).To(Equal(0))
+				Expect(userRepo.ListUsersInSpaceForRole_CallCount).To(BeNumerically(">=", 1))
+			})
 		})
 	})
 })

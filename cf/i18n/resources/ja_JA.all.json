@@ -5,8 +5,43 @@
       "modified": false
    },
    {
+      "id": "\n\nYour JSON string syntax is invalid.  Proper syntax is this:  cf set-running-environment-variable-group '{\"name\":\"value\",\"name\":\"value\"}'",
+      "translation": "\n\nYour JSON string syntax is invalid.  Proper syntax is this:  cf set-running-environment-variable-group '{\"name\":\"value\",\"name\":\"value\"}'",
+      "modified": false
+   },
+   {
+      "id": "\n\nYour JSON string syntax is invalid.  Proper syntax is this:  cf set-staging-environment-variable-group '{\"name\":\"value\",\"name\":\"value\"}'",
+      "translation": "\n\nYour JSON string syntax is invalid.  Proper syntax is this:  cf set-staging-environment-variable-group '{\"name\":\"value\",\"name\":\"value\"}'",
+      "modified": false
+   },
+   {
+      "id": "\n* These service plans have an associated cost. Creating a service instance will incur this cost.",
+      "translation": "* The denoted service plans have specific costs associated with them. If a service instance of this type is created, a cost will be incurred.",
+      "modified": true
+   },
+   {
       "id": "\nApp started\n",
       "translation": "\nApp started\n",
+      "modified": false
+   },
+   {
+      "id": "\nApp {{.AppName}} was started using this command `{{.Command}}`\n",
+      "translation": "\nApp {{.AppName}} was started using this command `{{.Command}}`\n",
+      "modified": false
+   },
+   {
+      "id": "\nNo api endpoint set.",
+      "translation": "\nNo api endpoint set.",
+      "modified": false
+   },
+   {
+      "id": "\nRoute to be unmapped is not currently mapped to the application.",
+      "translation": "\nRoute to be unmapped is not currently mapped to the application.",
+      "modified": false
+   },
+   {
+      "id": "\nTIP:  Use 'cf marketplace -s SERVICE' to view descriptions of individual plans of a given service.",
+      "translation": "\nTIP:  Use 'cf marketplace -s SERVICE' to view descriptions of individual plans of a given service.",
       "modified": false
    },
    {
@@ -45,6 +80,11 @@
       "modified": false
    },
    {
+      "id": "   CF_NAME copy-source SOURCE-APP TARGET-APP [-o TARGET-ORG] [-s TARGET-SPACE] [--no-restart]\n",
+      "translation": "   CF_NAME copy-source SOURCE-APP TARGET-APP [-o TARGET-ORG] [-s TARGET-SPACE] [--no-restart]\n",
+      "modified": false
+   },
+   {
       "id": "   CF_NAME login (omit username and password to login interactively -- CF_NAME will prompt for both)\n",
       "translation": "   CF_NAME login (omit username and password to login interactively -- CF_NAME will prompt for both)\n",
       "modified": false
@@ -55,9 +95,9 @@
       "modified": false
    },
    {
-      "id": "   CF_NAME login -u name@example.com -p \"\\\"password\\\"\" (escape quotes if used in password)",
+      "id": "   CF_NAME login -u name@example.com -p \"\\\"password\\\"\" (escape quotes if used in password)\n",
       "translation": "   CF_NAME login -u name@example.com -p \"\\\"password\\\"\" (escape quotes if used in password)",
-      "modified": false
+      "modified": true
    },
    {
       "id": "   CF_NAME login -u name@example.com -p \"my password\" (use quotes for passwords with a space)\n",
@@ -70,9 +110,9 @@
       "modified": false
    },
    {
-      "id": "   CF_NAME push APP [-b BUILDPACK_NAME] [-c COMMAND] [-d DOMAIN] [-f MANIFEST_PATH]\n",
+      "id": "   CF_NAME push APP_NAME [-b BUILDPACK_NAME] [-c COMMAND] [-d DOMAIN] [-f MANIFEST_PATH]\n",
       "translation": "   CF_NAME push APP [-b BUILDPACK_NAME] [-c COMMAND] [-d DOMAIN] [-f MANIFEST_PATH]\n",
-      "modified": false
+      "modified": true
    },
    {
       "id": "   CF_NAME push [-f MANIFEST_PATH]\n",
@@ -90,9 +130,9 @@
       "modified": false
    },
    {
-      "id": "   Path should be a zip file, a url to a zip file, or a local directory. Position is an integer, sets priority, and is sorted from lowest to highest.",
+      "id": "   Path should be a zip file, a url to a zip file, or a local directory. Position is a positive integer, sets priority, and is sorted from lowest to highest.",
       "translation": "   Path should be a zip file, a url to a zip file, or a local directory. Position is an integer, sets priority, and is sorted from lowest to highest.",
-      "modified": false
+      "modified": true
    },
    {
       "id": "   Push multiple apps with a manifest:\n",
@@ -120,6 +160,11 @@
       "modified": false
    },
    {
+      "id": "   The provided path can be an absolute or relative path to a file.  The file should have\n   a single array with JSON objects inside describing the rules.  The JSON Base Object is \n   omitted and only the square brackets and associated child object are required in the file.  \n\n   Valid json file example:\n   [\n     {\n       \"protocol\": \"tcp\",\n       \"destination\": \"10.244.1.18\",\n       \"ports\": \"3306\"\n     }\n   ]",
+      "translation": "   The provided path can be an absolute or relative path to a file.  The file should have\n   a single array with JSON objects inside describing the rules.  The JSON Base Object is \n   omitted and only the square brackets and associated child object are required in the file.  \n\n   Valid json file example:\n   [\n     {\n       \"protocol\": \"tcp\",\n       \"destination\": \"10.244.1.18\",\n       \"ports\": \"3306\"\n     }\n   ]",
+      "modified": false
+   },
+   {
       "id": "   View allowable quotas with 'CF_NAME quotas'",
       "translation": "   View allowable quotas with 'CF_NAME quotas'",
       "modified": false
@@ -130,18 +175,13 @@
       "modified": false
    },
    {
-      "id": "  domains: {{.Domains}}",
-      "translation": "  domains: {{.Domains}}",
+      "id": " added as '",
+      "translation": " added as '",
       "modified": false
    },
    {
-      "id": "  quota:   {{.Quota}}",
-      "translation": "  quota:   {{.Quota}}",
-      "modified": false
-   },
-   {
-      "id": "  spaces:  {{.Spaces}}",
-      "translation": "  spaces:  {{.Spaces}}",
+      "id": " does not exist as a repo",
+      "translation": " does not exist as a repo",
       "modified": false
    },
    {
@@ -160,13 +200,53 @@
       "modified": false
    },
    {
+      "id": " is not a valid url, please provide a url, e.g. http://your_repo.com",
+      "translation": " is not a valid url, please provide a url, e.g. http://your_repo.com",
+      "modified": false
+   },
+   {
+      "id": " is not available in repo '",
+      "translation": " is not available in repo '",
+      "modified": false
+   },
+   {
+      "id": " is not responding. Please make sure it is a valid plugin repo.",
+      "translation": " is not responding. Please make sure it is a valid plugin repo.",
+      "modified": false
+   },
+   {
       "id": " not found",
       "translation": " not found",
       "modified": false
    },
    {
+      "id": " removed from list of repositories",
+      "translation": " removed from list of repositories",
+      "modified": false
+   },
+   {
+      "id": "\"Plugins\" object not found in the responded data.",
+      "translation": "\"Plugins\" object not found in the responded data.",
+      "modified": false
+   },
+   {
+      "id": ") already exists.",
+      "translation": ") already exists.",
+      "modified": false
+   },
+   {
       "id": "A command line tool to interact with Cloud Foundry",
       "translation": "A command line tool to interact with Cloud Foundry",
+      "modified": false
+   },
+   {
+      "id": "ADD/REMOVE PLUGIN",
+      "translation": "PLUGIN",
+      "modified": true
+   },
+   {
+      "id": "ADD/REMOVE PLUGIN REPOSITORY",
+      "translation": "ADD/REMOVE PLUGIN REPOSITORY",
       "modified": false
    },
    {
@@ -220,6 +300,11 @@
       "modified": false
    },
    {
+      "id": "Add a new plugin repository",
+      "translation": "Add a new plugin repository",
+      "modified": false
+   },
+   {
       "id": "Add a url route to an app",
       "translation": "Add a url route to an app",
       "modified": false
@@ -228,6 +313,16 @@
       "id": "Adding route {{.URL}} to app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.Username}}...",
       "translation": "Adding route {{.URL}} to app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.Username}}...",
       "modified": false
+   },
+   {
+      "id": "Alias `{{.Command}}` in the plugin being installed is a native CF command/alias.  Rename the `{{.Command}}` command in the plugin being installed in order to enable its installation and use.",
+      "translation": "Alias `{{.Command}}` in the plugin being installed is a native CF command/alias.  Rename the `{{.Command}}` command in the plugin being installed in order to enable its installation and use.",
+      "modified": false
+   },
+   {
+      "id": "Alias `{{.Command}}` is a command/alias in plugin '{{.PluginName}}'.  You could try uninstalling plugin '{{.PluginName}}' and then install this plugin in order to invoke the `{{.Command}}` command.  However, you should first fully understand the impact of uninstalling the existing '{{.PluginName}}' plugin.",
+      "translation": "`Alias {{.Command}}` is a command/alias in plugin '{{.PluginName}}'.  You could try uninstalling plugin '{{.PluginName}}' and then install this plugin in order to invoke the `{{.Command}}` command.  However, you should first fully understand the impact of uninstalling the existing '{{.PluginName}}' plugin.",
+      "modified": true
    },
    {
       "id": "All plans of the service are already accessible for all orgs",
@@ -315,6 +410,11 @@
       "modified": false
    },
    {
+      "id": "Assigned Value",
+      "translation": "Assigned Value",
+      "modified": false
+   },
+   {
       "id": "Assigning role {{.Role}} to user {{.TargetUser}} in org {{.TargetOrg}} / space {{.TargetSpace}} as {{.CurrentUser}}...",
       "translation": "Assigning role {{.Role}} to user {{.TargetUser}} in org {{.TargetOrg}} / space {{.TargetSpace}} as {{.CurrentUser}}...",
       "modified": false
@@ -335,8 +435,18 @@
       "modified": false
    },
    {
+      "id": "Attempting to download binary file from internet address...",
+      "translation": "Attempting to download binary file from internet address...",
+      "modified": false
+   },
+   {
       "id": "Attempting to migrate {{.ServiceInstanceDescription}}...",
       "translation": "Attempting to migrate {{.ServiceInstanceDescription}}...",
+      "modified": false
+   },
+   {
+      "id": "Attention: The plan `{{.PlanName}}` of service `{{.ServiceName}}` is not free.  The instance `{{.ServiceInstanceName}}` will incur a cost.  Contact your administrator if you think this is in error.",
+      "translation": "Attention: The plan `{{.PlanName}}` of service `{{.ServiceName}}` is not free.  The instance `{{.ServiceInstanceName}}` will incur a cost.  Contact your administrator if you think this is in error.",
       "modified": false
    },
    {
@@ -347,6 +457,11 @@
    {
       "id": "Authenticating...",
       "translation": "Authenticating...",
+      "modified": false
+   },
+   {
+      "id": "Authentication has expired.  Please log back in to re-authenticate.\n\nTIP: Use `cf login -a \u003cendpoint\u003e -u \u003cuser\u003e -o \u003corg\u003e -s \u003cspace\u003e` to log back in and re-authenticate.",
+      "translation": "Authentication has expired.  Please log back in to re-authenticate.\n\nTIP: Use `cf login -a \u003cendpoint\u003e -u \u003cuser\u003e -o \u003corg\u003e -s \u003cspace\u003e` to log back in and re-authenticate.",
       "modified": false
    },
    {
@@ -415,11 +530,6 @@
       "modified": false
    },
    {
-      "id": "Buildpack position among other buildpacks",
-      "translation": "Buildpack position among other buildpacks",
-      "modified": false
-   },
-   {
       "id": "Buildpack {{.BuildpackName}} already exists",
       "translation": "Buildpack {{.BuildpackName}} already exists",
       "modified": false
@@ -435,14 +545,19 @@
       "modified": true
    },
    {
+      "id": "CF_NAME add-plugin-repo [REPO_NAME] [URL]\n\nEXAMPLE:\n   cf add-plugin-repo PrivateRepo http://myprivaterepo.com/repo/\n",
+      "translation": "CF_NAME add-plugin-repo [REPO_NAME] [URL]\n\nEXAMPLE:\n   cf add-plugin-repo PrivateRepo http://myprivaterepo.com/repo/\n",
+      "modified": false
+   },
+   {
       "id": "CF_NAME api [URL]",
       "translation": "CF_NAME api [URL]",
       "modified": false
    },
    {
-      "id": "CF_NAME app APP",
+      "id": "CF_NAME app APP_NAME",
       "translation": "CF_NAME app APP",
-      "modified": false
+      "modified": true
    },
    {
       "id": "CF_NAME auth USERNAME PASSWORD\n\n",
@@ -460,9 +575,9 @@
       "modified": false
    },
    {
-      "id": "CF_NAME bind-service APP SERVICE_INSTANCE",
+      "id": "CF_NAME bind-service APP_NAME SERVICE_INSTANCE",
       "translation": "CF_NAME bind-service APP SERVICE_INSTANCE",
-      "modified": false
+      "modified": true
    },
    {
       "id": "CF_NAME bind-staging-security-group SECURITY_GROUP",
@@ -475,9 +590,19 @@
       "modified": false
    },
    {
-      "id": "CF_NAME config [--async-timeout TIMEOUT_IN_MINUTES] [--trace true | false | path/to/file] [--color true | false]",
-      "translation": "CF_NAME config [--async-timeout TIMEOUT_IN_MINUTES] [--trace true | false | path/to/file] [--color true | false]",
+      "id": "CF_NAME check-route HOST DOMAIN",
+      "translation": "CF_NAME check-route HOST DOMAIN",
       "modified": false
+   },
+   {
+      "id": "CF_NAME config [--async-timeout TIMEOUT_IN_MINUTES] [--trace true | false | path/to/file] [--color true | false] [--locale (LOCALE | CLEAR)]",
+      "translation": "CF_NAME config [--async-timeout TIMEOUT_IN_MINUTES] [--trace true | false | path/to/file] [--color true | false]",
+      "modified": true
+   },
+   {
+      "id": "CF_NAME create-app-manifest APP [-p /path/to/\u003capp-name\u003e-manifest.yml ]",
+      "translation": "CF_NAME create-app-manifest [-p /path/to/\u003capp-name\u003e-manifest.yml ]",
+      "modified": true
    },
    {
       "id": "CF_NAME create-buildpack BUILDPACK PATH POSITION [--enable|--disable]",
@@ -510,9 +635,9 @@
       "modified": false
    },
    {
-      "id": "CF_NAME create-service SERVICE PLAN SERVICE_INSTANCE\n\nEXAMPLE:\n   CF_NAME create-service cleardb spark clear-db-mine\n\nTIP:\n   Use 'CF_NAME create-user-provided-service' to make user-provided services available to cf apps",
+      "id": "CF_NAME create-service SERVICE PLAN SERVICE_INSTANCE\n\nEXAMPLE:\n   CF_NAME create-service dbaas silver mydb\n\nTIP:\n   Use 'CF_NAME create-user-provided-service' to make user-provided services available to cf apps",
       "translation": "CF_NAME create-service SERVICE PLAN SERVICE_INSTANCE\n\nEXAMPLE:\n   CF_NAME create-service cleardb spark clear-db-mine\n\nTIP:\n   Use 'CF_NAME create-user-provided-service' to make user-provided services available to cf apps",
-      "modified": false
+      "modified": true
    },
    {
       "id": "CF_NAME create-service-auth-token LABEL PROVIDER TOKEN",
@@ -525,19 +650,24 @@
       "modified": false
    },
    {
+      "id": "CF_NAME create-service-key SERVICE_INSTANCE SERVICE_KEY\n\nEXAMPLE:\n   CF_NAME create-service-key mydb mykey",
+      "translation": "CF_NAME create-service-key SERVICE_INSTANCE SERVICE_KEY\n\nEXAMPLE:\n   CF_NAME create-service-key mydb mykey",
+      "modified": false
+   },
+   {
       "id": "CF_NAME create-shared-domain DOMAIN",
       "translation": "CF_NAME create-shared-domain DOMAIN",
       "modified": false
    },
    {
-      "id": "CF_NAME create-space SPACE [-o ORG]",
+      "id": "CF_NAME create-space SPACE [-o ORG] [-q SPACE-QUOTA]",
       "translation": "CF_NAME create-space SPACE [-o ORG]",
-      "modified": false
+      "modified": true
    },
    {
-      "id": "CF_NAME create-space-quota QUOTA [-m MEMORY] [-r ROUTES] [-s SERVICE_INSTANCES] [--allow-paid-service-plans]",
-      "translation": "CF_NAME create-space-quota QUOTA ORG [-m MEMORY] [-r ROUTES] [-s SERVICE_INSTANCES] [--allow-paid-service-plans]",
-      "modified": true
+      "id": "CF_NAME create-space-quota QUOTA [-i INSTANCE_MEMORY] [-m MEMORY] [-r ROUTES] [-s SERVICE_INSTANCES] [--allow-paid-service-plans]",
+      "translation": "CF_NAME create-space-quota QUOTA [-i INSTANCE_MEMORY] [-m MEMORY] [-r ROUTES] [-s SERVICE_INSTANCES] [--allow-paid-service-plans]",
+      "modified": false
    },
    {
       "id": "CF_NAME create-user USERNAME PASSWORD",
@@ -545,9 +675,9 @@
       "modified": false
    },
    {
-      "id": "CF_NAME create-user-provided-service SERVICE_INSTANCE [-p PARAMETERS] [-l SYSLOG-DRAIN-URL]\n\n   Pass comma separated parameter names to enable interactive mode:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p \"comma, separated, parameter, names\"\n\n   Pass parameters as JSON to create a service non-interactively:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p '{\"name\":\"value\",\"name\":\"value\"}'\n\nEXAMPLE:\n   CF_NAME create-user-provided-service oracle-db-mine -p \"host, port, dbname, username, password\"\n   CF_NAME create-user-provided-service oracle-db-mine -p '{\"username\":\"admin\",\"password\":\"pa55woRD\"}'\n   CF_NAME create-user-provided-service my-drain-service -l syslog://example.com\n",
-      "translation": "CF_NAME create-user-provided-service SERVICE_INSTANCE [-p PARAMETERS] [-l SYSLOG-DRAIN-URL]\n\n   Pass comma separated parameter names to enable interactive mode:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p \"comma, separated, parameter, names\"\n\n   Pass parameters as JSON to create a service non-interactively:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p '{\"name\":\"value\",\"name\":\"value\"}'\n\nEXAMPLE:\n   CF_NAME create-user-provided-service oracle-db-mine -p \"host, port, dbname, username, password\"\n   CF_NAME create-user-provided-service oracle-db-mine -p '{\"username\":\"admin\",\"password\":\"pa55woRD\"}'\n   CF_NAME create-user-provided-service my-drain-service -l syslog://example.com\n",
-      "modified": false
+      "id": "CF_NAME create-user-provided-service SERVICE_INSTANCE [-p CREDENTIALS] [-l SYSLOG-DRAIN-URL]\n\n   Pass comma separated credential parameter names to enable interactive mode:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p \"comma, separated, parameter, names\"\n\n   Pass credential parameters as JSON to create a service non-interactively:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p '{\"name\":\"value\",\"name\":\"value\"}'\n\nEXAMPLE \n      CF_NAME create-user-provided-service my-db-mine -p \"username, password\"\n      CF_NAME create-user-provided-service my-drain-service -l syslog://example.com\n\n   Linux/Mac:\n      CF_NAME create-user-provided-service my-db-mine -p '{\"username\":\"admin\",\"password\":\"pa55woRD\"}'\n\n   Windows Command Line\n      CF_NAME create-user-provided-service my-db-mine -p \"{\\\"username\\\":\\\"admin\\\",\\\"password\\\":\\\"pa55woRD\\\"}\"\n\n   Windows PowerShell\n      CF_NAME create-user-provided-service my-db-mine -p '{\\\"username\\\":\\\"admin\\\",\\\"password\\\":\\\"pa55woRD\\\"}'\n",
+      "translation": "CF_NAME create-user-provided-service SERVICE_INSTANCE [-p CREDENTIALS] [-l SYSLOG-DRAIN-URL]\n\n   Pass comma separated credential parameter names to enable interactive mode:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p \"comma, separated, parameter, names\"\n\n   Pass credential parameters as JSON to create a service non-interactively:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p '{\"name\":\"value\",\"name\":\"value\"}'\n\nEXAMPLE:\n   CF_NAME create-user-provided-service oracle-db-mine -p \"username, password\"\n   CF_NAME create-user-provided-service oracle-db-mine -p '{\"username\":\"admin\",\"password\":\"pa55woRD\"}'\n   CF_NAME create-user-provided-service my-drain-service -l syslog://example.com\n",
+      "modified": true
    },
    {
       "id": "CF_NAME curl PATH [-iv] [-X METHOD] [-H HEADER] [-d DATA] [--output FILE]",
@@ -555,9 +685,9 @@
       "modified": false
    },
    {
-      "id": "CF_NAME delete APP [-f -r]",
+      "id": "CF_NAME delete APP_NAME [-f -r]",
       "translation": "CF_NAME delete APP [-f -r]",
-      "modified": false
+      "modified": true
    },
    {
       "id": "CF_NAME delete-buildpack BUILDPACK [-f]",
@@ -610,6 +740,11 @@
       "modified": false
    },
    {
+      "id": "CF_NAME delete-service-key SERVICE_INSTANCE SERVICE_KEY [-f]\n\nEXAMPLE:\n   CF_NAME delete-service-key mydb mykey",
+      "translation": "CF_NAME delete-service-key SERVICE_INSTANCE SERVICE_KEY [-f]\n\nEXAMPLE:\n   CF_NAME delete-service-key mydb mykey",
+      "modified": false
+   },
+   {
       "id": "CF_NAME delete-shared-domain DOMAIN [-f]",
       "translation": "CF_NAME delete-shared-domain DOMAIN [-f]",
       "modified": false
@@ -630,18 +765,48 @@
       "modified": false
    },
    {
-      "id": "CF_NAME env APP",
+      "id": "CF_NAME disable-feature-flag FEATURE_NAME",
+      "translation": "CF_NAME disable-feature-flag FEATURE_NAME",
+      "modified": false
+   },
+   {
+      "id": "CF_NAME enable-feature-flag FEATURE_NAME",
+      "translation": "CF_NAME enable-feature-flag FEATURE_NAME",
+      "modified": false
+   },
+   {
+      "id": "CF_NAME env APP_NAME",
       "translation": "CF_NAME env APP",
-      "modified": false
+      "modified": true
    },
    {
-      "id": "CF_NAME events APP",
+      "id": "CF_NAME events APP_NAME",
       "translation": "CF_NAME events APP",
+      "modified": true
+   },
+   {
+      "id": "CF_NAME feature-flag FEATURE_NAME",
+      "translation": "CF_NAME feature-flag FEATURE_NAME",
       "modified": false
    },
    {
-      "id": "CF_NAME files APP [-i INSTANCE] [PATH]",
+      "id": "CF_NAME feature-flags",
+      "translation": "CF_NAME feature-flags",
+      "modified": false
+   },
+   {
+      "id": "CF_NAME files APP_NAME [PATH] [-i INSTANCE]",
       "translation": "CF_NAME files APP [PATH]",
+      "modified": true
+   },
+   {
+      "id": "CF_NAME install-plugin URL or LOCAL-PATH/TO/PLUGIN [-r REPO_NAME]\n\nThe command will download the plugin binary from repository if '-r' is provided\n\nEXAMPLE:\n   cf install-plugin https://github.com/cf-experimental/plugin-foobar\n   cf install-plugin ~/Downloads/plugin-foobar\n   cf install-plugin plugin-echo -r My-Repo \n",
+      "translation": "CF_NAME install-plugin PATH/TO/PLUGIN",
+      "modified": true
+   },
+   {
+      "id": "CF_NAME list-plugin-repos",
+      "translation": "CF_NAME list-plugin-repo",
       "modified": true
    },
    {
@@ -655,18 +820,23 @@
       "modified": false
    },
    {
-      "id": "CF_NAME logs APP",
+      "id": "CF_NAME logs APP_NAME",
       "translation": "CF_NAME logs APP",
-      "modified": false
+      "modified": true
    },
    {
-      "id": "CF_NAME map-route APP DOMAIN [-n HOSTNAME]",
+      "id": "CF_NAME map-route APP_NAME DOMAIN [-n HOSTNAME]",
       "translation": "CF_NAME map-route APP DOMAIN [-n HOSTNAME]",
-      "modified": false
+      "modified": true
    },
    {
       "id": "CF_NAME migrate-service-instances v1_SERVICE v1_PROVIDER v1_PLAN v2_SERVICE v2_PLAN\n\n",
       "translation": "CF_NAME migrate-service-instances v1_SERVICE v1_PROVIDER v1_PLAN v2_SERVICE v2_PLAN\n\n",
+      "modified": false
+   },
+   {
+      "id": "CF_NAME oauth-token",
+      "translation": "CF_NAME oauth-token",
       "modified": false
    },
    {
@@ -685,6 +855,11 @@
       "modified": false
    },
    {
+      "id": "CF_NAME plugins",
+      "translation": "CF_NAME plugins",
+      "modified": false
+   },
+   {
       "id": "CF_NAME purge-service-offering SERVICE [-p PROVIDER]",
       "translation": "CF_NAME purge-service-offering SERVICE [-p PROVIDER]",
       "modified": false
@@ -697,6 +872,11 @@
    {
       "id": "CF_NAME quotas",
       "translation": "CF_NAME quotas",
+      "modified": false
+   },
+   {
+      "id": "CF_NAME remove-plugin-repo [REPO_NAME] [URL]\n\nEXAMPLE:\n   cf remove-plugin-repo PrivateRepo\n",
+      "translation": "CF_NAME remove-plugin-repo [REPO_NAME] [URL]\n\nEXAMPLE:\n   cf remove-plugin-repo PrivateRepo\n",
       "modified": false
    },
    {
@@ -730,19 +910,34 @@
       "modified": false
    },
    {
-      "id": "CF_NAME restage APP",
+      "id": "CF_NAME repo-plugins\n\nEXAMPLE:\n   cf repo-plugins [-r REPO_NAME]\n",
+      "translation": "CF_NAME repo-plugins\n\nEXAMPLE:\n   cf repo-plugins\n",
+      "modified": true
+   },
+   {
+      "id": "CF_NAME restage APP_NAME",
       "translation": "CF_NAME restage APP",
-      "modified": false
+      "modified": true
    },
    {
-      "id": "CF_NAME restart APP",
+      "id": "CF_NAME restart APP_NAME",
       "translation": "CF_NAME restart APP",
-      "modified": false
+      "modified": true
    },
    {
-      "id": "CF_NAME scale APP [-i INSTANCES] [-k DISK] [-m MEMORY] [-f]",
+      "id": "CF_NAME restart-app-instance APP_NAME INDEX",
+      "translation": "CF_NAME restart-app-instance APP INDEX",
+      "modified": true
+   },
+   {
+      "id": "CF_NAME running-environment-variable-group",
+      "translation": "cf running-environment-variable-group",
+      "modified": true
+   },
+   {
+      "id": "CF_NAME scale APP_NAME [-i INSTANCES] [-k DISK] [-m MEMORY] [-f]",
       "translation": "CF_NAME scale APP [-i INSTANCES] [-k DISK] [-m MEMORY] [-f]",
-      "modified": false
+      "modified": true
    },
    {
       "id": "CF_NAME security-group SECURITY_GROUP",
@@ -760,9 +955,19 @@
       "modified": false
    },
    {
-      "id": "CF_NAME set-env APP NAME VALUE",
-      "translation": "CF_NAME set-env APP NAME VALUE",
+      "id": "CF_NAME service-key SERVICE_INSTANCE SERVICE_KEY\n\nEXAMPLE:\n   CF_NAME service-key mydb mykey",
+      "translation": "CF_NAME service-key SERVICE_INSTANCE SERVICE_KEY\n\nEXAMPLE:\n   CF_NAME service-key mydb mykey",
       "modified": false
+   },
+   {
+      "id": "CF_NAME service-keys SERVICE_INSTANCE\n\nEXAMPLE:\n   CF_NAME service-keys mydb",
+      "translation": "CF_NAME service-keys SERVICE_INSTANCE\n\nEXAMPLE:\n   CF_NAME service-keys mydb",
+      "modified": false
+   },
+   {
+      "id": "CF_NAME set-env APP_NAME ENV_VAR_NAME ENV_VAR_VALUE",
+      "translation": "CF_NAME set-env APP NAME VALUE",
+      "modified": true
    },
    {
       "id": "CF_NAME set-org-role USERNAME ORG ROLE\n\n",
@@ -775,6 +980,11 @@
       "modified": false
    },
    {
+      "id": "CF_NAME set-running-environment-variable-group '{\"name\":\"value\",\"name\":\"value\"}'",
+      "translation": "CF_NAME set-running-environment-variable-group '{\"name\":\"value\",\"name\":\"value\"}'",
+      "modified": false
+   },
+   {
       "id": "CF_NAME set-space-quota SPACE-NAME SPACE-QUOTA-NAME",
       "translation": "CF_NAME set-space-quota SPACE-NAME SPACE-QUOTA-NAME",
       "modified": false
@@ -782,6 +992,16 @@
    {
       "id": "CF_NAME set-space-role USERNAME ORG SPACE ROLE\n\n",
       "translation": "CF_NAME set-space-role USERNAME ORG SPACE ROLE\n\n",
+      "modified": false
+   },
+   {
+      "id": "CF_NAME set-staging-environment-variable-group '{\"name\":\"value\",\"name\":\"value\"}'",
+      "translation": "CF_NAME set-staging-environment-variable-group '{\"name\":\"value\",\"name\":\"value\"}'",
+      "modified": false
+   },
+   {
+      "id": "CF_NAME share-private-domain ORG DOMAIN",
+      "translation": "CF_NAME share-private-domain ORG DOMAIN",
       "modified": false
    },
    {
@@ -810,19 +1030,29 @@
       "modified": false
    },
    {
+      "id": "CF_NAME stack STACK_NAME",
+      "translation": "CF_NAME stack STACK_NAME",
+      "modified": false
+   },
+   {
       "id": "CF_NAME stacks",
       "translation": "CF_NAME stacks",
       "modified": false
    },
    {
-      "id": "CF_NAME start APP",
-      "translation": "CF_NAME start APP",
+      "id": "CF_NAME staging-environment-variable-group",
+      "translation": "CF_NAME staging-environment-variable-group",
       "modified": false
    },
    {
-      "id": "CF_NAME stop APP",
+      "id": "CF_NAME start APP_NAME",
+      "translation": "CF_NAME start APP",
+      "modified": true
+   },
+   {
+      "id": "CF_NAME stop APP_NAME",
       "translation": "CF_NAME stop APP",
-      "modified": false
+      "modified": true
    },
    {
       "id": "CF_NAME target [-o ORG] [-s SPACE]",
@@ -840,9 +1070,9 @@
       "modified": false
    },
    {
-      "id": "CF_NAME unbind-service APP SERVICE_INSTANCE",
+      "id": "CF_NAME unbind-service APP_NAME SERVICE_INSTANCE",
       "translation": "CF_NAME unbind-service APP SERVICE_INSTANCE",
-      "modified": false
+      "modified": true
    },
    {
       "id": "CF_NAME unbind-staging-security-group SECURITY_GROUP",
@@ -850,14 +1080,19 @@
       "modified": false
    },
    {
-      "id": "CF_NAME unmap-route APP DOMAIN [-n HOSTNAME]",
-      "translation": "CF_NAME unmap-route APP DOMAIN [-n HOSTNAME]",
+      "id": "CF_NAME uninstall-plugin PLUGIN-NAME",
+      "translation": "CF_NAME uninstall-plugin PLUGIN-NAME",
       "modified": false
    },
    {
-      "id": "CF_NAME unset-env APP NAME",
+      "id": "CF_NAME unmap-route APP_NAME DOMAIN [-n HOSTNAME]",
+      "translation": "CF_NAME unmap-route APP DOMAIN [-n HOSTNAME]",
+      "modified": true
+   },
+   {
+      "id": "CF_NAME unset-env APP_NAME ENV_VAR_NAME",
       "translation": "CF_NAME unset-env APP NAME",
-      "modified": false
+      "modified": true
    },
    {
       "id": "CF_NAME unset-org-role USERNAME ORG ROLE\n\n",
@@ -872,6 +1107,11 @@
    {
       "id": "CF_NAME unset-space-role USERNAME ORG SPACE ROLE\n\n",
       "translation": "CF_NAME unset-space-role USERNAME ORG SPACE ROLE\n\n",
+      "modified": false
+   },
+   {
+      "id": "CF_NAME unshare-private-domain ORG DOMAIN",
+      "translation": "CF_NAME unshare-private-domain ORG DOMAIN",
       "modified": false
    },
    {
@@ -890,6 +1130,11 @@
       "modified": false
    },
    {
+      "id": "CF_NAME update-service SERVICE [-p NEW_PLAN]",
+      "translation": "CF_NAME update-service SERVICE [-p NEW_PLAN]",
+      "modified": false
+   },
+   {
       "id": "CF_NAME update-service-auth-token LABEL PROVIDER TOKEN",
       "translation": "CF_NAME update-service-auth-token LABEL PROVIDER TOKEN",
       "modified": false
@@ -905,9 +1150,9 @@
       "modified": true
    },
    {
-      "id": "CF_NAME update-user-provided-service SERVICE_INSTANCE [-p PARAMETERS] [-l SYSLOG-DRAIN-URL]'\n\nEXAMPLE:\n   CF_NAME update-user-provided-service oracle-db-mine -p '{\"username\":\"admin\",\"password\":\"pa55woRD\"}'\n   CF_NAME update-user-provided-service my-drain-service -l syslog://example.com",
-      "translation": "CF_NAME update-user-provided-service SERVICE_INSTANCE [-p PARAMETERS] [-l SYSLOG-DRAIN-URL]'\n\nEXAMPLE:\n   CF_NAME update-user-provided-service oracle-db-mine -p '{\"username\":\"admin\",\"password\":\"pa55woRD\"}'\n   CF_NAME update-user-provided-service my-drain-service -l syslog://example.com",
-      "modified": false
+      "id": "CF_NAME update-user-provided-service SERVICE_INSTANCE [-p CREDENTIALS] [-l SYSLOG-DRAIN-URL]'\n\nEXAMPLE:\n   CF_NAME update-user-provided-service my-db-mine -p '{\"username\":\"admin\",\"password\":\"pa55woRD\"}'\n   CF_NAME update-user-provided-service my-drain-service -l syslog://example.com",
+      "translation": "CF_NAME update-user-provided-service SERVICE_INSTANCE [-p CREDENTIALS] [-l SYSLOG-DRAIN-URL]'\n\nEXAMPLE:\n   CF_NAME update-user-provided-service oracle-db-mine -p '{\"username\":\"admin\",\"password\":\"pa55woRD\"}'\n   CF_NAME update-user-provided-service my-drain-service -l syslog://example.com",
+      "modified": true
    },
    {
       "id": "CF_TRACE ERROR CREATING LOG FILE {{.Path}}:\n{{.Err}}",
@@ -925,8 +1170,18 @@
       "modified": false
    },
    {
+      "id": "Can provision instances of paid service plans (Default: disallowed)",
+      "translation": "Can provision instances of paid service plans (Default: disallowed)",
+      "modified": false
+   },
+   {
       "id": "Cannot list marketplace services without a targeted space",
       "translation": "Cannot list marketplace services without a targeted space",
+      "modified": false
+   },
+   {
+      "id": "Cannot list plan information for {{.ServiceName}} without a targeted space",
+      "translation": "Cannot list plan information for {{.ServiceName}} without a targeted space",
       "modified": false
    },
    {
@@ -955,6 +1210,11 @@
       "modified": false
    },
    {
+      "id": "Change service plan for a service instance",
+      "translation": "Change service plan for a service instance",
+      "modified": false
+   },
+   {
       "id": "Change user password",
       "translation": "Change user password",
       "modified": false
@@ -965,8 +1225,48 @@
       "modified": false
    },
    {
+      "id": "Checking for route...",
+      "translation": "Checking for route...",
+      "modified": false
+   },
+   {
+      "id": "Cloud Foundry API version {{.ApiVer}} requires CLI version {{.CliMin}}.  You are currently on version {{.CliVer}}. To upgrade your CLI, please visit: https://github.com/cloudfoundry/cli#downloads",
+      "translation": "Cloud Foundry API version {{.ApiVer}} requires CLI version {{.CliMin}}.  You are currently on version {{.CliVer}}.  To upgrade your CLI, please visit: https://github.com/cloudfoundry/cli#downloads",
+      "modified": true
+   },
+   {
+      "id": "Command Help",
+      "translation": "Command Help",
+      "modified": false
+   },
+   {
+      "id": "Command Name",
+      "translation": "Command name",
+      "modified": true
+   },
+   {
+      "id": "Command `{{.Command}}` in the plugin being installed is a native CF command/alias.  Rename the `{{.Command}}` command in the plugin being installed in order to enable its installation and use.",
+      "translation": "Command `{{.Command}}` in the plugin being installed is a native CF command.  Rename the `{{.Command}}` command in the plugin being installed in order to enable its installation and use.",
+      "modified": true
+   },
+   {
+      "id": "Command `{{.Command}}` is a command/alias in plugin '{{.PluginName}}'.  You could try uninstalling plugin '{{.PluginName}}' and then install this plugin in order to invoke the `{{.Command}}` command.  However, you should first fully understand the impact of uninstalling the existing '{{.PluginName}}' plugin.",
+      "translation": "`{{.Command}}` is a command in plugin '{{.PluginName}}'.  You could try uninstalling plugin '{{.PluginName}}' and then install this plugin in order to invoke the `{{.Command}}` command.  However, you should first fully understand the impact of uninstalling the existing '{{.PluginName}}' plugin.",
+      "modified": true
+   },
+   {
       "id": "Command not found",
       "translation": "Command not found",
+      "modified": false
+   },
+   {
+      "id": "Compute and show the sha1 value of the plugin binary file",
+      "translation": "Compute and show the sha1 value of the plugin binary file",
+      "modified": false
+   },
+   {
+      "id": "Computing sha1 for installed plugins, this may take a while ...",
+      "translation": "Computing sha1 for installed plugins, this may take a while ...",
       "modified": false
    },
    {
@@ -980,8 +1280,18 @@
       "modified": false
    },
    {
+      "id": "Copying source from app {{.SourceApp}} to target app {{.TargetApp}} in org {{.OrgName}} / space {{.SpaceName}} as {{.Username}}...",
+      "translation": "Copying source from app {{.SourceApp}} to target app {{.TargetApp}} in org {{.OrgName}} / space {{.SpaceName}} as {{.Username}}...",
+      "modified": false
+   },
+   {
       "id": "Could not bind to service {{.ServiceName}}\nError: {{.Err}}",
       "translation": "Could not bind to service {{.ServiceName}}\nError: {{.Err}}",
+      "modified": false
+   },
+   {
+      "id": "Could not copy plugin binary: \n{{.Error}}",
+      "translation": "Could not copy plugin binary: \n{{.Error}}",
       "modified": false
    },
    {
@@ -992,11 +1302,6 @@
    {
       "id": "Could not find a default domain",
       "translation": "Could not find a default domain",
-      "modified": false
-   },
-   {
-      "id": "Could not find any offerings with name {{.ServiceOfferingName}}",
-      "translation": "Could not find any offerings with name {{.ServiceOfferingName}}",
       "modified": false
    },
    {
@@ -1012,6 +1317,11 @@
    {
       "id": "Could not find service {{.ServiceName}} to bind to {{.AppName}}",
       "translation": "Could not find service {{.ServiceName}} to bind to {{.AppName}}",
+      "modified": false
+   },
+   {
+      "id": "Could not find space {{.Space}} in organization {{.Org}}",
+      "translation": "Could not find space {{.Space}} in organization {{.Org}}",
       "modified": false
    },
    {
@@ -1105,8 +1415,23 @@
       "modified": false
    },
    {
+      "id": "Create an app manifest for an app that has been pushed successfully.",
+      "translation": "Create an app manifest for an app that has been pushed successfully.",
+      "modified": false
+   },
+   {
       "id": "Create an org",
       "translation": "Create an org",
+      "modified": false
+   },
+   {
+      "id": "Create key for a service instance",
+      "translation": "Create key for a service instance",
+      "modified": false
+   },
+   {
+      "id": "Creating an app manifest from current settings of app ",
+      "translation": "Creating an app manifest from current settings of app ",
       "modified": false
    },
    {
@@ -1160,8 +1485,13 @@
       "modified": false
    },
    {
-      "id": "Creating service {{.ServiceName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
-      "translation": "Creating service {{.ServiceName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
+      "id": "Creating service instance {{.ServiceName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
+      "translation": "Creating service instance {{.ServiceName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
+      "modified": false
+   },
+   {
+      "id": "Creating service key {{.ServiceKeyName}} for service instance {{.ServiceInstanceName}} as {{.CurrentUser}}...",
+      "translation": "Creating service key {{.ServiceKeyName}} for service instance {{.ServiceInstanceName}} as {{.CurrentUser}}...",
       "modified": false
    },
    {
@@ -1190,8 +1520,23 @@
       "modified": false
    },
    {
+      "id": "Credentials",
+      "translation": "Credentials",
+      "modified": false
+   },
+   {
       "id": "Credentials were rejected, please try again.",
       "translation": "Credentials were rejected, please try again.",
+      "modified": false
+   },
+   {
+      "id": "Current CF API version {{.ApiVersion}}",
+      "translation": "Current CF API version {{.ApiVersion}}",
+      "modified": false
+   },
+   {
+      "id": "Current CF CLI version {{.Version}}",
+      "translation": "Current CF CLI version {{.Version}}",
       "modified": false
    },
    {
@@ -1205,9 +1550,9 @@
       "modified": false
    },
    {
-      "id": "Custom buildpack by name (e.g. my-buildpack) or GIT URL (e.g. https://github.com/heroku/heroku-buildpack-play.git)",
+      "id": "Custom buildpack by name (e.g. my-buildpack) or GIT URL (e.g. 'https://github.com/heroku/heroku-buildpack-play.git') or GIT BRANCH URL (e.g. 'https://github.com/heroku/heroku-buildpack-play.git#develop' for 'develop' branch). Use built-in buildpacks only by setting value to 'null' or 'default'",
       "translation": "Custom buildpack by name (e.g. my-buildpack) or GIT URL (e.g. https://github.com/heroku/heroku-buildpack-play.git)",
-      "modified": false
+      "modified": true
    },
    {
       "id": "Custom headers to include in the request, flag can be specified multiple times",
@@ -1217,6 +1562,11 @@
    {
       "id": "DOMAINS",
       "translation": "DOMAINS",
+      "modified": false
+   },
+   {
+      "id": "Dashboard: {{.URL}}",
+      "translation": "Dashboard: {{.URL}}",
       "modified": false
    },
    {
@@ -1262,6 +1612,11 @@
    {
       "id": "Delete a service instance",
       "translation": "Delete a service instance",
+      "modified": false
+   },
+   {
+      "id": "Delete a service key",
+      "translation": "Delete a service key",
       "modified": false
    },
    {
@@ -1325,6 +1680,11 @@
       "modified": false
    },
    {
+      "id": "Deleting key {{.ServiceKeyName}} for service instance {{.ServiceInstanceName}} as {{.CurrentUser}}...",
+      "translation": "Deleting key {{.ServiceKeyName}} for service instance {{.ServiceInstanceName}} as {{.CurrentUser}}...",
+      "modified": false
+   },
+   {
       "id": "Deleting org {{.OrgName}} as {{.Username}}...",
       "translation": "Deleting org {{.OrgName}} as {{.Username}}...",
       "modified": false
@@ -1385,14 +1745,9 @@
       "modified": false
    },
    {
-      "id": "Disable access to a particular organization",
-      "translation": "Disable access to a service or service plan for one or all orgs.",
-      "modified": true
-   },
-   {
-      "id": "Disable access to a particular service plan",
-      "translation": "Disable access to a particular service plan.",
-      "modified": true
+      "id": "Disable access for a specified organization",
+      "translation": "Disable access for a specified organization",
+      "modified": false
    },
    {
       "id": "Disable access to a service or service plan for one or all orgs",
@@ -1400,8 +1755,18 @@
       "modified": false
    },
    {
-      "id": "Disable the buildpack",
+      "id": "Disable access to a specified service plan",
+      "translation": "Disable access to a specified service plan",
+      "modified": false
+   },
+   {
+      "id": "Disable the buildpack from being used for staging",
       "translation": "Disable the buildpack",
+      "modified": true
+   },
+   {
+      "id": "Disable the use of a feature so that users have access to and can use the feature.",
+      "translation": "Disable the use of a feature so that users have access to and can use the feature.",
       "modified": false
    },
    {
@@ -1440,9 +1805,9 @@
       "modified": false
    },
    {
-      "id": "Do not map a route to this app",
+      "id": "Do not map a route to this app and remove routes from previous pushes of this app.",
       "translation": "Do not map a route to this app",
-      "modified": false
+      "modified": true
    },
    {
       "id": "Do not start an app after pushing",
@@ -1465,14 +1830,29 @@
       "modified": false
    },
    {
+      "id": "Download attempt failed: {{.Error}}\n\nUnable to install, plugin is not available from the given url.",
+      "translation": "Download attempt failed: {{.Error}}\nUnable to install, plugin is not available from local/internet.",
+      "modified": true
+   },
+   {
+      "id": "Downloaded plugin binary's checksum does not match repo metadata",
+      "translation": "Downloaded plugin binary's checksum does not match repo metadata",
+      "modified": false
+   },
+   {
       "id": "Dump recent logs instead of tailing",
       "translation": "Dump recent logs instead of tailing",
       "modified": false
    },
    {
-      "id": "ENVIRONMENT VARIABLES",
-      "translation": "ENVIRONMENT VARIABLES",
+      "id": "ENVIRONMENT VARIABLE GROUPS",
+      "translation": "ENVIRONMENT VARIABLE GROUPS",
       "modified": false
+   },
+   {
+      "id": "ENVIRONMENT VARIABLES:",
+      "translation": "ENVIRONMENT VARIABLES:",
+      "modified": true
    },
    {
       "id": "EXAMPLE:\n",
@@ -1490,13 +1870,8 @@
       "modified": false
    },
    {
-      "id": "Enable access to a particular organization",
-      "translation": "Enable access to a particular organization",
-      "modified": false
-   },
-   {
-      "id": "Enable access to a particular service plan",
-      "translation": "Enable access to a particular service plan",
+      "id": "Enable access for a specified organization",
+      "translation": "Enable access for a specified organization",
       "modified": false
    },
    {
@@ -1505,13 +1880,23 @@
       "modified": false
    },
    {
+      "id": "Enable access to a specified service plan",
+      "translation": "Enable access to a specified service plan",
+      "modified": false
+   },
+   {
       "id": "Enable or disable color",
       "translation": "Enable or disable color",
       "modified": false
    },
    {
-      "id": "Enable the buildpack",
+      "id": "Enable the buildpack to be used for staging",
       "translation": "Enable the buildpack",
+      "modified": true
+   },
+   {
+      "id": "Enable the use of a feature so that users have access to and can use the feature.",
+      "translation": "Enable the use of a feature so that users have access to and can use the feature.",
       "modified": false
    },
    {
@@ -1542,6 +1927,11 @@
    {
       "id": "Error building request",
       "translation": "Error building request",
+      "modified": false
+   },
+   {
+      "id": "Error creating manifest file: ",
+      "translation": "Error creating manifest file: ",
       "modified": false
    },
    {
@@ -1625,6 +2015,26 @@
       "modified": false
    },
    {
+      "id": "Error getting application summary: ",
+      "translation": "Error getting application summary: ",
+      "modified": false
+   },
+   {
+      "id": "Error getting command list from plugin {{.FilePath}}",
+      "translation": "Error getting command list from plugin {{.FilePath}}",
+      "modified": false
+   },
+   {
+      "id": "Error getting file info",
+      "translation": "Error getting file info",
+      "modified": false
+   },
+   {
+      "id": "Error getting plugin metadata from repo: ",
+      "translation": "Error getting plugin metadata from repo: ",
+      "modified": false
+   },
+   {
       "id": "Error in requirement",
       "translation": "Error in requirement",
       "modified": false
@@ -1655,6 +2065,11 @@
       "modified": false
    },
    {
+      "id": "Error processing data from server: ",
+      "translation": "Error processing data from server: ",
+      "modified": false
+   },
+   {
       "id": "Error reading manifest file:\n{{.Err}}",
       "translation": "Error reading manifest file:\n{{.Err}}",
       "modified": false
@@ -1665,8 +2080,23 @@
       "modified": false
    },
    {
+      "id": "Error reading response from",
+      "translation": "Error reading response from",
+      "modified": false
+   },
+   {
+      "id": "Error reading response from server: ",
+      "translation": "Error reading response from server: ",
+      "modified": false
+   },
+   {
       "id": "Error renaming buildpack {{.Name}}\n{{.Error}}",
       "translation": "Error renaming buildpack {{.Name}}\n{{.Error}}",
+      "modified": false
+   },
+   {
+      "id": "Error requesting from",
+      "translation": "Error requesting from",
       "modified": false
    },
    {
@@ -1687,11 +2117,6 @@
    {
       "id": "Error uploading buildpack {{.Name}}\n{{.Error}}",
       "translation": "Error uploading buildpack {{.Name}}\n{{.Error}}",
-      "modified": false
-   },
-   {
-      "id": "Error writing to manifest file:{{.FilePath}}\n{{.Err}}",
-      "translation": "Error writing to manifest file:{{.FilePath}}\n{{.Err}}",
       "modified": false
    },
    {
@@ -1735,11 +2160,6 @@
       "modified": false
    },
    {
-      "id": "Expected environment variable {{.PropertyName}} to have a string value, but it was a {{.PropertyType}}.",
-      "translation": "Expected environment variable {{.PropertyName}} to have a string value, but it was a {{.PropertyType}}.",
-      "modified": false
-   },
-   {
       "id": "Expected {{.Name}} to be a set of key =\u003e value, but it was a {{.Type}}.",
       "translation": "Expected {{.Name}} to be a set of key =\u003e value, but it was a {{.Type}}.",
       "modified": false
@@ -1762,6 +2182,11 @@
    {
       "id": "FAILED",
       "translation": "FAILED",
+      "modified": false
+   },
+   {
+      "id": "FEATURE FLAGS",
+      "translation": "FEATURE FLAGS",
       "modified": false
    },
    {
@@ -1815,6 +2240,11 @@
       "modified": false
    },
    {
+      "id": "Failed to create manifest, unable to parse environment variable: ",
+      "translation": "Failed to create manifest, unable to parse environment variable: ",
+      "modified": false
+   },
+   {
       "id": "Failed to marshal JSON",
       "translation": "Failed to marshal JSON",
       "modified": false
@@ -1823,6 +2253,26 @@
       "id": "Failed to start oauth request",
       "translation": "Failed to start oauth request",
       "modified": false
+   },
+   {
+      "id": "Feature {{.FeatureFlag}} Disabled.",
+      "translation": "Feature {{.FeatureFlag}} Disabled.",
+      "modified": false
+   },
+   {
+      "id": "Feature {{.FeatureFlag}} Enabled.",
+      "translation": "Feature {{.FeatureFlag}} Enabled.",
+      "modified": false
+   },
+   {
+      "id": "Features",
+      "translation": "Features",
+      "modified": false
+   },
+   {
+      "id": "File not found locally, make sure the file exists at given path ...",
+      "translation": "File not found locally, attempting to download binary file from internet ...",
+      "modified": true
    },
    {
       "id": "Force delete (do not prompt for confirmation)",
@@ -1850,8 +2300,13 @@
       "modified": false
    },
    {
-      "id": "GLOBAL OPTIONS",
-      "translation": "GLOBAL OPTIONS",
+      "id": "GLOBAL OPTIONS:",
+      "translation": "GLOBAL OPTIONS:",
+      "modified": true
+   },
+   {
+      "id": "Getting OAuth token...",
+      "translation": "Getting OAuth token...",
       "modified": false
    },
    {
@@ -1905,9 +2360,29 @@
       "modified": false
    },
    {
+      "id": "Getting key {{.ServiceKeyName}} for service instance {{.ServiceInstanceName}} as {{.CurrentUser}}...",
+      "translation": "Getting key {{.ServiceKeyName}} for service instance {{.ServiceInstanceName}} as {{.CurrentUser}}...",
+      "modified": false
+   },
+   {
+      "id": "Getting keys for service instance {{.ServiceInstanceName}} as {{.CurrentUser}}...",
+      "translation": "Getting keys for service instance {{.ServiceInstanceName}} as {{.CurrentUser}}...",
+      "modified": false
+   },
+   {
       "id": "Getting orgs as {{.Username}}...\n",
       "translation": "Getting orgs as {{.Username}}...\n",
       "modified": false
+   },
+   {
+      "id": "Getting plugins from all repositories ... ",
+      "translation": "Getting plugins from all repositories ... ",
+      "modified": false
+   },
+   {
+      "id": "Getting plugins from repository '",
+      "translation": "Getting plugins from repositories '",
+      "modified": true
    },
    {
       "id": "Getting quota {{.QuotaName}} info as {{.Username}}...",
@@ -1925,9 +2400,54 @@
       "modified": false
    },
    {
+      "id": "Getting rules for the security group  : {{.SecurityGroupName}}...",
+      "translation": "Getting rules for the security group  : {{.SecurityGroupName}}...",
+      "modified": false
+   },
+   {
       "id": "Getting security groups as {{.username}}",
       "translation": "Getting security groups as {{.username}}",
       "modified": false
+   },
+   {
+      "id": "Getting service access as {{.Username}}...",
+      "translation": "getting service access as {{.Username}}...",
+      "modified": true
+   },
+   {
+      "id": "Getting service access for broker {{.Broker}} and organization {{.Organization}} as {{.Username}}...",
+      "translation": "getting service access for broker {{.Broker}} and organization {{.Organization}} as {{.Username}}...",
+      "modified": true
+   },
+   {
+      "id": "Getting service access for broker {{.Broker}} and service {{.Service}} and organization {{.Organization}} as {{.Username}}...",
+      "translation": "getting service access for broker {{.Broker}} and service {{.Service}} and organization {{.Organization}} as {{.Username}}...",
+      "modified": true
+   },
+   {
+      "id": "Getting service access for broker {{.Broker}} and service {{.Service}} as {{.Username}}...",
+      "translation": "getting service access for broker {{.Broker}} and service {{.Service}} as {{.Username}}...",
+      "modified": true
+   },
+   {
+      "id": "Getting service access for broker {{.Broker}} as {{.Username}}...",
+      "translation": "getting service access for broker {{.Broker}} as {{.Username}}...",
+      "modified": true
+   },
+   {
+      "id": "Getting service access for organization {{.Organization}} as {{.Username}}...",
+      "translation": "getting service access for organization {{.Organization}} as {{.Username}}...",
+      "modified": true
+   },
+   {
+      "id": "Getting service access for service {{.Service}} and organization {{.Organization}} as {{.Username}}...",
+      "translation": "getting service access for service {{.Service}} and organization {{.Organization}} as {{.Username}}...",
+      "modified": true
+   },
+   {
+      "id": "Getting service access for service {{.Service}} as {{.Username}}...",
+      "translation": "getting service access for service {{.Service}} as {{.Username}}...",
+      "modified": true
    },
    {
       "id": "Getting service auth tokens as {{.CurrentUser}}...",
@@ -1937,6 +2457,16 @@
    {
       "id": "Getting service brokers as {{.Username}}...\n",
       "translation": "Getting service brokers as {{.Username}}...\n",
+      "modified": false
+   },
+   {
+      "id": "Getting service plan information for service {{.ServiceName}} as {{.CurrentUser}}...",
+      "translation": "Getting service plan information for service {{.ServiceName}} as {{.CurrentUser}}...",
+      "modified": false
+   },
+   {
+      "id": "Getting service plan information for service {{.ServiceName}}...",
+      "translation": "Getting service plan information for service {{.ServiceName}}...",
       "modified": false
    },
    {
@@ -1962,6 +2492,11 @@
    {
       "id": "Getting spaces in org {{.TargetOrgName}} as {{.CurrentUser}}...\n",
       "translation": "Getting spaces in org {{.TargetOrgName}} as {{.CurrentUser}}...\n",
+      "modified": false
+   },
+   {
+      "id": "Getting stack '{{.Stack}}' in org {{.OrganizationName}} / space {{.SpaceName}} as {{.Username}}...",
+      "translation": "Getting stack '{{.Stack}}' in org {{.OrganizationName}} / space {{.SpaceName}} as {{.Username}}...",
       "modified": false
    },
    {
@@ -2000,6 +2535,11 @@
       "modified": false
    },
    {
+      "id": "INSTALLED PLUGIN COMMANDS",
+      "translation": "PLUGIN COMMANDS",
+      "modified": true
+   },
+   {
       "id": "Ignore manifest file",
       "translation": "Ignore manifest file",
       "modified": false
@@ -2025,6 +2565,11 @@
       "modified": false
    },
    {
+      "id": "Incorrect json format: file: {{.JSONFile}}\n\u0009\u0009\nValid json file example:\n[\n  {\n    \"protocol\": \"tcp\",\n    \"destination\": \"10.244.1.18\",\n    \"ports\": \"3306\"\n  }\n]",
+      "translation": "Incorrect json format: file: {{.JSONFile}}\n\u0009\u0009\nValid json file example:\n[\n  {\n    \"protocol\": \"tcp\",\n    \"destination\": \"10.244.1.18\",\n    \"ports\": \"3306\"\n  }\n]",
+      "modified": false
+   },
+   {
       "id": "Incorrect number of arguments",
       "translation": "Incorrect number of arguments",
       "modified": false
@@ -2035,6 +2580,16 @@
       "modified": false
    },
    {
+      "id": "Install the plugin defined in command argument",
+      "translation": "install-plugin PATH/TO/PLUGIN-NAME  - Install the plugin defined in command argument",
+      "modified": true
+   },
+   {
+      "id": "Installing plugin {{.PluginPath}}...",
+      "translation": "Installing plugin {{.PluginPath}}...",
+      "modified": false
+   },
+   {
       "id": "Instance",
       "translation": "Instance",
       "modified": false
@@ -2042,6 +2597,16 @@
    {
       "id": "Instance Memory",
       "translation": "Instance Memory",
+      "modified": false
+   },
+   {
+      "id": "Instance must be a non-negative integer",
+      "translation": "Instance must be a non-negative integer",
+      "modified": false
+   },
+   {
+      "id": "Invalid JSON provided in -c argument",
+      "translation": "Invalid JSON provided in -c argument",
       "modified": false
    },
    {
@@ -2067,6 +2632,11 @@
    {
       "id": "Invalid auth token: ",
       "translation": "Invalid auth token: ",
+      "modified": false
+   },
+   {
+      "id": "Invalid data from '{{.repoName}}' - plugin data does not exist",
+      "translation": "Invalid data from '{{.repoName}}' - plugin data does not exist",
       "modified": false
    },
    {
@@ -2105,6 +2675,11 @@
       "modified": false
    },
    {
+      "id": "Invalid json data from",
+      "translation": "Invalid json data from",
+      "modified": false
+   },
+   {
       "id": "Invalid manifest. Expected a map",
       "translation": "Invalid manifest. Expected a map",
       "modified": false
@@ -2140,13 +2715,28 @@
       "modified": false
    },
    {
+      "id": "Invalid value for '{{.PropertyName}}': {{.StringVal}}\n{{.Error}}",
+      "translation": "Unexpected value for {{.PropertyName}} :\n{{.Error}}",
+      "modified": true
+   },
+   {
       "id": "JSON is invalid: {{.ErrorDescription}}",
       "translation": "JSON is invalid: {{.ErrorDescription}}",
       "modified": false
    },
    {
+      "id": "Last Operation",
+      "translation": "Last Operation",
+      "modified": false
+   },
+   {
       "id": "List all apps in the target space",
       "translation": "List all apps in the target space",
+      "modified": false
+   },
+   {
+      "id": "List all available plugins in all added repositories",
+      "translation": "List all available plugins in all added repositories",
       "modified": false
    },
    {
@@ -2160,8 +2750,8 @@
       "modified": false
    },
    {
-      "id": "List all routes in the current space",
-      "translation": "List all routes in the current space",
+      "id": "List all routes in the current space or the current organization",
+      "translation": "List all routes in the current space or the current organization",
       "modified": false
    },
    {
@@ -2182,6 +2772,11 @@
    {
       "id": "List all stacks (a stack is a pre-built file system, including an operating system, that can run apps)",
       "translation": "List all stacks (a stack is a pre-built file system, including an operating system, that can run apps)",
+      "modified": false
+   },
+   {
+      "id": "List all the routes for all spaces of current organization",
+      "translation": "List all the routes for all spaces of current organization",
       "modified": false
    },
    {
@@ -2210,6 +2805,11 @@
       "modified": false
    },
    {
+      "id": "List keys for a service instance",
+      "translation": "List keys for a service instance",
+      "modified": false
+   },
+   {
       "id": "List security groups in the set of security groups for running applications",
       "translation": "List security groups in the set of security groups for running applications",
       "modified": false
@@ -2235,9 +2835,14 @@
       "modified": false
    },
    {
-      "id": "Lock the buildpack",
-      "translation": "Lock the buildpack",
+      "id": "Listing Installed Plugins...",
+      "translation": "Listing Installed Plugins...",
       "modified": false
+   },
+   {
+      "id": "Lock the buildpack to prevent updates",
+      "translation": "Lock the buildpack",
+      "modified": true
    },
    {
       "id": "Log user in",
@@ -2247,6 +2852,11 @@
    {
       "id": "Log user out",
       "translation": "Log user out",
+      "modified": false
+   },
+   {
+      "id": "Logged errors:",
+      "translation": "Logged errors:",
       "modified": false
    },
    {
@@ -2260,8 +2870,28 @@
       "modified": false
    },
    {
+      "id": "Looking up '{{.filePath}}' from repository '{{.repoName}}'",
+      "translation": "Looking up '{{.filePath}}' from repository '{{.repoName}}'",
+      "modified": false
+   },
+   {
+      "id": "Make a copy of app source code from one application to another.  Unless overridden, the copy-source command will restart the application.",
+      "translation": "Make a copy of app source code from one application to another.  Unless overridden, the copy-source command will restart the application.",
+      "modified": false
+   },
+   {
       "id": "Make a user-provided service instance available to cf apps",
       "translation": "Make a user-provided service instance available to cf apps",
+      "modified": false
+   },
+   {
+      "id": "Manifest file created successfully at ",
+      "translation": "Manifest file created successfully at ",
+      "modified": false
+   },
+   {
+      "id": "Manifest file is not found in the current directory, please provide either an app name or manifest",
+      "translation": "Manifest file is not found in the current directory, please provide either an app name or manifest",
       "modified": false
    },
    {
@@ -2285,18 +2915,28 @@
       "modified": false
    },
    {
-      "id": "Maximum amount of memory an application instance can have(e.g. 1024M, 1G, 10G)",
-      "translation": "Maximum amount of memory an application instance can have(e.g. 1024M, 1G, 10G)",
+      "id": "Maximum amount of memory an application instance can have (e.g. 1024M, 1G, 10G). -1 represents an unlimited amount.",
+      "translation": "Maximum amount of memory an application instance can have (e.g. 1024M, 1G, 10G). -1 represents an unlimited amount.",
       "modified": false
    },
    {
-      "id": "Maximum amount of memory an application instance can have(e.g. 1024M, 1G, 10G). -1 represents an unlimited amount.",
-      "translation": "Maximum amount of memory an application instance can have(e.g. 1024M, 1G, 10G). -1 represents an unlimited amount.",
-      "modified": false
+      "id": "Maximum amount of memory an application instance can have (e.g. 1024M, 1G, 10G). -1 represents an unlimited amount. (Default: unlimited)",
+      "translation": "Maximum amount of memory an application instance can have(e.g. 1024M, 1G, 10G). -1 represents an unlimited amount. (Default: unlimited)",
+      "modified": true
+   },
+   {
+      "id": "Maximum time (in seconds) for CLI to wait for application start, other server side timeouts may apply",
+      "translation": "Start timeout in seconds",
+      "modified": true
    },
    {
       "id": "Memory limit (e.g. 256M, 1024M, 1G)",
       "translation": "Memory limit (e.g. 256M, 1024M, 1G)",
+      "modified": false
+   },
+   {
+      "id": "Message: {{.Message}}",
+      "translation": "Message: {{.Message}}",
       "modified": false
    },
    {
@@ -2325,9 +2965,9 @@
       "modified": false
    },
    {
-      "id": "No API endpoint targeted. Use '{{.LoginTip}}' or '{{.APITip}}' to target an endpoint.",
-      "translation": "No API endpoint targeted. Use '{{.LoginTip}}' or '{{.APITip}}' to target an endpoint.",
-      "modified": false
+      "id": "No API endpoint set. Use '{{.LoginTip}}' or '{{.APITip}}' to target an endpoint.",
+      "translation": "No API endpoint set. Use '{{.LoginTip}}' or '{{.APITip}}' to target an endpoint.",
+      "modified": true
    },
    {
       "id": "No action taken.  You must disable access to all plans of {{.ServiceName}} service for all orgs and then grant access for all orgs except the {{.OrgName}} org.",
@@ -2352,6 +2992,11 @@
    {
       "id": "No buildpacks found",
       "translation": "No buildpacks found",
+      "modified": false
+   },
+   {
+      "id": "No changes were made",
+      "translation": "No changes were made",
       "modified": false
    },
    {
@@ -2400,6 +3045,11 @@
       "modified": false
    },
    {
+      "id": "No running env variables have been set",
+      "translation": "No running env variables have been set",
+      "modified": false
+   },
+   {
       "id": "No running security groups set",
       "translation": "No running security groups set",
       "modified": false
@@ -2412,6 +3062,16 @@
    {
       "id": "No service brokers found",
       "translation": "No service brokers found",
+      "modified": false
+   },
+   {
+      "id": "No service key for service instance {{.ServiceInstanceName}}",
+      "translation": "No service key for service instance {{.ServiceInstanceName}}",
+      "modified": false
+   },
+   {
+      "id": "No service key {{.ServiceKeyName}} found for service instance {{.ServiceInstanceName}}",
+      "translation": "No service key {{.ServiceKeyName}} found for service instance {{.ServiceInstanceName}}",
       "modified": false
    },
    {
@@ -2445,6 +3105,11 @@
       "modified": false
    },
    {
+      "id": "No staging env variables have been set",
+      "translation": "No staging env variables have been set",
+      "modified": false
+   },
+   {
       "id": "No staging security group set",
       "translation": "No staging security group set",
       "modified": false
@@ -2460,13 +3125,13 @@
       "modified": false
    },
    {
-      "id": "None of your application files have changed. Nothing will be uploaded.",
-      "translation": "None of your application files have changed. Nothing will be uploaded.",
+      "id": "Not logged in. Use '{{.CFLoginCommand}}' to log in.",
+      "translation": "Not logged in. Use '{{.CFLoginCommand}}' to log in.",
       "modified": false
    },
    {
-      "id": "Not logged in. Use '{{.CFLoginCommand}}' to log in.",
-      "translation": "Not logged in. Use '{{.CFLoginCommand}}' to log in.",
+      "id": "Note: this may take some time",
+      "translation": "Note: this may take some time",
       "modified": false
    },
    {
@@ -2505,6 +3170,11 @@
       "modified": false
    },
    {
+      "id": "Org that contains the target application",
+      "translation": "Org that contains the target application",
+      "modified": false
+   },
+   {
       "id": "Org {{.OrgName}} already exists",
       "translation": "Org {{.OrgName}} already exists",
       "modified": false
@@ -2535,13 +3205,28 @@
       "modified": false
    },
    {
+      "id": "Override path to default plugin config directory",
+      "translation": "Override path to default plugin config directory",
+      "modified": false
+   },
+   {
+      "id": "Override restart of the application in target environment after copy-source completes",
+      "translation": "Override restart of the application in target environment after copy-source completes",
+      "modified": false
+   },
+   {
       "id": "Paid service plans",
       "translation": "Paid service plans",
       "modified": false
    },
    {
-      "id": "Parameters",
-      "translation": "Parameters",
+      "id": "Pass parameters as JSON to create a running environment variable group",
+      "translation": "Pass parameters as JSON to create a running environment variable group",
+      "modified": false
+   },
+   {
+      "id": "Pass parameters as JSON to create a staging environment variable group",
+      "translation": "Pass parameters as JSON to create a staging environment variable group",
       "modified": false
    },
    {
@@ -2555,8 +3240,8 @@
       "modified": false
    },
    {
-      "id": "Path to app directory or file",
-      "translation": "Path of app directory or zip file",
+      "id": "Path to app directory or to a zip file of the contents of the app directory",
+      "translation": "Path to app directory or to a zip file of the contents of the app directory",
       "modified": true
    },
    {
@@ -2567,6 +3252,16 @@
    {
       "id": "Path to manifest",
       "translation": "Path to manifest",
+      "modified": false
+   },
+   {
+      "id": "Perform a simple check to determine whether a route currently exists or not.",
+      "translation": "Perform a simple check to determine whether a route currently exists or not.",
+      "modified": false
+   },
+   {
+      "id": "Plan does not exist for the {{.ServiceName}} service",
+      "translation": "Plan does not exist for the {{.ServiceName}} service",
       "modified": false
    },
    {
@@ -2600,6 +3295,46 @@
       "modified": false
    },
    {
+      "id": "Please provide the space within the organization containing the target application",
+      "translation": "Please provide the space within the organization containing the target application",
+      "modified": false
+   },
+   {
+      "id": "Plugin Name",
+      "translation": "Plugin name",
+      "modified": true
+   },
+   {
+      "id": "Plugin name {{.PluginName}} does not exist",
+      "translation": "Plugin name {{.PluginName}} does not exist",
+      "modified": true
+   },
+   {
+      "id": "Plugin name {{.PluginName}} is already taken",
+      "translation": "Plugin name {{.PluginName}} is already taken",
+      "modified": false
+   },
+   {
+      "id": "Plugin repo named \"{{.repoName}}\" already exists, please use another name.",
+      "translation": "Plugin repo named \"{{.repoName}}\" already exists, please use another name.",
+      "modified": false
+   },
+   {
+      "id": "Plugin requested has no binary available for your OS: ",
+      "translation": "Plugin requested has no binary available for your OS: ",
+      "modified": false
+   },
+   {
+      "id": "Plugin {{.PluginName}} successfully uninstalled.",
+      "translation": "Plugin name {{.PluginName}} successfully uninstalled",
+      "modified": true
+   },
+   {
+      "id": "Plugin {{.PluginName}} v{{.Version}} successfully installed.",
+      "translation": "Plugin {{.PluginName}} successfully installed.",
+      "modified": true
+   },
+   {
       "id": "Print API request diagnostics to stdout",
       "translation": "Print API request diagnostics to stdout",
       "modified": false
@@ -2612,6 +3347,11 @@
    {
       "id": "Print the version",
       "translation": "Print the version",
+      "modified": false
+   },
+   {
+      "id": "Problem removing downloaded binary in temp directory: ",
+      "translation": "Problem removing downloaded binary in temp directory: ",
       "modified": false
    },
    {
@@ -2642,6 +3382,16 @@
    {
       "id": "Quota Definition {{.QuotaName}} already exists",
       "translation": "Quota Definition {{.QuotaName}} already exists",
+      "modified": false
+   },
+   {
+      "id": "Quota to assign to the newly created org (excluding this option results in assignment of default quota)",
+      "translation": "Quota to assign to the newly created org (excluding this option results in assignment of default quota)",
+      "modified": false
+   },
+   {
+      "id": "Quota to assign to the newly created space (excluding this option results in assignment of default quota)",
+      "translation": "Quota to assign to the newly created space (excluding this option results in assignment of default quota)",
       "modified": false
    },
    {
@@ -2705,6 +3455,11 @@
       "modified": false
    },
    {
+      "id": "Remove a plugin repository",
+      "translation": "Remove a plugin repository",
+      "modified": false
+   },
+   {
       "id": "Remove a space role from a user",
       "translation": "Remove a space role from a user",
       "modified": false
@@ -2712,6 +3467,11 @@
    {
       "id": "Remove a url route from an app",
       "translation": "Remove a url route from an app",
+      "modified": false
+   },
+   {
+      "id": "Remove all api endpoint targeting",
+      "translation": "Remove all api endpoint targeting",
       "modified": false
    },
    {
@@ -2810,6 +3570,21 @@
       "modified": false
    },
    {
+      "id": "Repo Name",
+      "translation": "Repo Name",
+      "modified": false
+   },
+   {
+      "id": "Repo Name - List plugins from just this repository",
+      "translation": "Repo Name - List plugins from just this repository",
+      "modified": false
+   },
+   {
+      "id": "Repository: ",
+      "translation": "Repository: ",
+      "modified": false
+   },
+   {
       "id": "Restage an app",
       "translation": "Restage an app",
       "modified": false
@@ -2825,6 +3600,101 @@
       "modified": false
    },
    {
+      "id": "Restarting instance {{.Instance}} of application {{.AppName}} as {{.Username}}",
+      "translation": "Restarting instance {{.Instance}} of application {{.AppName}} as {{.Username}}",
+      "modified": false
+   },
+   {
+      "id": "Retrieve an individual feature flag with status",
+      "translation": "Retrieve an individual feature flag with status",
+      "modified": false
+   },
+   {
+      "id": "Retrieve and display the OAuth token for the current session",
+      "translation": "Retrieve and display the OAuth token for the current session",
+      "modified": false
+   },
+   {
+      "id": "Retrieve and display the given app's guid.  All other health and status output for the app is suppressed.",
+      "translation": "Retrieve and display the given app's guid.  All other health and status output for the app is suppressed.",
+      "modified": false
+   },
+   {
+      "id": "Retrieve and display the given org's guid.  All other output for the org is suppressed.",
+      "translation": "Retrieve and display the given org's guid.  All other output for the org is suppressed.",
+      "modified": false
+   },
+   {
+      "id": "Retrieve and display the given service's guid.  All other output for the service is suppressed.",
+      "translation": "Retrieve and display the given service's guid.  All other output for the service is suppressed.",
+      "modified": false
+   },
+   {
+      "id": "Retrieve and display the given service-key's guid.  All other output for the service is suppressed.",
+      "translation": "Retrieve and display the given service-key's guid.  All other output for the service is suppressed.",
+      "modified": false
+   },
+   {
+      "id": "Retrieve and display the given space's guid.  All other output for the space is suppressed.",
+      "translation": "Retrieve and display the given space's guid.  All other output for the space is suppressed.",
+      "modified": false
+   },
+   {
+      "id": "Retrieve and display the given stack's guid. All other output for the stack is suppressed.",
+      "translation": "Retrieve and display the given stack's guid. All other output for the stack is suppressed.",
+      "modified": false
+   },
+   {
+      "id": "Retrieve list of feature flags with status of each flag-able feature",
+      "translation": "Retrieve list of feature flags with status of each flag-able feature",
+      "modified": false
+   },
+   {
+      "id": "Retrieve the contents of the running environment variable group",
+      "translation": "Retrieve the contents of the running environment variable group",
+      "modified": false
+   },
+   {
+      "id": "Retrieve the contents of the staging environment variable group",
+      "translation": "Retrieve the contents of the staging environment variable group",
+      "modified": false
+   },
+   {
+      "id": "Retrieving status of all flagged features as {{.Username}}...",
+      "translation": "Retrieving status of all flagged features as {{.Username}}...",
+      "modified": false
+   },
+   {
+      "id": "Retrieving status of {{.FeatureFlag}} as {{.Username}}...",
+      "translation": "Retrieving status of {{.FeatureFlag}} as {{.Username}}...",
+      "modified": false
+   },
+   {
+      "id": "Retrieving the contents of the running environment variable group as {{.Username}}...",
+      "translation": "Retrieving the contents of the running environment variable group as {{.Username}}...",
+      "modified": false
+   },
+   {
+      "id": "Retrieving the contents of the staging environment variable group as {{.Username}}...",
+      "translation": "Retrieving the contents of the staging environment variable group as {{.Username}}...",
+      "modified": false
+   },
+   {
+      "id": "Retrive the rules for all the security groups associated with the space",
+      "translation": "Retrive the rules for all the security groups associated with the space",
+      "modified": false
+   },
+   {
+      "id": "Route {{.HostName}}.{{.DomainName}} does exist",
+      "translation": "Route {{.HostName}}.{{.DomainName}} does exist",
+      "modified": false
+   },
+   {
+      "id": "Route {{.HostName}}.{{.DomainName}} does not exist",
+      "translation": "Route {{.HostName}}.{{.DomainName}} does not exist",
+      "modified": false
+   },
+   {
       "id": "Route {{.URL}} already exists",
       "translation": "Route {{.URL}} already exists",
       "modified": false
@@ -2837,6 +3707,11 @@
    {
       "id": "Rules",
       "translation": "Rules",
+      "modified": false
+   },
+   {
+      "id": "Running Environment Variable Groups:",
+      "translation": "Running Environment Variable Groups:",
       "modified": false
    },
    {
@@ -2910,6 +3785,11 @@
       "modified": false
    },
    {
+      "id": "Server error, status code: 403: Access is denied.  You do not have privileges to execute this command.",
+      "translation": "Server error, status code: 403: Access is denied.  You do not have privileges to execute this command.",
+      "modified": false
+   },
+   {
       "id": "Server error, status code: {{.ErrStatusCode}}, error code: {{.ErrApiErrorCode}}, message: {{.ErrDescription}}",
       "translation": "Server error, status code: {{.ErrStatusCode}}, error code: {{.ErrApiErrorCode}}, message: {{.ErrDescription}}",
       "modified": false
@@ -2930,13 +3810,28 @@
       "modified": false
    },
    {
+      "id": "Service instance {{.ServiceInstanceName}} does not exist.",
+      "translation": "Service instance {{.ServiceInstanceName}} does not exist.",
+      "modified": false
+   },
+   {
       "id": "Service instance: {{.ServiceName}}",
       "translation": "Service instance: {{.ServiceName}}",
       "modified": false
    },
    {
+      "id": "Service key {{.ServiceKeyName}} does not exist for service instance {{.ServiceInstanceName}}.",
+      "translation": "Service key {{.ServiceKeyName}} does not exist for service instance {{.ServiceInstanceName}}.",
+      "modified": false
+   },
+   {
       "id": "Service offering does not exist\nTIP: If you are trying to purge a v1 service offering, you must set the -p flag.",
       "translation": "Service offering does not exist\nTIP: If you are trying to purge a v1 service offering, you must set the -p flag.",
+      "modified": false
+   },
+   {
+      "id": "Service offering not found",
+      "translation": "Service offering not found",
       "modified": false
    },
    {
@@ -2990,6 +3885,31 @@
       "modified": false
    },
    {
+      "id": "Setting status of {{.FeatureFlag}} as {{.Username}}...",
+      "translation": "Setting status of {{.FeatureFlag}} as {{.Username}}...",
+      "modified": false
+   },
+   {
+      "id": "Setting the contents of the running environment variable group as {{.Username}}...",
+      "translation": "Setting the contents of the running environment variable group as {{.Username}}...",
+      "modified": false
+   },
+   {
+      "id": "Setting the contents of the staging environment variable group as {{.Username}}...",
+      "translation": "Setting the contents of the staging environment variable group as {{.Username}}...",
+      "modified": false
+   },
+   {
+      "id": "Share a private domain with an org",
+      "translation": "Share a private domain with an org",
+      "modified": false
+   },
+   {
+      "id": "Sharing domain {{.DomainName}} with org {{.OrgName}} as {{.Username}}...",
+      "translation": "Sharing domain {{.DomainName}} with org {{.OrgName}} as {{.Username}}...",
+      "modified": false
+   },
+   {
       "id": "Show a single security group",
       "translation": "Show a single security group",
       "modified": false
@@ -3005,6 +3925,11 @@
       "modified": false
    },
    {
+      "id": "Show information for a stack (a stack is a pre-built file system, including an operating system, that can run apps)",
+      "translation": "Show information for a stack (a stack is a pre-built file system, including an operating system, that can run apps)",
+      "modified": false
+   },
+   {
       "id": "Show org info",
       "translation": "Show org info",
       "modified": false
@@ -3012,6 +3937,11 @@
    {
       "id": "Show org users by role",
       "translation": "Show org users by role",
+      "modified": false
+   },
+   {
+      "id": "Show plan details for a particular service offering",
+      "translation": "Show plan details for a particular service offering",
       "modified": false
    },
    {
@@ -3027,6 +3957,11 @@
    {
       "id": "Show service instance info",
       "translation": "Show service instance info",
+      "modified": false
+   },
+   {
+      "id": "Show service key info",
+      "translation": "Show service key info",
       "modified": false
    },
    {
@@ -3070,6 +4005,11 @@
       "modified": false
    },
    {
+      "id": "Space that contains the target application",
+      "translation": "Space that contains the target application",
+      "modified": false
+   },
+   {
       "id": "Space {{.SpaceName}} already exists",
       "translation": "Space {{.SpaceName}} already exists",
       "modified": false
@@ -3080,8 +4020,18 @@
       "modified": false
    },
    {
+      "id": "Specify a path for file creation. If path not specified, manifest file is created in current working directory.",
+      "translation": "Specify a path for file creation.  If path not specified, file is create in root directory of the application source code.",
+      "modified": true
+   },
+   {
       "id": "Stack to use (a stack is a pre-built file system, including an operating system, that can run apps)",
       "translation": "Stack to use (a stack is a pre-built file system, including an operating system, that can run apps)",
+      "modified": false
+   },
+   {
+      "id": "Staging Environment Variable Groups:",
+      "translation": "Staging Environment Variable Groups:",
       "modified": false
    },
    {
@@ -3092,11 +4042,6 @@
    {
       "id": "Start app timeout\n\nTIP: use '{{.Command}}' for more information",
       "translation": "Start app timeout\n\nTIP: use '{{.Command}}' for more information",
-      "modified": false
-   },
-   {
-      "id": "Start timeout in seconds",
-      "translation": "Start timeout in seconds",
       "modified": false
    },
    {
@@ -3112,6 +4057,16 @@
    {
       "id": "Startup command, set to null to reset to default start command",
       "translation": "Startup command, set to null to reset to default start command",
+      "modified": false
+   },
+   {
+      "id": "State",
+      "translation": "State",
+      "modified": false
+   },
+   {
+      "id": "Status: {{.State}}",
+      "translation": "Status: {{.State}}",
       "modified": false
    },
    {
@@ -3140,6 +4095,11 @@
       "modified": false
    },
    {
+      "id": "TIP: Changes will not apply to existing running applications until they are restarted.",
+      "translation": "TIP: Changes will not apply to existing running applications until they are restarted.",
+      "modified": false
+   },
+   {
       "id": "TIP: No space targeted, use '{{.CfTargetCommand}}' to target a space",
       "translation": "TIP: No space targeted, use '{{.CfTargetCommand}}' to target a space",
       "modified": false
@@ -3155,9 +4115,9 @@
       "modified": false
    },
    {
-      "id": "TIP: Use '{{.CFCommand}}' to ensure your env variable changes take effect",
+      "id": "TIP: Use '{{.CFCommand}} {{.AppName}}' to ensure your env variable changes take effect",
       "translation": "TIP: Use '{{.CFCommand}}' to ensure your env variable changes take effect",
-      "modified": false
+      "modified": true
    },
    {
       "id": "TIP: Use '{{.Command}}' to ensure your env variable changes take effect",
@@ -3183,6 +4143,21 @@
       "id": "Targeted space {{.SpaceName}}\n",
       "translation": "Targeted space {{.SpaceName}}\n",
       "modified": false
+   },
+   {
+      "id": "Terminate the running application Instance at the given index and instantiate a new instance of the application with the same index",
+      "translation": "Terminate the running application Instance at the given index and instantiate a new instance of the application with the same index",
+      "modified": false
+   },
+   {
+      "id": "The file {{.PluginExecutableName}} already exists under the plugin directory.\n",
+      "translation": "The file {{.PluginExecutableName}} already exists under the plugin directory.\n",
+      "modified": false
+   },
+   {
+      "id": "The order in which the buildpacks are checked during buildpack auto-detection",
+      "translation": "Buildpack position among other buildpacks",
+      "modified": true
    },
    {
       "id": "The plan is already accessible for all orgs",
@@ -3220,8 +4195,18 @@
       "modified": false
    },
    {
+      "id": "There is an error performing request on '{{.repoUrl}}': ",
+      "translation": "There is an error performing request on '{{.repoUrl}}':",
+      "modified": true
+   },
+   {
       "id": "This domain is shared across all orgs.\nDeleting it will remove all associated routes, and will make any app with this domain unreachable.\nAre you sure you want to delete the domain {{.DomainName}}? ",
       "translation": "This domain is shared across all orgs.\nDeleting it will remove all associated routes, and will make any app with this domain unreachable.\nAre you sure you want to delete the domain {{.DomainName}}? ",
+      "modified": false
+   },
+   {
+      "id": "This service doesn't support creation of keys.",
+      "translation": "This service doesn't support creation of keys.",
       "modified": false
    },
    {
@@ -3240,6 +4225,16 @@
       "modified": false
    },
    {
+      "id": "Tip: use 'add-plugin-repo' to register the repo",
+      "translation": "Tip: use 'add-plugin-repo' to register the repo",
+      "modified": false
+   },
+   {
+      "id": "To use the {{.CommandName}} feature, you need to upgrade the CF API to at least {{.MinApiVersionMajor}}.{{.MinApiVersionMinor}}.{{.MinApiVersionPatch}}",
+      "translation": "To use the {{.CommandName}} feature, you need to upgrade the CF API to at least {{.MinApiVersionMajor}}.{{.MinApiVersionMinor}}.{{.MinApiVersionPatch}}",
+      "modified": false
+   },
+   {
       "id": "Total Memory",
       "translation": "Memory",
       "modified": true
@@ -3250,9 +4245,9 @@
       "modified": false
    },
    {
-      "id": "Total amount of memory a space can have(e.g. 1024M, 1G, 10G)",
+      "id": "Total amount of memory a space can have (e.g. 1024M, 1G, 10G)",
       "translation": "Total amount of memory a space can have(e.g. 1024M, 1G, 10G)",
-      "modified": false
+      "modified": true
    },
    {
       "id": "Total number of routes",
@@ -3302,6 +4297,11 @@
    {
       "id": "Unable to delete, route '{{.URL}}' does not exist.",
       "translation": "Unable to delete, route '{{.URL}}' does not exist.",
+      "modified": false
+   },
+   {
+      "id": "Unable to obtain plugin name for executable {{.Executable}}",
+      "translation": "Unable to obtain plugin name for executable {{.Executable}}",
       "modified": false
    },
    {
@@ -3355,13 +4355,48 @@
       "modified": false
    },
    {
-      "id": "Unexpected value for {{.PropertyName}} :\n{{.Error}}",
-      "translation": "Unexpected value for {{.PropertyName}} :\n{{.Error}}",
+      "id": "Unexpected error has occurred:\n{{.Error}}",
+      "translation": "Unexpected error has occurred:\n{{.Error}}",
       "modified": false
    },
    {
-      "id": "Unlock the buildpack",
+      "id": "Uninstall the plugin defined in command argument",
+      "translation": "PLUGIN-NAME - Uninstall the plugin defined in command argument",
+      "modified": true
+   },
+   {
+      "id": "Uninstalling plugin {{.PluginName}}...",
+      "translation": "Uninstalling plugin {{.PluginName}}...",
+      "modified": false
+   },
+   {
+      "id": "Unknown flag",
+      "translation": "Unknown flag",
+      "modified": false
+   },
+   {
+      "id": "Unknown flags:",
+      "translation": "Unknown flags:",
+      "modified": false
+   },
+   {
+      "id": "Unlock the buildpack to enable updates",
       "translation": "Unlock the buildpack",
+      "modified": true
+   },
+   {
+      "id": "Unsetting api endpoint...",
+      "translation": "Unsetting api endpoint...",
+      "modified": false
+   },
+   {
+      "id": "Unshare a private domain with an org",
+      "translation": "Unshare a private domain with an org",
+      "modified": false
+   },
+   {
+      "id": "Unsharing domain {{.DomainName}} from org {{.OrgName}} as {{.Username}}...",
+      "translation": "Unsharing domain {{.DomainName}} from org {{.OrgName}} as {{.Username}}...",
       "modified": false
    },
    {
@@ -3385,6 +4420,11 @@
       "modified": false
    },
    {
+      "id": "Update a service instance",
+      "translation": "Update a service instance",
+      "modified": false
+   },
+   {
       "id": "Update an existing resource quota",
       "translation": "Update an existing resource quota",
       "modified": false
@@ -3392,6 +4432,11 @@
    {
       "id": "Update user-provided service instance name value pairs",
       "translation": "Update user-provided service instance name value pairs",
+      "modified": false
+   },
+   {
+      "id": "Updating a plan requires API v{{.RequiredCCAPIVersion}} or newer. Your current target is v{{.CurrentCCAPIVersion}}.",
+      "translation": "Updating a plan requires API v{{.RequiredCCAPIVersion}} or newer. Your current target is v{{.CurrentCCAPIVersion}}.",
       "modified": false
    },
    {
@@ -3425,6 +4470,11 @@
       "modified": false
    },
    {
+      "id": "Updating service instance {{.ServiceName}} as {{.UserName}}...",
+      "translation": "Updating service instance {{.ServiceName}} as {{.UserName}}...",
+      "modified": false
+   },
+   {
       "id": "Updating space quota {{.Quota}} as {{.Username}}...",
       "translation": "Updating space quota {{.Quota}} as {{.Username}}...",
       "modified": false
@@ -3452,6 +4502,11 @@
    {
       "id": "Uploading {{.ZipFileBytes}}, {{.FileCount}} files",
       "translation": "Uploading {{.ZipFileBytes}}, {{.FileCount}} files",
+      "modified": false
+   },
+   {
+      "id": "Url",
+      "translation": "Url",
       "modified": false
    },
    {
@@ -3505,8 +4560,23 @@
       "modified": false
    },
    {
+      "id": "Valid JSON object containing service-specific configuration parameters, provided either in-line or in a file. For a list of supported configuration parameters, see documentation for the particular service offering.",
+      "translation": "Valid JSON object containing service-specific configuration parameters, provided either in-line or in a file. For a list of supported configuration parameters, see documentation for the particular service offering.",
+      "modified": false
+   },
+   {
+      "id": "Variable Name",
+      "translation": "Variable Name",
+      "modified": false
+   },
+   {
       "id": "Verify Password",
       "translation": "Verify Password",
+      "modified": false
+   },
+   {
+      "id": "Version",
+      "translation": "Version",
       "modified": false
    },
    {
@@ -3630,8 +4700,18 @@
       "modified": false
    },
    {
+      "id": "bytes downloaded",
+      "translation": "bytes downloaded",
+      "modified": false
+   },
+   {
       "id": "cpu",
       "translation": "cpu",
+      "modified": false
+   },
+   {
+      "id": "crashed",
+      "translation": "crashed",
       "modified": false
    },
    {
@@ -3642,6 +4722,11 @@
    {
       "id": "description",
       "translation": "description",
+      "modified": false
+   },
+   {
+      "id": "details",
+      "translation": "details",
       "modified": false
    },
    {
@@ -3667,6 +4752,11 @@
    {
       "id": "domain",
       "translation": "domain",
+      "modified": false
+   },
+   {
+      "id": "domains:",
+      "translation": "domains:",
       "modified": false
    },
    {
@@ -3700,43 +4790,8 @@
       "modified": false
    },
    {
-      "id": "getting service access as {{.Username}}...",
-      "translation": "getting service access as {{.Username}}...",
-      "modified": false
-   },
-   {
-      "id": "getting service access for broker {{.Broker}} and organization {{.Organization}} as {{.Username}}...",
-      "translation": "getting service access for broker {{.Broker}} and organization {{.Organization}} as {{.Username}}...",
-      "modified": false
-   },
-   {
-      "id": "getting service access for broker {{.Broker}} and service {{.Service}} and organization {{.Organization}} as {{.Username}}...",
-      "translation": "getting service access for broker {{.Broker}} and service {{.Service}} and organization {{.Organization}} as {{.Username}}...",
-      "modified": false
-   },
-   {
-      "id": "getting service access for broker {{.Broker}} and service {{.Service}} as {{.Username}}...",
-      "translation": "getting service access for broker {{.Broker}} and service {{.Service}} as {{.Username}}...",
-      "modified": false
-   },
-   {
-      "id": "getting service access for broker {{.Broker}} as {{.Username}}...",
-      "translation": "getting service access for broker {{.Broker}} as {{.Username}}...",
-      "modified": false
-   },
-   {
-      "id": "getting service access for organization {{.Organization}} as {{.Username}}...",
-      "translation": "getting service access for organization {{.Organization}} as {{.Username}}...",
-      "modified": false
-   },
-   {
-      "id": "getting service access for service {{.Service}} and organization {{.Organization}} as {{.Username}}...",
-      "translation": "getting service access for service {{.Service}} and organization {{.Organization}} as {{.Username}}...",
-      "modified": false
-   },
-   {
-      "id": "getting service access for service {{.Service}} as {{.Username}}...",
-      "translation": "getting service access for service {{.Service}} as {{.Username}}...",
+      "id": "free or paid",
+      "translation": "free or paid",
       "modified": false
    },
    {
@@ -3790,8 +4845,28 @@
       "modified": false
    },
    {
+      "id": "last operation",
+      "translation": "last operation",
+      "modified": false
+   },
+   {
+      "id": "last uploaded:",
+      "translation": "package uploaded:",
+      "modified": true
+   },
+   {
       "id": "limited",
       "translation": "limited",
+      "modified": false
+   },
+   {
+      "id": "list all available plugin commands",
+      "translation": "list all available plugin commands",
+      "modified": false
+   },
+   {
+      "id": "list all the added plugin repository",
+      "translation": "list all the added plugin repository",
       "modified": false
    },
    {
@@ -3880,6 +4955,21 @@
       "modified": false
    },
    {
+      "id": "quota:",
+      "translation": "quota:",
+      "modified": false
+   },
+   {
+      "id": "repo name where the plugin binary is located",
+      "translation": "repo name where the plugin binary is located",
+      "modified": false
+   },
+   {
+      "id": "repo-plugins",
+      "translation": "repo-plugins",
+      "modified": false
+   },
+   {
       "id": "requested state",
       "translation": "requested state",
       "modified": false
@@ -3925,6 +5015,16 @@
       "modified": false
    },
    {
+      "id": "service key",
+      "translation": "service key",
+      "modified": false
+   },
+   {
+      "id": "service plan",
+      "translation": "service plan",
+      "modified": false
+   },
+   {
       "id": "service-broker",
       "translation": "service-broker",
       "modified": false
@@ -3947,6 +5047,21 @@
    {
       "id": "space",
       "translation": "space",
+      "modified": false
+   },
+   {
+      "id": "space quotas:",
+      "translation": "space quotas:",
+      "modified": false
+   },
+   {
+      "id": "spaces:",
+      "translation": "spaces:",
+      "modified": true
+   },
+   {
+      "id": "stack:",
+      "translation": "stack:",
       "modified": false
    },
    {
@@ -3990,6 +5105,11 @@
       "modified": false
    },
    {
+      "id": "unlimited",
+      "translation": "unlimited",
+      "modified": false
+   },
+   {
       "id": "update an existing space quota",
       "translation": "update an existing space quota",
       "modified": false
@@ -4022,6 +5142,11 @@
    {
       "id": "user-provided",
       "translation": "user-provided",
+      "modified": false
+   },
+   {
+      "id": "version",
+      "translation": "version",
       "modified": false
    },
    {
@@ -4060,6 +5185,11 @@
       "modified": false
    },
    {
+      "id": "{{.CrashedCount}} crashed",
+      "translation": "{{.CrashedCount}} crashed",
+      "modified": false
+   },
+   {
       "id": "{{.DiskUsage}} of {{.DiskQuota}}",
       "translation": "{{.DiskUsage}} of {{.DiskQuota}}",
       "modified": false
@@ -4095,6 +5225,21 @@
       "modified": false
    },
    {
+      "id": "{{.OperationType}} failed",
+      "translation": "{{.OperationType}} failed",
+      "modified": false
+   },
+   {
+      "id": "{{.OperationType}} in progress",
+      "translation": "{{.OperationType}} in progress",
+      "modified": false
+   },
+   {
+      "id": "{{.OperationType}} succeeded",
+      "translation": "{{.OperationType}} succeeded",
+      "modified": false
+   },
+   {
       "id": "{{.PropertyName}} must be a string or null value",
       "translation": "{{.PropertyName}} must be a string or null value",
       "modified": false
@@ -4110,9 +5255,9 @@
       "modified": false
    },
    {
-      "id": "{{.QuotaName}} ({{.MemoryLimit}}M memory limit, {{.RoutesLimit}} routes, {{.ServicesLimit}} services, paid services {{.NonBasicServicesAllowed}})",
+      "id": "{{.QuotaName}} ({{.MemoryLimit}}M memory limit, {{.InstanceMemoryLimit}} instance memory limit, {{.RoutesLimit}} routes, {{.ServicesLimit}} services, paid services {{.NonBasicServicesAllowed}})",
       "translation": "{{.QuotaName}} ({{.MemoryLimit}}M memory limit, {{.RoutesLimit}} routes, {{.ServicesLimit}} services, paid services {{.NonBasicServicesAllowed}})",
-      "modified": false
+      "modified": true
    },
    {
       "id": "{{.RunningCount}} of {{.TotalCount}} instances running",
@@ -4122,6 +5267,16 @@
    {
       "id": "{{.StartingCount}} starting",
       "translation": "{{.StartingCount}} starting",
+      "modified": false
+   },
+   {
+      "id": "{{.StartingCount}} starting ({{.Details}})",
+      "translation": "{{.StartingCount}} starting ({{.Details}})",
+      "modified": false
+   },
+   {
+      "id": "{{.State}} in progress. Use '{{.ServicesCommand}}' or '{{.ServiceCommand}}' to check operation status.",
+      "translation": "{{.State}} in progress. Use '{{.ServicesCommand}}' or '{{.ServiceCommand}}' to check operation status.",
       "modified": false
    },
    {

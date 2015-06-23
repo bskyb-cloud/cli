@@ -3,7 +3,7 @@ package spaces
 import (
 	"fmt"
 
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
 )
@@ -14,11 +14,11 @@ type SecurityGroupSpaceBinder interface {
 }
 
 type securityGroupSpaceBinder struct {
-	configRepo configuration.Reader
+	configRepo core_config.Reader
 	gateway    net.Gateway
 }
 
-func NewSecurityGroupSpaceBinder(configRepo configuration.Reader, gateway net.Gateway) (binder securityGroupSpaceBinder) {
+func NewSecurityGroupSpaceBinder(configRepo core_config.Reader, gateway net.Gateway) (binder securityGroupSpaceBinder) {
 	return securityGroupSpaceBinder{
 		configRepo: configRepo,
 		gateway:    gateway,
@@ -26,21 +26,19 @@ func NewSecurityGroupSpaceBinder(configRepo configuration.Reader, gateway net.Ga
 }
 
 func (repo securityGroupSpaceBinder) BindSpace(securityGroupGuid string, spaceGuid string) error {
-	url := fmt.Sprintf("%s/v2/security_groups/%s/spaces/%s",
-		repo.configRepo.ApiEndpoint(),
+	url := fmt.Sprintf("/v2/security_groups/%s/spaces/%s",
 		securityGroupGuid,
 		spaceGuid,
 	)
 
-	return repo.gateway.UpdateResourceFromStruct(url, models.SecurityGroupParams{})
+	return repo.gateway.UpdateResourceFromStruct(repo.configRepo.ApiEndpoint(), url, models.SecurityGroupParams{})
 }
 
 func (repo securityGroupSpaceBinder) UnbindSpace(securityGroupGuid string, spaceGuid string) error {
-	url := fmt.Sprintf("%s/v2/security_groups/%s/spaces/%s",
-		repo.configRepo.ApiEndpoint(),
+	url := fmt.Sprintf("/v2/security_groups/%s/spaces/%s",
 		securityGroupGuid,
 		spaceGuid,
 	)
 
-	return repo.gateway.DeleteResource(url)
+	return repo.gateway.DeleteResource(repo.configRepo.ApiEndpoint(), url)
 }

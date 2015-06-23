@@ -6,12 +6,13 @@ import (
 	"time"
 
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/cf/api/space_quotas"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -23,7 +24,7 @@ var _ = Describe("CloudControllerQuotaRepository", func() {
 	var (
 		testServer  *httptest.Server
 		testHandler *testnet.TestHandler
-		configRepo  configuration.ReadWriter
+		configRepo  core_config.ReadWriter
 		repo        CloudControllerSpaceQuotaRepository
 	)
 
@@ -34,7 +35,7 @@ var _ = Describe("CloudControllerQuotaRepository", func() {
 
 	BeforeEach(func() {
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		gateway := net.NewCloudControllerGateway(configRepo, time.Now)
+		gateway := net.NewCloudControllerGateway(configRepo, time.Now, &testterm.FakeUI{})
 		repo = NewCloudControllerSpaceQuotaRepository(configRepo, gateway)
 	})
 
@@ -166,6 +167,7 @@ var _ = Describe("CloudControllerQuotaRepository", func() {
 					"total_services": 1,
 					"total_routes": 12,
 					"memory_limit": 123,
+					"instance_memory_limit": 0,
 					"organization_guid": "my-org-guid"
 				}`),
 				Response: testnet.TestResponse{Status: http.StatusCreated},
@@ -313,7 +315,7 @@ var secondSpaceQuotaRequest = testapi.NewCloudControllerTestRequest(testnet.Test
 			{
 			  "metadata": { "guid": "my-quota-guid3" },
 			  "entity": { "name": "my-remote-quota3", "memory_limit": 1024, "organization_guid": "my-org-guid" }
-			}	
+			}
 		]}`,
 	},
 })

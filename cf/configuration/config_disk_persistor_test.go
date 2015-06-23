@@ -1,72 +1,91 @@
 package configuration_test
 
 import (
+	"encoding/json"
+	"io/ioutil"
+	"os"
+
 	. "github.com/cloudfoundry/cli/cf/configuration"
-	"github.com/cloudfoundry/gofileutils/fileutils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"os"
-	"path/filepath"
 )
 
 var _ = Describe("DiskPersistor", func() {
-	It("has sane defaults when there is no config to read", func() {
-		withFakeHome(func(configPath string) {
-			repo := NewDiskPersistor(configPath)
-			configData, err := repo.Load()
-			Expect(err).NotTo(HaveOccurred())
+	var (
+		tmpDir        string
+		tmpFile       *os.File
+		diskPersistor DiskPersistor
+	)
 
-			Expect(configData.Target).To(Equal(""))
-			Expect(configData.ApiVersion).To(Equal(""))
-			Expect(configData.AuthorizationEndpoint).To(Equal(""))
-			Expect(configData.AccessToken).To(Equal(""))
+	BeforeEach(func() {
+		var err error
+
+		tmpDir = os.TempDir()
+
+		tmpFile, err = ioutil.TempFile(tmpDir, "tmp_file")
+		Expect(err).ToNot(HaveOccurred())
+
+		diskPersistor = NewDiskPersistor(tmpFile.Name())
+	})
+
+	AfterEach(func() {
+		os.Remove(tmpFile.Name())
+	})
+
+	Describe(".Delete", func() {
+		It("Deletes the correct file", func() {
+			tmpFile.Close()
+			diskPersistor.Delete()
+
+			file, err := os.Stat(tmpFile.Name())
+			Expect(file).To(BeNil())
+			Expect(err).To(HaveOccurred())
 		})
 	})
 
-	It("saves its config to disk and can read it back", func() {
-		withFakeHome(func(configPath string) {
-			repo := NewDiskPersistor(configPath)
-			configData, err := repo.Load()
-			Expect(err).NotTo(HaveOccurred())
+	Describe(".Save", func() {
+		It("Writes the json file to the correct filepath", func() {
+			d := &data{Info: "save test"}
 
-			configData.ApiVersion = "3.1.0"
-			configData.Target = "https://api.target.example.com"
-			configData.AuthorizationEndpoint = "https://login.target.example.com"
-			configData.AccessToken = "bearer my_access_token"
+			err := diskPersistor.Save(d)
+			Expect(err).ToNot(HaveOccurred())
 
-			err = repo.Save(configData)
-			Expect(err).NotTo(HaveOccurred())
-
-			savedConfig, err := repo.Load()
-			Expect(err).NotTo(HaveOccurred())
-			Expect(savedConfig).To(Equal(configData))
+			dataBytes, err := ioutil.ReadFile(tmpFile.Name())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(dataBytes)).To(ContainSubstring(d.Info))
 		})
 	})
 
-	Context("when the configuration version is older than the current version", func() {
-		It("returns a new empty config", func() {
-			withConfigFixture("outdated-config", func(configPath string) {
-				repo := NewDiskPersistor(configPath)
-				configData, err := repo.Load()
+	Describe(".Load", func() {
+		It("Will load an empty json file", func() {
+			d := &data{}
 
-				Expect(err).NotTo(HaveOccurred())
-				Expect(configData.Target).To(Equal(""))
-			})
+			err := diskPersistor.Load(d)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(d.Info).To(Equal(""))
+		})
+
+		It("Will load a json file with specific keys", func() {
+			d := &data{}
+
+			err := ioutil.WriteFile(tmpFile.Name(), []byte(`{"Info":"test string"}`), 0700)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = diskPersistor.Load(d)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(d.Info).To(Equal("test string"))
 		})
 	})
 })
 
-func withFakeHome(callback func(dirPath string)) {
-	fileutils.TempDir("test-config", func(dir string, err error) {
-		if err != nil {
-			Fail("Couldn't create tmp file")
-		}
-		callback(filepath.Join(dir, ".cf", "config.json"))
-	})
+type data struct {
+	Info string
 }
 
-func withConfigFixture(name string, callback func(dirPath string)) {
-	cwd, err := os.Getwd()
-	Expect(err).NotTo(HaveOccurred())
-	callback(filepath.Join(cwd, "../../fixtures/config", name, ".cf", "config.json"))
+func (d *data) JsonMarshalV3() ([]byte, error) {
+	return json.MarshalIndent(d, "", "  ")
+}
+
+func (d *data) JsonUnmarshalV3(data []byte) error {
+	return json.Unmarshal(data, d)
 }

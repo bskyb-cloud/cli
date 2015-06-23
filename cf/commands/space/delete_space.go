@@ -4,7 +4,7 @@ import (
 	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/api/spaces"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
@@ -14,12 +14,12 @@ import (
 
 type DeleteSpace struct {
 	ui        terminal.UI
-	config    configuration.ReadWriter
+	config    core_config.ReadWriter
 	spaceRepo spaces.SpaceRepository
 	spaceReq  requirements.SpaceRequirement
 }
 
-func NewDeleteSpace(ui terminal.UI, config configuration.ReadWriter, spaceRepo spaces.SpaceRepository) (cmd *DeleteSpace) {
+func NewDeleteSpace(ui terminal.UI, config core_config.ReadWriter, spaceRepo spaces.SpaceRepository) (cmd *DeleteSpace) {
 	cmd = new(DeleteSpace)
 	cmd.ui = ui
 	cmd.config = config
@@ -43,7 +43,11 @@ func (cmd *DeleteSpace) GetRequirements(requirementsFactory requirements.Factory
 		cmd.ui.FailWithUsage(c)
 	}
 
-	cmd.spaceReq = requirementsFactory.NewSpaceRequirement(c.Args()[0])
+	if cmd.spaceReq == nil {
+		cmd.spaceReq = requirementsFactory.NewSpaceRequirement(c.Args()[0])
+	} else {
+		cmd.spaceReq.SetSpaceName(c.Args()[0])
+	}
 	reqs = []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 		requirementsFactory.NewTargetedOrgRequirement(),
@@ -78,7 +82,7 @@ func (cmd *DeleteSpace) Run(c *cli.Context) {
 
 	cmd.ui.Ok()
 
-	if cmd.config.SpaceFields().Name == spaceName {
+	if cmd.config.SpaceFields().Guid == space.Guid {
 		cmd.config.SetSpaceFields(models.SpaceFields{})
 		cmd.ui.Say(T("TIP: No space targeted, use '{{.CfTargetCommand}}' to target a space",
 			map[string]interface{}{"CfTargetCommand": cf.Name() + " target -s"}))

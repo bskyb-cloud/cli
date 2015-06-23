@@ -1,29 +1,30 @@
 package requirements
 
 import (
-	"github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/api/organizations"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/terminal"
 )
 
 type OrganizationRequirement interface {
 	Requirement
+	SetOrganizationName(string)
 	GetOrganization() models.Organization
 }
 
 type organizationApiRequirement struct {
 	name    string
 	ui      terminal.UI
-	orgRepo api.OrganizationRepository
+	orgRepo organizations.OrganizationRepository
 	org     models.Organization
 }
 
-func NewOrganizationRequirement(name string, ui terminal.UI, sR api.OrganizationRepository) (req *organizationApiRequirement) {
-	req = new(organizationApiRequirement)
+func NewOrganizationRequirement(name string, ui terminal.UI, sR organizations.OrganizationRepository) *organizationApiRequirement {
+	req := &organizationApiRequirement{}
 	req.name = name
 	req.ui = ui
 	req.orgRepo = sR
-	return
+	return req
 }
 
 func (req *organizationApiRequirement) Execute() (success bool) {
@@ -36,6 +37,10 @@ func (req *organizationApiRequirement) Execute() (success bool) {
 	}
 
 	return true
+}
+
+func (req *organizationApiRequirement) SetOrganizationName(name string) {
+	req.name = name
 }
 
 func (req *organizationApiRequirement) GetOrganization() models.Organization {

@@ -6,10 +6,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/net"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/cf/api/authentication"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -22,13 +23,13 @@ var _ = Describe("AuthenticationRepository", func() {
 		gateway    net.Gateway
 		testServer *httptest.Server
 		handler    *testnet.TestHandler
-		config     configuration.ReadWriter
+		config     core_config.ReadWriter
 		auth       AuthenticationRepository
 	)
 
 	BeforeEach(func() {
 		config = testconfig.NewRepository()
-		gateway = net.NewUAAGateway(config)
+		gateway = net.NewUAAGateway(config, &testterm.FakeUI{})
 		auth = NewUAAAuthenticationRepository(gateway, config)
 	})
 
@@ -109,7 +110,7 @@ var _ = Describe("AuthenticationRepository", func() {
 	Describe("getting login info", func() {
 		var (
 			apiErr  error
-			prompts map[string]configuration.AuthPrompt
+			prompts map[string]core_config.AuthPrompt
 		)
 
 		JustBeforeEach(func() {
@@ -126,14 +127,14 @@ var _ = Describe("AuthenticationRepository", func() {
 			})
 
 			It("gets the login prompts", func() {
-				Expect(prompts).To(Equal(map[string]configuration.AuthPrompt{
-					"username": configuration.AuthPrompt{
+				Expect(prompts).To(Equal(map[string]core_config.AuthPrompt{
+					"username": core_config.AuthPrompt{
 						DisplayName: "Email",
-						Type:        configuration.AuthPromptTypeText,
+						Type:        core_config.AuthPromptTypeText,
 					},
-					"pin": configuration.AuthPrompt{
+					"pin": core_config.AuthPrompt{
 						DisplayName: "PIN Number",
-						Type:        configuration.AuthPromptTypePassword,
+						Type:        core_config.AuthPromptTypePassword,
 					},
 				}))
 			})
@@ -174,6 +175,14 @@ var _ = Describe("AuthenticationRepository", func() {
 			refreshedToken, apiErr = auth.RefreshAuthToken()
 		})
 
+		Context("when the refresh token has expired", func() {
+			BeforeEach(func() {
+				setupTestServer(refreshTokenExpiredRequestError)
+			})
+			It("the returns the reauthentication error message", func() {
+				Expect(apiErr.Error()).To(Equal("Authentication has expired.  Please log back in to re-authenticate.\n\nTIP: Use `cf login -a <endpoint> -u <user> -o <org> -s <space>` to log back in and re-authenticate."))
+			})
+		})
 		Context("when there is a UAA error", func() {
 			BeforeEach(func() {
 				setupTestServer(errorLoginRequest)
@@ -228,6 +237,18 @@ var unsuccessfulLoginRequest = testnet.TestRequest{
 	Response: testnet.TestResponse{
 		Status: http.StatusUnauthorized,
 	},
+}
+var refreshTokenExpiredRequestError = testnet.TestRequest{
+	Method: "POST",
+	Path:   "/oauth/token",
+	Response: testnet.TestResponse{
+		Status: http.StatusUnauthorized,
+		Body: `
+{
+	"error": "invalid_token",
+	"error_description": "Invalid auth token: Invalid refresh token (expired): eyJhbGckjsdfdf"
+}
+`},
 }
 
 var errorLoginRequest = testnet.TestRequest{

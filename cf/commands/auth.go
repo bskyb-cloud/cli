@@ -4,20 +4,21 @@ import (
 	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/api/authentication"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
+	"github.com/cloudfoundry/cli/utils"
 	"github.com/codegangsta/cli"
 )
 
 type Authenticate struct {
 	ui            terminal.UI
-	config        configuration.ReadWriter
+	config        core_config.ReadWriter
 	authenticator authentication.AuthenticationRepository
 }
 
-func NewAuthenticate(ui terminal.UI, config configuration.ReadWriter, authenticator authentication.AuthenticationRepository) (cmd Authenticate) {
+func NewAuthenticate(ui terminal.UI, config core_config.ReadWriter, authenticator authentication.AuthenticationRepository) (cmd Authenticate) {
 	cmd.ui = ui
 	cmd.config = config
 	cmd.authenticator = authenticator
@@ -59,5 +60,8 @@ func (cmd Authenticate) Run(c *cli.Context) {
 	cmd.ui.Ok()
 	cmd.ui.Say(T("Use '{{.Name}}' to view or set your target org and space",
 		map[string]interface{}{"Name": terminal.CommandColor(cf.Name() + " target")}))
+
+	utils.NotifyUpdateIfNeeded(cmd.ui, cmd.config)
+
 	return
 }

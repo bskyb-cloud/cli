@@ -6,10 +6,11 @@ import (
 	"time"
 
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/net"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/cf/api/security_groups/spaces"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -23,12 +24,12 @@ var _ = Describe("SecurityGroupSpaceBinder", func() {
 		gateway     net.Gateway
 		testServer  *httptest.Server
 		testHandler *testnet.TestHandler
-		configRepo  configuration.ReadWriter
+		configRepo  core_config.ReadWriter
 	)
 
 	BeforeEach(func() {
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		gateway = net.NewCloudControllerGateway((configRepo), time.Now)
+		gateway = net.NewCloudControllerGateway(configRepo, time.Now, &testterm.FakeUI{})
 		repo = NewSecurityGroupSpaceBinder(configRepo, gateway)
 	})
 

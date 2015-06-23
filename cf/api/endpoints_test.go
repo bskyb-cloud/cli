@@ -3,18 +3,20 @@ package api_test
 import (
 	"crypto/tls"
 	"fmt"
-	. "github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/configuration"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/net"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testnet "github.com/cloudfoundry/cli/testhelpers/net"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"time"
+
+	. "github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/net"
+	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 func validApiInfoEndpoint(w http.ResponseWriter, r *http.Request) {
@@ -32,7 +34,9 @@ func validApiInfoEndpoint(w http.ResponseWriter, r *http.Request) {
   "description": "Cloud Foundry sponsored by Pivotal",
   "authorization_endpoint": "https://login.example.com",
   "logging_endpoint": "wss://loggregator.foo.example.org:4443",
-  "api_version": "42.0.0"
+  "api_version": "42.0.0",
+	"min_cli_version": "6.5.0",
+	"min_recommended_cli_version": "6.7.0"
 }`)
 }
 
@@ -56,7 +60,7 @@ func apiInfoEndpointWithoutLogURL(w http.ResponseWriter, r *http.Request) {
 
 var _ = Describe("Endpoints Repository", func() {
 	var (
-		config       configuration.ReadWriter
+		config       core_config.ReadWriter
 		gateway      net.Gateway
 		testServer   *httptest.Server
 		repo         EndpointRepository
@@ -68,7 +72,7 @@ var _ = Describe("Endpoints Repository", func() {
 		testServer = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			testServerFn(w, r)
 		}))
-		gateway = net.NewCloudControllerGateway((config), time.Now)
+		gateway = net.NewCloudControllerGateway((config), time.Now, &testterm.FakeUI{})
 		gateway.SetTrustedCerts(testServer.TLS.Certificates)
 		repo = NewEndpointRepository(config, gateway)
 	})
@@ -101,10 +105,13 @@ var _ = Describe("Endpoints Repository", func() {
 				Expect(config.AccessToken()).To(Equal(""))
 				Expect(config.AuthenticationEndpoint()).To(Equal("https://login.example.com"))
 				Expect(config.LoggregatorEndpoint()).To(Equal("wss://loggregator.foo.example.org:4443"))
+				Expect(config.DopplerEndpoint()).To(Equal("wss://doppler.foo.example.org:4443"))
 				Expect(config.ApiEndpoint()).To(Equal(testServer.URL))
 				Expect(config.ApiVersion()).To(Equal("42.0.0"))
 				Expect(config.HasOrganization()).To(BeFalse())
 				Expect(config.HasSpace()).To(BeFalse())
+				Expect(config.MinCliVersion()).To(Equal("6.5.0"))
+				Expect(config.MinRecommendedCliVersion()).To(Equal("6.7.0"))
 			})
 
 			Context("when the api endpoint does not change", func() {

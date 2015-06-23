@@ -12,16 +12,31 @@ type ServiceInstanceResource struct {
 	Entity ServiceInstanceEntity
 }
 
-type ServiceInstanceEntity struct {
-	Name            string
-	ServiceBindings []ServiceBindingResource `json:"service_bindings"`
-	ServicePlan     ServicePlanResource      `json:"service_plan"`
+type LastOperation struct {
+	Type        string `json:"type"`
+	State       string `json:"state"`
+	Description string `json:"description"`
 }
 
-func (resource ServiceInstanceResource) ToFields() (fields models.ServiceInstanceFields) {
-	fields.Guid = resource.Metadata.Guid
-	fields.Name = resource.Entity.Name
-	return
+type ServiceInstanceEntity struct {
+	Name            string
+	DashboardUrl    string                   `json:"dashboard_url"`
+	ServiceBindings []ServiceBindingResource `json:"service_bindings"`
+	ServicePlan     ServicePlanResource      `json:"service_plan"`
+	LastOperation   LastOperation            `json:"last_operation"`
+}
+
+func (resource ServiceInstanceResource) ToFields() models.ServiceInstanceFields {
+	return models.ServiceInstanceFields{
+		Guid:         resource.Metadata.Guid,
+		Name:         resource.Entity.Name,
+		DashboardUrl: resource.Entity.DashboardUrl,
+		LastOperation: models.LastOperationFields{
+			Type:        resource.Entity.LastOperation.Type,
+			State:       resource.Entity.LastOperation.State,
+			Description: resource.Entity.LastOperation.Description,
+		},
+	}
 }
 
 func (resource ServiceInstanceResource) ToModel() (instance models.ServiceInstance) {
