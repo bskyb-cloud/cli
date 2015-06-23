@@ -30,16 +30,16 @@ var _ = Describe("Testing with ginkgo", func() {
 		appSshRepo := &testapi.FakeAppSshRepo{}
 
 		reqFactory := &testreq.FakeReqFactory{LoginSuccess: false, TargetedSpaceSuccess: true, Application: models.Application{}}
-		callSsh(args, reqFactory, appSshRepo)
-		Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+		result, _ := callSsh(args, reqFactory, appSshRepo)
+		Expect(result).To(BeFalse())
 
 		reqFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: false, Application: models.Application{}}
-		callSsh(args, reqFactory, appSshRepo)
-		Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+		result, _ = callSsh(args, reqFactory, appSshRepo)
+		Expect(result).To(BeFalse())
 
 		reqFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: true, Application: models.Application{}}
-		callSsh(args, reqFactory, appSshRepo)
-		Expect(testcmd.CommandDidPassRequirements).To(BeTrue())
+		result, _ = callSsh(args, reqFactory, appSshRepo)
+		Expect(result).To(BeTrue())
 		Expect(reqFactory.ApplicationName).To(Equal("my-app"))
 
 	})
@@ -48,10 +48,10 @@ var _ = Describe("Testing with ginkgo", func() {
 
 		appFilesRepo := &testapi.FakeAppSshRepo{}
 		reqFactory := &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: true, Application: models.Application{}}
-		ui := callSsh([]string{}, reqFactory, appFilesRepo)
+		result, ui := callSsh([]string{}, reqFactory, appFilesRepo)
 
 		Expect(ui.FailedWithUsage).To(BeTrue())
-		Expect(testcmd.CommandDidPassRequirements).To(BeFalse())
+		Expect(result).To(BeFalse())
 	})
 
 	It("TestGettingSshDetails", func() {
@@ -70,7 +70,7 @@ var _ = Describe("Testing with ginkgo", func() {
 
 		appSshRepo := &testapi.FakeAppSshRepo{SshDetails: sshInfo}
 
-		ui := callSsh([]string{"my-app"}, reqFactory, appSshRepo)
+		_, ui := callSsh([]string{"my-app"}, reqFactory, appSshRepo)
 
 		Expect(ui.Outputs).To(ContainSubstrings(
 			[]string{"SSHing to application my-found-app, instance 0..."},
@@ -87,13 +87,10 @@ var _ = Describe("Testing with ginkgo", func() {
 	})
 })
 
-func callSsh(args []string, reqFactory *testreq.FakeReqFactory, appSshRepo *testapi.FakeAppSshRepo) (ui *testterm.FakeUI) {
-
-	ui = &testterm.FakeUI{}
+func callSsh(args []string, reqFactory *testreq.FakeReqFactory, appSshRepo *testapi.FakeAppSshRepo) (bool, *testterm.FakeUI) {
+	ui := &testterm.FakeUI{}
 
 	configRepo := testconfig.NewRepositoryWithDefaults()
 	cmd := NewSsh(ui, configRepo, appSshRepo)
-	testcmd.RunCommand(cmd, args, reqFactory)
-
-	return
+	return testcmd.RunCommand(cmd, args, reqFactory), ui
 }

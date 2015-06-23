@@ -24,7 +24,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-
 var _ = Describe("Services Repo", func() {
 	var (
 		testServer  *httptest.Server

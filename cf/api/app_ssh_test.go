@@ -6,17 +6,16 @@ import (
 	//testapi "github.com/cloudfoundry/cli/testhelpers/api"
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	
-	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	testnet "github.com/cloudfoundry/cli/testhelpers/net"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"net/http"
 	"net/http/httptest"
 	"time"
 )
-
-
 
 var _ = Describe("AppSshRepository", func() {
 	It("TestGetSshCurrentSpace", func() {
@@ -54,7 +53,7 @@ func createSshInfoRepo(requests []testnet.TestRequest) (ts *httptest.Server, han
 	ts, handler = testnet.NewServer(requests)
 	configRepo := testconfig.NewRepositoryWithDefaults()
 	configRepo.SetApiEndpoint(ts.URL)
-	gateway := net.NewCloudControllerGateway(configRepo, time.Now)
+	gateway := net.NewCloudControllerGateway(configRepo, time.Now, &testterm.FakeUI{})
 	repo = NewCloudControllerAppSshRepository(configRepo, gateway)
 	return
 }
