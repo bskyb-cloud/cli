@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"errors"
 	consumer "github.com/cloudfoundry/loggregator_consumer"
-	"github.com/cloudfoundry/loggregatorlib/loggertesthelper"
 	"github.com/cloudfoundry/loggregatorlib/logmessage"
 	"github.com/cloudfoundry/loggregatorlib/server/handlers"
 	"github.com/elazarl/goproxy"
@@ -39,7 +38,7 @@ var _ = Describe("Loggregator Consumer behind a Proxy", func() {
 	BeforeEach(func() {
 		messagesToSend = make(chan []byte, 256)
 
-		testServer = httptest.NewServer(handlers.NewWebsocketHandler(messagesToSend, 100*time.Millisecond, loggertesthelper.Logger()))
+		testServer = httptest.NewServer(handlers.NewWebsocketHandler(messagesToSend, 100*time.Millisecond))
 		endpoint = "ws://" + testServer.Listener.Addr().String()
 		goProxyHandler = goproxy.NewProxyHttpServer()
 		goProxyHandler.Logger = log.New(bytes.NewBufferString(""), "", 0)
@@ -134,7 +133,7 @@ var _ = Describe("Loggregator Consumer behind a Proxy", func() {
 		}
 
 		BeforeEach(func() {
-			httpTestServer = httptest.NewServer(handlers.NewHttpHandler(messagesToSend, loggertesthelper.Logger()))
+			httpTestServer = httptest.NewServer(handlers.NewHttpHandler(messagesToSend))
 			endpoint = "ws://" + httpTestServer.Listener.Addr().String()
 		})
 

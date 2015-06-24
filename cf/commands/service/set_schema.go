@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/command_metadata"
@@ -9,7 +10,9 @@ import (
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/codegangsta/cli"
+	"golang.org/x/net/publicsuffix"
 	"io/ioutil"
+	"strings"
 )
 
 type SetSchema struct {
@@ -63,7 +66,13 @@ func (cmd *SetSchema) Run(c *cli.Context) {
 		return
 	}
 
-	schema := string(schemaBytes[:])
+	schema := string(schemaBytes)
+
+	err := validateForDuplicates(schema)
+	if err != nil {
+		cmd.ui.Failed(err.Error())
+		return
+	}
 
 	serviceInstance := cmd.serviceInstanceReq.GetServiceInstance()
 
@@ -73,7 +82,8 @@ func (cmd *SetSchema) Run(c *cli.Context) {
 		terminal.EntityNameColor(cmd.config.SpaceFields().Name),
 		terminal.EntityNameColor(cmd.config.Username()),
 	)
-	err := cmd.serviceRepo.SetSchema(serviceInstance, schema)
+
+	err = cmd.serviceRepo.SetSchema(serviceInstance, schema)
 
 	if err != nil {
 		if httpError, ok := err.(errors.HttpError); ok && httpError.ErrorCode() == errors.SERVICE_INSTANCE_NAME_TAKEN {
@@ -84,4 +94,27 @@ func (cmd *SetSchema) Run(c *cli.Context) {
 	}
 
 	cmd.ui.Ok()
+}
+
+func validateForDuplicates(fileContents string) error {
+	lines := strings.Split(fileContents, "\n")
+	tlds := make(map[string][]string)
+
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		tld, e := publicsuffix.EffectiveTLDPlusOne(strings.TrimSuffix(line, "/"))
+		if e != nil {
+			return e
+		}
+
+		tlds[tld] = append(tlds[tld], line)
+
+		if len(tlds[tld]) > 1 {
+			return errors.New(fmt.Sprintf("Failed: top level domain '%v' duplicates found: %q", tld, tlds[tld]))
+		}
+	}
+	return nil
 }
