@@ -5,10 +5,12 @@ import (
 	"os"
 	"strings"
 
+	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	testassert "github.com/cloudfoundry/cli/testhelpers/assert"
+	"github.com/cloudfoundry/cli/testhelpers/configuration"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	io_helpers "github.com/cloudfoundry/cli/testhelpers/io"
 
@@ -22,7 +24,11 @@ var _ = Describe("UI", func() {
 
 	Describe("Printing message to stdout with PrintCapturingNoOutput", func() {
 		It("prints strings without using the TeePrinter", func() {
+			bucket := &[]string{}
+
 			printer := NewTeePrinter()
+			printer.SetOutputBucket(bucket)
+
 			io_helpers.SimulateStdin("", func(reader io.Reader) {
 				output := io_helpers.CaptureOutput(func() {
 					ui := NewUI(reader, printer)
@@ -30,7 +36,7 @@ var _ = Describe("UI", func() {
 				})
 
 				Expect("Hello").To(Equal(strings.Join(output, "")))
-				Expect(len(printer.GetOutputAndReset())).To(Equal(0))
+				Expect(len(*bucket)).To(Equal(0))
 			})
 		})
 	})
@@ -108,6 +114,29 @@ var _ = Describe("UI", func() {
 					Expect(ui.Confirm("Hello %s", "World?")).To(BeTrue())
 				})
 
+				Expect(out).To(ContainSubstrings([]string{"Hello World?"}))
+			})
+		})
+
+		It("treats 'yes' as an affirmative confirmation when default language is not en_US", func() {
+			oldLang := os.Getenv("LC_ALL")
+			defer os.Setenv("LC_ALL", oldLang)
+
+			oldT := i18n.T
+			defer func() {
+				i18n.T = oldT
+			}()
+
+			os.Setenv("LC_ALL", "fr_FR")
+
+			config := configuration.NewRepositoryWithDefaults()
+			i18n.T = i18n.Init(config)
+
+			io_helpers.SimulateStdin("yes\n", func(reader io.Reader) {
+				out := io_helpers.CaptureOutput(func() {
+					ui := NewUI(reader, NewTeePrinter())
+					Expect(ui.Confirm("Hello %s", "World?")).To(BeTrue())
+				})
 				Expect(out).To(ContainSubstrings([]string{"Hello World?"}))
 			})
 		})
@@ -324,6 +353,48 @@ var _ = Describe("UI", func() {
 			})
 
 			i18n.T = t
+		})
+	})
+
+	Describe("NotifyUpdateIfNeeded", func() {
+
+		var (
+			output []string
+			config core_config.ReadWriter
+		)
+
+		BeforeEach(func() {
+			config = testconfig.NewRepository()
+		})
+
+		It("Prints a notification to user if current version < min cli version", func() {
+			config.SetMinCliVersion("6.0.0")
+			config.SetMinRecommendedCliVersion("6.5.0")
+			config.SetApiVersion("2.15.1")
+			cf.Version = "5.0.0"
+			output = io_helpers.CaptureOutput(func() {
+				ui := NewUI(os.Stdin, NewTeePrinter())
+				ui.NotifyUpdateIfNeeded(config)
+			})
+
+			Ω(output).To(ContainSubstrings([]string{"Cloud Foundry API version",
+				"requires CLI version 6.0.0",
+				"You are currently on version 5.0.0",
+				"To upgrade your CLI, please visit: https://github.com/cloudfoundry/cli#downloads",
+			}))
+		})
+
+		It("Doesn't print a notification to user if current version >= min cli version", func() {
+			config.SetMinCliVersion("6.0.0")
+			config.SetMinRecommendedCliVersion("6.5.0")
+			config.SetApiVersion("2.15.1")
+			cf.Version = "6.0.0"
+			output = io_helpers.CaptureOutput(func() {
+				ui := NewUI(os.Stdin, NewTeePrinter())
+				ui.NotifyUpdateIfNeeded(config)
+			})
+
+			Ω(output[0]).To(Equal(""))
 		})
 	})
 })

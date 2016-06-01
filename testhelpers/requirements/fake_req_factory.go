@@ -1,6 +1,7 @@
 package requirements
 
 import (
+	"github.com/blang/semver"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 )
@@ -12,12 +13,17 @@ type FakeReqFactory struct {
 	ServiceInstanceName string
 	ServiceInstance     models.ServiceInstance
 
-	LoginSuccess            bool
-	ApiEndpointSuccess      bool
-	ValidAccessTokenSuccess bool
-	TargetedSpaceSuccess    bool
-	TargetedOrgSuccess      bool
-	BuildpackSuccess        bool
+	ApplicationFails             bool
+	LoginSuccess                 bool
+	RoutingAPIEndpointSuccess    bool
+	ApiEndpointSuccess           bool
+	ValidAccessTokenSuccess      bool
+	TargetedSpaceSuccess         bool
+	TargetedOrgSuccess           bool
+	BuildpackSuccess             bool
+	SpaceRequirementFails        bool
+	UserRequirementFails         bool
+	OrganizationRequirementFails bool
 
 	ServiceInstanceNotFound bool
 
@@ -40,15 +46,18 @@ type FakeReqFactory struct {
 
 	Buildpack models.Buildpack
 
-	MinCCApiVersionCommandName string
-	MinCCApiVersionMajor       int
-	MinCCApiVersionMinor       int
-	MinCCApiVersionPatch       int
+	MinAPIVersionFeatureName     string
+	MinAPIVersionRequiredVersion semver.Version
+	MinAPIVersionSuccess         bool
+}
+
+func (f *FakeReqFactory) NewDEAApplicationRequirement(name string) requirements.DEAApplicationRequirement {
+	return FakeRequirement{f, false}
 }
 
 func (f *FakeReqFactory) NewApplicationRequirement(name string) requirements.ApplicationRequirement {
 	f.ApplicationName = name
-	return FakeRequirement{f, true}
+	return FakeRequirement{f, !f.ApplicationFails}
 }
 
 func (f *FakeReqFactory) NewServiceInstanceRequirement(name string) requirements.ServiceInstanceRequirement {
@@ -58,6 +67,10 @@ func (f *FakeReqFactory) NewServiceInstanceRequirement(name string) requirements
 
 func (f *FakeReqFactory) NewLoginRequirement() requirements.Requirement {
 	return FakeRequirement{f, f.LoginSuccess}
+}
+
+func (f *FakeReqFactory) NewRoutingAPIRequirement() requirements.Requirement {
+	return FakeRequirement{f, f.RoutingAPIEndpointSuccess}
 }
 
 func (f *FakeReqFactory) NewTargetedSpaceRequirement() requirements.Requirement {
@@ -70,12 +83,12 @@ func (f *FakeReqFactory) NewTargetedOrgRequirement() requirements.TargetedOrgReq
 
 func (f *FakeReqFactory) NewSpaceRequirement(name string) requirements.SpaceRequirement {
 	f.SpaceName = name
-	return FakeRequirement{f, true}
+	return FakeRequirement{f, !f.SpaceRequirementFails}
 }
 
 func (f *FakeReqFactory) NewOrganizationRequirement(name string) requirements.OrganizationRequirement {
 	f.OrganizationName = name
-	return FakeRequirement{f, true}
+	return FakeRequirement{f, !f.OrganizationRequirementFails}
 }
 
 func (f *FakeReqFactory) NewDomainRequirement(name string) requirements.DomainRequirement {
@@ -83,9 +96,9 @@ func (f *FakeReqFactory) NewDomainRequirement(name string) requirements.DomainRe
 	return FakeRequirement{f, true}
 }
 
-func (f *FakeReqFactory) NewUserRequirement(username string) requirements.UserRequirement {
+func (f *FakeReqFactory) NewUserRequirement(username string, wantGuid bool) requirements.UserRequirement {
 	f.UserUsername = username
-	return FakeRequirement{f, true}
+	return FakeRequirement{f, !f.UserRequirementFails}
 }
 
 func (f *FakeReqFactory) NewBuildpackRequirement(buildpack string) requirements.BuildpackRequirement {
@@ -97,12 +110,10 @@ func (f *FakeReqFactory) NewApiEndpointRequirement() requirements.Requirement {
 	return FakeRequirement{f, f.ApiEndpointSuccess}
 }
 
-func (f *FakeReqFactory) NewMinCCApiVersionRequirement(commandName string, major, minor, patch int) requirements.Requirement {
-	f.MinCCApiVersionCommandName = commandName
-	f.MinCCApiVersionMajor = major
-	f.MinCCApiVersionMinor = minor
-	f.MinCCApiVersionPatch = patch
-	return FakeRequirement{f, true}
+func (f *FakeReqFactory) NewMinAPIVersionRequirement(featureName string, requiredVersion semver.Version) requirements.Requirement {
+	f.MinAPIVersionFeatureName = featureName
+	f.MinAPIVersionRequiredVersion = requiredVersion
+	return FakeRequirement{f, f.MinAPIVersionSuccess}
 }
 
 type FakeRequirement struct {
@@ -112,9 +123,6 @@ type FakeRequirement struct {
 
 func (r FakeRequirement) Execute() (success bool) {
 	return r.success
-}
-
-func (r FakeRequirement) SetApplicationName(name string) {
 }
 
 func (r FakeRequirement) GetApplication() models.Application {

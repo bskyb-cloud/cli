@@ -8,9 +8,10 @@ import (
 )
 
 type AppManifest interface {
+	BuildpackUrl(string, string)
 	Memory(string, int64)
 	Service(string, string)
-	StartupCommand(string, string)
+	StartCommand(string, string)
 	EnvironmentVars(string, string, string)
 	HealthCheckTimeout(string, int)
 	Instances(string, int)
@@ -38,7 +39,7 @@ func (m *appManifest) Memory(appName string, memory int64) {
 	m.contents[i].Memory = memory
 }
 
-func (m *appManifest) StartupCommand(appName string, cmd string) {
+func (m *appManifest) StartCommand(appName string, cmd string) {
 	i := m.findOrCreateApplication(appName)
 	m.contents[i].Command = cmd
 }
@@ -46,11 +47,6 @@ func (m *appManifest) StartupCommand(appName string, cmd string) {
 func (m *appManifest) BuildpackUrl(appName string, url string) {
 	i := m.findOrCreateApplication(appName)
 	m.contents[i].BuildpackUrl = url
-}
-
-func (m *appManifest) StartCommand(appName string, cmd string) {
-	i := m.findOrCreateApplication(appName)
-	m.contents[i].Command = cmd
 }
 
 func (m *appManifest) HealthCheckTimeout(appName string, timeout int) {
@@ -98,6 +94,9 @@ func (m *appManifest) Save() error {
 	defer f.Close()
 
 	_, err = fmt.Fprintln(f, "---\napplications:")
+	if err != nil {
+		return err
+	}
 
 	for _, app := range m.contents {
 		if _, err := fmt.Fprintf(f, "- name: %s\n", app.Name); err != nil {
@@ -131,11 +130,17 @@ func (m *appManifest) Save() error {
 		}
 
 		if len(app.Routes) > 0 {
-			if _, err := fmt.Fprintf(f, "  host: %s\n", app.Routes[0].Host); err != nil {
-				return err
-			}
-			if _, err := fmt.Fprintf(f, "  domain: %s\n", app.Routes[0].Domain.Name); err != nil {
-				return err
+			if len(app.Routes) == 1 {
+				if _, err := fmt.Fprintf(f, "  host: %s\n", app.Routes[0].Host); err != nil {
+					return err
+				}
+				if _, err := fmt.Fprintf(f, "  domain: %s\n", app.Routes[0].Domain.Name); err != nil {
+					return err
+				}
+			} else {
+				if err := writeRoutesToFile(f, app.Routes); err != nil {
+					return err
+				}
 			}
 		} else {
 			if _, err := fmt.Fprintf(f, "  no-route: true\n"); err != nil {
@@ -177,7 +182,63 @@ func (m *appManifest) addApplication(name string) {
 		},
 	})
 }
+func writeRoutesToFile(f *os.File, routes []models.RouteSummary) error {
+	var (
+		hostSlice    []string
+		domainSlice  []string
+		hostPSlice   *[]string
+		domainPSlice *[]string
+		hosts        []string
+		domains      []string
+	)
 
+	for i := 0; i < len(routes); i++ {
+		hostSlice = append(hostSlice, routes[i].Host)
+		domainSlice = append(domainSlice, routes[i].Domain.Name)
+	}
+
+	hostPSlice = removeDuplicatedValue(hostSlice)
+	domainPSlice = removeDuplicatedValue(domainSlice)
+
+	if hostPSlice != nil {
+		hosts = *hostPSlice
+	}
+	if domainPSlice != nil {
+		domains = *domainPSlice
+	}
+
+	if len(hosts) == 1 {
+		if _, err := fmt.Fprintf(f, "  host: %s\n", hosts[0]); err != nil {
+			return err
+		}
+	} else {
+		if _, err := fmt.Fprintln(f, "  hosts:"); err != nil {
+			return err
+		}
+		for i := 0; i < len(hosts); i++ {
+			if _, err := fmt.Fprintf(f, "  - %s\n", hosts[i]); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(domains) == 1 {
+		if _, err := fmt.Fprintf(f, "  domain: %s\n", domains[0]); err != nil {
+			return err
+		}
+	} else {
+		if _, err := fmt.Fprintln(f, "  domains:"); err != nil {
+			return err
+		}
+		for i := 0; i < len(domains); i++ {
+			if _, err := fmt.Fprintf(f, "  - %s\n", domains[i]); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
 func writeServicesToFile(f *os.File, entries []models.ServicePlanSummary) error {
 	_, err := fmt.Fprintln(f, "  services:")
 	if err != nil {

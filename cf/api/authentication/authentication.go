@@ -3,6 +3,7 @@ package authentication
 import (
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 
@@ -34,7 +35,7 @@ func NewUAAAuthenticationRepository(gateway net.Gateway, config core_config.Read
 	return
 }
 
-func (uaa UAAAuthenticationRepository) Authenticate(credentials map[string]string) (apiErr error) {
+func (uaa UAAAuthenticationRepository) Authenticate(credentials map[string]string) error {
 	data := url.Values{
 		"grant_type": {"password"},
 		"scope":      {""},
@@ -43,15 +44,22 @@ func (uaa UAAAuthenticationRepository) Authenticate(credentials map[string]strin
 		data[key] = []string{val}
 	}
 
-	apiErr = uaa.getAuthToken(data)
-	switch response := apiErr.(type) {
-	case errors.HttpError:
-		if response.StatusCode() == 401 {
-			apiErr = errors.New(T("Credentials were rejected, please try again."))
+	err := uaa.getAuthToken(data)
+	if err != nil {
+		httpError, ok := err.(errors.HttpError)
+		if ok {
+			switch {
+			case httpError.StatusCode() == http.StatusUnauthorized:
+				return errors.New(T("Credentials were rejected, please try again."))
+			case httpError.StatusCode() >= http.StatusInternalServerError:
+				return errors.New(T("The targeted API endpoint could not be reached."))
+			}
 		}
+
+		return err
 	}
 
-	return
+	return nil
 }
 
 type LoginResource struct {
@@ -118,7 +126,7 @@ func (uaa UAAAuthenticationRepository) getAuthToken(data url.Values) error {
 	path := fmt.Sprintf("%s/oauth/token", uaa.config.AuthenticationEndpoint())
 	request, err := uaa.gateway.NewRequest("POST", path, "Basic "+base64.StdEncoding.EncodeToString([]byte("cf:")), strings.NewReader(data.Encode()))
 	if err != nil {
-		return errors.NewWithError(T("Failed to start oauth request"), err)
+		return fmt.Errorf("%s: %s", T("Failed to start oauth request"), err.Error())
 	}
 	request.HttpReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
@@ -132,7 +140,7 @@ func (uaa UAAAuthenticationRepository) getAuthToken(data url.Values) error {
 	case *errors.InvalidTokenError:
 		return errors.New(T("Authentication has expired.  Please log back in to re-authenticate.\n\nTIP: Use `cf login -a <endpoint> -u <user> -o <org> -s <space>` to log back in and re-authenticate."))
 	default:
-		return errors.NewWithError(T("auth request failed"), err)
+		return fmt.Errorf("%s: %s", T("auth request failed"), err.Error())
 	}
 
 	// TODO: get the actual status code

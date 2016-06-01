@@ -1,66 +1,69 @@
 package user
 
 import (
-	"errors"
-
+	"github.com/cloudfoundry/cli/cf/actors/userprint"
 	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/command_metadata"
+	"github.com/cloudfoundry/cli/cf/command_registry"
 	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/codegangsta/cli"
+	"github.com/cloudfoundry/cli/flags"
+	"github.com/cloudfoundry/cli/flags/flag"
+	"github.com/cloudfoundry/cli/plugin/models"
 )
 
-var orgRoles = []string{models.ORG_MANAGER, models.BILLING_MANAGER, models.ORG_AUDITOR}
-
 type OrgUsers struct {
-	ui       terminal.UI
-	config   core_config.Reader
-	orgReq   requirements.OrganizationRequirement
-	userRepo api.UserRepository
+	ui          terminal.UI
+	config      core_config.Reader
+	orgReq      requirements.OrganizationRequirement
+	userRepo    api.UserRepository
+	pluginModel *[]plugin_models.GetOrgUsers_Model
+	pluginCall  bool
 }
 
-func NewOrgUsers(ui terminal.UI, config core_config.Reader, userRepo api.UserRepository) (cmd *OrgUsers) {
-	cmd = new(OrgUsers)
-	cmd.ui = ui
-	cmd.config = config
-	cmd.userRepo = userRepo
-	return
+func init() {
+	command_registry.Register(&OrgUsers{})
 }
 
-func (cmd *OrgUsers) Metadata() command_metadata.CommandMetadata {
-	return command_metadata.CommandMetadata{
+func (cmd *OrgUsers) MetaData() command_registry.CommandMetadata {
+	fs := make(map[string]flags.FlagSet)
+	fs["a"] = &cliFlags.BoolFlag{ShortName: "a", Usage: T("List all users in the org")}
+
+	return command_registry.CommandMetadata{
 		Name:        "org-users",
 		Description: T("Show org users by role"),
 		Usage:       T("CF_NAME org-users ORG"),
-		Flags: []cli.Flag{
-			cli.BoolFlag{Name: "a", Usage: T("List all users in the org")},
-		},
+		Flags:       fs,
 	}
 }
 
-func (cmd *OrgUsers) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
-	if len(c.Args()) != 1 {
-		err = errors.New(T("Incorrect usage"))
-		cmd.ui.FailWithUsage(c)
-		return
+func (cmd *OrgUsers) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+	if len(fc.Args()) != 1 {
+		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + command_registry.Commands.CommandUsage("org-users"))
 	}
 
-	if cmd.orgReq == nil {
-		cmd.orgReq = requirementsFactory.NewOrganizationRequirement(c.Args()[0])
-	} else {
-		cmd.orgReq.SetOrganizationName(c.Args()[0])
-	}
-	reqs = append(reqs, requirementsFactory.NewLoginRequirement(), cmd.orgReq)
+	cmd.orgReq = requirementsFactory.NewOrganizationRequirement(fc.Args()[0])
 
+	reqs = []requirements.Requirement{
+		requirementsFactory.NewLoginRequirement(),
+		cmd.orgReq,
+	}
 	return
 }
 
-func (cmd *OrgUsers) Run(c *cli.Context) {
+func (cmd *OrgUsers) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
+	cmd.ui = deps.Ui
+	cmd.config = deps.Config
+	cmd.userRepo = deps.RepoLocator.GetUserRepository()
+	cmd.pluginCall = pluginCall
+	cmd.pluginModel = deps.PluginModels.OrgUsers
+	return cmd
+}
+
+func (cmd *OrgUsers) Execute(c flags.FlagContext) {
 	org := cmd.orgReq.GetOrganization()
-	all := c.Bool("a")
 
 	cmd.ui.Say(T("Getting users in org {{.TargetOrg}} as {{.CurrentUser}}...",
 		map[string]interface{}{
@@ -68,43 +71,41 @@ func (cmd *OrgUsers) Run(c *cli.Context) {
 			"CurrentUser": terminal.EntityNameColor(cmd.config.Username()),
 		}))
 
-	roles := orgRoles
-	if all {
+	printer := cmd.printer(c)
+	printer.PrintUsers(org.Guid, cmd.config.Username())
+}
+
+func (cmd *OrgUsers) printer(c flags.FlagContext) userprint.UserPrinter {
+	var roles []string
+	if c.Bool("a") {
 		roles = []string{models.ORG_USER}
+	} else {
+		roles = []string{models.ORG_MANAGER, models.BILLING_MANAGER, models.ORG_AUDITOR}
 	}
 
-	var orgRoleToDisplayName = map[string]string{
-		models.ORG_USER:        T("USERS"),
-		models.ORG_MANAGER:     T("ORG MANAGER"),
-		models.BILLING_MANAGER: T("BILLING MANAGER"),
-		models.ORG_AUDITOR:     T("ORG AUDITOR"),
+	if cmd.pluginCall {
+		return userprint.NewOrgUsersPluginPrinter(
+			cmd.pluginModel,
+			cmd.userLister(),
+			roles,
+		)
 	}
-
-	var users []models.UserFields
-	var apiErr error
-	for _, role := range roles {
-		displayName := orgRoleToDisplayName[role]
-
-		if cmd.config.IsMinApiVersion("2.21.0") {
-			users, apiErr = cmd.userRepo.ListUsersInOrgForRoleWithNoUAA(org.Guid, role)
-		} else {
-			users, apiErr = cmd.userRepo.ListUsersInOrgForRole(org.Guid, role)
-		}
-
-		cmd.ui.Say("")
-		cmd.ui.Say("%s", terminal.HeaderColor(displayName))
-
-		for _, user := range users {
-			cmd.ui.Say("  %s", user.Username)
-		}
-
-		if apiErr != nil {
-			cmd.ui.Failed(T("Failed fetching org-users for role {{.OrgRoleToDisplayName}}.\n{{.Error}}",
-				map[string]interface{}{
-					"Error":                apiErr.Error(),
-					"OrgRoleToDisplayName": displayName,
-				}))
-			return
-		}
+	return &userprint.OrgUsersUiPrinter{
+		Ui:         cmd.ui,
+		UserLister: cmd.userLister(),
+		Roles:      roles,
+		RoleDisplayNames: map[string]string{
+			models.ORG_USER:        T("USERS"),
+			models.ORG_MANAGER:     T("ORG MANAGER"),
+			models.BILLING_MANAGER: T("BILLING MANAGER"),
+			models.ORG_AUDITOR:     T("ORG AUDITOR"),
+		},
 	}
+}
+
+func (cmd *OrgUsers) userLister() func(orgGuid string, role string) ([]models.UserFields, error) {
+	if cmd.config.IsMinApiVersion("2.21.0") {
+		return cmd.userRepo.ListUsersInOrgForRoleWithNoUAA
+	}
+	return cmd.userRepo.ListUsersInOrgForRole
 }

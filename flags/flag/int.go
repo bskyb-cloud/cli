@@ -3,9 +3,10 @@ package cliFlags
 import "strconv"
 
 type IntFlag struct {
-	Name  string
-	Value int
-	Usage string
+	Name      string
+	Value     int
+	Usage     string
+	ShortName string
 }
 
 func (f *IntFlag) Set(v string) {
@@ -14,11 +15,15 @@ func (f *IntFlag) Set(v string) {
 }
 
 func (f *IntFlag) String() string {
-	return f.Name
+	return f.Usage
 }
 
 func (f *IntFlag) GetName() string {
 	return f.Name
+}
+
+func (f *IntFlag) GetShortName() string {
+	return f.ShortName
 }
 
 func (f *IntFlag) GetValue() interface{} {

@@ -31,10 +31,12 @@ func (model Application) ToParams() (params AppParams) {
 		Command:         &model.Command,
 		DiskQuota:       &model.DiskQuota,
 		InstanceCount:   &model.InstanceCount,
+		HealthCheckType: &model.HealthCheckType,
 		Memory:          &model.Memory,
 		State:           &state,
 		SpaceGuid:       &model.SpaceGuid,
 		EnvironmentVars: &model.EnvironmentVars,
+		DockerImage:     &model.DockerImage,
 	}
 
 	if model.Stack != nil {
@@ -56,12 +58,17 @@ type ApplicationFields struct {
 	InstanceCount        int
 	Memory               int64 // in Megabytes
 	RunningInstances     int
+	HealthCheckType      string
 	HealthCheckTimeout   int
 	State                string
 	SpaceGuid            string
 	PackageUpdatedAt     *time.Time
 	PackageState         string
 	StagingFailedReason  string
+	Buildpack            string
+	DetectedBuildpack    string
+	DockerImage          string
+	EnableSsh            bool
 }
 
 type AppParams struct {
@@ -71,8 +78,13 @@ type AppParams struct {
 	Domains            *[]string
 	EnvironmentVars    *map[string]interface{}
 	Guid               *string
+	HealthCheckType    *string
 	HealthCheckTimeout *int
+	DockerImage        *string
+	Diego              *bool
+	EnableSsh          *bool
 	Hosts              *[]string
+	RoutePath          *string
 	InstanceCount      *int
 	Memory             *int64
 	Name               *string
@@ -85,6 +97,7 @@ type AppParams struct {
 	StackGuid          *string
 	StackName          *string
 	State              *string
+	PackageUpdatedAt   *time.Time
 }
 
 func (app *AppParams) Merge(other *AppParams) {
@@ -106,11 +119,17 @@ func (app *AppParams) Merge(other *AppParams) {
 	if other.Guid != nil {
 		app.Guid = other.Guid
 	}
+	if other.HealthCheckType != nil {
+		app.HealthCheckType = other.HealthCheckType
+	}
 	if other.HealthCheckTimeout != nil {
 		app.HealthCheckTimeout = other.HealthCheckTimeout
 	}
 	if other.Hosts != nil {
 		app.Hosts = other.Hosts
+	}
+	if other.RoutePath != nil {
+		app.RoutePath = other.RoutePath
 	}
 	if other.InstanceCount != nil {
 		app.InstanceCount = other.InstanceCount
@@ -120,6 +139,9 @@ func (app *AppParams) Merge(other *AppParams) {
 	}
 	if other.Memory != nil {
 		app.Memory = other.Memory
+	}
+	if other.DockerImage != nil {
+		app.DockerImage = other.DockerImage
 	}
 	if other.Name != nil {
 		app.Name = other.Name
@@ -141,6 +163,9 @@ func (app *AppParams) Merge(other *AppParams) {
 	}
 	if other.State != nil {
 		app.State = other.State
+	}
+	if other.EnableSsh != nil {
+		app.EnableSsh = other.EnableSsh
 	}
 
 	app.NoRoute = app.NoRoute || other.NoRoute

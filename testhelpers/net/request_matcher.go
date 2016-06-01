@@ -35,6 +35,13 @@ func bytesToInterface(jsonBytes []byte) (interface{}, error) {
 	return arrayResult, err
 }
 
+func EmptyQueryParamMatcher() RequestMatcher {
+	return func(request *http.Request) {
+		defer GinkgoRecover()
+		Expect(request.URL.RawQuery).To(Equal(""))
+	}
+}
+
 func RequestBodyMatcher(expectedBodyString string) RequestMatcher {
 	return func(request *http.Request) {
 		defer GinkgoRecover()
@@ -45,12 +52,12 @@ func RequestBodyMatcher(expectedBodyString string) RequestMatcher {
 
 		actualBody, err := bytesToInterface(bodyBytes)
 		if err != nil {
-			Fail(fmt.Sprintf("Error unmarshalling request", err.Error()))
+			Fail(fmt.Sprintf("Error unmarshalling request: %s", err.Error()))
 		}
 
 		expectedBody, err := bytesToInterface([]byte(expectedBodyString))
 		if err != nil {
-			Fail(fmt.Sprintf("Error unmarshalling expected json", err.Error()))
+			Fail(fmt.Sprintf("Error unmarshalling expected json: %s", err.Error()))
 		}
 
 		Expect(actualBody).To(Equal(expectedBody))

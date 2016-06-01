@@ -4,6 +4,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/blang/semver"
 	"github.com/cloudfoundry/cli/cf/configuration"
 	"github.com/cloudfoundry/cli/cf/models"
 )
@@ -17,6 +18,9 @@ type ConfigRepository struct {
 }
 
 func NewRepositoryFromFilepath(filepath string, errorHandler func(error)) Repository {
+	if errorHandler == nil {
+		return nil
+	}
 	return NewRepositoryFromPersistor(configuration.NewDiskPersistor(filepath), errorHandler)
 }
 
@@ -48,7 +52,9 @@ type Reader interface {
 	LoggregatorEndpoint() string
 	DopplerEndpoint() string
 	UaaEndpoint() string
+	RoutingApiEndpoint() string
 	AccessToken() string
+	SSHOAuthClient() string
 	RefreshToken() string
 
 	OrganizationFields() models.OrganizationFields
@@ -77,6 +83,7 @@ type Reader interface {
 	PluginRepos() []models.PluginRepo
 }
 
+//go:generate counterfeiter -o ../fakes/fake_repository.go . ReadWriter
 type ReadWriter interface {
 	Reader
 	ClearSession()
@@ -88,7 +95,9 @@ type ReadWriter interface {
 	SetLoggregatorEndpoint(string)
 	SetDopplerEndpoint(string)
 	SetUaaEndpoint(string)
+	SetRoutingApiEndpoint(string)
 	SetAccessToken(string)
+	SetSSHOAuthClient(string)
 	SetRefreshToken(string)
 	SetOrganizationFields(models.OrganizationFields)
 	SetSpaceFields(models.SpaceFields)
@@ -190,6 +199,13 @@ func (c *ConfigRepository) UaaEndpoint() (uaaEndpoint string) {
 	return
 }
 
+func (c *ConfigRepository) RoutingApiEndpoint() (routingApiEndpoint string) {
+	c.read(func() {
+		routingApiEndpoint = c.data.RoutingApiEndpoint
+	})
+	return
+}
+
 func (c *ConfigRepository) ApiEndpoint() (apiEndpoint string) {
 	c.read(func() {
 		apiEndpoint = c.data.Target
@@ -207,6 +223,13 @@ func (c *ConfigRepository) HasAPIEndpoint() (hasEndpoint bool) {
 func (c *ConfigRepository) AccessToken() (accessToken string) {
 	c.read(func() {
 		accessToken = c.data.AccessToken
+	})
+	return
+}
+
+func (c *ConfigRepository) SSHOAuthClient() (clientID string) {
+	c.read(func() {
+		clientID = c.data.SSHOAuthClient
 	})
 	return
 }
@@ -281,12 +304,21 @@ func (c *ConfigRepository) IsSSLDisabled() (isSSLDisabled bool) {
 	return
 }
 
-func (c *ConfigRepository) IsMinApiVersion(v string) bool {
+func (c *ConfigRepository) IsMinApiVersion(version string) bool {
 	var apiVersion string
 	c.read(func() {
 		apiVersion = c.data.ApiVersion
 	})
-	return apiVersion >= v
+
+	requiredVersion, err := semver.Make(version)
+	if err != nil {
+		return false
+	}
+	actualVersion, err := semver.Make(apiVersion)
+	if err != nil {
+		return false
+	}
+	return actualVersion.GTE(requiredVersion)
 }
 
 func (c *ConfigRepository) IsMinCliVersion(version string) bool {
@@ -297,7 +329,19 @@ func (c *ConfigRepository) IsMinCliVersion(version string) bool {
 	c.read(func() {
 		minCliVersion = c.data.MinCliVersion
 	})
-	return version >= minCliVersion
+	if minCliVersion == "" {
+		return true
+	}
+
+	actualVersion, err := semver.Make(version)
+	if err != nil {
+		return false
+	}
+	requiredVersion, err := semver.Make(minCliVersion)
+	if err != nil {
+		return false
+	}
+	return actualVersion.GTE(requiredVersion)
 }
 
 func (c *ConfigRepository) MinCliVersion() (minCliVersion string) {
@@ -408,9 +452,21 @@ func (c *ConfigRepository) SetUaaEndpoint(uaaEndpoint string) {
 	})
 }
 
+func (c *ConfigRepository) SetRoutingApiEndpoint(routingApiEndpoint string) {
+	c.write(func() {
+		c.data.RoutingApiEndpoint = routingApiEndpoint
+	})
+}
+
 func (c *ConfigRepository) SetAccessToken(token string) {
 	c.write(func() {
 		c.data.AccessToken = token
+	})
+}
+
+func (c *ConfigRepository) SetSSHOAuthClient(clientID string) {
+	c.write(func() {
+		c.data.SSHOAuthClient = clientID
 	})
 }
 

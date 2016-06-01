@@ -3,7 +3,6 @@ package terminal
 import (
 	"fmt"
 	"strings"
-	"unicode/utf8"
 )
 
 type Table interface {
@@ -12,18 +11,18 @@ type Table interface {
 }
 
 type PrintableTable struct {
-	ui            UI
-	headers       []string
-	headerPrinted bool
-	maxSizes      []int
-	rows          [][]string
+	ui              UI
+	headers         []string
+	headerPrinted   bool
+	maxValueLengths []int
+	rows            [][]string
 }
 
 func NewTable(ui UI, headers []string) Table {
 	return &PrintableTable{
-		ui:       ui,
-		headers:  headers,
-		maxSizes: make([]int, len(headers)),
+		ui:              ui,
+		headers:         headers,
+		maxValueLengths: make([]int, len(headers)),
 	}
 }
 
@@ -50,9 +49,9 @@ func (t *PrintableTable) Print() {
 
 func (t *PrintableTable) calculateMaxSize(row []string) {
 	for index, value := range row {
-		cellLength := utf8.RuneCountInString(Decolorize(value))
-		if t.maxSizes[index] < cellLength {
-			t.maxSizes[index] = cellLength
+		l := visibleSize(Decolorize(value))
+		if t.maxValueLengths[index] < l {
+			t.maxValueLengths[index] = l
 		}
 	}
 }
@@ -79,8 +78,32 @@ func (t *PrintableTable) printRow(row []string) {
 
 func (t *PrintableTable) cellValue(col int, value string) string {
 	padding := ""
+	maxVisibleSize := t.maxValueLengths[col]
+
 	if col < len(t.headers)-1 {
-		padding = strings.Repeat(" ", t.maxSizes[col]-utf8.RuneCountInString(Decolorize(value)))
+		thisVisibleSize := visibleSize(Decolorize(value))
+		padding = strings.Repeat(` `, maxVisibleSize-thisVisibleSize)
 	}
+
 	return fmt.Sprintf("%s%s   ", value, padding)
+}
+
+func visibleSize(s string) int {
+	r := strings.NewReader(s)
+
+	var size int
+	for range s {
+		_, runeSize, err := r.ReadRune()
+		if err != nil {
+			panic(fmt.Sprintf("error when calculating visible size of: %s", s))
+		}
+
+		if runeSize == 3 {
+			size += 2 // Kanji and Katakana characters appear as double-width
+		} else {
+			size += 1
+		}
+	}
+
+	return size
 }

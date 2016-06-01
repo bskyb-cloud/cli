@@ -3,142 +3,290 @@ package route_test
 import (
 	"errors"
 
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	"github.com/blang/semver"
+	"github.com/cloudfoundry/cli/cf/command_registry"
+	"github.com/cloudfoundry/cli/cf/commands/route"
 	"github.com/cloudfoundry/cli/cf/configuration/core_config"
-	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
+	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/flags"
+
+	fakeapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	fakerequirements "github.com/cloudfoundry/cli/cf/requirements/fakes"
+
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
-	. "github.com/cloudfoundry/cli/cf/commands/route"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("check-route command", func() {
+var _ = Describe("CheckRoute", func() {
 	var (
-		ui                  *testterm.FakeUI
-		routeRepo           *testapi.FakeRouteRepository
-		domainRepo          *testapi.FakeDomainRepository
-		requirementsFactory *testreq.FakeReqFactory
-		config              core_config.ReadWriter
+		ui         *testterm.FakeUI
+		configRepo core_config.Repository
+		routeRepo  *fakeapi.FakeRouteRepository
+		domainRepo *fakeapi.FakeDomainRepository
+
+		cmd         command_registry.Command
+		deps        command_registry.Dependency
+		factory     *fakerequirements.FakeFactory
+		flagContext flags.FlagContext
+
+		loginRequirement         requirements.Requirement
+		targetedOrgRequirement   *fakerequirements.FakeTargetedOrgRequirement
+		minAPIVersionRequirement requirements.Requirement
 	)
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
-		routeRepo = &testapi.FakeRouteRepository{}
-		domainRepo = &testapi.FakeDomainRepository{}
-		requirementsFactory = &testreq.FakeReqFactory{}
-		config = testconfig.NewRepositoryWithDefaults()
+
+		configRepo = testconfig.NewRepositoryWithDefaults()
+		routeRepo = &fakeapi.FakeRouteRepository{}
+		repoLocator := deps.RepoLocator.SetRouteRepository(routeRepo)
+
+		domainRepo = &fakeapi.FakeDomainRepository{}
+		repoLocator = repoLocator.SetDomainRepository(domainRepo)
+
+		deps = command_registry.Dependency{
+			Ui:          ui,
+			Config:      configRepo,
+			RepoLocator: repoLocator,
+		}
+
+		cmd = &route.CheckRoute{}
+		cmd.SetDependency(deps, false)
+
+		flagContext = flags.NewFlagContext(cmd.MetaData().Flags)
+
+		factory = &fakerequirements.FakeFactory{}
+
+		loginRequirement = &passingRequirement{Name: "login-requirement"}
+		factory.NewLoginRequirementReturns(loginRequirement)
+
+		targetedOrgRequirement = &fakerequirements.FakeTargetedOrgRequirement{}
+		factory.NewTargetedOrgRequirementReturns(targetedOrgRequirement)
+
+		minAPIVersionRequirement = &passingRequirement{Name: "min-api-version-requirement"}
+		factory.NewMinAPIVersionRequirementReturns(minAPIVersionRequirement)
 	})
 
-	runCommand := func(args ...string) bool {
-		return testcmd.RunCommand(NewCheckRoute(ui, config, routeRepo, domainRepo), args, requirementsFactory)
-	}
+	Describe("Requirements", func() {
+		Context("when not provided exactly two args", func() {
+			BeforeEach(func() {
+				flagContext.Parse("app-name")
+			})
 
-	Describe("requirements", func() {
-		It("fails when not logged in", func() {
-			requirementsFactory.TargetedOrgSuccess = true
-
-			Expect(runCommand("foobar.example.com", "bar.example.com")).To(BeFalse())
+			It("fails with usage", func() {
+				Expect(func() { cmd.Requirements(factory, flagContext) }).To(Panic())
+				Expect(ui.Outputs).To(ContainSubstrings(
+					[]string{"FAILED"},
+					[]string{"Incorrect Usage. Requires host and domain as arguments"},
+				))
+			})
 		})
 
-		It("fails when no org is targeted", func() {
-			requirementsFactory.LoginSuccess = true
-			Expect(runCommand("foobar.example.com", "bar.example.com")).To(BeFalse())
-		})
+		Context("when provided exactly two args", func() {
+			BeforeEach(func() {
+				flagContext.Parse("domain-name", "host-name")
+			})
 
-		It("fails when the number of arguments is greater than two", func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedOrgSuccess = true
-			passed := runCommand("foobar.example.com", "hello", "world")
+			It("returns a LoginRequirement", func() {
+				actualRequirements, err := cmd.Requirements(factory, flagContext)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(factory.NewLoginRequirementCallCount()).To(Equal(1))
+				Expect(actualRequirements).To(ContainElement(loginRequirement))
+			})
 
-			Expect(passed).To(BeFalse())
-			Expect(ui.FailedWithUsage).To(BeTrue())
-		})
+			It("returns a TargetedOrgRequirement", func() {
+				actualRequirements, err := cmd.Requirements(factory, flagContext)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(factory.NewTargetedOrgRequirementCallCount()).To(Equal(1))
+				Expect(actualRequirements).To(ContainElement(targetedOrgRequirement))
+			})
 
-		It("fails when the number of arguments is less than two", func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedOrgSuccess = true
-			passed := runCommand("foobar.example.com")
+			Context("when a path is passed", func() {
+				BeforeEach(func() {
+					flagContext.Parse("domain-name", "hostname", "--path", "the-path")
+				})
 
-			Expect(passed).To(BeFalse())
-			Expect(ui.FailedWithUsage).To(BeTrue())
+				It("returns a MinAPIVersionRequirement as the first requirement", func() {
+					actualRequirements, err := cmd.Requirements(factory, flagContext)
+					Expect(err).NotTo(HaveOccurred())
+
+					expectedVersion, err := semver.Make("2.36.0")
+					Expect(err).NotTo(HaveOccurred())
+
+					Expect(factory.NewMinAPIVersionRequirementCallCount()).To(Equal(1))
+					feature, requiredVersion := factory.NewMinAPIVersionRequirementArgsForCall(0)
+					Expect(feature).To(Equal("Option '--path'"))
+					Expect(requiredVersion).To(Equal(expectedVersion))
+					Expect(actualRequirements[0]).To(Equal(minAPIVersionRequirement))
+				})
+			})
+
+			Context("when a path is not passed", func() {
+				BeforeEach(func() {
+					flagContext.Parse("domain-name")
+				})
+
+				It("does not return a MinAPIVersionRequirement", func() {
+					actualRequirements, err := cmd.Requirements(factory, flagContext)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(factory.NewMinAPIVersionRequirementCallCount()).To(Equal(0))
+					Expect(actualRequirements).NotTo(ContainElement(minAPIVersionRequirement))
+				})
+			})
 		})
 	})
 
-	Context("when the route already exists", func() {
+	Describe("Execute", func() {
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedOrgSuccess = true
-			routeRepo.CheckIfExistsFound = true
+			err := flagContext.Parse("host-name", "domain-name")
+			Expect(err).NotTo(HaveOccurred())
+			_, err = cmd.Requirements(factory, flagContext)
+			Expect(err).NotTo(HaveOccurred())
+			configRepo.SetOrganizationFields(models.OrganizationFields{
+				Guid: "fake-org-guid",
+				Name: "fake-org-name",
+			})
 		})
 
-		It("prints out route does exist", func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedOrgSuccess = true
-
-			runCommand("some-existing-route", "example.com")
+		It("tells the user that it is checking for the route", func() {
+			cmd.Execute(flagContext)
 			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Checking for route..."},
-				[]string{"OK"},
-				[]string{"Route some-existing-route.example.com does exist"},
+				[]string{"Checking for route"},
 			))
 		})
+
+		It("tries to find the domain", func() {
+			cmd.Execute(flagContext)
+			Expect(domainRepo.FindByNameInOrgCallCount()).To(Equal(1))
+
+			domainName, orgGUID := domainRepo.FindByNameInOrgArgsForCall(0)
+			Expect(domainName).To(Equal("domain-name"))
+			Expect(orgGUID).To(Equal("fake-org-guid"))
+		})
+
+		Context("when it finds the domain successfully", func() {
+			var actualDomain models.DomainFields
+
+			BeforeEach(func() {
+				actualDomain = models.DomainFields{
+					Guid: "domain-guid",
+					Name: "domain-name",
+				}
+				domainRepo.FindByNameInOrgReturns(actualDomain, nil)
+			})
+
+			It("checks if the route exists", func() {
+				cmd.Execute(flagContext)
+				Expect(routeRepo.CheckIfExistsCallCount()).To(Equal(1))
+				hostName, domain, path := routeRepo.CheckIfExistsArgsForCall(0)
+				Expect(hostName).To(Equal("host-name"))
+				Expect(actualDomain).To(Equal(domain))
+				Expect(path).To(Equal(""))
+			})
+
+			Context("when a path is passed", func() {
+				BeforeEach(func() {
+					flagContext = flags.NewFlagContext(cmd.MetaData().Flags)
+					err := flagContext.Parse("hostname", "domain-name", "--path", "the-path")
+					Expect(err).NotTo(HaveOccurred())
+					_, err = cmd.Requirements(factory, flagContext)
+					Expect(err).NotTo(HaveOccurred())
+				})
+
+				It("checks if the route exists", func() {
+					cmd.Execute(flagContext)
+					Expect(routeRepo.CheckIfExistsCallCount()).To(Equal(1))
+					_, _, path := routeRepo.CheckIfExistsArgsForCall(0)
+					Expect(path).To(Equal("the-path"))
+				})
+
+				Context("when finding the route succeeds and the route exists", func() {
+					BeforeEach(func() {
+						routeRepo.CheckIfExistsReturns(true, nil)
+					})
+
+					It("tells the user the route exists", func() {
+						cmd.Execute(flagContext)
+						Expect(ui.Outputs).To(ContainSubstrings([]string{"Route hostname.domain-name/the-path does exist"}))
+					})
+				})
+
+				Context("when finding the route succeeds and the route does not exist", func() {
+					BeforeEach(func() {
+						routeRepo.CheckIfExistsReturns(false, nil)
+					})
+
+					It("tells the user the route exists", func() {
+						cmd.Execute(flagContext)
+						Expect(ui.Outputs).To(ContainSubstrings([]string{"Route hostname.domain-name/the-path does not exist"}))
+					})
+				})
+			})
+
+			Context("when finding the route succeeds and the route exists", func() {
+				BeforeEach(func() {
+					routeRepo.CheckIfExistsReturns(true, nil)
+				})
+
+				It("tells the user OK", func() {
+					cmd.Execute(flagContext)
+					Expect(ui.Outputs).To(ContainSubstrings([]string{"OK"}))
+				})
+
+				It("tells the user the route exists", func() {
+					cmd.Execute(flagContext)
+					Expect(ui.Outputs).To(ContainSubstrings([]string{"Route", "does exist"}))
+				})
+			})
+
+			Context("when finding the route succeeds and the route does not exist", func() {
+				BeforeEach(func() {
+					routeRepo.CheckIfExistsReturns(false, nil)
+				})
+
+				It("tells the user OK", func() {
+					cmd.Execute(flagContext)
+					Expect(ui.Outputs).To(ContainSubstrings([]string{"OK"}))
+				})
+
+				It("tells the user the route does not exist", func() {
+					cmd.Execute(flagContext)
+					Expect(ui.Outputs).To(ContainSubstrings([]string{"Route", "does not exist"}))
+				})
+			})
+
+			Context("when finding the route results in an error", func() {
+				BeforeEach(func() {
+					routeRepo.CheckIfExistsReturns(false, errors.New("check-if-exists-err"))
+				})
+
+				It("fails with error", func() {
+					Expect(func() { cmd.Execute(flagContext) }).To(Panic())
+					Expect(ui.Outputs).To(ContainSubstrings(
+						[]string{"FAILED"},
+						[]string{"check-if-exists-err"},
+					))
+				})
+			})
+		})
+
+		Context("when finding the domain results in an error", func() {
+			BeforeEach(func() {
+				domainRepo.FindByNameInOrgReturns(models.DomainFields{}, errors.New("find-by-name-in-org-err"))
+			})
+
+			It("fails with error", func() {
+				Expect(func() { cmd.Execute(flagContext) }).To(Panic())
+				Expect(ui.Outputs).To(ContainSubstrings(
+					[]string{"FAILED"},
+					[]string{"find-by-name-in-org-err"},
+				))
+			})
+		})
 	})
-
-	Context("when the route does not exist", func() {
-		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedOrgSuccess = true
-			routeRepo.CheckIfExistsFound = false
-		})
-
-		It("prints out route does not exist", func() {
-
-			runCommand("non-existent-route", "example.com")
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Checking for route..."},
-				[]string{"OK"},
-				[]string{"Route non-existent-route.example.com does not exist"},
-			))
-		})
-	})
-
-	Context("when finding the domain returns an error", func() {
-		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedOrgSuccess = true
-			domainRepo.FindByNameInOrgApiResponse = errors.New("Domain not found")
-		})
-
-		It("prints out route does not exist", func() {
-
-			runCommand("some-silly-route", "some-non-real-domain")
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Checking for route..."},
-				[]string{"FAILED"},
-				[]string{"Domain not found"},
-			))
-		})
-	})
-	Context("when checking if the route exists returns an error", func() {
-		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedOrgSuccess = true
-			routeRepo.CheckIfExistsError = errors.New("Some stupid error")
-		})
-
-		It("prints out route does not exist", func() {
-
-			runCommand("some-silly-route", "some-non-real-domain")
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Checking for route..."},
-				[]string{"FAILED"},
-				[]string{"Some stupid error"},
-			))
-		})
-	})
-
 })

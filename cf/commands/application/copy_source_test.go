@@ -5,13 +5,14 @@ import (
 	testCopyApplication "github.com/cloudfoundry/cli/cf/api/copy_application_source/fakes"
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	testorg "github.com/cloudfoundry/cli/cf/api/organizations/fakes"
+	appCmdFakes "github.com/cloudfoundry/cli/cf/commands/application/fakes"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
-	. "github.com/cloudfoundry/cli/cf/commands/application"
+	"github.com/cloudfoundry/cli/cf/command_registry"
 	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 
@@ -24,15 +25,32 @@ var _ = Describe("CopySource", func() {
 
 	var (
 		ui                  *testterm.FakeUI
-		config              core_config.ReadWriter
+		config              core_config.Repository
 		requirementsFactory *testreq.FakeReqFactory
 		authRepo            *testapi.FakeAuthenticationRepository
 		appRepo             *testApplication.FakeApplicationRepository
 		copyAppSourceRepo   *testCopyApplication.FakeCopyApplicationSourceRepository
 		spaceRepo           *testapi.FakeSpaceRepository
 		orgRepo             *testorg.FakeOrganizationRepository
-		appRestarter        *testcmd.FakeApplicationRestarter
+		appRestarter        *appCmdFakes.FakeApplicationRestarter
+		OriginalCommand     command_registry.Command
+		deps                command_registry.Dependency
 	)
+
+	updateCommandDependency := func(pluginCall bool) {
+		deps.Ui = ui
+		deps.RepoLocator = deps.RepoLocator.SetAuthenticationRepository(authRepo)
+		deps.RepoLocator = deps.RepoLocator.SetApplicationRepository(appRepo)
+		deps.RepoLocator = deps.RepoLocator.SetCopyApplicationSourceRepository(copyAppSourceRepo)
+		deps.RepoLocator = deps.RepoLocator.SetSpaceRepository(spaceRepo)
+		deps.RepoLocator = deps.RepoLocator.SetOrganizationRepository(orgRepo)
+		deps.Config = config
+
+		//inject fake 'command dependency' into registry
+		command_registry.Register(appRestarter)
+
+		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("copy-source").SetDependency(deps, pluginCall))
+	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
@@ -42,13 +60,25 @@ var _ = Describe("CopySource", func() {
 		copyAppSourceRepo = &testCopyApplication.FakeCopyApplicationSourceRepository{}
 		spaceRepo = &testapi.FakeSpaceRepository{}
 		orgRepo = &testorg.FakeOrganizationRepository{}
-		appRestarter = &testcmd.FakeApplicationRestarter{}
 		config = testconfig.NewRepositoryWithDefaults()
+
+		//save original command and restore later
+		OriginalCommand = command_registry.Commands.FindCommand("restart")
+
+		appRestarter = &appCmdFakes.FakeApplicationRestarter{}
+		//setup fakes to correctly interact with command_registry
+		appRestarter.SetDependencyStub = func(_ command_registry.Dependency, _ bool) command_registry.Command {
+			return appRestarter
+		}
+		appRestarter.MetaDataReturns(command_registry.CommandMetadata{Name: "restart"})
+	})
+
+	AfterEach(func() {
+		command_registry.Register(OriginalCommand)
 	})
 
 	runCommand := func(args ...string) bool {
-		cmd := NewCopySource(ui, config, authRepo, appRepo, orgRepo, spaceRepo, copyAppSourceRepo, appRestarter)
-		return testcmd.RunCommand(cmd, args, requirementsFactory)
+		return testcmd.RunCliCommand("copy-source", args, requirementsFactory, updateCommandDependency, false)
 	}
 
 	Describe("requirement failures", func() {
@@ -105,7 +135,7 @@ var _ = Describe("CopySource", func() {
 							Guid: "source-app-guid",
 						},
 					}
-					appRepo.ReadReturns.App = sourceApp
+					appRepo.ReadReturns(sourceApp, nil)
 
 					targetApp = models.Application{
 						ApplicationFields: models.ApplicationFields{
@@ -124,7 +154,7 @@ var _ = Describe("CopySource", func() {
 						Expect(targetAppName).To(Equal("target-app"))
 						Expect(spaceGuid).To(Equal("my-space-guid"))
 
-						Expect(appRepo.ReadArgs.Name).To(Equal("source-app"))
+						Expect(appRepo.ReadArgsForCall(0)).To(Equal("source-app"))
 
 						sourceAppGuid, targetAppGuid := copyAppSourceRepo.CopyApplicationArgsForCall(0)
 						Expect(sourceAppGuid).To(Equal("source-app-guid"))
@@ -144,7 +174,7 @@ var _ = Describe("CopySource", func() {
 
 					Context("Failures", func() {
 						It("if we cannot obtain the source application", func() {
-							appRepo.ReadReturns.Error = errors.New("could not find source app")
+							appRepo.ReadReturns(models.Application{}, errors.New("could not find source app"))
 							runCommand("source-app", "target-app")
 
 							Expect(ui.Outputs).To(ContainSubstrings(
@@ -167,14 +197,10 @@ var _ = Describe("CopySource", func() {
 
 				Describe("when a space is provided, but not an org", func() {
 					It("send the correct target appplication for the current org and target space", func() {
-						spaceRepo.Spaces = []models.Space{
-							{
-								SpaceFields: models.SpaceFields{
-									Name: "space-name",
-									Guid: "model-space-guid",
-								},
-							},
-						}
+						space := models.Space{}
+						space.Name = "space-name"
+						space.Guid = "model-space-guid"
+						spaceRepo.FindByNameReturns(space, nil)
 
 						runCommand("-s", "space-name", "source-app", "target-app")
 
@@ -191,7 +217,7 @@ var _ = Describe("CopySource", func() {
 
 					Context("Failures", func() {
 						It("when we cannot find the provided space", func() {
-							spaceRepo.FindByNameErr = true
+							spaceRepo.FindByNameReturns(models.Space{}, errors.New("Error finding space by name."))
 
 							runCommand("-s", "space-name", "source-app", "target-app")
 							Expect(ui.Outputs).To(ContainSubstrings(

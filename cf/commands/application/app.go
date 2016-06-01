@@ -5,10 +5,13 @@ import (
 	"strings"
 
 	. "github.com/cloudfoundry/cli/cf/i18n"
+	"github.com/cloudfoundry/cli/flags"
+	"github.com/cloudfoundry/cli/flags/flag"
+	"github.com/cloudfoundry/cli/plugin/models"
 
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/api/app_instances"
-	"github.com/cloudfoundry/cli/cf/command_metadata"
+	"github.com/cloudfoundry/cli/cf/command_registry"
 	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/formatters"
@@ -16,53 +19,44 @@ import (
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/cloudfoundry/cli/cf/ui_helpers"
-	"github.com/codegangsta/cli"
 )
-
-type ShowApp struct {
-	ui               terminal.UI
-	config           core_config.Reader
-	appSummaryRepo   api.AppSummaryRepository
-	appLogsNoaaRepo  api.LogsNoaaRepository
-	appInstancesRepo app_instances.AppInstancesRepository
-	appReq           requirements.ApplicationRequirement
-}
 
 type ApplicationDisplayer interface {
 	ShowApp(app models.Application, orgName string, spaceName string)
 }
 
-func NewShowApp(ui terminal.UI, config core_config.Reader, appSummaryRepo api.AppSummaryRepository, appInstancesRepo app_instances.AppInstancesRepository, appLogsNoaaRepo api.LogsNoaaRepository) (cmd *ShowApp) {
-	cmd = &ShowApp{}
-	cmd.ui = ui
-	cmd.config = config
-	cmd.appSummaryRepo = appSummaryRepo
-	cmd.appInstancesRepo = appInstancesRepo
-	cmd.appLogsNoaaRepo = appLogsNoaaRepo
-	return
+type ShowApp struct {
+	ui               terminal.UI
+	config           core_config.Reader
+	appSummaryRepo   api.AppSummaryRepository
+	appInstancesRepo app_instances.AppInstancesRepository
+	appReq           requirements.ApplicationRequirement
+	pluginAppModel   *plugin_models.GetAppModel
+	pluginCall       bool
 }
 
-func (cmd *ShowApp) Metadata() command_metadata.CommandMetadata {
-	return command_metadata.CommandMetadata{
+func init() {
+	command_registry.Register(&ShowApp{})
+}
+
+func (cmd *ShowApp) MetaData() command_registry.CommandMetadata {
+	fs := make(map[string]flags.FlagSet)
+	fs["guid"] = &cliFlags.BoolFlag{Name: "guid", Usage: T("Retrieve and display the given app's guid.  All other health and status output for the app is suppressed.")}
+
+	return command_registry.CommandMetadata{
 		Name:        "app",
 		Description: T("Display health and status for app"),
 		Usage:       T("CF_NAME app APP_NAME"),
-		Flags: []cli.Flag{
-			cli.BoolFlag{Name: "guid", Usage: T("Retrieve and display the given app's guid.  All other health and status output for the app is suppressed.")},
-		},
+		Flags:       fs,
 	}
 }
 
-func (cmd *ShowApp) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
-	if len(c.Args()) != 1 {
-		cmd.ui.FailWithUsage(c)
+func (cmd *ShowApp) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+	if len(fc.Args()) != 1 {
+		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + command_registry.Commands.CommandUsage("app"))
 	}
 
-	if cmd.appReq == nil {
-		cmd.appReq = requirementsFactory.NewApplicationRequirement(c.Args()[0])
-	} else {
-		cmd.appReq.SetApplicationName(c.Args()[0])
-	}
+	cmd.appReq = requirementsFactory.NewApplicationRequirement(fc.Args()[0])
 
 	reqs = []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
@@ -72,7 +66,19 @@ func (cmd *ShowApp) GetRequirements(requirementsFactory requirements.Factory, c 
 	return
 }
 
-func (cmd *ShowApp) Run(c *cli.Context) {
+func (cmd *ShowApp) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
+	cmd.ui = deps.Ui
+	cmd.config = deps.Config
+	cmd.appSummaryRepo = deps.RepoLocator.GetAppSummaryRepository()
+	cmd.appInstancesRepo = deps.RepoLocator.GetAppInstancesRepository()
+
+	cmd.pluginAppModel = deps.PluginModels.Application
+	cmd.pluginCall = pluginCall
+
+	return cmd
+}
+
+func (cmd *ShowApp) Execute(c flags.FlagContext) {
 	app := cmd.appReq.GetApplication()
 
 	if c.Bool("guid") {
@@ -106,20 +112,18 @@ func (cmd *ShowApp) ShowApp(app models.Application, orgName, spaceName string) {
 
 	var instances []models.AppInstanceFields
 	instances, apiErr = cmd.appInstancesRepo.GetInstances(app.Guid)
-
-	//temp solution, diego app metrics only come from noaa, not CC
-	if application.Diego {
-		instances, apiErr = cmd.appLogsNoaaRepo.GetContainerMetrics(app.Guid, instances)
-
-		for i := 0; i < len(instances); i++ {
-			instances[i].MemQuota = application.Memory * 1024 * 1024
-			instances[i].DiskQuota = application.DiskQuota * 1024 * 1024
-		}
+	if apiErr != nil && !appIsStopped {
+		cmd.ui.Failed(apiErr.Error())
+		return
 	}
 
 	if apiErr != nil && !appIsStopped {
 		cmd.ui.Failed(apiErr.Error())
 		return
+	}
+
+	if cmd.pluginCall {
+		cmd.populatePluginModel(application, app.Stack, instances)
 	}
 
 	cmd.ui.Ok()
@@ -145,9 +149,17 @@ func (cmd *ShowApp) ShowApp(app models.Application, orgName, spaceName string) {
 	}
 	cmd.ui.Say("%s %s", terminal.HeaderColor(T("last uploaded:")), lastUpdated)
 	if app.Stack != nil {
-		cmd.ui.Say("%s %s\n", terminal.HeaderColor(T("stack:")), app.Stack.Name)
+		cmd.ui.Say("%s %s", terminal.HeaderColor(T("stack:")), app.Stack.Name)
 	} else {
-		cmd.ui.Say("%s %s\n", terminal.HeaderColor(T("stack:")), "unknown")
+		cmd.ui.Say("%s %s", terminal.HeaderColor(T("stack:")), "unknown")
+	}
+
+	if app.Buildpack != "" {
+		cmd.ui.Say("%s %s\n", terminal.HeaderColor(T("buildpack:")), app.Buildpack)
+	} else if app.DetectedBuildpack != "" {
+		cmd.ui.Say("%s %s\n", terminal.HeaderColor(T("buildpack:")), app.DetectedBuildpack)
+	} else {
+		cmd.ui.Say("%s %s\n", terminal.HeaderColor(T("buildpack:")), "unknown")
 	}
 
 	if appIsStopped {
@@ -176,4 +188,66 @@ func (cmd *ShowApp) ShowApp(app models.Application, orgName, spaceName string) {
 	}
 
 	table.Print()
+}
+
+func (cmd *ShowApp) populatePluginModel(
+	getSummaryApp models.Application,
+	stack *models.Stack,
+	instances []models.AppInstanceFields,
+) {
+	cmd.pluginAppModel.BuildpackUrl = getSummaryApp.BuildpackUrl
+	cmd.pluginAppModel.Command = getSummaryApp.Command
+	cmd.pluginAppModel.DetectedStartCommand = getSummaryApp.DetectedStartCommand
+	cmd.pluginAppModel.Diego = getSummaryApp.Diego
+	cmd.pluginAppModel.DiskQuota = getSummaryApp.DiskQuota
+	cmd.pluginAppModel.EnvironmentVars = getSummaryApp.EnvironmentVars
+	cmd.pluginAppModel.Guid = getSummaryApp.Guid
+	cmd.pluginAppModel.HealthCheckTimeout = getSummaryApp.HealthCheckTimeout
+	cmd.pluginAppModel.InstanceCount = getSummaryApp.InstanceCount
+	cmd.pluginAppModel.Memory = getSummaryApp.Memory
+	cmd.pluginAppModel.Name = getSummaryApp.Name
+	cmd.pluginAppModel.PackageState = getSummaryApp.PackageState
+	cmd.pluginAppModel.PackageUpdatedAt = getSummaryApp.PackageUpdatedAt
+	cmd.pluginAppModel.RunningInstances = getSummaryApp.RunningInstances
+	cmd.pluginAppModel.SpaceGuid = getSummaryApp.SpaceGuid
+	cmd.pluginAppModel.Stack = &plugin_models.GetApp_Stack{
+		Name: stack.Name,
+		Guid: stack.Guid,
+	}
+	cmd.pluginAppModel.StagingFailedReason = getSummaryApp.StagingFailedReason
+	cmd.pluginAppModel.State = getSummaryApp.State
+
+	for _, instance := range instances {
+		instanceFields := plugin_models.GetApp_AppInstanceFields{
+			State:     string(instance.State),
+			Details:   instance.Details,
+			Since:     instance.Since,
+			CpuUsage:  instance.CpuUsage,
+			DiskQuota: instance.DiskQuota,
+			DiskUsage: instance.DiskUsage,
+			MemQuota:  instance.MemQuota,
+			MemUsage:  instance.MemUsage,
+		}
+		cmd.pluginAppModel.Instances = append(cmd.pluginAppModel.Instances, instanceFields)
+	}
+
+	for i := range getSummaryApp.Routes {
+		routeSummary := plugin_models.GetApp_RouteSummary{
+			Host: getSummaryApp.Routes[i].Host,
+			Guid: getSummaryApp.Routes[i].Guid,
+			Domain: plugin_models.GetApp_DomainFields{
+				Name: getSummaryApp.Routes[i].Domain.Name,
+				Guid: getSummaryApp.Routes[i].Domain.Guid,
+			},
+		}
+		cmd.pluginAppModel.Routes = append(cmd.pluginAppModel.Routes, routeSummary)
+	}
+
+	for i := range getSummaryApp.Services {
+		serviceSummary := plugin_models.GetApp_ServiceSummary{
+			Name: getSummaryApp.Services[i].Name,
+			Guid: getSummaryApp.Services[i].Guid,
+		}
+		cmd.pluginAppModel.Services = append(cmd.pluginAppModel.Services, serviceSummary)
+	}
 }

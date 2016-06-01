@@ -3,12 +3,13 @@ package app_files
 import (
 	"crypto/sha1"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/cloudfoundry/cli/cf/models"
-	cffileutils "github.com/cloudfoundry/cli/fileutils"
 	"github.com/cloudfoundry/gofileutils/fileutils"
 )
 
@@ -27,10 +28,10 @@ func (appfiles ApplicationFiles) AppFilesInDir(dir string) (appFiles []models.Ap
 		return
 	}
 
-	err = appfiles.WalkAppFiles(dir, func(fileName string, fullPath string) (err error) {
+	err = appfiles.WalkAppFiles(dir, func(fileName string, fullPath string) error {
 		fileInfo, err := os.Lstat(fullPath)
 		if err != nil {
-			return
+			return err
 		}
 
 		appFile := models.AppFileFields{
@@ -43,33 +44,76 @@ func (appfiles ApplicationFiles) AppFilesInDir(dir string) (appFiles []models.Ap
 			appFile.Size = 0
 		} else {
 			hash := sha1.New()
-			err = fileutils.CopyPathToWriter(fullPath, hash)
+			file, err := os.Open(fullPath)
 			if err != nil {
-				return
+				return err
 			}
+			defer file.Close()
+
+			_, err = io.Copy(hash, file)
+			if err != nil {
+				return err
+			}
+
 			appFile.Sha1 = fmt.Sprintf("%x", hash.Sum(nil))
 		}
 
 		appFiles = append(appFiles, appFile)
-		return
+
+		return nil
 	})
+
 	return
 }
 
-func (appfiles ApplicationFiles) CopyFiles(appFiles []models.AppFileFields, fromDir, toDir string) (err error) {
-	if err != nil {
-		return
-	}
-
+func (appfiles ApplicationFiles) CopyFiles(appFiles []models.AppFileFields, fromDir, toDir string) error {
 	for _, file := range appFiles {
-		fromPath := filepath.Join(fromDir, file.Path)
-		toPath := filepath.Join(toDir, file.Path)
-		err = copyPathToPath(fromPath, toPath)
+		err := func() error {
+			fromPath := filepath.Join(fromDir, file.Path)
+			srcFileInfo, err := os.Stat(fromPath)
+			if err != nil {
+				return err
+			}
+
+			toPath := filepath.Join(toDir, file.Path)
+
+			if srcFileInfo.IsDir() {
+				err = os.MkdirAll(toPath, srcFileInfo.Mode())
+				if err != nil {
+					return err
+				}
+				return nil
+			}
+
+			var dst *os.File
+			dst, err = fileutils.Create(toPath)
+			if err != nil {
+				return err
+			}
+			defer dst.Close()
+
+			dst.Chmod(srcFileInfo.Mode())
+
+			src, err := os.Open(fromPath)
+			if err != nil {
+				return err
+			}
+			defer src.Close()
+
+			_, err = io.Copy(dst, src)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}()
+
 		if err != nil {
-			return
+			return err
 		}
 	}
-	return
+
+	return nil
 }
 
 func (appfiles ApplicationFiles) CountFiles(directory string) int64 {
@@ -81,67 +125,56 @@ func (appfiles ApplicationFiles) CountFiles(directory string) int64 {
 	return count
 }
 
-func (appfiles ApplicationFiles) WalkAppFiles(dir string, onEachFile func(string, string) error) (err error) {
+func (appfiles ApplicationFiles) WalkAppFiles(dir string, onEachFile func(string, string) error) error {
 	cfIgnore := loadIgnoreFile(dir)
-	walkFunc := func(fullPath string, f os.FileInfo, inErr error) (err error) {
-		err = inErr
-		if err != nil {
-			return
-		}
-
-		if fullPath == dir {
-			return
-		}
-
-		if !cffileutils.IsRegular(f) && !f.IsDir() {
-			return
-		}
-
+	walkFunc := func(fullPath string, f os.FileInfo, err error) error {
 		fileRelativePath, _ := filepath.Rel(dir, fullPath)
 		fileRelativeUnixPath := filepath.ToSlash(fileRelativePath)
 
-		if !cfIgnore.FileShouldBeIgnored(fileRelativeUnixPath) {
-			err = onEachFile(fileRelativePath, fullPath)
+		if cfIgnore.FileShouldBeIgnored(fileRelativeUnixPath) {
+			if err == nil {
+				if f.IsDir() {
+					return filepath.SkipDir
+				}
+			}
+
+			if runtime.GOOS == "windows" {
+				fi, statErr := os.Lstat(`\\?\` + fullPath)
+				if statErr != nil {
+					return statErr
+				}
+
+				if fi.IsDir() {
+					return filepath.SkipDir
+				}
+			}
+
+			return err
 		}
 
-		return
-	}
-
-	err = filepath.Walk(dir, walkFunc)
-	return
-}
-
-func copyPathToPath(fromPath, toPath string) (err error) {
-	srcFileInfo, err := os.Stat(fromPath)
-	if err != nil {
-		return
-	}
-
-	if srcFileInfo.IsDir() {
-		err = os.MkdirAll(toPath, srcFileInfo.Mode())
 		if err != nil {
-			return
+			return err
 		}
-	} else {
-		var dst *os.File
-		dst, err = fileutils.Create(toPath)
-		if err != nil {
-			return
+
+		if fullPath == dir {
+			return nil
 		}
-		defer dst.Close()
 
-		dst.Chmod(srcFileInfo.Mode())
+		if !f.Mode().IsRegular() && !f.IsDir() {
+			return nil
+		}
 
-		err = fileutils.CopyPathToWriter(fromPath, dst)
+		return onEachFile(fileRelativePath, fullPath)
 	}
-	return err
+
+	return filepath.Walk(dir, walkFunc)
 }
 
 func loadIgnoreFile(dir string) CfIgnore {
 	fileContents, err := ioutil.ReadFile(filepath.Join(dir, ".cfignore"))
-	if err == nil {
-		return NewCfIgnore(string(fileContents))
-	} else {
+	if err != nil {
 		return NewCfIgnore("")
 	}
+
+	return NewCfIgnore(string(fileContents))
 }

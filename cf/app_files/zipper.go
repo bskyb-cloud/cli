@@ -2,9 +2,12 @@ package app_files
 
 import (
 	"archive/zip"
+	"bufio"
+	"bytes"
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/gofileutils/fileutils"
@@ -19,19 +22,113 @@ type Zipper interface {
 
 type ApplicationZipper struct{}
 
-func (zipper ApplicationZipper) Zip(dirOrZipFile string, targetFile *os.File) (err error) {
-	if zipper.IsZipFile(dirOrZipFile) {
-		err = fileutils.CopyPathToWriter(dirOrZipFile, targetFile)
+func (zipper ApplicationZipper) Zip(dirOrZipFilePath string, targetFile *os.File) error {
+	if zipper.IsZipFile(dirOrZipFilePath) {
+		zipFile, err := os.Open(dirOrZipFilePath)
+		if err != nil {
+			return err
+		}
+		defer zipFile.Close()
+
+		_, err = io.Copy(targetFile, zipFile)
+		if err != nil {
+			return err
+		}
 	} else {
-		err = writeZipFile(dirOrZipFile, targetFile)
+		err := writeZipFile(dirOrZipFilePath, targetFile)
+		if err != nil {
+			return err
+		}
 	}
+
 	targetFile.Seek(0, os.SEEK_SET)
-	return
+
+	return nil
 }
 
-func (zipper ApplicationZipper) IsZipFile(file string) (result bool) {
-	_, err := zip.OpenReader(file)
+func (zipper ApplicationZipper) IsZipFile(name string) bool {
+	f, err := os.Open(name)
+	if err != nil {
+		return false
+	}
+
+	fi, err := f.Stat()
+	if err != nil {
+		return false
+	}
+
+	if fi.IsDir() {
+		return false
+	}
+
+	_, err = zip.OpenReader(name)
+	if err != nil && err == zip.ErrFormat {
+		return zipper.isZipWithOffsetFileHeaderLocation(name)
+	}
+
 	return err == nil
+}
+
+func (zipper ApplicationZipper) Unzip(name string, destDir string) error {
+	rc, err := zip.OpenReader(name)
+
+	if err == nil {
+		defer rc.Close()
+		for _, f := range rc.File {
+			err = zipper.extractFile(f, destDir)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if err == zip.ErrFormat {
+		loc, err := zipper.zipFileHeaderLocation(name)
+		if err != nil {
+			return err
+		}
+
+		if loc > int64(-1) {
+			f, err := os.Open(name)
+			if err != nil {
+				return err
+			}
+
+			defer f.Close()
+
+			fi, err := f.Stat()
+			if err != nil {
+				return err
+			}
+
+			readerAt := io.NewSectionReader(f, loc, fi.Size())
+			r, err := zip.NewReader(readerAt, fi.Size())
+			if err != nil {
+				return err
+			}
+			for _, f := range r.File {
+				err := zipper.extractFile(f, destDir)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (zipper ApplicationZipper) GetZipSize(zipFile *os.File) (int64, error) {
+	zipFileSize := int64(0)
+
+	stat, err := zipFile.Stat()
+	if err != nil {
+		return 0, err
+	}
+
+	zipFileSize = int64(stat.Size())
+
+	return zipFileSize, nil
 }
 
 func writeZipFile(dir string, targetFile *os.File) error {
@@ -59,6 +156,10 @@ func writeZipFile(dir string, targetFile *os.File) error {
 			return err
 		}
 
+		if runtime.GOOS == "windows" {
+			header.SetMode(header.Mode() | 0700)
+		}
+
 		header.Name = filepath.ToSlash(fileName)
 
 		if fileInfo.IsDir() {
@@ -72,62 +173,128 @@ func writeZipFile(dir string, targetFile *os.File) error {
 
 		if fileInfo.IsDir() {
 			return nil
-		} else {
-			return fileutils.CopyPathToWriter(fullPath, zipFilePart)
 		}
+
+		file, err := os.Open(fullPath)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+		_, err = io.Copy(zipFilePart, file)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 }
 
-func (zipper ApplicationZipper) Unzip(appDir string, destDir string) (err error) {
-	r, err := zip.OpenReader(appDir)
+func (zipper ApplicationZipper) zipFileHeaderLocation(name string) (int64, error) {
+	f, err := os.Open(name)
 	if err != nil {
-		return
-	}
-	defer r.Close()
-
-	for _, f := range r.File {
-		func() {
-			// Don't try to extract directories
-			if f.FileInfo().IsDir() {
-				return
-			}
-
-			var rc io.ReadCloser
-			rc, err = f.Open()
-			if err != nil {
-				return
-			}
-
-			// functional scope from above is important
-			// otherwise this only closes the last file handle
-			defer rc.Close()
-
-			destFilePath := filepath.Join(destDir, f.Name)
-
-			err = fileutils.CopyReaderToPath(rc, destFilePath)
-			if err != nil {
-				return
-			}
-
-			err = os.Chmod(destFilePath, f.FileInfo().Mode())
-			if err != nil {
-				return
-			}
-		}()
+		return -1, err
 	}
 
-	return
+	defer f.Close()
+
+	// zip file header signature, 0x04034b50, reversed due to little-endian byte order
+	firstByte := byte(0x50)
+	restBytes := []byte{0x4b, 0x03, 0x04}
+	count := int64(-1)
+	foundAt := int64(-1)
+
+	reader := bufio.NewReader(f)
+
+	keepGoing := true
+	for keepGoing {
+		count++
+
+		b, err := reader.ReadByte()
+		if err != nil {
+			keepGoing = false
+			break
+		}
+
+		if b == firstByte {
+			nextBytes, err := reader.Peek(3)
+			if err != nil {
+				keepGoing = false
+			}
+			if bytes.Compare(nextBytes, restBytes) == 0 {
+				foundAt = count
+				keepGoing = false
+				break
+			}
+		}
+	}
+
+	return foundAt, nil
 }
 
-func (zipper ApplicationZipper) GetZipSize(zipFile *os.File) (int64, error) {
-	zipFileSize := int64(0)
-
-	stat, err := zipFile.Stat()
+func (zipper ApplicationZipper) isZipWithOffsetFileHeaderLocation(name string) bool {
+	loc, err := zipper.zipFileHeaderLocation(name)
 	if err != nil {
-		return 0, err
+		return false
 	}
 
-	zipFileSize = int64(stat.Size())
+	if loc > int64(-1) {
+		f, err := os.Open(name)
+		if err != nil {
+			return false
+		}
 
-	return zipFileSize, nil
+		defer f.Close()
+
+		fi, err := f.Stat()
+		if err != nil {
+			return false
+		}
+
+		readerAt := io.NewSectionReader(f, loc, fi.Size())
+		_, err = zip.NewReader(readerAt, fi.Size())
+		if err == nil {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (zipper ApplicationZipper) extractFile(f *zip.File, destDir string) error {
+	if f.FileInfo().IsDir() {
+		os.MkdirAll(filepath.Join(destDir, f.Name), os.ModeDir|os.ModePerm)
+		return nil
+	}
+
+	src, err := f.Open()
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	destFilePath := filepath.Join(destDir, f.Name)
+
+	err = os.MkdirAll(filepath.Dir(destFilePath), os.ModeDir|os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	destFile, err := os.Create(destFilePath)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, src)
+	if err != nil {
+		return err
+	}
+
+	err = os.Chmod(destFilePath, f.FileInfo().Mode())
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

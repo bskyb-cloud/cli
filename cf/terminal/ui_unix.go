@@ -7,11 +7,12 @@ package terminal
 import (
 	"bufio"
 	"fmt"
-	. "github.com/cloudfoundry/cli/cf/i18n"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+
+	. "github.com/cloudfoundry/cli/cf/i18n"
 )
 
 const (
@@ -25,7 +26,7 @@ var sttyArgvEOff []string = []string{"stty", "-echo"}
 // Tells the terminal to turn echo on.
 var sttyArgvEOn []string = []string{"stty", "echo"}
 
-var ws syscall.WaitStatus = 0
+var ws syscall.WaitStatus
 
 func (ui terminalUI) AskForPassword(prompt string, args ...interface{}) (passwd string) {
 	sig := make(chan os.Signal, 10)

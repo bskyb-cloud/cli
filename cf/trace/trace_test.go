@@ -2,10 +2,11 @@ package trace_test
 
 import (
 	"bytes"
-	"github.com/cloudfoundry/gofileutils/fileutils"
 	"io/ioutil"
 	"os"
 	"runtime"
+
+	"github.com/cloudfoundry/gofileutils/fileutils"
 
 	. "github.com/cloudfoundry/cli/cf/trace"
 	. "github.com/onsi/ginkgo"
@@ -125,12 +126,30 @@ grant_type=password&password=[PRIVATE DATA HIDDEN]&scope=&username=mgehard%2Bcli
 				Expect(Sanitize(request)).To(Equal(expected))
 			})
 
-			It("hides paswords in the JSON-formatted request body", func() {
+			It("hides passwords in the JSON-formatted request body", func() {
 				request := `
 REQUEST: [2014-03-07T10:53:36-08:00]
 PUT /Users/user-guid-goes-here/password HTTP/1.1
 
 {"password":"stanleysPasswordIsCool","oldPassword":"stanleypassword!"}
+`
+
+				expected := `
+REQUEST: [2014-03-07T10:53:36-08:00]
+PUT /Users/user-guid-goes-here/password HTTP/1.1
+
+{"password":"[PRIVATE DATA HIDDEN]","oldPassword":"[PRIVATE DATA HIDDEN]"}
+`
+
+				Expect(Sanitize(request)).To(Equal(expected))
+			})
+
+			It("hides password containing \" in the JSON-formatted request body", func() {
+				request := `
+REQUEST: [2014-03-07T10:53:36-08:00]
+PUT /Users/user-guid-goes-here/password HTTP/1.1
+
+{"password":"stanleys\"PasswordIsCool","oldPassword":"stanleypassword!"}
 `
 
 				expected := `

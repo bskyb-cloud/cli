@@ -3,35 +3,26 @@ package logs
 import (
 	"time"
 
-	"code.google.com/p/gogoprotobuf/proto"
 	"github.com/cloudfoundry/loggregatorlib/logmessage"
-	"github.com/cloudfoundry/noaa/events"
+	"github.com/gogo/protobuf/proto"
 )
 
-const (
-	TIMESTAMP_FORMAT = "2006-01-02T15:04:05.00-0700"
-)
-
-func NewOldLogMessage(msgText, appGuid, sourceName string, timestamp time.Time) *logmessage.LogMessage {
-	messageType := logmessage.LogMessage_ERR
-
+func NewLogMessage(
+	text string,
+	appGUID string,
+	sourceName string,
+	sourceID string,
+	messageType logmessage.LogMessage_MessageType,
+	timestamp time.Time,
+	drainURLs ...string,
+) *logmessage.LogMessage {
 	return &logmessage.LogMessage{
-		Message:     []byte(msgText),
-		AppId:       proto.String(appGuid),
+		Message:     []byte(text),
 		MessageType: &messageType,
+		Timestamp:   proto.Int64(timestamp.UnixNano()),
+		AppId:       proto.String(appGUID),
+		SourceId:    proto.String(sourceID),
+		DrainUrls:   drainURLs,
 		SourceName:  proto.String(sourceName),
-		Timestamp:   proto.Int64(timestamp.UnixNano()),
-	}
-}
-
-func NewNoaaLogMessage(msgText, appGuid, sourceName string, timestamp time.Time) *events.LogMessage {
-	messageType := events.LogMessage_ERR
-
-	return &events.LogMessage{
-		Message:     []byte(msgText),
-		AppId:       proto.String(appGuid),
-		MessageType: &messageType,
-		SourceType:  proto.String(sourceName),
-		Timestamp:   proto.Int64(timestamp.UnixNano()),
 	}
 }

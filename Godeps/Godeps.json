@@ -1,35 +1,50 @@
 {
 	"ImportPath": "github.com/cloudfoundry/cli",
-	"GoVersion": "go1.4.2",
+	"GoVersion": "go1.5.2",
 	"Packages": [
 		"./..."
 	],
 	"Deps": [
 		{
-			"ImportPath": "code.google.com/p/go.crypto/ssh/terminal",
-			"Comment": "null-223",
-			"Rev": "31393df5baea9ed8d6778396e7f3896070ea5c04"
+			"ImportPath": "github.com/Azure/go-ansiterm",
+			"Rev": "70b2c90b260171e829f1ebd7c17f600c11858dbe"
 		},
 		{
-			"ImportPath": "code.google.com/p/go.net/websocket",
-			"Comment": "null-147",
-			"Rev": "d3882abcf003a8a50502be58e9f969329d331dce"
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.8.7-53-g446d1c1",
+			"Rev": "446d1c146faa8ed3f4218f056fcd165f6bcfda81"
 		},
 		{
-			"ImportPath": "code.google.com/p/gogoprotobuf/proto",
-			"Rev": "6c980277330804e94257ac7ef70a3adbe1641059"
-		},
-		{
-			"ImportPath": "github.com/cloudfoundry-incubator/candiedyaml",
-			"Rev": "5f3b3579b3dc360c8ad3f86fe9e59e58c5652d10"
+			"ImportPath": "github.com/blang/semver",
+			"Comment": "v3.0.1",
+			"Rev": "31b736133b98f26d5e078ec9eb591666edfd091f"
 		},
 		{
 			"ImportPath": "github.com/cloudfoundry-incubator/cli-plugin-repo/models",
-			"Rev": "81f3ef50fafc5c09773f32f01e9ebcc56dd54f23"
+			"Rev": "6663a3e55747f83c5b5e855d75c845632cc3d59f"
+		},
+		{
+			"ImportPath": "github.com/cloudfoundry-incubator/diego-ssh/cf-plugin/terminal",
+			"Comment": "plugin-0.2.1-1-gfc5f549",
+			"Rev": "fc5f5493005fa72ff7cc67596263d079a978994b"
+		},
+		{
+			"ImportPath": "github.com/cloudfoundry-incubator/diego-ssh/server",
+			"Comment": "plugin-0.2.1-1-gfc5f549",
+			"Rev": "fc5f5493005fa72ff7cc67596263d079a978994b"
+		},
+		{
+			"ImportPath": "github.com/cloudfoundry-incubator/diego-ssh/test_helpers",
+			"Comment": "plugin-0.2.1-1-gfc5f549",
+			"Rev": "fc5f5493005fa72ff7cc67596263d079a978994b"
 		},
 		{
 			"ImportPath": "github.com/cloudfoundry/gofileutils/fileutils",
-			"Rev": "a4a0cae5ff8a342ba01fce700b9e41c6942c0e5e"
+			"Rev": "b9aba8bc5b91f0764131fcac8ea0ff2dd202c8c4"
+		},
+		{
+			"ImportPath": "github.com/cloudfoundry/loggregator_consumer",
+			"Rev": "89d7fe237afae1e8222554359ec03b72c8466d10"
 		},
 		{
 			"ImportPath": "github.com/cloudfoundry/loggregator_consumer",
@@ -44,39 +59,92 @@
 			"Rev": "28ce6c1f1aa0352189bed34cdc9aa4ea8fcb9089"
 		},
 		{
-			"ImportPath": "github.com/cloudfoundry/noaa",
-			"Rev": "9e379db26bbd042ec0202d9679ed8d753b64e0df"
+			"ImportPath": "github.com/cloudfoundry/noaa/errors",
+			"Rev": "3c78d4555842c8a7396fa4fc3ef18376c08a3e31"
 		},
 		{
-			"ImportPath": "github.com/codegangsta/cli",
-			"Comment": "1.2.0-24-g7381bc4",
-			"Rev": "7381bc4e62942763475703c7edd405f1e42adf4f"
+			"ImportPath": "github.com/davecgh/go-spew/spew",
+			"Rev": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/term",
+			"Comment": "v1.4.1-6704-g6d9a84b",
+			"Rev": "6d9a84bcd04cd178033309859eb7bf386a8db85d"
 		},
 		{
 			"ImportPath": "github.com/gogo/protobuf/proto",
-			"Rev": "bc946d07d1016848dfd2507f90f0859c9471681e"
+			"Rev": "b9e369e8ffb6773efc654ea13594566404314ee1"
+		},
+		{
+			"ImportPath": "github.com/golang/protobuf/proto",
+			"Rev": "0c959e80d8acfedb1ecd50c9f14a58cee287dc95"
 		},
 		{
 			"ImportPath": "github.com/gorilla/websocket",
 			"Rev": "f761cdb666383d5db7a8bea9ff8c9db35332b4a0"
 		},
 		{
+			"ImportPath": "github.com/kr/pty",
+			"Comment": "release.r56-28-g5cf931e",
+			"Rev": "5cf931ef8f76dccd0910001d74a58a7fca84a83d"
+		},
+		{
 			"ImportPath": "github.com/nicksnyder/go-i18n/i18n",
-			"Rev": "fdd9ce0eff0447ddec6b10625512f49a726418c1"
+			"Comment": "v1.4.0",
+			"Rev": "37e5c2de3e03e4b82693e3fcb4a6aa2cc4eb07e3"
+		},
+		{
+			"ImportPath": "github.com/nu7hatch/gouuid",
+			"Rev": "179d4d0c4d8d407a32af483c2354df1d2c91e6c3"
 		},
 		{
 			"ImportPath": "github.com/onsi/ginkgo",
-			"Comment": "v1.1.0-29-g18c73cf",
-			"Rev": "18c73cfeca1095f984c036a04c42ac0b08048685"
+			"Comment": "v1.2.0-11-gd94e2f4",
+			"Rev": "d94e2f4000332f62b356ecb2840c98f4218f5358"
 		},
 		{
 			"ImportPath": "github.com/onsi/gomega",
-			"Comment": "v1.0-23-g2cd6d99",
-			"Rev": "2cd6d99ccf3ac7ae8398d8296429161bf7061ae2"
+			"Comment": "v1.0-65-g0652f5f",
+			"Rev": "0652f5f3ba4e1226d4e7811215d3c2f80d37f919"
 		},
 		{
-			"ImportPath": "github.com/pivotal-cf-experimental/jibber_jabber",
-			"Rev": "66b05988ee1e223bf019acdeeb3e2132c2249942"
+			"ImportPath": "github.com/pivotal-golang/lager",
+			"Rev": "24bc7249ba26ad2f1493363b9dcedf86023f47d7"
+		},
+		{
+			"ImportPath": "github.com/pmezard/go-difflib/difflib",
+			"Rev": "e8554b8641db39598be7f6342874b958f12ae1d4"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/assert",
+			"Comment": "v1.0-88-ge3a8ff8",
+			"Rev": "e3a8ff8ce36581f87a15341206f205b1da467059"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/ssh",
+			"Rev": "c10c31b5e94b6f7a0283272dc2bb27163dcea24b"
+		},
+		{
+			"ImportPath": "golang.org/x/net/websocket",
+			"Rev": "db8e4de5b2d6653f66aea53094624468caad15d2"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/unix",
+			"Rev": "833a04a10549a95dc34458c195cbad61bbb6cb4d"
+		},
+		{
+			"ImportPath": "gopkg.in/airbrake/gobrake.v2",
+			"Comment": "v2.0.3",
+			"Rev": "c9d51adc624b5cc4c1bf8de730a09af4878ffe2d"
+		},
+		{
+			"ImportPath": "gopkg.in/gemnasium/logrus-airbrake-hook.v2",
+			"Comment": "v2.0.0",
+			"Rev": "31e6fd4bd5a98d8ee7673d24bc54ec73c31810dd"
+		},
+		{
+			"ImportPath": "gopkg.in/yaml.v2",
+			"Rev": "49c95bdc21843256fb6c4e0d370a05f24a0bf213"
 		},
 		{
 			"ImportPath": "golang.org/x/net/publicsuffix",

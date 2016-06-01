@@ -1,6 +1,7 @@
 package applications
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -15,6 +16,7 @@ import (
 	"github.com/cloudfoundry/cli/cf/net"
 )
 
+//go:generate counterfeiter -o fakes/fake_application_repository.go . ApplicationRepository
 type ApplicationRepository interface {
 	Create(params models.AppParams) (createdApp models.Application, apiErr error)
 	GetApp(appGuid string) (models.Application, error)
@@ -40,12 +42,12 @@ func NewCloudControllerApplicationRepository(config core_config.Reader, gateway 
 func (repo CloudControllerApplicationRepository) Create(params models.AppParams) (createdApp models.Application, apiErr error) {
 	data, err := repo.formatAppJSON(params)
 	if err != nil {
-		apiErr = errors.NewWithError(T("Failed to marshal JSON"), err)
+		apiErr = fmt.Errorf("%s: %s", T("Failed to marshal JSON"), err.Error())
 		return
 	}
 
 	resource := new(resources.ApplicationResource)
-	apiErr = repo.gateway.CreateResource(repo.config.ApiEndpoint(), "/v2/apps", strings.NewReader(data), resource)
+	apiErr = repo.gateway.CreateResource(repo.config.ApiEndpoint(), "/v2/apps", bytes.NewReader(data), resource)
 	if apiErr != nil {
 		return
 	}
@@ -92,13 +94,13 @@ func (repo CloudControllerApplicationRepository) ReadFromSpace(name string, spac
 func (repo CloudControllerApplicationRepository) Update(appGuid string, params models.AppParams) (updatedApp models.Application, apiErr error) {
 	data, err := repo.formatAppJSON(params)
 	if err != nil {
-		apiErr = errors.NewWithError(T("Failed to marshal JSON"), err)
+		apiErr = fmt.Errorf("%s: %s", T("Failed to marshal JSON"), err.Error())
 		return
 	}
 
 	path := fmt.Sprintf("/v2/apps/%s?inline-relations-depth=1", appGuid)
 	resource := new(resources.ApplicationResource)
-	apiErr = repo.gateway.UpdateResource(repo.config.ApiEndpoint(), path, strings.NewReader(data), resource)
+	apiErr = repo.gateway.UpdateResource(repo.config.ApiEndpoint(), path, bytes.NewReader(data), resource)
 	if apiErr != nil {
 		return
 	}
@@ -107,11 +109,13 @@ func (repo CloudControllerApplicationRepository) Update(appGuid string, params m
 	return
 }
 
-func (repo CloudControllerApplicationRepository) formatAppJSON(input models.AppParams) (data string, err error) {
+func (repo CloudControllerApplicationRepository) formatAppJSON(input models.AppParams) ([]byte, error) {
 	appResource := resources.NewApplicationEntityFromAppParams(input)
-	bytes, err := json.Marshal(appResource)
-	data = string(bytes)
-	return
+	data, err := json.Marshal(appResource)
+	if err != nil {
+		return []byte{}, err
+	}
+	return data, nil
 }
 
 func (repo CloudControllerApplicationRepository) Delete(appGuid string) (apiErr error) {

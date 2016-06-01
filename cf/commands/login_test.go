@@ -6,7 +6,7 @@ import (
 	"github.com/cloudfoundry/cli/cf"
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	fake_organizations "github.com/cloudfoundry/cli/cf/api/organizations/fakes"
-	. "github.com/cloudfoundry/cli/cf/commands"
+	"github.com/cloudfoundry/cli/cf/command_registry"
 	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
@@ -22,15 +22,39 @@ import (
 var _ = Describe("Login Command", func() {
 	var (
 		Flags        []string
-		Config       core_config.ReadWriter
+		Config       core_config.Repository
 		ui           *testterm.FakeUI
 		authRepo     *testapi.FakeAuthenticationRepository
 		endpointRepo *testapi.FakeEndpointRepo
 		orgRepo      *fake_organizations.FakeOrganizationRepository
 		spaceRepo    *testapi.FakeSpaceRepository
 
-		org models.Organization
+		org  models.Organization
+		deps command_registry.Dependency
 	)
+
+	updateCommandDependency := func(pluginCall bool) {
+		deps.Ui = ui
+		deps.Config = Config
+		deps.RepoLocator = deps.RepoLocator.SetEndpointRepository(endpointRepo)
+		deps.RepoLocator = deps.RepoLocator.SetAuthenticationRepository(authRepo)
+		deps.RepoLocator = deps.RepoLocator.SetOrganizationRepository(orgRepo)
+		deps.RepoLocator = deps.RepoLocator.SetSpaceRepository(spaceRepo)
+		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("login").SetDependency(deps, pluginCall))
+	}
+
+	listSpacesStub := func(spaces []models.Space) func(func(models.Space) bool) error {
+		return func(cb func(models.Space) bool) error {
+			var keepGoing bool
+			for _, s := range spaces {
+				keepGoing = cb(s)
+				if !keepGoing {
+					return nil
+				}
+			}
+			return nil
+		}
+	}
 
 	BeforeEach(func() {
 		Flags = []string{}
@@ -54,9 +78,8 @@ var _ = Describe("Login Command", func() {
 		space.Guid = "my-space-guid"
 		space.Name = "my-space"
 
-		spaceRepo = &testapi.FakeSpaceRepository{
-			Spaces: []models.Space{space},
-		}
+		spaceRepo = &testapi.FakeSpaceRepository{}
+		spaceRepo.ListSpacesStub = listSpacesStub([]models.Space{space})
 
 		authRepo.GetLoginPromptsReturns.Prompts = map[string]core_config.AuthPrompt{
 			"username": core_config.AuthPrompt{
@@ -93,7 +116,14 @@ var _ = Describe("Login Command", func() {
 				space2.Name = "some-space"
 
 				orgRepo.ListOrgsReturns([]models.Organization{org1, org2}, nil)
-				spaceRepo.Spaces = []models.Space{space1, space2}
+				spaceRepo.ListSpacesStub = listSpacesStub([]models.Space{space1, space2})
+				spaceRepo.FindByNameStub = func(name string) (models.Space, error) {
+					m := map[string]models.Space{
+						space1.Name: space1,
+						space2.Name: space2,
+					}
+					return m[name], nil
+				}
 			})
 
 			It("lets the user select an org and space by number", func() {
@@ -101,8 +131,7 @@ var _ = Describe("Login Command", func() {
 				OUT_OF_RANGE_CHOICE := "3"
 				ui.Inputs = []string{"api.example.com", "user@example.com", "password", OUT_OF_RANGE_CHOICE, "2", OUT_OF_RANGE_CHOICE, "1"}
 
-				l := NewLogin(ui, Config, authRepo, endpointRepo, orgRepo, spaceRepo)
-				testcmd.RunCommand(l, Flags, nil)
+				testcmd.RunCliCommand("login", Flags, nil, updateCommandDependency, false)
 
 				Expect(ui.Outputs).To(ContainSubstrings(
 					[]string{"Select an org"},
@@ -121,7 +150,7 @@ var _ = Describe("Login Command", func() {
 				Expect(endpointRepo.UpdateEndpointReceived).To(Equal("api.example.com"))
 
 				Expect(orgRepo.FindByNameArgsForCall(0)).To(Equal("my-new-org"))
-				Expect(spaceRepo.FindByNameName).To(Equal("my-space"))
+				Expect(spaceRepo.FindByNameArgsForCall(0)).To(Equal("my-space"))
 
 				Expect(ui.ShowConfigurationCalled).To(BeTrue())
 			})
@@ -130,8 +159,7 @@ var _ = Describe("Login Command", func() {
 				ui.Inputs = []string{"api.example.com", "user@example.com", "password", "my-new-org", "my-space"}
 				orgRepo.FindByNameReturns(org2, nil)
 
-				l := NewLogin(ui, Config, authRepo, endpointRepo, orgRepo, spaceRepo)
-				testcmd.RunCommand(l, Flags, nil)
+				testcmd.RunCliCommand("login", Flags, nil, updateCommandDependency, false)
 
 				Expect(ui.Outputs).To(ContainSubstrings(
 					[]string{"Select an org"},
@@ -150,7 +178,7 @@ var _ = Describe("Login Command", func() {
 				Expect(endpointRepo.UpdateEndpointReceived).To(Equal("api.example.com"))
 
 				Expect(orgRepo.FindByNameArgsForCall(0)).To(Equal("my-new-org"))
-				Expect(spaceRepo.FindByNameName).To(Equal("my-space"))
+				Expect(spaceRepo.FindByNameArgsForCall(0)).To(Equal("my-space"))
 
 				Expect(ui.ShowConfigurationCalled).To(BeTrue())
 			})
@@ -159,8 +187,7 @@ var _ = Describe("Login Command", func() {
 				Flags = []string{"-a", "api.example.com", "-u", "user@example.com", "-p", "password", "-o", "my-new-org", "-s", "my-space"}
 
 				orgRepo.FindByNameReturns(org2, nil)
-				l := NewLogin(ui, Config, authRepo, endpointRepo, orgRepo, spaceRepo)
-				testcmd.RunCommand(l, Flags, nil)
+				testcmd.RunCliCommand("login", Flags, nil, updateCommandDependency, false)
 
 				Expect(Config.OrganizationFields().Guid).To(Equal("my-new-org-guid"))
 				Expect(Config.SpaceFields().Guid).To(Equal("my-space-guid"))
@@ -185,8 +212,7 @@ var _ = Describe("Login Command", func() {
 				Flags = []string{"-o", "my-new-org", "-s", "my-space"}
 				ui.Inputs = []string{"user@example.com", "password"}
 
-				l := NewLogin(ui, Config, authRepo, endpointRepo, orgRepo, spaceRepo)
-				testcmd.RunCommand(l, Flags, nil)
+				testcmd.RunCliCommand("login", Flags, nil, updateCommandDependency, false)
 
 				Expect(Config.ApiEndpoint()).To(Equal("http://api.example.com"))
 				Expect(Config.OrganizationFields().Guid).To(Equal("my-new-org-guid"))
@@ -198,6 +224,7 @@ var _ = Describe("Login Command", func() {
 				Expect(ui.ShowConfigurationCalled).To(BeTrue())
 			})
 		})
+
 		Describe("when the CLI version is below the minimum required", func() {
 			BeforeEach(func() {
 				Config.SetMinCliVersion("5.0.0")
@@ -206,10 +233,9 @@ var _ = Describe("Login Command", func() {
 
 			It("prompts users to upgrade if CLI version < min cli version requirement", func() {
 				ui.Inputs = []string{"http://api.example.com", "user@example.com", "password"}
-				l := NewLogin(ui, Config, authRepo, endpointRepo, orgRepo, spaceRepo)
 				cf.Version = "4.5.0"
 
-				testcmd.RunCommand(l, Flags, nil)
+				testcmd.RunCliCommand("login", Flags, nil, updateCommandDependency, false)
 
 				Expect(ui.Outputs).To(ContainSubstrings(
 					[]string{"To upgrade your CLI"},
@@ -239,14 +265,13 @@ var _ = Describe("Login Command", func() {
 				space2.Guid = "some-space-guid"
 				space2.Name = "some-space"
 
-				spaceRepo.Spaces = []models.Space{space1, space2}
+				spaceRepo.ListSpacesStub = listSpacesStub([]models.Space{space1, space2})
 			})
 
 			It("doesn't display a list of orgs (the user must type the name)", func() {
 				ui.Inputs = []string{"api.example.com", "user@example.com", "password", "my-org-1", "my-space"}
 
-				l := NewLogin(ui, Config, authRepo, endpointRepo, orgRepo, spaceRepo)
-				testcmd.RunCommand(l, Flags, nil)
+				testcmd.RunCliCommand("login", Flags, nil, updateCommandDependency, false)
 
 				Expect(ui.Outputs).ToNot(ContainSubstrings([]string{"my-org-2"}))
 				Expect(orgRepo.FindByNameArgsForCall(0)).To(Equal("my-org-1"))
@@ -258,8 +283,7 @@ var _ = Describe("Login Command", func() {
 			It("does not ask the user to select an org/space", func() {
 				ui.Inputs = []string{"http://api.example.com", "user@example.com", "password"}
 
-				l := NewLogin(ui, Config, authRepo, endpointRepo, orgRepo, spaceRepo)
-				testcmd.RunCommand(l, Flags, nil)
+				testcmd.RunCliCommand("login", Flags, nil, updateCommandDependency, false)
 
 				Expect(Config.OrganizationFields().Guid).To(Equal("my-new-org-guid"))
 				Expect(Config.SpaceFields().Guid).To(Equal("my-space-guid"))
@@ -280,13 +304,12 @@ var _ = Describe("Login Command", func() {
 		Describe("where there are no available orgs", func() {
 			BeforeEach(func() {
 				orgRepo.ListOrgsReturns([]models.Organization{}, nil)
-				spaceRepo.Spaces = []models.Space{}
+				spaceRepo.ListSpacesStub = listSpacesStub([]models.Space{})
 			})
 
 			It("does not as the user to select an org", func() {
 				ui.Inputs = []string{"http://api.example.com", "user@example.com", "password"}
-				l := NewLogin(ui, Config, authRepo, endpointRepo, orgRepo, spaceRepo)
-				testcmd.RunCommand(l, Flags, nil)
+				testcmd.RunCliCommand("login", Flags, nil, updateCommandDependency, false)
 
 				Expect(Config.OrganizationFields().Guid).To(Equal(""))
 				Expect(Config.SpaceFields().Guid).To(Equal(""))
@@ -307,13 +330,12 @@ var _ = Describe("Login Command", func() {
 		Describe("when there is only a single org and no spaces", func() {
 			BeforeEach(func() {
 				orgRepo.ListOrgsReturns([]models.Organization{org}, nil)
-				spaceRepo.Spaces = []models.Space{}
+				spaceRepo.ListSpacesStub = listSpacesStub([]models.Space{})
 			})
 
 			It("does not ask the user to select a space", func() {
 				ui.Inputs = []string{"http://api.example.com", "user@example.com", "password"}
-				l := NewLogin(ui, Config, authRepo, endpointRepo, orgRepo, spaceRepo)
-				testcmd.RunCommand(l, Flags, nil)
+				testcmd.RunCliCommand("login", Flags, nil, updateCommandDependency, false)
 
 				Expect(Config.OrganizationFields().Guid).To(Equal("my-new-org-guid"))
 				Expect(Config.SpaceFields().Guid).To(Equal(""))
@@ -357,8 +379,7 @@ var _ = Describe("Login Command", func() {
 				It("prompts the user for 'password' prompt and any text type prompt", func() {
 					ui.Inputs = []string{"api.example.com", "the-username", "the-account-number", "the-password"}
 
-					l := NewLogin(ui, Config, authRepo, endpointRepo, orgRepo, spaceRepo)
-					testcmd.RunCommand(l, Flags, nil)
+					testcmd.RunCliCommand("login", Flags, nil, updateCommandDependency, false)
 
 					Expect(ui.Prompts).To(ContainSubstrings(
 						[]string{"API endpoint"},
@@ -385,8 +406,7 @@ var _ = Describe("Login Command", func() {
 					Flags = []string{"--sso", "-a", "api.example.com"}
 					ui.Inputs = []string{"the-one-time-code"}
 
-					l := NewLogin(ui, Config, authRepo, endpointRepo, orgRepo, spaceRepo)
-					testcmd.RunCommand(l, Flags, nil)
+					testcmd.RunCliCommand("login", Flags, nil, updateCommandDependency, false)
 
 					Expect(ui.Prompts).To(BeEmpty())
 					Expect(ui.PasswordPrompts).To(ContainSubstrings([]string{"passcode"}))
@@ -402,8 +422,7 @@ var _ = Describe("Login Command", func() {
 				Flags = []string{"-p", "the-password"}
 				ui.Inputs = []string{"api.example.com", "the-username", "the-account-number", "the-pin"}
 
-				l := NewLogin(ui, Config, authRepo, endpointRepo, orgRepo, spaceRepo)
-				testcmd.RunCommand(l, Flags, nil)
+				testcmd.RunCliCommand("login", Flags, nil, updateCommandDependency, false)
 
 				Expect(ui.PasswordPrompts).ToNot(ContainSubstrings([]string{"Your Password"}))
 				Expect(authRepo.AuthenticateArgs.Credentials).To(Equal([]map[string]string{
@@ -420,8 +439,7 @@ var _ = Describe("Login Command", func() {
 				ui.Inputs = []string{"api.example.com", "the-username", "the-account-number",
 					"the-password-1", "the-password-2", "the-password-3"}
 
-				l := NewLogin(ui, Config, authRepo, endpointRepo, orgRepo, spaceRepo)
-				testcmd.RunCommand(l, Flags, nil)
+				testcmd.RunCliCommand("login", Flags, nil, updateCommandDependency, false)
 
 				Expect(authRepo.AuthenticateArgs.Credentials).To(Equal([]map[string]string{
 					{
@@ -452,8 +470,7 @@ var _ = Describe("Login Command", func() {
 				ui.Inputs = []string{"api.example.com", "the-username", "the-account-number",
 					"the-password-2", "the-password-3"}
 
-				l := NewLogin(ui, Config, authRepo, endpointRepo, orgRepo, spaceRepo)
-				testcmd.RunCommand(l, Flags, nil)
+				testcmd.RunCliCommand("login", Flags, nil, updateCommandDependency, false)
 
 				Expect(authRepo.AuthenticateArgs.Credentials).To(Equal([]map[string]string{
 					{
@@ -479,17 +496,14 @@ var _ = Describe("Login Command", func() {
 	})
 
 	Describe("updates to the config", func() {
-		var l Login
-
 		BeforeEach(func() {
 			Config.SetApiEndpoint("api.the-old-endpoint.com")
 			Config.SetAccessToken("the-old-access-token")
 			Config.SetRefreshToken("the-old-refresh-token")
-			l = NewLogin(ui, Config, authRepo, endpointRepo, orgRepo, spaceRepo)
 		})
 
 		JustBeforeEach(func() {
-			testcmd.RunCommand(l, Flags, nil)
+			testcmd.RunCliCommand("login", Flags, nil, updateCommandDependency, false)
 		})
 
 		var ItShowsTheTarget = func() {
@@ -519,7 +533,6 @@ var _ = Describe("Login Command", func() {
 
 		Describe("when the user is setting an API", func() {
 			BeforeEach(func() {
-				l = NewLogin(ui, Config, authRepo, endpointRepo, orgRepo, spaceRepo)
 				Flags = []string{"-a", "https://api.the-server.com", "-u", "the-user-name", "-p", "the-password"}
 			})
 
@@ -693,6 +706,7 @@ var _ = Describe("Login Command", func() {
 			BeforeEach(func() {
 				Flags = []string{"-u", "user@example.com", "-p", "password", "-o", "my-new-org", "-s", "nonexistent"}
 				orgRepo.FindByNameReturns(org, nil)
+				spaceRepo.FindByNameReturns(models.Space{}, errors.New("find-by-name-err"))
 
 				Config.SetSSLDisabled(true)
 			})
@@ -722,8 +736,13 @@ var _ = Describe("Login Command", func() {
 						Guid: "new-org-guid",
 					},
 				}, nil)
-				spaceRepo.Spaces[0].Name = "new-space"
-				spaceRepo.Spaces[0].Guid = "new-space-guid"
+
+				space1 := models.Space{}
+				space1.Guid = "new-space-guid"
+				space1.Name = "new-space-name"
+				spaceRepo.ListSpacesStub = listSpacesStub([]models.Space{space1})
+				spaceRepo.FindByNameReturns(space1, nil)
+
 				authRepo.AccessToken = "new_access_token"
 				authRepo.RefreshToken = "new_refresh_token"
 

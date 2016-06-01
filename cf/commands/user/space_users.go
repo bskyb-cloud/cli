@@ -1,105 +1,112 @@
 package user
 
 import (
+	"github.com/cloudfoundry/cli/cf/actors/userprint"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/api/spaces"
-	"github.com/cloudfoundry/cli/cf/command_metadata"
+	"github.com/cloudfoundry/cli/cf/command_registry"
 	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/codegangsta/cli"
+	"github.com/cloudfoundry/cli/flags"
+	"github.com/cloudfoundry/cli/plugin/models"
 )
 
-var spaceRoles = []string{models.SPACE_MANAGER, models.SPACE_DEVELOPER, models.SPACE_AUDITOR}
-
 type SpaceUsers struct {
-	ui        terminal.UI
-	config    core_config.Reader
-	spaceRepo spaces.SpaceRepository
-	userRepo  api.UserRepository
-	orgReq    requirements.OrganizationRequirement
+	ui          terminal.UI
+	config      core_config.Reader
+	spaceRepo   spaces.SpaceRepository
+	userRepo    api.UserRepository
+	orgReq      requirements.OrganizationRequirement
+	pluginModel *[]plugin_models.GetSpaceUsers_Model
+	pluginCall  bool
 }
 
-func NewSpaceUsers(ui terminal.UI, config core_config.Reader, spaceRepo spaces.SpaceRepository, userRepo api.UserRepository) (cmd *SpaceUsers) {
-	cmd = new(SpaceUsers)
-	cmd.ui = ui
-	cmd.config = config
-	cmd.spaceRepo = spaceRepo
-	cmd.userRepo = userRepo
-	return
+func init() {
+	command_registry.Register(&SpaceUsers{})
 }
 
-func (cmd *SpaceUsers) Metadata() command_metadata.CommandMetadata {
-	return command_metadata.CommandMetadata{
+func (cmd *SpaceUsers) MetaData() command_registry.CommandMetadata {
+	return command_registry.CommandMetadata{
 		Name:        "space-users",
 		Description: T("Show space users by role"),
 		Usage:       T("CF_NAME space-users ORG SPACE"),
 	}
 }
 
-func (cmd *SpaceUsers) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
-	if len(c.Args()) != 2 {
-		cmd.ui.FailWithUsage(c)
+func (cmd *SpaceUsers) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+	if len(fc.Args()) != 2 {
+		cmd.ui.Failed(T("Incorrect Usage. Requires arguments\n\n") + command_registry.Commands.CommandUsage("space-users"))
 	}
 
-	if cmd.orgReq == nil {
-		cmd.orgReq = requirementsFactory.NewOrganizationRequirement(c.Args()[0])
-	} else {
-		cmd.orgReq.SetOrganizationName(c.Args()[0])
-	}
-	reqs = append(reqs, requirementsFactory.NewLoginRequirement(), cmd.orgReq)
+	cmd.orgReq = requirementsFactory.NewOrganizationRequirement(fc.Args()[0])
 
+	reqs = []requirements.Requirement{
+		requirementsFactory.NewLoginRequirement(),
+		cmd.orgReq,
+	}
 	return
 }
 
-func (cmd *SpaceUsers) Run(c *cli.Context) {
+func (cmd *SpaceUsers) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
+	cmd.ui = deps.Ui
+	cmd.config = deps.Config
+	cmd.userRepo = deps.RepoLocator.GetUserRepository()
+	cmd.spaceRepo = deps.RepoLocator.GetSpaceRepository()
+	cmd.pluginCall = pluginCall
+	cmd.pluginModel = deps.PluginModels.SpaceUsers
+
+	return cmd
+}
+
+func (cmd *SpaceUsers) Execute(c flags.FlagContext) {
 	spaceName := c.Args()[1]
 	org := cmd.orgReq.GetOrganization()
 
-	space, apiErr := cmd.spaceRepo.FindByNameInOrg(spaceName, org.Guid)
-	if apiErr != nil {
-		cmd.ui.Failed(apiErr.Error())
+	space, err := cmd.spaceRepo.FindByNameInOrg(spaceName, org.Guid)
+	if err != nil {
+		cmd.ui.Failed(err.Error())
+	}
+
+	printer := cmd.printer(org, space, cmd.config.Username())
+	printer.PrintUsers(space.Guid, cmd.config.Username())
+}
+
+func (cmd *SpaceUsers) printer(org models.Organization, space models.Space, username string) userprint.UserPrinter {
+	var roles = []string{models.SPACE_MANAGER, models.SPACE_DEVELOPER, models.SPACE_AUDITOR}
+
+	if cmd.pluginCall {
+		return userprint.NewSpaceUsersPluginPrinter(
+			cmd.pluginModel,
+			cmd.userLister(),
+			roles,
+		)
 	}
 
 	cmd.ui.Say(T("Getting users in org {{.TargetOrg}} / space {{.TargetSpace}} as {{.CurrentUser}}",
 		map[string]interface{}{
 			"TargetOrg":   terminal.EntityNameColor(org.Name),
 			"TargetSpace": terminal.EntityNameColor(space.Name),
-			"CurrentUser": terminal.EntityNameColor(cmd.config.Username()),
+			"CurrentUser": terminal.EntityNameColor(username),
 		}))
 
-	var spaceRoleToDisplayName = map[string]string{
-		models.SPACE_MANAGER:   T("SPACE MANAGER"),
-		models.SPACE_DEVELOPER: T("SPACE DEVELOPER"),
-		models.SPACE_AUDITOR:   T("SPACE AUDITOR"),
+	return &userprint.SpaceUsersUiPrinter{
+		Ui:         cmd.ui,
+		UserLister: cmd.userLister(),
+		Roles:      roles,
+		RoleDisplayNames: map[string]string{
+			models.SPACE_MANAGER:   T("SPACE MANAGER"),
+			models.SPACE_DEVELOPER: T("SPACE DEVELOPER"),
+			models.SPACE_AUDITOR:   T("SPACE AUDITOR"),
+		},
 	}
+}
 
-	var users []models.UserFields
-	for _, role := range spaceRoles {
-		displayName := spaceRoleToDisplayName[role]
-
-		if cmd.config.IsMinApiVersion("2.21.0") {
-			users, apiErr = cmd.userRepo.ListUsersInSpaceForRoleWithNoUAA(space.Guid, role)
-		} else {
-			users, apiErr = cmd.userRepo.ListUsersInSpaceForRole(space.Guid, role)
-		}
-
-		cmd.ui.Say("")
-		cmd.ui.Say("%s", terminal.HeaderColor(displayName))
-
-		for _, user := range users {
-			cmd.ui.Say("  %s", user.Username)
-		}
-
-		if apiErr != nil {
-			cmd.ui.Failed(T("Failed fetching space-users for role {{.SpaceRoleToDisplayName}}.\n{{.Error}}",
-				map[string]interface{}{
-					"Error":                  apiErr.Error(),
-					"SpaceRoleToDisplayName": displayName,
-				}))
-			return
-		}
+func (cmd *SpaceUsers) userLister() func(spaceGuid string, role string) ([]models.UserFields, error) {
+	if cmd.config.IsMinApiVersion("2.21.0") {
+		return cmd.userRepo.ListUsersInSpaceForRoleWithNoUAA
 	}
+	return cmd.userRepo.ListUsersInSpaceForRole
 }

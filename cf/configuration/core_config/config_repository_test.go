@@ -1,57 +1,66 @@
 package core_config_test
 
 import (
-	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
-	"time"
 
-	. "github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/configuration"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/fileutils"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	"github.com/cloudfoundry/cli/testhelpers/maker"
+
+	fakeconfig "github.com/cloudfoundry/cli/cf/configuration/fakes"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Configuration Repository", func() {
-	var config Repository
-	var repo *testconfig.FakePersistor
+	var (
+		config    core_config.Repository
+		persistor *fakeconfig.FakePersistor
+	)
 
 	BeforeEach(func() {
-		repo = testconfig.NewFakePersistor()
-		repo.LoadReturns.Data = NewData()
-		config = testconfig.NewRepository()
+		persistor = &fakeconfig.FakePersistor{}
+		persistor.ExistsReturns(true)
+		config = core_config.NewRepositoryFromPersistor(persistor, func(err error) { panic(err) })
 	})
 
-	It("is safe for concurrent reading and writing", func() {
-		swapValLoop := func(config Repository) {
-			for {
-				val := config.ApiEndpoint()
+	It("is threadsafe", func() {
+		performSaveCh := make(chan struct{})
+		beginSaveCh := make(chan struct{})
+		finishSaveCh := make(chan struct{})
+		finishReadCh := make(chan struct{})
 
-				switch val {
-				case "foo":
-					config.SetApiEndpoint("bar")
-				case "bar":
-					config.SetApiEndpoint("foo")
-				default:
-					panic(fmt.Sprintf("WAT: %s", val))
-				}
-			}
+		persistor.SaveStub = func(configuration.DataInterface) error {
+			close(beginSaveCh)
+			<-performSaveCh
+			close(finishSaveCh)
+
+			return nil
 		}
 
-		config.SetApiEndpoint("foo")
+		go func() {
+			config.SetApiEndpoint("foo")
+		}()
 
-		go swapValLoop(config)
-		go swapValLoop(config)
-		go swapValLoop(config)
-		go swapValLoop(config)
+		<-beginSaveCh
 
-		time.Sleep(10 * time.Millisecond)
+		go func() {
+			config.ApiEndpoint()
+			close(finishReadCh)
+		}()
+
+		Consistently(finishSaveCh).ShouldNot(BeClosed())
+		Consistently(finishReadCh).ShouldNot(BeClosed())
+
+		performSaveCh <- struct{}{}
+
+		Eventually(finishReadCh).Should(BeClosed())
 	})
 
-	// TODO - test ClearTokens et al
 	It("has acccessor methods for all config fields", func() {
 		config.SetApiEndpoint("http://api.the-endpoint")
 		Expect(config.ApiEndpoint()).To(Equal("http://api.the-endpoint"))
@@ -73,6 +82,9 @@ var _ = Describe("Configuration Repository", func() {
 
 		config.SetAccessToken("the-token")
 		Expect(config.AccessToken()).To(Equal("the-token"))
+
+		config.SetSSHOAuthClient("oauth-client-id")
+		Expect(config.SSHOAuthClient()).To(Equal("oauth-client-id"))
 
 		config.SetRefreshToken("the-token")
 		Expect(config.RefreshToken()).To(Equal("the-token"))
@@ -97,9 +109,8 @@ var _ = Describe("Configuration Repository", func() {
 
 		Expect(config.IsMinApiVersion("3.1")).To(Equal(false))
 
-		config.SetMinCliVersion("6.0.0")
-		Expect(config.IsMinCliVersion("5.0.0")).To(Equal(false))
-		Expect(config.MinCliVersion()).To(Equal("6.0.0"))
+		config.SetMinCliVersion("6.5.0")
+		Expect(config.MinCliVersion()).To(Equal("6.5.0"))
 
 		config.SetMinRecommendedCliVersion("6.9.0")
 		Expect(config.MinRecommendedCliVersion()).To(Equal("6.9.0"))
@@ -111,6 +122,7 @@ var _ = Describe("Configuration Repository", func() {
 				config.SetApiEndpoint("http://example.org")
 				config.SetApiVersion("42.1.2.3")
 			})
+
 			It("returns true", func() {
 				Expect(config.HasAPIEndpoint()).To(BeTrue())
 			})
@@ -120,6 +132,7 @@ var _ = Describe("Configuration Repository", func() {
 			BeforeEach(func() {
 				config.SetApiVersion("42.1.2.3")
 			})
+
 			It("returns false", func() {
 				Expect(config.HasAPIEndpoint()).To(BeFalse())
 			})
@@ -129,45 +142,104 @@ var _ = Describe("Configuration Repository", func() {
 			BeforeEach(func() {
 				config.SetApiEndpoint("http://example.org")
 			})
+
 			It("returns false", func() {
 				Expect(config.HasAPIEndpoint()).To(BeFalse())
 			})
 		})
 	})
 
-	It("User has a valid Access Token", func() {
-		config.SetAccessToken("bearer eyJhbGciOiJSUzI1NiJ9.eyJqdGkiOiJjNDE4OTllNS1kZTE1LTQ5NGQtYWFiNC04ZmNlYzUxN2UwMDUiLCJzdWIiOiI3NzJkZGEzZi02NjlmLTQyNzYtYjJiZC05MDQ4NmFiZTFmNmYiLCJzY29wZSI6WyJjbG91ZF9jb250cm9sbGVyLnJlYWQiLCJjbG91ZF9jb250cm9sbGVyLndyaXRlIiwib3BlbmlkIiwicGFzc3dvcmQud3JpdGUiXSwiY2xpZW50X2lkIjoiY2YiLCJjaWQiOiJjZiIsImdyYW50X3R5cGUiOiJwYXNzd29yZCIsInVzZXJfaWQiOiI3NzJkZGEzZi02NjlmLTQyNzYtYjJiZC05MDQ4NmFiZTFmNmYiLCJ1c2VyX25hbWUiOiJ1c2VyMUBleGFtcGxlLmNvbSIsImVtYWlsIjoidXNlcjFAZXhhbXBsZS5jb20iLCJpYXQiOjEzNzcwMjgzNTYsImV4cCI6MTM3NzAzNTU1NiwiaXNzIjoiaHR0cHM6Ly91YWEuYXJib3JnbGVuLmNmLWFwcC5jb20vb2F1dGgvdG9rZW4iLCJhdWQiOlsib3BlbmlkIiwiY2xvdWRfY29udHJvbGxlciIsInBhc3N3b3JkIl19.kjFJHi0Qir9kfqi2eyhHy6kdewhicAFu8hrPR1a5AxFvxGB45slKEjuP0_72cM_vEYICgZn3PcUUkHU9wghJO9wjZ6kiIKK1h5f2K9g-Iprv9BbTOWUODu1HoLIvg2TtGsINxcRYy_8LW1RtvQc1b4dBPoopaEH4no-BIzp0E5E")
-		Expect(config.UserGuid()).To(Equal("772dda3f-669f-4276-b2bd-90486abe1f6f"))
-		Expect(config.UserEmail()).To(Equal("user1@example.com"))
-	})
-
-	It("User has an invalid Access Token", func() {
-		config.SetAccessToken("bearer")
-		Expect(config.UserGuid()).To(BeEmpty())
-		Expect(config.UserEmail()).To(BeEmpty())
-
-		config.SetAccessToken("bearer eyJhbGciOiJSUzI1NiJ9")
-		Expect(config.UserGuid()).To(BeEmpty())
-		Expect(config.UserEmail()).To(BeEmpty())
-	})
-
-	It("has sane defaults when there is no config to read", func() {
-		withFakeHome(func(configPath string) {
-			config = NewRepositoryFromFilepath(configPath, func(err error) {
-				panic(err)
+	Describe("UserGuid", func() {
+		Context("with a valid access token", func() {
+			BeforeEach(func() {
+				config.SetAccessToken("bearer eyJhbGciOiJSUzI1NiJ9.eyJqdGkiOiJjNDE4OTllNS1kZTE1LTQ5NGQtYWFiNC04ZmNlYzUxN2UwMDUiLCJzdWIiOiI3NzJkZGEzZi02NjlmLTQyNzYtYjJiZC05MDQ4NmFiZTFmNmYiLCJzY29wZSI6WyJjbG91ZF9jb250cm9sbGVyLnJlYWQiLCJjbG91ZF9jb250cm9sbGVyLndyaXRlIiwib3BlbmlkIiwicGFzc3dvcmQud3JpdGUiXSwiY2xpZW50X2lkIjoiY2YiLCJjaWQiOiJjZiIsImdyYW50X3R5cGUiOiJwYXNzd29yZCIsInVzZXJfaWQiOiI3NzJkZGEzZi02NjlmLTQyNzYtYjJiZC05MDQ4NmFiZTFmNmYiLCJ1c2VyX25hbWUiOiJ1c2VyMUBleGFtcGxlLmNvbSIsImVtYWlsIjoidXNlcjFAZXhhbXBsZS5jb20iLCJpYXQiOjEzNzcwMjgzNTYsImV4cCI6MTM3NzAzNTU1NiwiaXNzIjoiaHR0cHM6Ly91YWEuYXJib3JnbGVuLmNmLWFwcC5jb20vb2F1dGgvdG9rZW4iLCJhdWQiOlsib3BlbmlkIiwiY2xvdWRfY29udHJvbGxlciIsInBhc3N3b3JkIl19.kjFJHi0Qir9kfqi2eyhHy6kdewhicAFu8hrPR1a5AxFvxGB45slKEjuP0_72cM_vEYICgZn3PcUUkHU9wghJO9wjZ6kiIKK1h5f2K9g-Iprv9BbTOWUODu1HoLIvg2TtGsINxcRYy_8LW1RtvQc1b4dBPoopaEH4no-BIzp0E5E")
 			})
 
-			Expect(config.ApiEndpoint()).To(Equal(""))
-			Expect(config.ApiVersion()).To(Equal(""))
-			Expect(config.AuthenticationEndpoint()).To(Equal(""))
-			Expect(config.AccessToken()).To(Equal(""))
+			It("returns the guid", func() {
+				Expect(config.UserGuid()).To(Equal("772dda3f-669f-4276-b2bd-90486abe1f6f"))
+			})
+		})
+
+		Context("with an invalid access token", func() {
+			BeforeEach(func() {
+				config.SetAccessToken("bearer eyJhbGciOiJSUzI1NiJ9")
+			})
+
+			It("returns an empty string", func() {
+				Expect(config.UserGuid()).To(BeEmpty())
+			})
 		})
 	})
 
-	Context("when the configuration version is older than the current version", func() {
-		It("returns a new empty config", func() {
-			withConfigFixture("outdated-config", func(configPath string) {
-				config = NewRepositoryFromFilepath(configPath, func(err error) {
+	Describe("UserEmail", func() {
+		Context("with a valid access token", func() {
+			BeforeEach(func() {
+				config.SetAccessToken("bearer eyJhbGciOiJSUzI1NiJ9.eyJqdGkiOiJjNDE4OTllNS1kZTE1LTQ5NGQtYWFiNC04ZmNlYzUxN2UwMDUiLCJzdWIiOiI3NzJkZGEzZi02NjlmLTQyNzYtYjJiZC05MDQ4NmFiZTFmNmYiLCJzY29wZSI6WyJjbG91ZF9jb250cm9sbGVyLnJlYWQiLCJjbG91ZF9jb250cm9sbGVyLndyaXRlIiwib3BlbmlkIiwicGFzc3dvcmQud3JpdGUiXSwiY2xpZW50X2lkIjoiY2YiLCJjaWQiOiJjZiIsImdyYW50X3R5cGUiOiJwYXNzd29yZCIsInVzZXJfaWQiOiI3NzJkZGEzZi02NjlmLTQyNzYtYjJiZC05MDQ4NmFiZTFmNmYiLCJ1c2VyX25hbWUiOiJ1c2VyMUBleGFtcGxlLmNvbSIsImVtYWlsIjoidXNlcjFAZXhhbXBsZS5jb20iLCJpYXQiOjEzNzcwMjgzNTYsImV4cCI6MTM3NzAzNTU1NiwiaXNzIjoiaHR0cHM6Ly91YWEuYXJib3JnbGVuLmNmLWFwcC5jb20vb2F1dGgvdG9rZW4iLCJhdWQiOlsib3BlbmlkIiwiY2xvdWRfY29udHJvbGxlciIsInBhc3N3b3JkIl19.kjFJHi0Qir9kfqi2eyhHy6kdewhicAFu8hrPR1a5AxFvxGB45slKEjuP0_72cM_vEYICgZn3PcUUkHU9wghJO9wjZ6kiIKK1h5f2K9g-Iprv9BbTOWUODu1HoLIvg2TtGsINxcRYy_8LW1RtvQc1b4dBPoopaEH4no-BIzp0E5E")
+			})
+
+			It("returns the email", func() {
+				Expect(config.UserEmail()).To(Equal("user1@example.com"))
+			})
+		})
+
+		Context("with an invalid access token", func() {
+			BeforeEach(func() {
+				config.SetAccessToken("bearer eyJhbGciOiJSUzI1NiJ9")
+			})
+
+			It("returns an empty string", func() {
+				Expect(config.UserEmail()).To(BeEmpty())
+			})
+		})
+	})
+
+	Describe("NewRepositoryFromFilepath", func() {
+		var configPath string
+
+		It("returns nil repository if no error handler provided", func() {
+			config = core_config.NewRepositoryFromFilepath(configPath, nil)
+			Expect(config).To(BeNil())
+		})
+
+		Context("when the configuration file doesn't exist", func() {
+			var tmpDir string
+
+			BeforeEach(func() {
+				tmpDir, err := ioutil.TempDir("", "test-config")
+				if err != nil {
+					Fail("Couldn't create tmp file")
+				}
+
+				configPath = filepath.Join(tmpDir, ".cf", "config.json")
+			})
+
+			AfterEach(func() {
+				if tmpDir != "" {
+					os.RemoveAll(tmpDir)
+				}
+			})
+
+			It("has sane defaults when there is no config to read", func() {
+				config = core_config.NewRepositoryFromFilepath(configPath, func(err error) {
+					panic(err)
+				})
+
+				Expect(config.ApiEndpoint()).To(Equal(""))
+				Expect(config.ApiVersion()).To(Equal(""))
+				Expect(config.AuthenticationEndpoint()).To(Equal(""))
+				Expect(config.AccessToken()).To(Equal(""))
+			})
+		})
+
+		Context("when the configuration version is older than the current version", func() {
+			BeforeEach(func() {
+				cwd, err := os.Getwd()
+				Expect(err).NotTo(HaveOccurred())
+				configPath = filepath.Join(cwd, "..", "..", "..", "fixtures", "config", "outdated-config", ".cf", "config.json")
+			})
+
+			It("returns a new empty config", func() {
+				config = core_config.NewRepositoryFromFilepath(configPath, func(err error) {
 					panic(err)
 				})
 
@@ -175,19 +247,36 @@ var _ = Describe("Configuration Repository", func() {
 			})
 		})
 	})
-})
 
-func withFakeHome(callback func(dirPath string)) {
-	fileutils.TempDir("test-config", func(dir string, err error) {
-		if err != nil {
-			Fail("Couldn't create tmp file")
-		}
-		callback(filepath.Join(dir, ".cf", "config.json"))
+	Describe("IsMinCLIVersion", func() {
+		It("returns true when the actual version is BUILT_FROM_SOURCE", func() {
+			Expect(config.IsMinCliVersion("BUILT_FROM_SOURCE")).To(BeTrue())
+		})
+
+		It("returns true when the MinCliVersion is empty", func() {
+			config.SetMinCliVersion("")
+			Expect(config.IsMinCliVersion("1.2.3")).To(BeTrue())
+		})
+
+		It("returns false when the actual version is less than the MinCliVersion", func() {
+			actualVersion := "1.2.3+abc123"
+			minCliVersion := "1.2.4"
+			config.SetMinCliVersion(minCliVersion)
+			Expect(config.IsMinCliVersion(actualVersion)).To(BeFalse())
+		})
+
+		It("returns true when the actual version is equal to the MinCliVersion", func() {
+			actualVersion := "1.2.3+abc123"
+			minCliVersion := "1.2.3"
+			config.SetMinCliVersion(minCliVersion)
+			Expect(config.IsMinCliVersion(actualVersion)).To(BeTrue())
+		})
+
+		It("returns true when the actual version is greater than the MinCliVersion", func() {
+			actualVersion := "1.2.3+abc123"
+			minCliVersion := "1.2.2"
+			config.SetMinCliVersion(minCliVersion)
+			Expect(config.IsMinCliVersion(actualVersion)).To(BeTrue())
+		})
 	})
-}
-
-func withConfigFixture(name string, callback func(dirPath string)) {
-	cwd, err := os.Getwd()
-	Expect(err).NotTo(HaveOccurred())
-	callback(filepath.Join(cwd, "..", "..", "..", "fixtures", "config", name, ".cf", "config.json"))
-}
+})

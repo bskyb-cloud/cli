@@ -1,13 +1,12 @@
 package commands_test
 
 import (
-	"errors"
-
 	"github.com/cloudfoundry/cli/cf"
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	fake_org "github.com/cloudfoundry/cli/cf/api/organizations/fakes"
-	. "github.com/cloudfoundry/cli/cf/commands"
+	"github.com/cloudfoundry/cli/cf/command_registry"
 	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -25,27 +24,50 @@ var _ = Describe("target command", func() {
 		orgRepo             *fake_org.FakeOrganizationRepository
 		spaceRepo           *testapi.FakeSpaceRepository
 		requirementsFactory *testreq.FakeReqFactory
-		config              core_config.ReadWriter
+		config              core_config.Repository
 		ui                  *testterm.FakeUI
+		deps                command_registry.Dependency
 	)
 
+	updateCommandDependency := func(pluginCall bool) {
+		deps.Ui = ui
+		deps.Config = config
+		deps.RepoLocator = deps.RepoLocator.SetOrganizationRepository(orgRepo)
+		deps.RepoLocator = deps.RepoLocator.SetSpaceRepository(spaceRepo)
+		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("target").SetDependency(deps, pluginCall))
+	}
+
+	listSpacesStub := func(spaces []models.Space) func(func(models.Space) bool) error {
+		return func(cb func(models.Space) bool) error {
+			var keepGoing bool
+			for _, s := range spaces {
+				keepGoing = cb(s)
+				if !keepGoing {
+					break
+				}
+			}
+			return nil
+		}
+	}
+
 	BeforeEach(func() {
-		ui = new(testterm.FakeUI)
-		orgRepo = new(fake_org.FakeOrganizationRepository)
-		spaceRepo = new(testapi.FakeSpaceRepository)
+		ui = &testterm.FakeUI{}
+		orgRepo = &fake_org.FakeOrganizationRepository{}
+		spaceRepo = &testapi.FakeSpaceRepository{}
 		requirementsFactory = new(testreq.FakeReqFactory)
 		config = testconfig.NewRepositoryWithDefaults()
 		requirementsFactory.ApiEndpointSuccess = true
 	})
 
 	var callTarget = func(args []string) bool {
-		cmd := NewTarget(ui, config, orgRepo, spaceRepo)
-		return testcmd.RunCommand(cmd, args, requirementsFactory)
+		return testcmd.RunCliCommand("target", args, requirementsFactory, updateCommandDependency, false)
 	}
 
 	It("fails with usage when called with an argument but no flags", func() {
 		callTarget([]string{"some-argument"})
-		Expect(ui.FailedWithUsage).To(BeTrue())
+		Expect(ui.Outputs).To(ContainSubstrings(
+			[]string{"Incorrect Usage", "No argument required"},
+		))
 	})
 
 	Describe("when there is no api endpoint set", func() {
@@ -117,12 +139,11 @@ var _ = Describe("target command", func() {
 				space.Name = "my-space"
 				space.Guid = "my-space-guid"
 
-				spaceRepo.Spaces = []models.Space{space}
-				spaceRepo.FindByNameSpace = space
+				spaceRepo.FindByNameReturns(space, nil)
 
 				callTarget([]string{"-s", "my-space"})
 
-				Expect(spaceRepo.FindByNameName).To(Equal("my-space"))
+				Expect(spaceRepo.FindByNameArgsForCall(0)).To(Equal("my-space"))
 				Expect(config.SpaceFields().Guid).To(Equal("my-space-guid"))
 				Expect(ui.ShowConfigurationCalled).To(BeTrue())
 			})
@@ -131,14 +152,14 @@ var _ = Describe("target command", func() {
 				space := models.Space{}
 				space.Name = "my-space"
 				space.Guid = "my-space-guid"
-				spaceRepo.Spaces = []models.Space{space}
+				spaceRepo.FindByNameReturns(space, nil)
 
 				callTarget([]string{"-o", "my-organization", "-s", "my-space"})
 
 				Expect(orgRepo.FindByNameArgsForCall(0)).To(Equal("my-organization"))
 				Expect(config.OrganizationFields().Guid).To(Equal("my-organization-guid"))
 
-				Expect(spaceRepo.FindByNameName).To(Equal("my-space"))
+				Expect(spaceRepo.FindByNameArgsForCall(0)).To(Equal("my-space"))
 				Expect(config.SpaceFields().Guid).To(Equal("my-space-guid"))
 
 				Expect(ui.ShowConfigurationCalled).To(BeTrue())
@@ -147,14 +168,14 @@ var _ = Describe("target command", func() {
 			It("only updates the organization in the config when the space can't be found", func() {
 				config.SetSpaceFields(models.SpaceFields{})
 
-				spaceRepo.FindByNameErr = true
+				spaceRepo.FindByNameReturns(models.Space{}, errors.New("Error finding space by name."))
 
 				callTarget([]string{"-o", "my-organization", "-s", "my-space"})
 
 				Expect(orgRepo.FindByNameArgsForCall(0)).To(Equal("my-organization"))
 				Expect(config.OrganizationFields().Guid).To(Equal("my-organization-guid"))
 
-				Expect(spaceRepo.FindByNameName).To(Equal("my-space"))
+				Expect(spaceRepo.FindByNameArgsForCall(0)).To(Equal("my-space"))
 				Expect(config.SpaceFields().Guid).To(Equal(""))
 
 				Expect(ui.ShowConfigurationCalled).To(BeFalse())
@@ -169,7 +190,8 @@ var _ = Describe("target command", func() {
 					space := models.Space{}
 					space.Name = "my-space"
 					space.Guid = "my-space-guid"
-					spaceRepo.Spaces = []models.Space{space}
+					spaceRepo.FindByNameReturns(space, nil)
+					spaceRepo.ListSpacesStub = listSpacesStub([]models.Space{space})
 
 					callTarget([]string{"-o", "my-organization"})
 
@@ -188,7 +210,7 @@ var _ = Describe("target command", func() {
 				space2 := models.Space{}
 				space2.Name = "my-space"
 				space2.Guid = "my-space-guid"
-				spaceRepo.Spaces = []models.Space{space1, space2}
+				spaceRepo.ListSpacesStub = listSpacesStub([]models.Space{space1, space2})
 
 				callTarget([]string{"-o", "my-organization"})
 
@@ -250,7 +272,7 @@ var _ = Describe("target command", func() {
 			})
 
 			It("fails when the user doesn't have access to the space", func() {
-				spaceRepo.FindByNameErr = true
+				spaceRepo.FindByNameReturns(models.Space{}, errors.New("Error finding space by name."))
 
 				callTarget([]string{"-s", "my-space"})
 
@@ -267,7 +289,7 @@ var _ = Describe("target command", func() {
 			})
 
 			It("fails when the space is not found", func() {
-				spaceRepo.FindByNameNotFound = true
+				spaceRepo.FindByNameReturns(models.Space{}, errors.NewModelNotFoundError("Space", "my-space"))
 
 				callTarget([]string{"-s", "my-space"})
 
@@ -277,6 +299,7 @@ var _ = Describe("target command", func() {
 					[]string{"my-space", "not found"},
 				))
 			})
+
 			It("fails to target the space automatically if is not found", func() {
 				org := models.Organization{}
 				org.Name = "my-organization"
@@ -285,7 +308,7 @@ var _ = Describe("target command", func() {
 				orgRepo.ListOrgsReturns([]models.Organization{org}, nil)
 				orgRepo.FindByNameReturns(org, nil)
 
-				spaceRepo.FindByNameNotFound = true
+				spaceRepo.FindByNameReturns(models.Space{}, errors.NewModelNotFoundError("Space", "my-space"))
 
 				callTarget([]string{"-o", "my-organization"})
 

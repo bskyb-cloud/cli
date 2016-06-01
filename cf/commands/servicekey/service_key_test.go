@@ -1,9 +1,10 @@
 package servicekey_test
 
 import (
+	"github.com/cloudfoundry/cli/cf/command_registry"
 	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/generic"
 
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
@@ -11,7 +12,6 @@ import (
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
-	. "github.com/cloudfoundry/cli/cf/commands/servicekey"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 
 	. "github.com/onsi/ginkgo"
@@ -22,27 +22,35 @@ var _ = Describe("service-key command", func() {
 	var (
 		ui                  *testterm.FakeUI
 		config              core_config.Repository
-		cmd                 ServiceKey
 		requirementsFactory *testreq.FakeReqFactory
-		serviceRepo         *testapi.FakeServiceRepo
+		serviceRepo         *testapi.FakeServiceRepository
 		serviceKeyRepo      *testapi.FakeServiceKeyRepo
+		deps                command_registry.Dependency
 	)
+
+	updateCommandDependency := func(pluginCall bool) {
+		deps.Ui = ui
+		deps.RepoLocator = deps.RepoLocator.SetServiceRepository(serviceRepo)
+		deps.RepoLocator = deps.RepoLocator.SetServiceKeyRepository(serviceKeyRepo)
+		deps.Config = config
+		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("service-key").SetDependency(deps, pluginCall))
+	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		config = testconfig.NewRepositoryWithDefaults()
-		serviceRepo = &testapi.FakeServiceRepo{}
+		serviceRepo = &testapi.FakeServiceRepository{}
 		serviceInstance := models.ServiceInstance{}
 		serviceInstance.Guid = "fake-service-instance-guid"
-		serviceRepo.FindInstanceByNameMap = generic.NewMap()
-		serviceRepo.FindInstanceByNameMap.Set("fake-service-instance", serviceInstance)
+		serviceInstance.Name = "fake-service-instance"
+		serviceRepo.FindInstanceByNameReturns(serviceInstance, nil)
 		serviceKeyRepo = testapi.NewFakeServiceKeyRepo()
-		cmd = NewGetServiceKey(ui, config, serviceRepo, serviceKeyRepo)
 		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: true, ServiceInstanceNotFound: false}
+		requirementsFactory.ServiceInstance = serviceInstance
 	})
 
 	var callGetServiceKey = func(args []string) bool {
-		return testcmd.RunCommand(cmd, args, requirementsFactory)
+		return testcmd.RunCliCommand("service-key", args, requirementsFactory, updateCommandDependency, false)
 	}
 
 	Describe("requirements", func() {
@@ -101,8 +109,8 @@ var _ = Describe("service-key command", func() {
 					[]string{"port", "3306"},
 					[]string{"database", "fake-db-name"},
 					[]string{"uri", "mysql://fake-user:fake-password@fake-host:3306/fake-db-name"},
-					[]string{"OK"},
 				))
+				Expect(ui.Outputs[1]).To(BeEmpty())
 				Expect(serviceKeyRepo.GetServiceKeyMethod.InstanceGuid).To(Equal("fake-service-instance-guid"))
 			})
 
@@ -130,6 +138,19 @@ var _ = Describe("service-key command", func() {
 
 				Expect(len(ui.Outputs)).To(Equal(1))
 				Expect(ui.Outputs[0]).To(BeEmpty())
+			})
+		})
+
+		Context("when api returned NotAuthorizedError", func() {
+			It("shows no service key is found", func() {
+				serviceKeyRepo.GetServiceKeyMethod.ServiceKey = models.ServiceKey{}
+				serviceKeyRepo.GetServiceKeyMethod.Error = &errors.NotAuthorizedError{}
+
+				callGetServiceKey([]string{"fake-service-instance", "fake-service-key"})
+				Expect(ui.Outputs).To(ContainSubstrings(
+					[]string{"Getting key", "fake-service-key", "for service instance", "fake-service-instance", "as", "my-user"},
+					[]string{"No service key", "fake-service-key", "found for service instance", "fake-service-instance"},
+				))
 			})
 		})
 	})

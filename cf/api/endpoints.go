@@ -25,41 +25,46 @@ type endpointResource struct {
 	LoggregatorEndpoint      string `json:"logging_endpoint"`
 	MinCliVersion            string `json:"min_cli_version"`
 	MinRecommendedCliVersion string `json:"min_recommended_cli_version"`
+	SSHOAuthClient           string `json:"app_ssh_oauth_client"`
+	RoutingApiEndpoint       string `json:"routing_endpoint"`
 }
 
-func NewEndpointRepository(config core_config.ReadWriter, gateway net.Gateway) (repo RemoteEndpointRepository) {
-	repo.config = config
-	repo.gateway = gateway
-	return
-}
-
-func (repo RemoteEndpointRepository) UpdateEndpoint(endpoint string) (finalEndpoint string, apiErr error) {
-	defer func() {
-		if apiErr != nil {
-			repo.config.SetApiEndpoint("")
-		}
-	}()
-
-	endpointMissingScheme := !strings.HasPrefix(endpoint, "https://") && !strings.HasPrefix(endpoint, "http://")
-
-	if endpointMissingScheme {
-		finalEndpoint := "https://" + endpoint
-		apiErr := repo.attemptUpdate(finalEndpoint)
-
-		switch apiErr.(type) {
-		case nil:
-		case *errors.InvalidSSLCert:
-			return endpoint, apiErr
-		default:
-			finalEndpoint = "http://" + endpoint
-			apiErr = repo.attemptUpdate(finalEndpoint)
-		}
-
-		return finalEndpoint, apiErr
-	} else {
-		apiErr := repo.attemptUpdate(endpoint)
-		return endpoint, apiErr
+func NewEndpointRepository(config core_config.ReadWriter, gateway net.Gateway) EndpointRepository {
+	r := &RemoteEndpointRepository{
+		config:  config,
+		gateway: gateway,
 	}
+	return r
+}
+
+func (repo RemoteEndpointRepository) UpdateEndpoint(endpoint string) (string, error) {
+	if strings.HasPrefix(endpoint, "http") {
+		err := repo.attemptUpdate(endpoint)
+		if err != nil {
+			repo.config.SetApiEndpoint("")
+			return "", err
+		}
+
+		return endpoint, nil
+	}
+
+	finalEndpoint := "https://" + endpoint
+	err := repo.attemptUpdate(finalEndpoint)
+	if err != nil {
+		if _, ok := err.(*errors.InvalidSSLCert); ok {
+			repo.config.SetApiEndpoint("")
+			return "", err
+		}
+
+		finalEndpoint = "http://" + endpoint
+		err = repo.attemptUpdate(finalEndpoint)
+		if err != nil {
+			repo.config.SetApiEndpoint("")
+			return "", err
+		}
+	}
+
+	return finalEndpoint, err
 }
 
 func (repo RemoteEndpointRepository) attemptUpdate(endpoint string) error {
@@ -76,6 +81,7 @@ func (repo RemoteEndpointRepository) attemptUpdate(endpoint string) error {
 	repo.config.SetApiEndpoint(endpoint)
 	repo.config.SetApiVersion(serverResponse.ApiVersion)
 	repo.config.SetAuthenticationEndpoint(serverResponse.AuthorizationEndpoint)
+	repo.config.SetSSHOAuthClient(serverResponse.SSHOAuthClient)
 	repo.config.SetMinCliVersion(serverResponse.MinCliVersion)
 	repo.config.SetMinRecommendedCliVersion(serverResponse.MinRecommendedCliVersion)
 
@@ -88,6 +94,7 @@ func (repo RemoteEndpointRepository) attemptUpdate(endpoint string) error {
 	//* 3/5/15: loggregator endpoint will be renamed to doppler eventually,
 	//          we just have to use the loggregator endpoint as doppler for now
 	repo.config.SetDopplerEndpoint(strings.Replace(repo.config.LoggregatorEndpoint(), "loggregator", "doppler", 1))
+	repo.config.SetRoutingApiEndpoint(serverResponse.RoutingApiEndpoint)
 
 	return nil
 }
@@ -98,9 +105,8 @@ func defaultLoggregatorEndpoint(apiEndpoint string) string {
 	url := fmt.Sprintf("ws%s://loggregator.%s", matches[1], matches[2])
 	if url[0:3] == "wss" {
 		return url + ":443"
-	} else {
-		return url + ":80"
 	}
+	return url + ":80"
 }
 
 var endpointDomainRegex = regexp.MustCompile(`^http(s?)://[^\.]+\.([^:]+)`)

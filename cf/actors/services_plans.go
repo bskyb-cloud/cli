@@ -1,7 +1,6 @@
 package actors
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/cloudfoundry/cli/cf/api/organizations"
@@ -61,7 +60,7 @@ func NewServicePlanHandler(plan api.ServicePlanRepository, vis api.ServicePlanVi
 }
 
 func (actor ServicePlanHandler) UpdateAllPlansForService(serviceName string, setPlanVisibility bool) (bool, error) {
-	service, err := actor.serviceBuilder.GetServiceByNameWithPlansWithOrgNames(serviceName)
+	service, err := actor.serviceBuilder.GetServiceByNameWithPlans(serviceName)
 	if err != nil {
 		return false, err
 	}
@@ -132,7 +131,7 @@ func (actor ServicePlanHandler) UpdatePlanAndOrgForService(serviceName, planName
 		}
 	}
 	if !found {
-		return PlanAccessError, errors.New(fmt.Sprintf("Service plan %s not found", planName))
+		return PlanAccessError, fmt.Errorf("Service plan %s not found", planName)
 	}
 
 	if !servicePlan.Public && setPlanVisibility {
@@ -160,7 +159,7 @@ func (actor ServicePlanHandler) UpdatePlanAndOrgForService(serviceName, planName
 }
 
 func (actor ServicePlanHandler) UpdateSinglePlanForService(serviceName string, planName string, setPlanVisibility bool) (PlanAccess, error) {
-	serviceOffering, err := actor.serviceBuilder.GetServiceByNameWithPlansWithOrgNames(serviceName)
+	serviceOffering, err := actor.serviceBuilder.GetServiceByNameWithPlans(serviceName)
 	if err != nil {
 		return PlanAccessError, err
 	}
@@ -170,16 +169,15 @@ func (actor ServicePlanHandler) UpdateSinglePlanForService(serviceName string, p
 func (actor ServicePlanHandler) updateSinglePlan(serviceOffering models.ServiceOffering, planName string, setPlanVisibility bool) (PlanAccess, error) {
 	var planToUpdate *models.ServicePlanFields
 
-	//find the service plan and set it as the only service plan for update
 	for _, servicePlan := range serviceOffering.Plans {
 		if servicePlan.Name == planName {
-			planToUpdate = &servicePlan //he has the orgs inside him!!!
+			planToUpdate = &servicePlan
 			break
 		}
 	}
 
 	if planToUpdate == nil {
-		return PlanAccessError, errors.New(fmt.Sprintf("The plan %s could not be found for service %s", planName, serviceOffering.Label))
+		return PlanAccessError, fmt.Errorf("The plan %s could not be found for service %s", planName, serviceOffering.Label)
 	}
 
 	err := actor.updateServicePlanAvailability(serviceOffering.Guid, *planToUpdate, setPlanVisibility)

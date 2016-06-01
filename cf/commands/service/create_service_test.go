@@ -9,7 +9,6 @@ import (
 	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/generic"
 
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
@@ -17,7 +16,7 @@ import (
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
-	. "github.com/cloudfoundry/cli/cf/commands/service"
+	"github.com/cloudfoundry/cli/cf/command_registry"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -30,21 +29,28 @@ var _ = Describe("create-service command", func() {
 		ui                  *testterm.FakeUI
 		config              core_config.Repository
 		requirementsFactory *testreq.FakeReqFactory
-		cmd                 CreateService
-		serviceRepo         *testapi.FakeServiceRepo
+		serviceRepo         *testapi.FakeServiceRepository
 		serviceBuilder      *fakes.FakeServiceBuilder
 
 		offering1 models.ServiceOffering
 		offering2 models.ServiceOffering
+		deps      command_registry.Dependency
 	)
+
+	updateCommandDependency := func(pluginCall bool) {
+		deps.Ui = ui
+		deps.Config = config
+		deps.RepoLocator = deps.RepoLocator.SetServiceRepository(serviceRepo)
+		deps.ServiceBuilder = serviceBuilder
+		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("create-service").SetDependency(deps, pluginCall))
+	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		config = testconfig.NewRepositoryWithDefaults()
 		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: true}
-		serviceRepo = &testapi.FakeServiceRepo{}
+		serviceRepo = &testapi.FakeServiceRepository{}
 		serviceBuilder = &fakes.FakeServiceBuilder{}
-		cmd = NewCreateService(ui, config, serviceRepo, serviceBuilder)
 
 		offering1 = models.ServiceOffering{}
 		offering1.Label = "cleardb"
@@ -65,7 +71,7 @@ var _ = Describe("create-service command", func() {
 	})
 
 	var callCreateService = func(args []string) bool {
-		return testcmd.RunCommand(cmd, args, requirementsFactory)
+		return testcmd.RunCliCommand("create-service", args, requirementsFactory, updateCommandDependency, false)
 	}
 
 	Describe("requirements", func() {
@@ -94,8 +100,22 @@ var _ = Describe("create-service command", func() {
 			[]string{"Creating service instance", "my-cleardb-service", "my-org", "my-space", "my-user"},
 			[]string{"OK"},
 		))
-		Expect(serviceRepo.CreateServiceInstanceArgs.Name).To(Equal("my-cleardb-service"))
-		Expect(serviceRepo.CreateServiceInstanceArgs.PlanGuid).To(Equal("cleardb-spark-guid"))
+		name, planGUID, _, _ := serviceRepo.CreateServiceInstanceArgsForCall(0)
+		Expect(name).To(Equal("my-cleardb-service"))
+		Expect(planGUID).To(Equal("cleardb-spark-guid"))
+	})
+
+	Context("when passing in tags", func() {
+		It("sucessfully creates a service and passes the tags as json", func() {
+			callCreateService([]string{"cleardb", "spark", "my-cleardb-service", "-t", "tag1, tag2,tag3,  tag4"})
+
+			Expect(ui.Outputs).To(ContainSubstrings(
+				[]string{"Creating service instance", "my-cleardb-service", "my-org", "my-space", "my-user"},
+				[]string{"OK"},
+			))
+			_, _, _, tags := serviceRepo.CreateServiceInstanceArgsForCall(0)
+			Expect(tags).To(ConsistOf("tag1", "tag2", "tag3", "tag4"))
+		})
 	})
 
 	Context("when passing arbitrary params", func() {
@@ -107,7 +127,8 @@ var _ = Describe("create-service command", func() {
 					[]string{"Creating service instance", "my-cleardb-service", "my-org", "my-space", "my-user"},
 					[]string{"OK"},
 				))
-				Expect(serviceRepo.CreateServiceInstanceArgs.Params).To(Equal(map[string]interface{}{"foo": "bar"}))
+				_, _, params, _ := serviceRepo.CreateServiceInstanceArgsForCall(0)
+				Expect(params).To(Equal(map[string]interface{}{"foo": "bar"}))
 			})
 
 			Context("that are not valid json", func() {
@@ -116,7 +137,7 @@ var _ = Describe("create-service command", func() {
 
 					Expect(ui.Outputs).To(ContainSubstrings(
 						[]string{"FAILED"},
-						[]string{"Invalid JSON provided in -c argument"},
+						[]string{"Invalid configuration provided for -c flag. Please provide a valid JSON object or path to a file containing a valid JSON object."},
 					))
 				})
 			})
@@ -146,14 +167,15 @@ var _ = Describe("create-service command", func() {
 				Expect(err).NotTo(HaveOccurred())
 			})
 
-			It("successfully creates a service and passes the params as a json string", func() {
+			It("successfully creates a service and passes the params as a json", func() {
 				callCreateService([]string{"cleardb", "spark", "my-cleardb-service", "-c", jsonFile.Name()})
 
 				Expect(ui.Outputs).To(ContainSubstrings(
 					[]string{"Creating service instance", "my-cleardb-service", "my-org", "my-space", "my-user"},
 					[]string{"OK"},
 				))
-				Expect(serviceRepo.CreateServiceInstanceArgs.Params).To(Equal(map[string]interface{}{"foo": "bar"}))
+				_, _, params, _ := serviceRepo.CreateServiceInstanceArgsForCall(0)
+				Expect(params).To(Equal(map[string]interface{}{"foo": "bar"}))
 			})
 
 			Context("that are not valid json", func() {
@@ -166,7 +188,7 @@ var _ = Describe("create-service command", func() {
 
 					Expect(ui.Outputs).To(ContainSubstrings(
 						[]string{"FAILED"},
-						[]string{"Invalid JSON provided in -c argument"},
+						[]string{"Invalid configuration provided for -c flag. Please provide a valid JSON object or path to a file containing a valid JSON object."},
 					))
 				})
 			})
@@ -187,8 +209,7 @@ var _ = Describe("create-service command", func() {
 					},
 				},
 			}
-			serviceRepo.FindInstanceByNameMap = generic.NewMap()
-			serviceRepo.FindInstanceByNameMap.Set("my-cleardb-service", serviceInstance)
+			serviceRepo.FindInstanceByNameReturns(serviceInstance, nil)
 		})
 
 		It("successfully starts async service creation", func() {
@@ -205,12 +226,13 @@ var _ = Describe("create-service command", func() {
 				[]string{"OK"},
 				[]string{creatingServiceMessage},
 			))
-			Expect(serviceRepo.CreateServiceInstanceArgs.Name).To(Equal("my-cleardb-service"))
-			Expect(serviceRepo.CreateServiceInstanceArgs.PlanGuid).To(Equal("cleardb-spark-guid"))
+			name, planGUID, _, _ := serviceRepo.CreateServiceInstanceArgsForCall(0)
+			Expect(name).To(Equal("my-cleardb-service"))
+			Expect(planGUID).To(Equal("cleardb-spark-guid"))
 		})
 
 		It("fails when service instance could is created but cannot be found", func() {
-			serviceRepo.FindInstanceByNameErr = true
+			serviceRepo.FindInstanceByNameReturns(models.ServiceInstance{}, errors.New("Error finding instance"))
 			callCreateService([]string{"cleardb", "spark", "fake-service-instance-name"})
 
 			Expect(ui.Outputs).To(ContainSubstrings(
@@ -241,7 +263,7 @@ var _ = Describe("create-service command", func() {
 	})
 
 	It("warns the user when the service already exists with the same service plan", func() {
-		serviceRepo.CreateServiceInstanceReturns.Error = errors.NewModelAlreadyExistsError("Service", "my-cleardb-service")
+		serviceRepo.CreateServiceInstanceReturns(errors.NewModelAlreadyExistsError("Service", "my-cleardb-service"))
 
 		callCreateService([]string{"cleardb", "spark", "my-cleardb-service"})
 
@@ -250,23 +272,27 @@ var _ = Describe("create-service command", func() {
 			[]string{"OK"},
 			[]string{"my-cleardb-service", "already exists"},
 		))
-		Expect(serviceRepo.CreateServiceInstanceArgs.Name).To(Equal("my-cleardb-service"))
-		Expect(serviceRepo.CreateServiceInstanceArgs.PlanGuid).To(Equal("cleardb-spark-guid"))
+
+		name, planGUID, _, _ := serviceRepo.CreateServiceInstanceArgsForCall(0)
+		Expect(name).To(Equal("my-cleardb-service"))
+		Expect(planGUID).To(Equal("cleardb-spark-guid"))
 	})
 
 	Context("When there are multiple services with the same label", func() {
 		It("finds the plan even if it has to search multiple services", func() {
 			offering2.Label = "cleardb"
 
-			serviceRepo.CreateServiceInstanceReturns.Error = errors.NewModelAlreadyExistsError("Service", "my-cleardb-service")
+			serviceRepo.CreateServiceInstanceReturns(errors.NewModelAlreadyExistsError("Service", "my-cleardb-service"))
 			callCreateService([]string{"cleardb", "spark", "my-cleardb-service"})
 
 			Expect(ui.Outputs).To(ContainSubstrings(
 				[]string{"Creating service instance", "my-cleardb-service", "my-org", "my-space", "my-user"},
 				[]string{"OK"},
 			))
-			Expect(serviceRepo.CreateServiceInstanceArgs.Name).To(Equal("my-cleardb-service"))
-			Expect(serviceRepo.CreateServiceInstanceArgs.PlanGuid).To(Equal("cleardb-spark-guid"))
+
+			name, planGUID, _, _ := serviceRepo.CreateServiceInstanceArgsForCall(0)
+			Expect(name).To(Equal("my-cleardb-service"))
+			Expect(planGUID).To(Equal("cleardb-spark-guid"))
 		})
 	})
 })

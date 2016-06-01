@@ -1,21 +1,21 @@
 package user
 
 import (
-	"errors"
-
 	. "github.com/cloudfoundry/cli/cf/i18n"
+	"github.com/cloudfoundry/cli/flags"
 
 	"github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/api/feature_flags"
 	"github.com/cloudfoundry/cli/cf/api/spaces"
-	"github.com/cloudfoundry/cli/cf/command_metadata"
+	"github.com/cloudfoundry/cli/cf/command_registry"
 	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/codegangsta/cli"
 )
 
 type SpaceRoleSetter interface {
+	command_registry.Command
 	SetSpaceRole(space models.Space, role, userGuid, userName string) (err error)
 }
 
@@ -23,22 +23,18 @@ type SetSpaceRole struct {
 	ui        terminal.UI
 	config    core_config.Reader
 	spaceRepo spaces.SpaceRepository
+	flagRepo  feature_flags.FeatureFlagRepository
 	userRepo  api.UserRepository
 	userReq   requirements.UserRequirement
 	orgReq    requirements.OrganizationRequirement
 }
 
-func NewSetSpaceRole(ui terminal.UI, config core_config.Reader, spaceRepo spaces.SpaceRepository, userRepo api.UserRepository) (cmd *SetSpaceRole) {
-	cmd = new(SetSpaceRole)
-	cmd.ui = ui
-	cmd.config = config
-	cmd.spaceRepo = spaceRepo
-	cmd.userRepo = userRepo
-	return
+func init() {
+	command_registry.Register(&SetSpaceRole{})
 }
 
-func (cmd *SetSpaceRole) Metadata() command_metadata.CommandMetadata {
-	return command_metadata.CommandMetadata{
+func (cmd *SetSpaceRole) MetaData() command_registry.CommandMetadata {
+	return command_registry.CommandMetadata{
 		Name:        "set-space-role",
 		Description: T("Assign a space role to a user"),
 		Usage: T("CF_NAME set-space-role USERNAME ORG SPACE ROLE\n\n") +
@@ -49,46 +45,58 @@ func (cmd *SetSpaceRole) Metadata() command_metadata.CommandMetadata {
 	}
 }
 
-func (cmd *SetSpaceRole) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
-	if len(c.Args()) != 4 {
-		cmd.ui.FailWithUsage(c)
+func (cmd *SetSpaceRole) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
+	if len(fc.Args()) != 4 {
+		cmd.ui.Failed(T("Incorrect Usage. Requires USERNAME, ORG, SPACE, ROLE as arguments\n\n") + command_registry.Commands.CommandUsage("set-space-role"))
 	}
 
-	cmd.userReq = requirementsFactory.NewUserRequirement(c.Args()[0])
-	if cmd.orgReq == nil {
-		cmd.orgReq = requirementsFactory.NewOrganizationRequirement(c.Args()[1])
+	var wantGuid bool
+	if cmd.config.IsMinApiVersion("2.37.0") {
+		setRolesByUsernameFlag, err := cmd.flagRepo.FindByName("set_roles_by_username")
+		wantGuid = (err != nil || !setRolesByUsernameFlag.Enabled)
 	} else {
-		cmd.orgReq.SetOrganizationName(c.Args()[1])
+		wantGuid = true
 	}
 
-	reqs = []requirements.Requirement{
+	cmd.userReq = requirementsFactory.NewUserRequirement(fc.Args()[0], wantGuid)
+	cmd.orgReq = requirementsFactory.NewOrganizationRequirement(fc.Args()[1])
+
+	reqs := []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 		cmd.userReq,
 		cmd.orgReq,
 	}
-	return
+
+	return reqs, nil
 }
 
-func (cmd *SetSpaceRole) Run(c *cli.Context) {
+func (cmd *SetSpaceRole) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
+	cmd.ui = deps.Ui
+	cmd.config = deps.Config
+	cmd.spaceRepo = deps.RepoLocator.GetSpaceRepository()
+	cmd.userRepo = deps.RepoLocator.GetUserRepository()
+	cmd.flagRepo = deps.RepoLocator.GetFeatureFlagRepository()
+	return cmd
+}
+
+func (cmd *SetSpaceRole) Execute(c flags.FlagContext) {
 	spaceName := c.Args()[2]
 	role := models.UserInputToSpaceRole[c.Args()[3]]
 	user := cmd.userReq.GetUser()
 	org := cmd.orgReq.GetOrganization()
 
-	space, apiErr := cmd.spaceRepo.FindByNameInOrg(spaceName, org.Guid)
-	if apiErr != nil {
-		cmd.ui.Failed(apiErr.Error())
-		return
-	}
-
-	err := cmd.SetSpaceRole(space, role, user.Guid, user.Username)
+	space, err := cmd.spaceRepo.FindByNameInOrg(spaceName, org.Guid)
 	if err != nil {
 		cmd.ui.Failed(err.Error())
-		return
+	}
+
+	err = cmd.SetSpaceRole(space, role, user.Guid, user.Username)
+	if err != nil {
+		cmd.ui.Failed(err.Error())
 	}
 }
 
-func (cmd *SetSpaceRole) SetSpaceRole(space models.Space, role, userGuid, userName string) (err error) {
+func (cmd *SetSpaceRole) SetSpaceRole(space models.Space, role, userGuid, userName string) error {
 	cmd.ui.Say(T("Assigning role {{.Role}} to user {{.TargetUser}} in org {{.TargetOrg}} / space {{.TargetSpace}} as {{.CurrentUser}}...",
 		map[string]interface{}{
 			"Role":        terminal.EntityNameColor(role),
@@ -98,12 +106,16 @@ func (cmd *SetSpaceRole) SetSpaceRole(space models.Space, role, userGuid, userNa
 			"CurrentUser": terminal.EntityNameColor(cmd.config.Username()),
 		}))
 
-	apiErr := cmd.userRepo.SetSpaceRole(userGuid, space.Guid, space.Organization.Guid, role)
-	if apiErr != nil {
-		err = errors.New(apiErr.Error())
-		return
+	var err error
+	if len(userGuid) > 0 {
+		err = cmd.userRepo.SetSpaceRoleByGuid(userGuid, space.Guid, space.Organization.Guid, role)
+	} else {
+		err = cmd.userRepo.SetSpaceRoleByUsername(userName, space.Guid, space.Organization.Guid, role)
+	}
+	if err != nil {
+		return err
 	}
 
 	cmd.ui.Ok()
-	return
+	return nil
 }

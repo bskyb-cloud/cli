@@ -4,16 +4,16 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/cloudfoundry/cli/cf/flag_helpers"
 	. "github.com/cloudfoundry/cli/cf/i18n"
+	"github.com/cloudfoundry/cli/flags"
+	"github.com/cloudfoundry/cli/flags/flag"
 
 	"github.com/cloudfoundry/cli/cf/actors/service_builder"
-	"github.com/cloudfoundry/cli/cf/command_metadata"
+	"github.com/cloudfoundry/cli/cf/command_registry"
 	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/codegangsta/cli"
 )
 
 type MarketplaceServices struct {
@@ -22,35 +22,41 @@ type MarketplaceServices struct {
 	serviceBuilder service_builder.ServiceBuilder
 }
 
-func NewMarketplaceServices(ui terminal.UI, config core_config.Reader, serviceBuilder service_builder.ServiceBuilder) MarketplaceServices {
-	return MarketplaceServices{
-		ui:             ui,
-		config:         config,
-		serviceBuilder: serviceBuilder,
-	}
+func init() {
+	command_registry.Register(&MarketplaceServices{})
 }
 
-func (cmd MarketplaceServices) Metadata() command_metadata.CommandMetadata {
-	return command_metadata.CommandMetadata{
+func (cmd *MarketplaceServices) MetaData() command_registry.CommandMetadata {
+	fs := make(map[string]flags.FlagSet)
+	fs["s"] = &cliFlags.StringFlag{ShortName: "s", Usage: T("Show plan details for a particular service offering")}
+
+	return command_registry.CommandMetadata{
 		Name:        "marketplace",
 		ShortName:   "m",
 		Description: T("List available offerings in the marketplace"),
 		Usage:       "CF_NAME marketplace",
-		Flags: []cli.Flag{
-			flag_helpers.NewStringFlag("s", T("Show plan details for a particular service offering")),
-		},
+		Flags:       fs,
 	}
 }
 
-func (cmd MarketplaceServices) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
-	if len(c.Args()) != 0 {
-		cmd.ui.FailWithUsage(c)
+func (cmd *MarketplaceServices) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+	if len(fc.Args()) != 0 {
+		cmd.ui.Failed(T("Incorrect Usage. No argument required\n\n") + command_registry.Commands.CommandUsage("marketplace"))
 	}
+
 	reqs = append(reqs, requirementsFactory.NewApiEndpointRequirement())
+
 	return
 }
 
-func (cmd MarketplaceServices) Run(c *cli.Context) {
+func (cmd *MarketplaceServices) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
+	cmd.ui = deps.Ui
+	cmd.config = deps.Config
+	cmd.serviceBuilder = deps.ServiceBuilder
+	return cmd
+}
+
+func (cmd *MarketplaceServices) Execute(c flags.FlagContext) {
 	serviceName := c.String("s")
 
 	if serviceName != "" {

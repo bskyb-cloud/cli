@@ -13,7 +13,7 @@ import (
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
-	. "github.com/cloudfoundry/cli/cf/commands/securitygroup"
+	"github.com/cloudfoundry/cli/cf/command_registry"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -22,14 +22,24 @@ import (
 var _ = Describe("bind-security-group command", func() {
 	var (
 		ui                    *testterm.FakeUI
-		cmd                   BindSecurityGroup
-		configRepo            core_config.ReadWriter
+		configRepo            core_config.Repository
 		fakeSecurityGroupRepo *testapi.FakeSecurityGroupRepo
 		requirementsFactory   *testreq.FakeReqFactory
 		fakeSpaceRepo         *fakes.FakeSpaceRepository
 		fakeOrgRepo           *test_org.FakeOrganizationRepository
 		fakeSpaceBinder       *zoidberg.FakeSecurityGroupSpaceBinder
+		deps                  command_registry.Dependency
 	)
+
+	updateCommandDependency := func(pluginCall bool) {
+		deps.Ui = ui
+		deps.RepoLocator = deps.RepoLocator.SetSpaceRepository(fakeSpaceRepo)
+		deps.RepoLocator = deps.RepoLocator.SetOrganizationRepository(fakeOrgRepo)
+		deps.RepoLocator = deps.RepoLocator.SetSecurityGroupRepository(fakeSecurityGroupRepo)
+		deps.RepoLocator = deps.RepoLocator.SetSecurityGroupSpaceBinder(fakeSpaceBinder)
+		deps.Config = configRepo
+		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("bind-security-group").SetDependency(deps, pluginCall))
+	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
@@ -39,11 +49,10 @@ var _ = Describe("bind-security-group command", func() {
 		fakeSecurityGroupRepo = &testapi.FakeSecurityGroupRepo{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
 		fakeSpaceBinder = &zoidberg.FakeSecurityGroupSpaceBinder{}
-		cmd = NewBindSecurityGroup(ui, configRepo, fakeSecurityGroupRepo, fakeSpaceRepo, fakeOrgRepo, fakeSpaceBinder)
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCommand(cmd, args, requirementsFactory)
+		return testcmd.RunCliCommand("bind-security-group", args, requirementsFactory, updateCommandDependency, false)
 	}
 
 	Describe("requirements", func() {
@@ -61,7 +70,9 @@ var _ = Describe("bind-security-group command", func() {
 			requirementsFactory.LoginSuccess = true
 			runCommand("one fish", "two fish", "three fish", "purple fish")
 
-			Expect(ui.FailedWithUsage).To(BeTrue())
+			Expect(ui.Outputs).To(ContainSubstrings(
+				[]string{"Incorrect Usage", "Requires", "arguments"},
+			))
 		})
 	})
 
@@ -109,14 +120,15 @@ var _ = Describe("bind-security-group command", func() {
 				org.Guid = "org-guid"
 				fakeOrgRepo.ListOrgsReturns([]models.Organization{org}, nil)
 				fakeOrgRepo.FindByNameReturns(org, nil)
-				fakeSpaceRepo.FindByNameInOrgError = errors.NewModelNotFoundError("Space", "space-name")
+				fakeSpaceRepo.FindByNameInOrgReturns(models.Space{}, errors.NewModelNotFoundError("Space", "space-name"))
 			})
 
 			It("fails and tells the user", func() {
 				runCommand("sec group", "org-name", "space-name")
 
-				Expect(fakeSpaceRepo.FindByNameInOrgName).To(Equal("space-name"))
-				Expect(fakeSpaceRepo.FindByNameInOrgOrgGuid).To(Equal("org-guid"))
+				name, orgGUID := fakeSpaceRepo.FindByNameInOrgArgsForCall(0)
+				Expect(name).To(Equal("space-name"))
+				Expect(orgGUID).To(Equal("org-guid"))
 				Expect(ui.Outputs).To(ContainSubstrings(
 					[]string{"FAILED"},
 					[]string{"Space", "space-name", "not found"},
@@ -134,7 +146,7 @@ var _ = Describe("bind-security-group command", func() {
 				space := models.Space{}
 				space.Name = "space-name"
 				space.Guid = "space-guid"
-				fakeSpaceRepo.FindByNameInOrgSpace = space
+				fakeSpaceRepo.FindByNameInOrgReturns(space, nil)
 
 				securityGroup := models.SecurityGroup{}
 				securityGroup.Name = "security-group"

@@ -1,28 +1,28 @@
 package requirements
 
 import (
+	"github.com/blang/semver"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/terminal"
 )
 
-type Requirement interface {
-	Execute() (success bool)
-}
-
+//go:generate counterfeiter -o fakes/fake_factory.go . Factory
 type Factory interface {
 	NewApplicationRequirement(name string) ApplicationRequirement
+	NewDEAApplicationRequirement(name string) DEAApplicationRequirement
 	NewServiceInstanceRequirement(name string) ServiceInstanceRequirement
 	NewLoginRequirement() Requirement
+	NewRoutingAPIRequirement() Requirement
 	NewSpaceRequirement(name string) SpaceRequirement
 	NewTargetedSpaceRequirement() Requirement
 	NewTargetedOrgRequirement() TargetedOrgRequirement
 	NewOrganizationRequirement(name string) OrganizationRequirement
 	NewDomainRequirement(name string) DomainRequirement
-	NewUserRequirement(username string) UserRequirement
+	NewUserRequirement(username string, wantGuid bool) UserRequirement
 	NewBuildpackRequirement(buildpack string) BuildpackRequirement
 	NewApiEndpointRequirement() Requirement
-	NewMinCCApiVersionRequirement(commandName string, major, minor, patch int) Requirement
+	NewMinAPIVersionRequirement(commandName string, requiredVersion semver.Version) Requirement
 }
 
 type apiRequirementFactory struct {
@@ -43,6 +43,14 @@ func (f apiRequirementFactory) NewApplicationRequirement(name string) Applicatio
 	)
 }
 
+func (f apiRequirementFactory) NewDEAApplicationRequirement(name string) DEAApplicationRequirement {
+	return NewDEAApplicationRequirement(
+		name,
+		f.ui,
+		f.repoLocator.GetApplicationRepository(),
+	)
+}
+
 func (f apiRequirementFactory) NewServiceInstanceRequirement(name string) ServiceInstanceRequirement {
 	return NewServiceInstanceRequirement(
 		name,
@@ -53,6 +61,13 @@ func (f apiRequirementFactory) NewServiceInstanceRequirement(name string) Servic
 
 func (f apiRequirementFactory) NewLoginRequirement() Requirement {
 	return NewLoginRequirement(
+		f.ui,
+		f.config,
+	)
+}
+
+func (f apiRequirementFactory) NewRoutingAPIRequirement() Requirement {
+	return NewRoutingAPIRequirement(
 		f.ui,
 		f.config,
 	)
@@ -97,11 +112,12 @@ func (f apiRequirementFactory) NewDomainRequirement(name string) DomainRequireme
 	)
 }
 
-func (f apiRequirementFactory) NewUserRequirement(username string) UserRequirement {
+func (f apiRequirementFactory) NewUserRequirement(username string, wantGuid bool) UserRequirement {
 	return NewUserRequirement(
 		username,
 		f.ui,
 		f.repoLocator.GetUserRepository(),
+		wantGuid,
 	)
 }
 
@@ -120,13 +136,11 @@ func (f apiRequirementFactory) NewApiEndpointRequirement() Requirement {
 	)
 }
 
-func (f apiRequirementFactory) NewMinCCApiVersionRequirement(commandName string, major, minor, patch int) Requirement {
-	return NewCCApiVersionRequirement(
+func (f apiRequirementFactory) NewMinAPIVersionRequirement(commandName string, requiredVersion semver.Version) Requirement {
+	return NewMinAPIVersionRequirement(
 		f.ui,
 		f.config,
 		commandName,
-		major,
-		minor,
-		patch,
+		requiredVersion,
 	)
 }

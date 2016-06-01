@@ -67,18 +67,18 @@ Finally, it is also important not to translate the argument names in templated s
 
 Our goal is to have translations for the following languages first:
 
-| Language              | Locale | Status                  |
-|-----------------------|--------|-------------------------|
-| English               | en_US  | Complete                |
-| French                | fr_FR  | Complete                |
-| Spanish               | es_ES  | Complete                |
-| German                | de_DE  | English files ready(*)  |
-| Italian               | it_IT  | English files ready     |
-| Japanese              | ja_JA  | English files ready     |
-| Portuguese (Brazil)   | pt_BR  | Complete                |
-| Chinese (simplified)  | zh_Hans  | Complete                |
-| Chinese (traditional) | zh_Hant  | English files ready     |
+| Language              | Locale | Status     |
+|-----------------------|--------|------------|
+| English               | en_US  | Complete   |
+| French                | fr_FR  | Complete   |
+| Spanish               | es_ES  | Complete   |
+| German                | de_DE  | Complete   |
+| Italian               | it_IT  | Complete   |
+| Japanese              | ja_JP  | Complete   |
+| Portuguese (Brazil)   | pt_BR  | Complete   |
+| Chinese (simplified)  | zh_Hans  | Complete   |
+| Chinese (traditional) | zh_Hant  | Complete   |
 
-If you are interested in submitting translations for another language/locale, then please communicate with us via VCAP-DEV mailing list first.
+If you are interested in submitting translations for another language/locale, then please communicate with us via [cf-dev](https://lists.cloudfoundry.org/archives/list/cf-dev@lists.cloudfoundry.org/) mailing list first.
 
 (*) We note "English files ready" to mean that our github project contains English versions for the translation files. We are ready for PRs on these files with actual translated strings.

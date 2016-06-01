@@ -34,6 +34,86 @@ var _ = Describe("main", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 
+	Describe("Help menu with -h/--help", func() {
+		It("prints the help output with our custom template when run with 'cf -h'", func() {
+			output := Cf("-h").Wait(1 * time.Second)
+			Eventually(output.Out.Contents).Should(ContainSubstring("A command line tool to interact with Cloud Foundry"))
+			Eventually(output.Out.Contents).Should(ContainSubstring("CF_TRACE=true"))
+		})
+
+		It("prints the help output with our custom template when run with 'cf --help'", func() {
+			output := Cf("--help").Wait(1 * time.Second)
+			Eventually(output.Out.Contents).Should(ContainSubstring("A command line tool to interact with Cloud Foundry"))
+			Eventually(output.Out.Contents).Should(ContainSubstring("CF_TRACE=true"))
+		})
+
+		It("accepts -h and --h flags for all commands", func() {
+			result := Cf("push", "-h")
+			Consistently(result.Out).ShouldNot(Say("Incorrect Usage"))
+			Eventually(result.Out.Contents).Should(ContainSubstring("USAGE"))
+
+			result = Cf("target", "--h")
+			Consistently(result.Out).ShouldNot(Say("Incorrect Usage"))
+			Eventually(result.Out.Contents).Should(ContainSubstring("USAGE"))
+		})
+
+	})
+
+	Describe("Shows version with -v or --version", func() {
+		It("prints the cf version if '-v' flag is provided", func() {
+			output := Cf("-v").Wait(1 * time.Second)
+			Eventually(output.Out.Contents).Should(ContainSubstring("version"))
+			Ω(output.ExitCode()).To(Equal(0))
+		})
+
+		It("prints the cf version if '--version' flag is provided", func() {
+			output := Cf("--version").Wait(1 * time.Second)
+			Eventually(output.Out.Contents).Should(ContainSubstring("version"))
+			Ω(output.ExitCode()).To(Equal(0))
+		})
+	})
+
+	Describe("Shows debug information with -b or --build", func() {
+		It("prints the golang version if '--build' flag is provided", func() {
+			output := Cf("--build").Wait(1 * time.Second)
+			Eventually(output.Out.Contents).Should(ContainSubstring("was built with Go version:"))
+			Ω(output.ExitCode()).To(Equal(0))
+		})
+
+		It("prints the golang version if '-b' flag is provided", func() {
+			output := Cf("-b").Wait(1 * time.Second)
+			Eventually(output.Out.Contents).Should(ContainSubstring("was built with Go version:"))
+			Ω(output.ExitCode()).To(Equal(0))
+		})
+	})
+
+	Describe("Commands /w new non-codegangsta structure", func() {
+		It("prints usage help for all non-codegangsta commands by providing `help` flag", func() {
+			output := Cf("api", "-h").Wait(1 * time.Second)
+			Eventually(output.Out.Contents).Should(ContainSubstring("USAGE"))
+			Eventually(output.Out.Contents).Should(ContainSubstring("OPTIONS"))
+		})
+
+		It("accepts -h and --h flags for non-codegangsta commands", func() {
+			result := Cf("api", "-h")
+			Consistently(result.Out).ShouldNot(Say("Invalid flag: -h"))
+			Eventually(result.Out.Contents).Should(ContainSubstring("api - Set or view target api url"))
+
+			result = Cf("api", "--h")
+			Consistently(result.Out).ShouldNot(Say("Invalid flag: --h"))
+			Eventually(result.Out.Contents).Should(ContainSubstring("api - Set or view target api url"))
+		})
+
+		It("runs requirement of the non-codegangsta command", func() {
+			dir, err := os.Getwd()
+			Expect(err).ToNot(HaveOccurred())
+			fullDir := filepath.Join(dir, "..", "fixtures") //set home to a config w/o targeted api
+			result := CfWith_CF_HOME(fullDir, "app", "app-should-never-exist-blah-blah")
+
+			Eventually(result.Out).Should(Say("No API endpoint set."))
+		})
+	})
+
 	Describe("exit codes", func() {
 		It("exits non-zero when an unknown command is invoked", func() {
 			result := Cf("some-command-that-should-never-actually-be-a-real-thing-i-can-use")
@@ -48,82 +128,9 @@ var _ = Describe("main", func() {
 		})
 	})
 
-	It("can print help for all core commands by executing only the command `cf`", func() {
+	It("can print help menu by executing only the command `cf`", func() {
 		output := Cf().Wait(3 * time.Second)
 		Eventually(output.Out.Contents).Should(ContainSubstring("A command line tool to interact with Cloud Foundry"))
-	})
-
-	Describe("Flag verification", func() {
-		It("informs user for any incorrect provided flags", func() {
-			result := Cf("push", "--no-hostname", "--bad-flag")
-			Eventually(result.Out).Should(Say("\"--bad-flag\""))
-			Consistently(result.Out).ShouldNot(Say("\"--no-hostname\""))
-		})
-
-		It("checks flags with prefix '--'", func() {
-			result := Cf("push", "not-a-flag", "--invalid-flag")
-			Eventually(result.Out).Should(Say("Unknown flag \"--invalid-flag\""))
-			Consistently(result.Out).ShouldNot(Say("Unknown flag \"not-a-flag\""))
-		})
-
-		It("checks flags with prefix '-'", func() {
-			result := Cf("push", "not-a-flag", "-invalid-flag")
-			Eventually(result.Out).Should(Say("\"-invalid-flag\""))
-			Consistently(result.Out).ShouldNot(Say("\"not-a-flag\""))
-		})
-
-		It("checks flags but ignores the value after '=' ", func() {
-			result := Cf("push", "-p=./", "-invalid-flag=blarg")
-			Eventually(result.Out).Should(Say("\"-invalid-flag\""))
-			Consistently(result.Out).ShouldNot(Say("Unknown flag \"-p\""))
-		})
-
-		It("outputs all unknown flags in single sentence", func() {
-			result := Cf("push", "--bad-flag1", "--bad-flag2", "--bad-flag3")
-			Eventually(result.Out).Should(Say("\"--bad-flag1\", \"--bad-flag2\", \"--bad-flag3\""))
-		})
-
-		It("only checks input flags against flags from the provided command", func() {
-			result := Cf("push", "--no-hostname", "--skip-ssl-validation")
-			Eventually(result.Out).Should(Say("\"--skip-ssl-validation\""))
-		})
-
-		It("accepts -h and --h flags for all commands", func() {
-			result := Cf("push", "-h")
-			Consistently(result.Out).ShouldNot(Say("Unknown flag \"-h\""))
-
-			result = Cf("target", "--h")
-			Consistently(result.Out).ShouldNot(Say("Unknown flag \"--h\""))
-		})
-
-		Context("When TotalArgs is set in the metadata for a command", func() {
-			It("will only validate flags in the argument position after position <TotalArgs>", func() {
-				result := Cf("create-buildpack", "buildpack_name", "location/to/nowhere", "-100", "-bad_flag")
-				Eventually(result.Out).ShouldNot(Say("\"-100\""))
-				Eventually(result.Out).Should(Say("\"-bad_flag\""))
-			})
-
-			It("will not validate arguments before the position <TotalArgs>", func() {
-				result := Cf("create-buildpack", "-bad-flag", "--bad-flag2")
-				Eventually(result.Out).ShouldNot(Say("\"-bad-flag\""))
-				Eventually(result.Out).ShouldNot(Say("\"--bad_flag2\""))
-			})
-		})
-
-		Context("When a negative integer is preceeded by a valid flag", func() {
-			It("skips validation for negative integer flag values", func() {
-				result := Cf("update-space-quota", "-i", "-10")
-				Eventually(result.Out).ShouldNot(Say("\"-10\""))
-			})
-		})
-
-		Context("When a negative integer is preceeded by a invalid flag", func() {
-			It("validates the negative integer as a flag", func() {
-				result := Cf("update-space-quota", "-badflag", "-10")
-				Eventually(result.Out).Should(Say("\"-badflag\""))
-				Eventually(result.Out).Should(Say("\"-10\""))
-			})
-		})
 	})
 
 	Describe("Plugins", func() {
@@ -150,15 +157,6 @@ var _ = Describe("main", func() {
 		It("Calls help if the plugin shares the same name", func() {
 			output := Cf("help")
 			Consistently(output.Out, 1).ShouldNot(Say("You called help in test_with_help"))
-		})
-
-		It("Can call help for a plugin command", func() {
-			output := Cf("help", "test_1_cmd1").Wait(3 * time.Second)
-			Eventually(output.Out).ShouldNot(Say("You called cmd1 in test_1"))
-			Eventually(output.Out.Contents).Should(ContainSubstring("USAGE:"))
-			Eventually(output.Out.Contents).Should(ContainSubstring("cf test_1_cmd1 [-a] [-b] [--no-ouput]"))
-			Eventually(output.Out.Contents).Should(ContainSubstring("OPTIONS:"))
-			Eventually(output.Out.Contents).Should(ContainSubstring("----no-output	example option with no use"))
 		})
 
 		It("shows help with a '-h' or '--help' flag in plugin command", func() {
@@ -218,6 +216,7 @@ var _ = Describe("main", func() {
 			Eventually(session).Should(Exit(1))
 		})
 	})
+
 })
 
 func Cf(args ...string) *Session {
@@ -242,6 +241,17 @@ func CfWithIo(command string, args string) *Session {
 	buffer.WriteString(args)
 	buffer.Flush()
 
+	session, err := Start(cmd, GinkgoWriter, GinkgoWriter)
+	Expect(err).NotTo(HaveOccurred())
+
+	return session
+}
+func CfWith_CF_HOME(cfHome string, args ...string) *Session {
+	path, err := Build("github.com/cloudfoundry/cli/main")
+	Expect(err).NotTo(HaveOccurred())
+
+	cmd := exec.Command(path, args...)
+	cmd.Env = append(cmd.Env, "CF_HOME="+cfHome)
 	session, err := Start(cmd, GinkgoWriter, GinkgoWriter)
 	Expect(err).NotTo(HaveOccurred())
 

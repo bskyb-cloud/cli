@@ -2,8 +2,9 @@ package user_test
 
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	. "github.com/cloudfoundry/cli/cf/commands/user"
+	"github.com/cloudfoundry/cli/cf/command_registry"
 	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -18,10 +19,18 @@ import (
 var _ = Describe("delete-user command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		configRepo          core_config.ReadWriter
+		configRepo          core_config.Repository
 		userRepo            *testapi.FakeUserRepository
 		requirementsFactory *testreq.FakeReqFactory
+		deps                command_registry.Dependency
 	)
+
+	updateCommandDependency := func(pluginCall bool) {
+		deps.Ui = ui
+		deps.Config = configRepo
+		deps.RepoLocator = deps.RepoLocator.SetUserRepository(userRepo)
+		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("delete-user").SetDependency(deps, pluginCall))
+	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{Inputs: []string{"y"}}
@@ -38,8 +47,7 @@ var _ = Describe("delete-user command", func() {
 	})
 
 	runCommand := func(args ...string) bool {
-		cmd := NewDeleteUser(ui, configRepo, userRepo)
-		return testcmd.RunCommand(cmd, args, requirementsFactory)
+		return testcmd.RunCliCommand("delete-user", args, requirementsFactory, updateCommandDependency, false)
 	}
 
 	Describe("requirements", func() {
@@ -51,16 +59,18 @@ var _ = Describe("delete-user command", func() {
 
 		It("fails with usage when no arguments are given", func() {
 			runCommand()
-			Expect(ui.FailedWithUsage).To(BeTrue())
+			Expect(ui.Outputs).To(ContainSubstrings(
+				[]string{"Incorrect Usage", "Requires an argument"},
+			))
 		})
 	})
 
 	Context("when the given user exists", func() {
 		BeforeEach(func() {
-			userRepo.FindByUsernameUserFields = models.UserFields{
+			userRepo.FindByUsernameReturns(models.UserFields{
 				Username: "user-name",
 				Guid:     "user-guid",
-			}
+			}, nil)
 		})
 
 		It("deletes a user with the given name", func() {
@@ -73,8 +83,8 @@ var _ = Describe("delete-user command", func() {
 				[]string{"OK"},
 			))
 
-			Expect(userRepo.FindByUsernameUsername).To(Equal("user-name"))
-			Expect(userRepo.DeleteUserGuid).To(Equal("user-guid"))
+			Expect(userRepo.FindByUsernameArgsForCall(0)).To(Equal("user-name"))
+			Expect(userRepo.DeleteArgsForCall(0)).To(Equal("user-guid"))
 		})
 
 		It("does not delete the user when no confirmation is given", func() {
@@ -82,8 +92,8 @@ var _ = Describe("delete-user command", func() {
 			runCommand("user")
 
 			Expect(ui.Prompts).To(ContainSubstrings([]string{"Really delete"}))
-			Expect(userRepo.FindByUsernameUsername).To(Equal(""))
-			Expect(userRepo.DeleteUserGuid).To(Equal(""))
+			Expect(userRepo.FindByUsernameCallCount()).To(BeZero())
+			Expect(userRepo.DeleteCallCount()).To(BeZero())
 		})
 
 		It("deletes without confirmation when the -f flag is given", func() {
@@ -95,14 +105,14 @@ var _ = Describe("delete-user command", func() {
 				[]string{"OK"},
 			))
 
-			Expect(userRepo.FindByUsernameUsername).To(Equal("user-name"))
-			Expect(userRepo.DeleteUserGuid).To(Equal("user-guid"))
+			Expect(userRepo.FindByUsernameArgsForCall(0)).To(Equal("user-name"))
+			Expect(userRepo.DeleteArgsForCall(0)).To(Equal("user-guid"))
 		})
 	})
 
 	Context("when the given user does not exist", func() {
 		BeforeEach(func() {
-			userRepo.FindByUsernameNotFound = true
+			userRepo.FindByUsernameReturns(models.UserFields{}, errors.NewModelNotFoundError("User", ""))
 		})
 
 		It("prints a warning", func() {
@@ -115,8 +125,8 @@ var _ = Describe("delete-user command", func() {
 
 			Expect(ui.WarnOutputs).To(ContainSubstrings([]string{"user-name", "does not exist"}))
 
-			Expect(userRepo.FindByUsernameUsername).To(Equal("user-name"))
-			Expect(userRepo.DeleteUserGuid).To(Equal(""))
+			Expect(userRepo.FindByUsernameArgsForCall(0)).To(Equal("user-name"))
+			Expect(userRepo.DeleteCallCount()).To(BeZero())
 		})
 	})
 })

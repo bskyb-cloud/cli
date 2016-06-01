@@ -10,7 +10,7 @@ import (
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
-	. "github.com/cloudfoundry/cli/cf/commands/domain"
+	"github.com/cloudfoundry/cli/cf/command_registry"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -19,10 +19,18 @@ import (
 var _ = Describe("domains command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		configRepo          core_config.ReadWriter
+		configRepo          core_config.Repository
 		domainRepo          *testapi.FakeDomainRepository
 		requirementsFactory *testreq.FakeReqFactory
+		deps                command_registry.Dependency
 	)
+
+	updateCommandDependency := func(pluginCall bool) {
+		deps.Ui = ui
+		deps.RepoLocator = deps.RepoLocator.SetDomainRepository(domainRepo)
+		deps.Config = configRepo
+		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("domains").SetDependency(deps, pluginCall))
+	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
@@ -32,7 +40,7 @@ var _ = Describe("domains command", func() {
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCommand(NewListDomains(ui, configRepo, domainRepo), args, requirementsFactory)
+		return testcmd.RunCliCommand("domains", args, requirementsFactory, updateCommandDependency, false)
 	}
 
 	Describe("requirements", func() {
@@ -53,7 +61,9 @@ var _ = Describe("domains command", func() {
 			requirementsFactory.TargetedOrgSuccess = true
 
 			runCommand("whoops")
-			Expect(ui.FailedWithUsage).To(BeTrue())
+			Expect(ui.Outputs).To(ContainSubstrings(
+				[]string{"Incorrect Usage", "No argument required"},
+			))
 		})
 	})
 
@@ -69,26 +79,31 @@ var _ = Describe("domains command", func() {
 
 		Context("when there is at least one domain", func() {
 			BeforeEach(func() {
-				domainRepo.ListDomainsForOrgDomains = []models.DomainFields{
-					models.DomainFields{
+				domainRepo.ListDomainsForOrgStub = func(orgGuid string, cb func(models.DomainFields) bool) error {
+					cb(models.DomainFields{
 						Shared: false,
 						Name:   "Private-domain1",
-					},
-					models.DomainFields{
+					})
+
+					cb(models.DomainFields{
 						Shared: true,
 						Name:   "The-shared-domain",
-					},
-					models.DomainFields{
+					})
+
+					cb(models.DomainFields{
 						Shared: false,
 						Name:   "Private-domain2",
-					},
+					})
+
+					return nil
 				}
 			})
 
 			It("lists domains", func() {
 				runCommand()
 
-				Expect(domainRepo.ListDomainsForOrgGuid).To(Equal("my-org-guid"))
+				orgGUID, _ := domainRepo.ListDomainsForOrgArgsForCall(0)
+				Expect(orgGUID).To(Equal("my-org-guid"))
 				Expect(ui.Outputs).To(ContainSubstrings(
 					[]string{"Getting domains in org", "my-org", "my-user"},
 					[]string{"name", "status"},
@@ -108,14 +123,14 @@ var _ = Describe("domains command", func() {
 		})
 
 		It("fails when the domains API returns an error", func() {
-			domainRepo.ListDomainsForOrgApiResponse = errors.New("borked!")
+			domainRepo.ListDomainsForOrgReturns(errors.New("an-error"))
 			runCommand()
 
 			Expect(ui.Outputs).To(ContainSubstrings(
 				[]string{"Getting domains in org", "my-org", "my-user"},
 				[]string{"FAILED"},
 				[]string{"Failed fetching domains"},
-				[]string{"borked!"},
+				[]string{"an-error"},
 			))
 		})
 	})

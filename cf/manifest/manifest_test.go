@@ -242,20 +242,21 @@ var _ = Describe("Manifests", func() {
 		m := NewManifest("/some/path", generic.NewMap(map[interface{}]interface{}{
 			"applications": []interface{}{
 				map[interface{}]interface{}{
-					"buildpack":    "my-buildpack",
-					"disk_quota":   "512M",
-					"domain":       "my-domain",
-					"domains":      []interface{}{"domain1.test", "domain2.test"},
-					"host":         "my-hostname",
-					"hosts":        []interface{}{"host-1", "host-2"},
-					"name":         "my-app-name",
-					"stack":        "my-stack",
-					"memory":       "256M",
-					"instances":    1,
-					"timeout":      11,
-					"no-route":     true,
-					"no-hostname":  true,
-					"random-route": true,
+					"buildpack":         "my-buildpack",
+					"disk_quota":        "512M",
+					"domain":            "my-domain",
+					"domains":           []interface{}{"domain1.test", "domain2.test"},
+					"host":              "my-hostname",
+					"hosts":             []interface{}{"host-1", "host-2"},
+					"name":              "my-app-name",
+					"stack":             "my-stack",
+					"memory":            "256M",
+					"health-check-type": "none",
+					"instances":         1,
+					"timeout":           11,
+					"no-route":          true,
+					"no-hostname":       true,
+					"random-route":      true,
 				},
 			},
 		}))
@@ -266,10 +267,11 @@ var _ = Describe("Manifests", func() {
 
 		Expect(*apps[0].BuildpackUrl).To(Equal("my-buildpack"))
 		Expect(*apps[0].DiskQuota).To(Equal(int64(512)))
-		Expect(*apps[0].Domains).To(ConsistOf("domain1.test", "domain2.test", "my-domain"))
-		Expect(*apps[0].Hosts).To(ConsistOf("host-1", "host-2", "my-hostname"))
+		Expect(*apps[0].Domains).To(ConsistOf([]string{"domain1.test", "domain2.test", "my-domain"}))
+		Expect(*apps[0].Hosts).To(ConsistOf([]string{"host-1", "host-2", "my-hostname"}))
 		Expect(*apps[0].Name).To(Equal("my-app-name"))
 		Expect(*apps[0].StackName).To(Equal("my-stack"))
+		Expect(*apps[0].HealthCheckType).To(Equal("none"))
 		Expect(*apps[0].Memory).To(Equal(int64(256)))
 		Expect(*apps[0].InstanceCount).To(Equal(1))
 		Expect(*apps[0].HealthCheckTimeout).To(Equal(11))
@@ -296,9 +298,9 @@ var _ = Describe("Manifests", func() {
 		Expect(len(apps)).To(Equal(1))
 
 		Expect(len(*apps[0].Domains)).To(Equal(3))
-		Expect(*apps[0].Domains).To(ConsistOf("my-domain", "domain1.test", "domain2.test"))
+		Expect(*apps[0].Domains).To(ConsistOf([]string{"my-domain", "domain1.test", "domain2.test"}))
 		Expect(len(*apps[0].Hosts)).To(Equal(3))
-		Expect(*apps[0].Hosts).To(ConsistOf("my-hostname", "host-1", "host-2"))
+		Expect(*apps[0].Hosts).To(ConsistOf([]string{"my-hostname", "host-1", "host-2"}))
 	})
 
 	Describe("old-style property syntax", func() {
@@ -426,21 +428,6 @@ var _ = Describe("Manifests", func() {
 			Expect((*app[0].EnvironmentVars)["string-key"]).To(Equal("value"))
 			Expect((*app[0].EnvironmentVars)["int-key"]).To(Equal(1))
 			Expect((*app[0].EnvironmentVars)["float-key"]).To(Equal(11.1))
-		})
-
-		XIt("handles values that cannot be converted to strings", func() {
-			m := NewManifest("/some/path/manifest.yml", generic.NewMap(map[interface{}]interface{}{
-				"applications": []interface{}{
-					generic.NewMap(map[interface{}]interface{}{
-						"env": map[interface{}]interface{}{
-							"bad-key": map[interface{}]interface{}{},
-						},
-					}),
-				},
-			}))
-
-			_, err := m.Applications()
-			Expect(err).To(HaveOccurred())
 		})
 	})
 

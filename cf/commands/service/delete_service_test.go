@@ -2,7 +2,9 @@ package service_test
 
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	. "github.com/cloudfoundry/cli/cf/commands/service"
+	"github.com/cloudfoundry/cli/cf/command_registry"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -18,25 +20,33 @@ var _ = Describe("delete-service command", func() {
 	var (
 		ui                  *testterm.FakeUI
 		requirementsFactory *testreq.FakeReqFactory
-		serviceRepo         *testapi.FakeServiceRepo
+		serviceRepo         *testapi.FakeServiceRepository
 		serviceInstance     models.ServiceInstance
+		configRepo          core_config.Repository
+		deps                command_registry.Dependency
 	)
+
+	updateCommandDependency := func(pluginCall bool) {
+		deps.Ui = ui
+		deps.RepoLocator = deps.RepoLocator.SetServiceRepository(serviceRepo)
+		deps.Config = configRepo
+		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("delete-service").SetDependency(deps, pluginCall))
+	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{
 			Inputs: []string{"yes"},
 		}
 
-		serviceRepo = &testapi.FakeServiceRepo{}
+		configRepo = testconfig.NewRepositoryWithDefaults()
+		serviceRepo = &testapi.FakeServiceRepository{}
 		requirementsFactory = &testreq.FakeReqFactory{
 			LoginSuccess: true,
 		}
 	})
 
 	runCommand := func(args ...string) bool {
-		configRepo := testconfig.NewRepositoryWithDefaults()
-		cmd := NewDeleteService(ui, configRepo, serviceRepo)
-		return testcmd.RunCommand(cmd, args, requirementsFactory)
+		return testcmd.RunCliCommand("delete-service", args, requirementsFactory, updateCommandDependency, false)
 	}
 
 	Context("when not logged in", func() {
@@ -56,7 +66,9 @@ var _ = Describe("delete-service command", func() {
 
 		It("fails with usage when not provided exactly one arg", func() {
 			runCommand()
-			Expect(ui.FailedWithUsage).To(BeTrue())
+			Expect(ui.Outputs).To(ContainSubstrings(
+				[]string{"Incorrect Usage", "Requires an argument"},
+			))
 		})
 
 		Context("when the service exists", func() {
@@ -68,7 +80,7 @@ var _ = Describe("delete-service command", func() {
 					serviceInstance.LastOperation.Type = "delete"
 					serviceInstance.LastOperation.State = "in progress"
 					serviceInstance.LastOperation.Description = "delete"
-					serviceRepo.FindInstanceByNameServiceInstance = serviceInstance
+					serviceRepo.FindInstanceByNameReturns(serviceInstance, nil)
 				})
 
 				Context("when the command is confirmed", func() {
@@ -83,7 +95,7 @@ var _ = Describe("delete-service command", func() {
 							[]string{"Delete in progress. Use 'cf services' or 'cf service my-service' to check operation status."},
 						))
 
-						Expect(serviceRepo.DeleteServiceServiceInstance).To(Equal(serviceInstance))
+						Expect(serviceRepo.DeleteServiceArgsForCall(0)).To(Equal(serviceInstance))
 					})
 				})
 
@@ -104,7 +116,7 @@ var _ = Describe("delete-service command", func() {
 					serviceInstance = models.ServiceInstance{}
 					serviceInstance.Name = "my-service"
 					serviceInstance.Guid = "my-service-guid"
-					serviceRepo.FindInstanceByNameServiceInstance = serviceInstance
+					serviceRepo.FindInstanceByNameReturns(serviceInstance, nil)
 				})
 
 				Context("when the command is confirmed", func() {
@@ -118,7 +130,7 @@ var _ = Describe("delete-service command", func() {
 							[]string{"OK"},
 						))
 
-						Expect(serviceRepo.DeleteServiceServiceInstance).To(Equal(serviceInstance))
+						Expect(serviceRepo.DeleteServiceArgsForCall(0)).To(Equal(serviceInstance))
 					})
 				})
 
@@ -136,7 +148,7 @@ var _ = Describe("delete-service command", func() {
 
 		Context("when the service does not exist", func() {
 			BeforeEach(func() {
-				serviceRepo.FindInstanceByNameNotFound = true
+				serviceRepo.FindInstanceByNameReturns(models.ServiceInstance{}, errors.NewModelNotFoundError("Service instance", "my-service"))
 			})
 
 			It("warns the user the service does not exist", func() {

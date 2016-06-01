@@ -22,6 +22,20 @@ type FakeServicePlanRepo struct {
 	updateReturns struct {
 		result1 error
 	}
+
+	ListPlansFromManyServicesReturns []models.ServicePlanFields
+	ListPlansFromManyServicesError   error
+}
+
+func (fake *FakeServicePlanRepo) ListPlansFromManyServices(serviceGuids []string) (plans []models.ServicePlanFields, err error) {
+	if fake.ListPlansFromManyServicesError != nil {
+		return nil, fake.ListPlansFromManyServicesError
+	}
+
+	if fake.ListPlansFromManyServicesReturns != nil {
+		return fake.ListPlansFromManyServicesReturns, nil
+	}
+	return []models.ServicePlanFields{}, nil
 }
 
 func (fake *FakeServicePlanRepo) Search(queryParams map[string]string) ([]models.ServicePlanFields, error) {
@@ -48,7 +62,7 @@ func (fake *FakeServicePlanRepo) Search(queryParams map[string]string) ([]models
 
 func combineKeys(mapToCombine map[string]string) string {
 	keys := []string{}
-	for key, _ := range mapToCombine {
+	for key := range mapToCombine {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)

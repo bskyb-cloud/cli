@@ -43,6 +43,10 @@ var _ = Describe("Service Keys Repo", func() {
 		repo = NewCloudControllerServiceKeyRepository(configRepo, gateway)
 	})
 
+	AfterEach(func() {
+		testServer.Close()
+	})
+
 	Describe("CreateServiceKey", func() {
 		It("makes the right request", func() {
 			setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
@@ -52,7 +56,7 @@ var _ = Describe("Service Keys Repo", func() {
 				Response: testnet.TestResponse{Status: http.StatusCreated},
 			}))
 
-			err := repo.CreateServiceKey("fake-instance-guid", "fake-key-name")
+			err := repo.CreateServiceKey("fake-instance-guid", "fake-key-name", nil)
 			Expect(testHandler).To(HaveAllRequestsCalled())
 			Expect(err).NotTo(HaveOccurred())
 		})
@@ -67,7 +71,7 @@ var _ = Describe("Service Keys Repo", func() {
 					Body:   `{"code":360001,"description":"The service key name is taken: exist-service-key"}`},
 			}))
 
-			err := repo.CreateServiceKey("fake-instance-guid", "exist-service-key")
+			err := repo.CreateServiceKey("fake-instance-guid", "exist-service-key", nil)
 			Expect(testHandler).To(HaveAllRequestsCalled())
 			Expect(err).To(BeAssignableToTypeOf(&errors.ModelAlreadyExistsError{}))
 		})
@@ -82,10 +86,45 @@ var _ = Describe("Service Keys Repo", func() {
 					Body:   `{"code":10003,"description":"You are not authorized to perform the requested action"}`},
 			}))
 
-			err := repo.CreateServiceKey("fake-instance-guid", "fake-service-key")
+			err := repo.CreateServiceKey("fake-instance-guid", "fake-service-key", nil)
 			Expect(testHandler).To(HaveAllRequestsCalled())
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("You are not authorized to perform the requested action"))
+		})
+
+		Context("when there are parameters", func() {
+			It("sends the parameters as part of the request body", func() {
+				setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+					Method:   "POST",
+					Path:     "/v2/service_keys",
+					Matcher:  testnet.RequestBodyMatcher(`{"service_instance_guid":"fake-instance-guid","name":"fake-service-key","parameters": {"data": "hello"}}`),
+					Response: testnet.TestResponse{Status: http.StatusCreated},
+				}))
+
+				paramsMap := make(map[string]interface{})
+				paramsMap["data"] = "hello"
+
+				err := repo.CreateServiceKey("fake-instance-guid", "fake-service-key", paramsMap)
+				Expect(testHandler).To(HaveAllRequestsCalled())
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			Context("and there is a failure during serialization", func() {
+				It("returns the serialization error", func() {
+					setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+						Method:   "POST",
+						Path:     "/v2/service_keys",
+						Matcher:  testnet.RequestBodyMatcher(`{"service_instance_guid":"fake-instance-guid","name":"fake-service-key","parameters": {"data": "hello"}}`),
+						Response: testnet.TestResponse{Status: http.StatusCreated},
+					}))
+
+					paramsMap := make(map[string]interface{})
+					paramsMap["data"] = make(chan bool)
+
+					err := repo.CreateServiceKey("instance-name", "plan-guid", paramsMap)
+					Expect(err).To(MatchError("json: unsupported type: chan bool"))
+				})
+			})
 		})
 	})
 
@@ -93,7 +132,7 @@ var _ = Describe("Service Keys Repo", func() {
 		It("returns empty result when no service key is found", func() {
 			setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method:   "GET",
-				Path:     "/v2/service_keys?q=service_instance_guid:fake-instance-guid",
+				Path:     "/v2/service_instances/fake-instance-guid/service_keys",
 				Response: emptyServiceKeysResponse,
 			}))
 
@@ -106,7 +145,7 @@ var _ = Describe("Service Keys Repo", func() {
 		It("returns correctly when service keys are found", func() {
 			setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method:   "GET",
-				Path:     "/v2/service_keys?q=service_instance_guid:fake-instance-guid",
+				Path:     "/v2/service_instances/fake-instance-guid/service_keys",
 				Response: serviceKeysResponse,
 			}))
 
@@ -141,13 +180,25 @@ var _ = Describe("Service Keys Repo", func() {
 			Expect(serviceKeys[1].Credentials).To(HaveKeyWithValue("database", "fake-db-name-2"))
 			Expect(serviceKeys[1].Credentials).To(HaveKeyWithValue("uri", "mysql://fake-user-2:fake-password-2@fake-host-2:3306/fake-db-name-2"))
 		})
+
+		It("returns a NotAuthorizedError when server response is 403", func() {
+			setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+				Method:   "GET",
+				Path:     "/v2/service_instances/fake-instance-guid/service_keys",
+				Response: notAuthorizedResponse,
+			}))
+
+			_, err := repo.ListServiceKeys("fake-instance-guid")
+			Expect(testHandler).To(HaveAllRequestsCalled())
+			Expect(err).To(BeAssignableToTypeOf(&errors.NotAuthorizedError{}))
+		})
 	})
 
 	Describe("GetServiceKey", func() {
 		It("returns service key detail", func() {
 			setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method:   "GET",
-				Path:     "/v2/service_keys?q=service_instance_guid:fake-instance-guid;name:fake-service-key-name",
+				Path:     "/v2/service_instances/fake-instance-guid/service_keys?q=name:fake-service-key-name",
 				Response: serviceKeyDetailResponse,
 			}))
 
@@ -172,7 +223,7 @@ var _ = Describe("Service Keys Repo", func() {
 		It("returns empty result when the service key is not found", func() {
 			setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method:   "GET",
-				Path:     "/v2/service_keys?q=service_instance_guid:fake-instance-guid;name:non-exist-key-name",
+				Path:     "/v2/service_instances/fake-instance-guid/service_keys?q=name:non-exist-key-name",
 				Response: emptyServiceKeysResponse,
 			}))
 
@@ -180,6 +231,18 @@ var _ = Describe("Service Keys Repo", func() {
 			Expect(testHandler).To(HaveAllRequestsCalled())
 			Expect(err).NotTo(HaveOccurred())
 			Expect(serviceKey).To(Equal(models.ServiceKey{}))
+		})
+
+		It("returns a NotAuthorizedError when server response is 403", func() {
+			setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+				Method:   "GET",
+				Path:     "/v2/service_instances/fake-instance-guid/service_keys?q=name:fake-service-key-name",
+				Response: notAuthorizedResponse,
+			}))
+
+			_, err := repo.GetServiceKey("fake-instance-guid", "fake-service-key-name")
+			Expect(testHandler).To(HaveAllRequestsCalled())
+			Expect(err).To(BeAssignableToTypeOf(&errors.NotAuthorizedError{}))
 		})
 	})
 
@@ -194,10 +257,6 @@ var _ = Describe("Service Keys Repo", func() {
 			Expect(testHandler).To(HaveAllRequestsCalled())
 			Expect(err).NotTo(HaveOccurred())
 		})
-	})
-
-	AfterEach(func() {
-		testServer.Close()
 	})
 })
 
@@ -273,5 +332,12 @@ var serviceKeyDetailResponse = testnet.TestResponse{Status: http.StatusOK, Body:
 	        }
 	      }
 		}]
+	}`,
+}
+
+var notAuthorizedResponse = testnet.TestResponse{Status: http.StatusForbidden, Body: `{
+		"code": 10003,
+		"description": "You are not authorized to perform the requested action",
+		"error_code": "CF-NotAuthorized"
 	}`,
 }

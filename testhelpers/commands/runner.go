@@ -1,7 +1,11 @@
 package commands
 
 import (
-	"github.com/cloudfoundry/cli/cf/command"
+	"fmt"
+	"os"
+
+	"github.com/cloudfoundry/cli/cf/command_registry"
+	"github.com/cloudfoundry/cli/flags"
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 )
@@ -14,8 +18,16 @@ const (
 	RunCommandResultRequirementsFailed = iota
 )
 
-func RunCommand(cmd command.Command, args []string, requirementsFactory *testreq.FakeReqFactory) (passedRequirements bool) {
-	context := NewContext(cmd.Metadata().Name, args)
+func RunCliCommand(cmdName string, args []string, requirementsFactory *testreq.FakeReqFactory, updateFunc func(bool), pluginCall bool) (passedRequirements bool) {
+	updateFunc(pluginCall)
+	cmd := command_registry.Commands.FindCommand(cmdName)
+	context := flags.NewFlagContext(cmd.MetaData().Flags)
+	context.SkipFlagParsing(cmd.MetaData().SkipFlagParsing)
+	err := context.Parse(args...)
+	if err != nil {
+		fmt.Println("ERROR:", err)
+		os.Exit(1)
+	}
 
 	defer func() {
 		errMsg := recover()
@@ -24,53 +36,55 @@ func RunCommand(cmd command.Command, args []string, requirementsFactory *testreq
 			panic(errMsg)
 		}
 	}()
-
-	requirements, err := cmd.GetRequirements(requirementsFactory, context)
+	requirements, err := cmd.Requirements(requirementsFactory, context)
 	if err != nil {
-		return
+		return false
 	}
 
 	for _, requirement := range requirements {
-		success := requirement.Execute()
-		if !success {
-			return
+		if !requirement.Execute() {
+			return false
 		}
 	}
 
 	passedRequirements = true
-	cmd.Run(context)
+
+	cmd.Execute(context)
 
 	return
 }
 
-func RunCommandMoreBetter(cmd command.Command, requirementsFactory *testreq.FakeReqFactory, args ...string) (result RunCommandResult) {
+func RunCliCommandWithoutDependency(cmdName string, args []string, requirementsFactory *testreq.FakeReqFactory) (passedRequirements bool) {
+	cmd := command_registry.Commands.FindCommand(cmdName)
+	context := flags.NewFlagContext(cmd.MetaData().Flags)
+	context.SkipFlagParsing(cmd.MetaData().SkipFlagParsing)
+	err := context.Parse(args...)
+	if err != nil {
+		fmt.Println("ERROR:", err)
+		os.Exit(1)
+	}
+
 	defer func() {
 		errMsg := recover()
-		if errMsg == nil {
-			return
-		}
 
 		if errMsg != nil && errMsg != testterm.QuietPanic {
 			panic(errMsg)
 		}
-
-		result = RunCommandResultFailed
 	}()
-
-	context := NewContext(cmd.Metadata().Name, args)
-	requirements, err := cmd.GetRequirements(requirementsFactory, context)
+	requirements, err := cmd.Requirements(requirementsFactory, context)
 	if err != nil {
-		return RunCommandResultRequirementsFailed
+		return false
 	}
 
 	for _, requirement := range requirements {
-		success := requirement.Execute()
-		if !success {
-			return RunCommandResultRequirementsFailed
+		if !requirement.Execute() {
+			return false
 		}
 	}
 
-	cmd.Run(context)
+	passedRequirements = true
 
-	return RunCommandResultSuccess
+	cmd.Execute(context)
+
+	return
 }

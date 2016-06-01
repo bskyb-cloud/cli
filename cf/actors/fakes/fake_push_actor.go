@@ -7,6 +7,7 @@ import (
 
 	"github.com/cloudfoundry/cli/cf/actors"
 	"github.com/cloudfoundry/cli/cf/api/resources"
+	"github.com/cloudfoundry/cli/cf/models"
 )
 
 type FakePushActor struct {
@@ -20,11 +21,21 @@ type FakePushActor struct {
 	uploadAppReturns struct {
 		result1 error
 	}
-	GatherFilesStub        func(appDir string, uploadDir string) ([]resources.AppFileResource, bool, error)
+	ProcessPathStub        func(dirOrZipFile string, f func(string)) error
+	processPathMutex       sync.RWMutex
+	processPathArgsForCall []struct {
+		dirOrZipFile string
+		f            func(string)
+	}
+	processPathReturns struct {
+		result1 error
+	}
+	GatherFilesStub        func(localFiles []models.AppFileFields, appDir string, uploadDir string) ([]resources.AppFileResource, bool, error)
 	gatherFilesMutex       sync.RWMutex
 	gatherFilesArgsForCall []struct {
-		appDir    string
-		uploadDir string
+		localFiles []models.AppFileFields
+		appDir     string
+		uploadDir  string
 	}
 	gatherFilesReturns struct {
 		result1 []resources.AppFileResource
@@ -67,15 +78,49 @@ func (fake *FakePushActor) UploadAppReturns(result1 error) {
 	}{result1}
 }
 
-func (fake *FakePushActor) GatherFiles(appDir string, uploadDir string) ([]resources.AppFileResource, bool, error) {
+func (fake *FakePushActor) ProcessPath(dirOrZipFile string, f func(string)) error {
+	fake.processPathMutex.Lock()
+	fake.processPathArgsForCall = append(fake.processPathArgsForCall, struct {
+		dirOrZipFile string
+		f            func(string)
+	}{dirOrZipFile, f})
+	fake.processPathMutex.Unlock()
+	if fake.ProcessPathStub != nil {
+		return fake.ProcessPathStub(dirOrZipFile, f)
+	} else {
+		return fake.processPathReturns.result1
+	}
+}
+
+func (fake *FakePushActor) ProcessPathCallCount() int {
+	fake.processPathMutex.RLock()
+	defer fake.processPathMutex.RUnlock()
+	return len(fake.processPathArgsForCall)
+}
+
+func (fake *FakePushActor) ProcessPathArgsForCall(i int) (string, func(string)) {
+	fake.processPathMutex.RLock()
+	defer fake.processPathMutex.RUnlock()
+	return fake.processPathArgsForCall[i].dirOrZipFile, fake.processPathArgsForCall[i].f
+}
+
+func (fake *FakePushActor) ProcessPathReturns(result1 error) {
+	fake.ProcessPathStub = nil
+	fake.processPathReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakePushActor) GatherFiles(localFiles []models.AppFileFields, appDir string, uploadDir string) ([]resources.AppFileResource, bool, error) {
 	fake.gatherFilesMutex.Lock()
 	fake.gatherFilesArgsForCall = append(fake.gatherFilesArgsForCall, struct {
-		appDir    string
-		uploadDir string
-	}{appDir, uploadDir})
+		localFiles []models.AppFileFields
+		appDir     string
+		uploadDir  string
+	}{localFiles, appDir, uploadDir})
 	fake.gatherFilesMutex.Unlock()
 	if fake.GatherFilesStub != nil {
-		return fake.GatherFilesStub(appDir, uploadDir)
+		return fake.GatherFilesStub(localFiles, appDir, uploadDir)
 	} else {
 		return fake.gatherFilesReturns.result1, fake.gatherFilesReturns.result2, fake.gatherFilesReturns.result3
 	}
@@ -87,10 +132,10 @@ func (fake *FakePushActor) GatherFilesCallCount() int {
 	return len(fake.gatherFilesArgsForCall)
 }
 
-func (fake *FakePushActor) GatherFilesArgsForCall(i int) (string, string) {
+func (fake *FakePushActor) GatherFilesArgsForCall(i int) ([]models.AppFileFields, string, string) {
 	fake.gatherFilesMutex.RLock()
 	defer fake.gatherFilesMutex.RUnlock()
-	return fake.gatherFilesArgsForCall[i].appDir, fake.gatherFilesArgsForCall[i].uploadDir
+	return fake.gatherFilesArgsForCall[i].localFiles, fake.gatherFilesArgsForCall[i].appDir, fake.gatherFilesArgsForCall[i].uploadDir
 }
 
 func (fake *FakePushActor) GatherFilesReturns(result1 []resources.AppFileResource, result2 bool, result3 error) {

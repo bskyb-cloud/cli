@@ -2,7 +2,7 @@ package space_test
 
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	. "github.com/cloudfoundry/cli/cf/commands/space"
+	"github.com/cloudfoundry/cli/cf/command_registry"
 	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
@@ -20,14 +20,21 @@ var _ = Describe("delete-space command", func() {
 	var (
 		ui                  *testterm.FakeUI
 		space               models.Space
-		config              core_config.ReadWriter
+		config              core_config.Repository
 		spaceRepo           *testapi.FakeSpaceRepository
 		requirementsFactory *testreq.FakeReqFactory
+		deps                command_registry.Dependency
 	)
 
+	updateCommandDependency := func(pluginCall bool) {
+		deps.Ui = ui
+		deps.RepoLocator = deps.RepoLocator.SetSpaceRepository(spaceRepo)
+		deps.Config = config
+		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("delete-space").SetDependency(deps, pluginCall))
+	}
+
 	runCommand := func(args ...string) bool {
-		cmd := NewDeleteSpace(ui, config, spaceRepo)
-		return testcmd.RunCommand(cmd, args, requirementsFactory)
+		return testcmd.RunCliCommand("delete-space", args, requirementsFactory, updateCommandDependency, false)
 	}
 
 	BeforeEach(func() {
@@ -73,7 +80,7 @@ var _ = Describe("delete-space command", func() {
 			[]string{"Deleting space", "space-to-delete", "my-org", "my-user"},
 			[]string{"OK"},
 		))
-		Expect(spaceRepo.DeletedSpaceGuid).To(Equal("space-to-delete-guid"))
+		Expect(spaceRepo.DeleteArgsForCall(0)).To(Equal("space-to-delete-guid"))
 		Expect(config.HasSpace()).To(Equal(true))
 	})
 
@@ -85,7 +92,7 @@ var _ = Describe("delete-space command", func() {
 			[]string{"Deleting", "space-to-delete"},
 			[]string{"OK"},
 		))
-		Expect(spaceRepo.DeletedSpaceGuid).To(Equal("space-to-delete-guid"))
+		Expect(spaceRepo.DeleteArgsForCall(0)).To(Equal("space-to-delete-guid"))
 	})
 
 	It("clears the space from the config, when deleting the space currently targeted", func() {

@@ -194,6 +194,81 @@ var _ = Describe("Services Repo", func() {
 		})
 	})
 
+	Describe("returning services for many brokers", func() {
+		path1 := "/v2/services?q=service_broker_guid%20IN%20my-service-broker-guid,my-service-broker-guid2"
+		body1 := `
+{
+   "total_results": 2,
+   "total_pages": 2,
+   "prev_url": null,
+	 "next_url": "/v2/services?q=service_broker_guid%20IN%20my-service-broker-guid,my-service-broker-guid2&page=2",
+   "resources": [
+     {
+         "metadata": {
+            "guid": "my-service-guid"
+         },
+         "entity": {
+            "label": "my-service",
+            "provider": "androsterone-ensphere",
+            "description": "Dummy addon that is cool",
+            "version": "damageableness-preheat",
+            "documentation_url": "YESWECAN.com"
+         }
+			 }
+   ]
+}`
+		path2 := "/v2/services?q=service_broker_guid%20IN%20my-service-broker-guid,my-service-broker-guid2&page=2"
+		body2 := `
+{
+   "total_results": 2,
+   "total_pages": 2,
+   "prev_url": "/v2/services?q=service_broker_guid%20IN%20my-service-broker-guid,my-service-broker-guid2",
+	 "next_url": null,
+   "resources": [
+      {
+         "metadata": {
+            "guid": "my-service-guid2"
+         },
+         "entity": {
+            "label": "my-service2",
+            "provider": "androsterone-ensphere",
+            "description": "Dummy addon that is cool",
+            "version": "damageableness-preheat",
+            "documentation_url": "YESWECAN.com"
+         }
+      }
+   ]
+}`
+		BeforeEach(func() {
+			setupTestServer(
+				testapi.NewCloudControllerTestRequest(
+					testnet.TestRequest{
+						Method:   "GET",
+						Path:     path1,
+						Response: testnet.TestResponse{Status: http.StatusOK, Body: body1},
+					}),
+				testapi.NewCloudControllerTestRequest(
+					testnet.TestRequest{
+						Method:   "GET",
+						Path:     path2,
+						Response: testnet.TestResponse{Status: http.StatusOK, Body: body2},
+					}),
+			)
+		})
+
+		It("returns the service brokers services", func() {
+			brokerGuids := []string{"my-service-broker-guid", "my-service-broker-guid2"}
+			services, err := repo.ListServicesFromManyBrokers(brokerGuids)
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(testHandler).To(HaveAllRequestsCalled())
+			Expect(len(services)).To(Equal(2))
+
+			Expect(services[0].Guid).To(Equal("my-service-guid"))
+			Expect(services[1].Guid).To(Equal("my-service-guid2"))
+		})
+	})
+
 	Describe("creating a service instance", func() {
 		It("makes the right request", func() {
 			setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
@@ -203,7 +278,7 @@ var _ = Describe("Services Repo", func() {
 				Response: testnet.TestResponse{Status: http.StatusCreated},
 			}))
 
-			err := repo.CreateServiceInstance("instance-name", "plan-guid", nil)
+			err := repo.CreateServiceInstance("instance-name", "plan-guid", nil, nil)
 			Expect(testHandler).To(HaveAllRequestsCalled())
 			Expect(err).NotTo(HaveOccurred())
 		})
@@ -220,19 +295,36 @@ var _ = Describe("Services Repo", func() {
 				paramsMap := make(map[string]interface{})
 				paramsMap["data"] = "hello"
 
-				err := repo.CreateServiceInstance("instance-name", "plan-guid", paramsMap)
+				err := repo.CreateServiceInstance("instance-name", "plan-guid", paramsMap, nil)
 				Expect(testHandler).To(HaveAllRequestsCalled())
 				Expect(err).NotTo(HaveOccurred())
 			})
+
+			Context("and there is a failure during serialization", func() {
+				It("returns the serialization error", func() {
+					paramsMap := make(map[string]interface{})
+					paramsMap["data"] = make(chan bool)
+
+					err := repo.CreateServiceInstance("instance-name", "plan-guid", paramsMap, nil)
+					Expect(err).To(MatchError("json: unsupported type: chan bool"))
+				})
+			})
 		})
 
-		Context("and there is a failure during serialization", func() {
-			It("returns the serialization error", func() {
-				paramsMap := make(map[string]interface{})
-				paramsMap["data"] = make(chan bool)
+		Context("when there are tags", func() {
+			It("sends the tags as part of the request body", func() {
+				setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+					Method:   "POST",
+					Path:     "/v2/service_instances?accepts_incomplete=true",
+					Matcher:  testnet.RequestBodyMatcher(`{"name":"instance-name","service_plan_guid":"plan-guid","space_guid":"my-space-guid","tags": ["foo", "bar"]}`),
+					Response: testnet.TestResponse{Status: http.StatusCreated},
+				}))
 
-				err := repo.CreateServiceInstance("instance-name", "plan-guid", paramsMap)
-				Expect(err).To(MatchError("json: unsupported type: chan bool"))
+				tags := []string{"foo", "bar"}
+
+				err := repo.CreateServiceInstance("instance-name", "plan-guid", nil, tags)
+				Expect(testHandler).To(HaveAllRequestsCalled())
+				Expect(err).NotTo(HaveOccurred())
 			})
 		})
 
@@ -252,7 +344,7 @@ var _ = Describe("Services Repo", func() {
 			})
 
 			It("returns a ModelAlreadyExistsError if the plan is the same", func() {
-				err := repo.CreateServiceInstance("my-service", "plan-guid", nil)
+				err := repo.CreateServiceInstance("my-service", "plan-guid", nil, nil)
 				Expect(testHandler).To(HaveAllRequestsCalled())
 				Expect(err).To(BeAssignableToTypeOf(&errors.ModelAlreadyExistsError{}))
 			})
@@ -274,7 +366,7 @@ var _ = Describe("Services Repo", func() {
 			})
 
 			It("fails if the plan is different", func() {
-				err := repo.CreateServiceInstance("my-service", "different-plan-guid", nil)
+				err := repo.CreateServiceInstance("my-service", "different-plan-guid", nil, nil)
 
 				Expect(testHandler).To(HaveAllRequestsCalled())
 				Expect(err).To(HaveOccurred())
@@ -288,11 +380,11 @@ var _ = Describe("Services Repo", func() {
 			setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method:   "PUT",
 				Path:     "/v2/service_instances/instance-guid?accepts_incomplete=true",
-				Matcher:  testnet.RequestBodyMatcher(`{"service_plan_guid":"plan-guid"}`),
+				Matcher:  testnet.RequestBodyMatcher(`{"service_plan_guid":"plan-guid", "tags": null}`),
 				Response: testnet.TestResponse{Status: http.StatusOK},
 			}))
 
-			err := repo.UpdateServiceInstance("instance-guid", "plan-guid")
+			err := repo.UpdateServiceInstance("instance-guid", "plan-guid", nil, nil)
 			Expect(testHandler).To(HaveAllRequestsCalled())
 			Expect(err).NotTo(HaveOccurred())
 		})
@@ -302,13 +394,72 @@ var _ = Describe("Services Repo", func() {
 				setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
 					Method:   "PUT",
 					Path:     "/v2/service_instances/instance-guid?accepts_incomplete=true",
-					Matcher:  testnet.RequestBodyMatcher(`{"service_plan_guid":"plan-guid"}`),
+					Matcher:  testnet.RequestBodyMatcher(`{"service_plan_guid":"plan-guid", "tags": null}`),
 					Response: testnet.TestResponse{Status: http.StatusNotFound},
 				}))
 
-				err := repo.UpdateServiceInstance("instance-guid", "plan-guid")
+				err := repo.UpdateServiceInstance("instance-guid", "plan-guid", nil, nil)
 				Expect(testHandler).To(HaveAllRequestsCalled())
 				Expect(err).To(HaveOccurred())
+			})
+		})
+
+		Context("when the user passes arbitrary params", func() {
+			It("passes the parameters in the correct field for the request", func() {
+				setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+					Method:   "PUT",
+					Path:     "/v2/service_instances/instance-guid?accepts_incomplete=true",
+					Matcher:  testnet.RequestBodyMatcher(`{"parameters": {"foo": "bar"}, "tags": null}`),
+					Response: testnet.TestResponse{Status: http.StatusOK},
+				}))
+
+				paramsMap := map[string]interface{}{"foo": "bar"}
+
+				err := repo.UpdateServiceInstance("instance-guid", "", paramsMap, nil)
+				Expect(testHandler).To(HaveAllRequestsCalled())
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			Context("and there is a failure during serialization", func() {
+				It("returns the serialization error", func() {
+					paramsMap := make(map[string]interface{})
+					paramsMap["data"] = make(chan bool)
+
+					err := repo.UpdateServiceInstance("instance-guid", "", paramsMap, nil)
+					Expect(err).To(MatchError("json: unsupported type: chan bool"))
+				})
+			})
+		})
+
+		Context("when there are tags", func() {
+			It("sends the tags as part of the request body", func() {
+				setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+					Method:   "PUT",
+					Path:     "/v2/service_instances/instance-guid?accepts_incomplete=true",
+					Matcher:  testnet.RequestBodyMatcher(`{"tags": ["foo", "bar"]}`),
+					Response: testnet.TestResponse{Status: http.StatusOK},
+				}))
+
+				tags := []string{"foo", "bar"}
+
+				err := repo.UpdateServiceInstance("instance-guid", "", nil, tags)
+				Expect(testHandler).To(HaveAllRequestsCalled())
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			It("sends empty tags", func() {
+				setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+					Method:   "PUT",
+					Path:     "/v2/service_instances/instance-guid?accepts_incomplete=true",
+					Matcher:  testnet.RequestBodyMatcher(`{"tags": []}`),
+					Response: testnet.TestResponse{Status: http.StatusOK},
+				}))
+
+				tags := []string{}
+
+				err := repo.UpdateServiceInstance("instance-guid", "", nil, tags)
+				Expect(testHandler).To(HaveAllRequestsCalled())
+				Expect(err).NotTo(HaveOccurred())
 			})
 		})
 	})
@@ -393,7 +544,7 @@ var _ = Describe("Services Repo", func() {
 			Expect(binding.AppGuid).To(Equal("app-1-guid"))
 		})
 
-		It("it returns a failure response when the instance doesn't exist", func() {
+		It("returns a failure response when the instance doesn't exist", func() {
 			setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method:   "GET",
 				Path:     "/v2/spaces/my-space-guid/service_instances?return_user_provided_service_instances=true&q=name%3Amy-service",
@@ -405,10 +556,19 @@ var _ = Describe("Services Repo", func() {
 			Expect(testHandler).To(HaveAllRequestsCalled())
 			Expect(err).To(BeAssignableToTypeOf(&errors.ModelNotFoundError{}))
 		})
+
+		It("should not fail to parse when extra is null", func() {
+			setupTestServer(findServiceInstanceReq, serviceOfferingNullExtraReq)
+
+			_, err := repo.FindInstanceByName("my-service")
+
+			Expect(testHandler).To(HaveAllRequestsCalled())
+			Expect(err).NotTo(HaveOccurred())
+		})
 	})
 
 	Describe("DeleteService", func() {
-		It("it deletes the service when no apps are bound", func() {
+		It("deletes the service when no apps and keys are bound", func() {
 			setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method:   "DELETE",
 				Path:     "/v2/service_instances/my-service-instance-guid?accepts_incomplete=true&async=true",
@@ -440,7 +600,31 @@ var _ = Describe("Services Repo", func() {
 			}
 
 			err := repo.DeleteService(serviceInstance)
-			Expect(err.Error()).To(Equal("Cannot delete service instance, apps are still bound to it"))
+			Expect(err).To(HaveOccurred())
+			Expect(err).To(BeAssignableToTypeOf(&errors.ServiceAssociationError{}))
+		})
+
+		It("doesn't delete the service when keys are bound", func() {
+			setupTestServer()
+
+			serviceInstance := models.ServiceInstance{}
+			serviceInstance.Guid = "my-service-instance-guid"
+			serviceInstance.ServiceKeys = []models.ServiceKeyFields{
+				{
+					Name: "fake-service-key-1",
+					Url:  "/v2/service_keys/service-key-1-guid",
+					Guid: "service-key-1-guid",
+				},
+				{
+					Name: "fake-service-key-2",
+					Url:  "/v2/service_keys/service-key-2-guid",
+					Guid: "service-key-2-guid",
+				},
+			}
+
+			err := repo.DeleteService(serviceInstance)
+			Expect(err).To(HaveOccurred())
+			Expect(err).To(BeAssignableToTypeOf(&errors.ServiceAssociationError{}))
 		})
 	})
 
@@ -775,6 +959,24 @@ var _ = Describe("Services Repo", func() {
 			offering.Guid = "the-service-guid"
 
 			err := repo.PurgeServiceOffering(offering)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(testHandler).To(HaveAllRequestsCalled())
+		})
+	})
+
+	Describe("PurgeServiceInstance", func() {
+		It("purges service instances", func() {
+			setupTestServer(testnet.TestRequest{
+				Method: "DELETE",
+				Path:   "/v2/service_instances/instance-guid?purge=true",
+				Response: testnet.TestResponse{
+					Status: 204,
+				}})
+
+			instance := maker.NewServiceInstance("schrodinger")
+			instance.Guid = "instance-guid"
+
+			err := repo.PurgeServiceInstance(instance)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(testHandler).To(HaveAllRequestsCalled())
 		})
@@ -1281,7 +1483,24 @@ var serviceOfferingReq = testapi.NewCloudControllerTestRequest(testnet.TestReque
 		  "entity": {
 			"label": "mysql",
 			"provider": "mysql",
-			"documentation_url": "http://info.example.com",
+		    "extra": "{\"documentationUrl\":\"http://info.example.com\"}",
+			"description": "MySQL database"
+		  }
+		}`,
+	}})
+
+var serviceOfferingNullExtraReq = testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+	Method: "GET",
+	Path:   "/v2/services/the-service-guid",
+	Response: testnet.TestResponse{Status: http.StatusOK, Body: `
+		{
+		  "metadata": {
+			"guid": "15790581-a293-489b-9efc-847ecf1b1339"
+		  },
+		  "entity": {
+			"label": "mysql",
+			"provider": "mysql",
+		    "extra": null,
 			"description": "MySQL database"
 		  }
 		}`,
@@ -1298,7 +1517,7 @@ var findServiceInstanceReq = testapi.NewCloudControllerTestRequest(testnet.TestR
           },
           "entity": {
             "name": "my-service",
-						"dashboard_url":"my-dashboard-url",
+			"dashboard_url":"my-dashboard-url",
             "service_bindings": [
               {
                 "metadata": {

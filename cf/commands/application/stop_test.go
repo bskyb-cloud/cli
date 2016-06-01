@@ -1,6 +1,8 @@
 package application_test
 
 import (
+	"errors"
+
 	testApplication "github.com/cloudfoundry/cli/cf/api/applications/fakes"
 	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
@@ -9,7 +11,8 @@ import (
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
-	. "github.com/cloudfoundry/cli/cf/commands/application"
+	"github.com/cloudfoundry/cli/cf/command_registry"
+	"github.com/cloudfoundry/cli/cf/commands/application"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -21,8 +24,16 @@ var _ = Describe("stop command", func() {
 		app                 models.Application
 		appRepo             *testApplication.FakeApplicationRepository
 		requirementsFactory *testreq.FakeReqFactory
-		config              core_config.ReadWriter
+		config              core_config.Repository
+		deps                command_registry.Dependency
 	)
+
+	updateCommandDependency := func(pluginCall bool) {
+		deps.Ui = ui
+		deps.RepoLocator = deps.RepoLocator.SetApplicationRepository(appRepo)
+		deps.Config = config
+		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("stop").SetDependency(deps, pluginCall))
+	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
@@ -32,7 +43,7 @@ var _ = Describe("stop command", func() {
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCommand(NewStop(ui, config, appRepo), args, requirementsFactory)
+		return testcmd.RunCliCommand("stop", args, requirementsFactory, updateCommandDependency, false)
 	}
 
 	It("fails requirements when not logged in", func() {
@@ -56,13 +67,15 @@ var _ = Describe("stop command", func() {
 		})
 
 		JustBeforeEach(func() {
-			appRepo.ReadReturns.App = app
+			appRepo.ReadReturns(app, nil)
 			requirementsFactory.Application = app
 		})
 
 		It("fails with usage when the app name is not given", func() {
 			runCommand()
-			Expect(ui.FailedWithUsage).To(BeTrue())
+			Expect(ui.Outputs).To(ContainSubstrings(
+				[]string{"Incorrect Usage", "Requires an argument"},
+			))
 		})
 
 		It("stops the app with the given name", func() {
@@ -74,11 +87,12 @@ var _ = Describe("stop command", func() {
 			))
 
 			Expect(requirementsFactory.ApplicationName).To(Equal("my-app"))
-			Expect(appRepo.UpdateAppGuid).To(Equal("my-app-guid"))
+			appGUID, _ := appRepo.UpdateArgsForCall(0)
+			Expect(appGUID).To(Equal("my-app-guid"))
 		})
 
 		It("warns the user when stopping the app fails", func() {
-			appRepo.UpdateErr = true
+			appRepo.UpdateReturns(models.Application{}, errors.New("Error updating app."))
 			runCommand("my-app")
 
 			Expect(ui.Outputs).To(ContainSubstrings(
@@ -86,7 +100,8 @@ var _ = Describe("stop command", func() {
 				[]string{"FAILED"},
 				[]string{"Error updating app."},
 			))
-			Expect(appRepo.UpdateAppGuid).To(Equal("my-app-guid"))
+			appGUID, _ := appRepo.UpdateArgsForCall(0)
+			Expect(appGUID).To(Equal("my-app-guid"))
 		})
 
 		Context("when the app is stopped", func() {
@@ -98,7 +113,7 @@ var _ = Describe("stop command", func() {
 				runCommand("my-app")
 
 				Expect(ui.Outputs).To(ContainSubstrings([]string{"my-app", "is already stopped"}))
-				Expect(appRepo.UpdateAppGuid).To(Equal(""))
+				Expect(appRepo.UpdateCallCount()).To(BeZero())
 			})
 		})
 
@@ -107,8 +122,9 @@ var _ = Describe("stop command", func() {
 				expectedStoppedApp := app
 				expectedStoppedApp.State = "stopped"
 
-				appRepo.UpdateAppResult = expectedStoppedApp
-				stopper := NewStop(ui, config, appRepo)
+				appRepo.UpdateReturns(expectedStoppedApp, nil)
+				updateCommandDependency(false)
+				stopper := command_registry.Commands.FindCommand("stop").(*application.Stop)
 				actualStoppedApp, err := stopper.ApplicationStop(app, config.OrganizationFields().Name, config.SpaceFields().Name)
 
 				Expect(err).NotTo(HaveOccurred())
@@ -121,7 +137,7 @@ var _ = Describe("stop command", func() {
 				})
 
 				It("returns the app without updating it", func() {
-					stopper := NewStop(ui, config, appRepo)
+					stopper := command_registry.Commands.FindCommand("stop").(*application.Stop)
 					updatedApp, err := stopper.ApplicationStop(app, config.OrganizationFields().Name, config.SpaceFields().Name)
 
 					Expect(err).NotTo(HaveOccurred())

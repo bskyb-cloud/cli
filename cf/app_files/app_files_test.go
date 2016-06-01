@@ -1,21 +1,48 @@
 package app_files_test
 
 import (
-	. "github.com/cloudfoundry/cli/cf/app_files"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
+
+	"github.com/cloudfoundry/cli/cf/app_files"
+	"github.com/nu7hatch/gouuid"
 
 	"github.com/cloudfoundry/cli/cf/models"
-	cffileutils "github.com/cloudfoundry/cli/fileutils"
 	"github.com/cloudfoundry/gofileutils/fileutils"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
+type WalkAppFileArgs struct {
+	relativePath string
+	absolutePath string
+}
+
+func (a WalkAppFileArgs) RelativePath() string {
+	return filepath.Join(strings.Split(a.relativePath, "/")...)
+}
+
+func (a WalkAppFileArgs) AbsolutePath() string {
+	return filepath.Join(strings.Split(a.relativePath, "/")...)
+}
+
+func (a WalkAppFileArgs) Equal(other WalkAppFileArgs) bool {
+	return a.RelativePath() == other.RelativePath() &&
+		a.AbsolutePath() == other.AbsolutePath()
+}
+
 var _ = Describe("AppFiles", func() {
-	var appFiles = ApplicationFiles{}
-	fixturePath := filepath.Join("..", "..", "fixtures", "applications")
+	var appFiles app_files.ApplicationFiles
+	var fixturePath string
+
+	BeforeEach(func() {
+		appFiles = app_files.ApplicationFiles{}
+		fixturePath = filepath.Join("..", "..", "fixtures", "applications")
+	})
 
 	Describe("AppFilesInDir", func() {
 		It("all files have '/' path separators", func() {
@@ -84,7 +111,7 @@ var _ = Describe("AppFiles", func() {
 
 			files := []string{}
 
-			cffileutils.TempDir("copyToDir", func(tmpDir string, err error) {
+			fileutils.TempDir("copyToDir", func(tmpDir string, err error) {
 				copyErr := appFiles.CopyFiles(filesToCopy, copyDir, tmpDir)
 				Expect(copyErr).ToNot(HaveOccurred())
 
@@ -102,6 +129,133 @@ var _ = Describe("AppFiles", func() {
 			Expect(files).To(Equal([]string{
 				"file2.txt",
 			}))
+		})
+	})
+
+	Describe("WalkAppFiles", func() {
+		var cb func(string, string) error
+		var actualWalkAppFileArgs []WalkAppFileArgs
+
+		BeforeEach(func() {
+			actualWalkAppFileArgs = []WalkAppFileArgs{}
+			cb = func(fileRelativePath, fullPath string) error {
+				actualWalkAppFileArgs = append(actualWalkAppFileArgs, WalkAppFileArgs{
+					relativePath: fileRelativePath,
+					absolutePath: fullPath,
+				})
+				return nil
+			}
+		})
+
+		It("calls the callback with the relative and absolute path for each file within the given dir", func() {
+			err := appFiles.WalkAppFiles(filepath.Join(fixturePath, "app-copy-test"), cb)
+			Expect(err).NotTo(HaveOccurred())
+			expectedArgs := []WalkAppFileArgs{
+				{
+					relativePath: "dir1",
+					absolutePath: "../../fixtures/applications/app-copy-test/dir1",
+				},
+				{
+					relativePath: "dir1/child-dir",
+					absolutePath: "../../fixtures/applications/app-copy-test/dir1/child-dir",
+				},
+				{
+					relativePath: "dir1/child-dir/file2.txt",
+					absolutePath: "../../fixtures/applications/app-copy-test/dir1/child-dir/file2.txt",
+				},
+				{
+					relativePath: "dir1/child-dir/file3.txt",
+					absolutePath: "../../fixtures/applications/app-copy-test/dir1/child-dir/file3.txt",
+				},
+				{
+					relativePath: "dir1/file1.txt",
+					absolutePath: "../../fixtures/applications/app-copy-test/dir1/file1.txt",
+				},
+				{
+					relativePath: "dir2",
+					absolutePath: "../../fixtures/applications/app-copy-test/dir2",
+				},
+				{
+					relativePath: "dir2/child-dir2",
+					absolutePath: "../../fixtures/applications/app-copy-test/dir2/child-dir2",
+				},
+				{
+					relativePath: "dir2/child-dir2/grandchild-dir2",
+					absolutePath: "../../fixtures/applications/app-copy-test/dir2/child-dir2/grandchild-dir2",
+				},
+				{
+					relativePath: "dir2/child-dir2/grandchild-dir2/file4.txt",
+					absolutePath: "../../fixtures/applications/app-copy-test/dir2/child-dir2/grandchild-dir2/file4.txt",
+				},
+			}
+
+			for i, actual := range actualWalkAppFileArgs {
+				Expect(actual.Equal(expectedArgs[i])).To(BeTrue())
+			}
+		})
+
+		Context("when the given dir contains an untraversable dir", func() {
+			var (
+				untraversableDirName string
+				tmpDir               string
+			)
+
+			BeforeEach(func() {
+				if runtime.GOOS == "windows" {
+					Skip("This test is only for non-Windows platforms")
+				}
+
+				var err error
+				tmpDir, err = ioutil.TempDir("", "untraversable-test")
+				Expect(err).NotTo(HaveOccurred())
+
+				guid, err := uuid.NewV4()
+				Expect(err).NotTo(HaveOccurred())
+
+				untraversableDirName = guid.String()
+				untraversableDirPath := filepath.Join(tmpDir, untraversableDirName)
+
+				err = os.Mkdir(untraversableDirPath, os.ModeDir) // untraversable without os.ModePerm
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			AfterEach(func() {
+				err := os.RemoveAll(tmpDir)
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			It("returns an error", func() {
+				Skip("This isn't a reliable test as root can still traverse a non-executable directory")
+				err := appFiles.WalkAppFiles(tmpDir, cb)
+				Expect(err).To(HaveOccurred())
+			})
+
+			Context("when the untraversable dir is .cfignored", func() {
+				var cfIgnorePath string
+
+				BeforeEach(func() {
+					cfIgnorePath = filepath.Join(tmpDir, ".cfignore")
+					err := ioutil.WriteFile(cfIgnorePath, []byte(untraversableDirName+"\n"), os.ModePerm)
+					Expect(err).NotTo(HaveOccurred())
+				})
+
+				AfterEach(func() {
+					err := os.Remove(cfIgnorePath)
+					Expect(err).NotTo(HaveOccurred())
+				})
+
+				It("does not return an error", func() {
+					err := appFiles.WalkAppFiles(filepath.Join(fixturePath, "app-copy-test"), cb)
+					Expect(err).NotTo(HaveOccurred())
+				})
+
+				It("does not call the callback with the untraversable dir", func() {
+					appFiles.WalkAppFiles(filepath.Join(fixturePath, "app-copy-test"), cb)
+					for _, actual := range actualWalkAppFileArgs {
+						Expect(actual.RelativePath()).NotTo(Equal(untraversableDirName))
+					}
+				})
+			})
 		})
 	})
 })

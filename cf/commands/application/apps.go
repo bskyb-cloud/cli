@@ -1,34 +1,37 @@
 package application
 
 import (
-	. "github.com/cloudfoundry/cli/cf/i18n"
 	"strings"
 
+	"github.com/cloudfoundry/cli/cf/command_registry"
+	. "github.com/cloudfoundry/cli/cf/i18n"
+	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/flags"
+	"github.com/cloudfoundry/cli/plugin/models"
+
 	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/command_metadata"
 	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/formatters"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/cloudfoundry/cli/cf/ui_helpers"
-	"github.com/codegangsta/cli"
 )
 
 type ListApps struct {
 	ui             terminal.UI
 	config         core_config.Reader
 	appSummaryRepo api.AppSummaryRepository
+
+	pluginAppModels *[]plugin_models.GetAppsModel
+	pluginCall      bool
 }
 
-func NewListApps(ui terminal.UI, config core_config.Reader, appSummaryRepo api.AppSummaryRepository) (cmd ListApps) {
-	cmd.ui = ui
-	cmd.config = config
-	cmd.appSummaryRepo = appSummaryRepo
-	return
+func init() {
+	command_registry.Register(&ListApps{})
 }
 
-func (cmd ListApps) Metadata() command_metadata.CommandMetadata {
-	return command_metadata.CommandMetadata{
+func (cmd *ListApps) MetaData() command_registry.CommandMetadata {
+	return command_registry.CommandMetadata{
 		Name:        "apps",
 		ShortName:   "a",
 		Description: T("List all apps in the target space"),
@@ -36,10 +39,11 @@ func (cmd ListApps) Metadata() command_metadata.CommandMetadata {
 	}
 }
 
-func (cmd ListApps) GetRequirements(requirementsFactory requirements.Factory, c *cli.Context) (reqs []requirements.Requirement, err error) {
-	if len(c.Args()) != 0 {
-		cmd.ui.FailWithUsage(c)
+func (cmd *ListApps) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+	if len(fc.Args()) != 0 {
+		cmd.ui.Failed(T("Incorrect Usage. No argument required\n\n") + command_registry.Commands.CommandUsage("apps"))
 	}
+
 	reqs = []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 		requirementsFactory.NewTargetedSpaceRequirement(),
@@ -47,7 +51,16 @@ func (cmd ListApps) GetRequirements(requirementsFactory requirements.Factory, c 
 	return
 }
 
-func (cmd ListApps) Run(c *cli.Context) {
+func (cmd *ListApps) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
+	cmd.ui = deps.Ui
+	cmd.config = deps.Config
+	cmd.appSummaryRepo = deps.RepoLocator.GetAppSummaryRepository()
+	cmd.pluginAppModels = deps.PluginModels.AppsSummary
+	cmd.pluginCall = pluginCall
+	return cmd
+}
+
+func (cmd *ListApps) Execute(c flags.FlagContext) {
 	cmd.ui.Say(T("Getting apps in org {{.OrgName}} / space {{.SpaceName}} as {{.Username}}...",
 		map[string]interface{}{
 			"OrgName":   terminal.EntityNameColor(cmd.config.OrganizationFields().Name),
@@ -88,4 +101,36 @@ func (cmd ListApps) Run(c *cli.Context) {
 	}
 
 	table.Print()
+
+	if cmd.pluginCall {
+		cmd.populatePluginModel(apps)
+	}
+}
+
+func (cmd *ListApps) populatePluginModel(apps []models.Application) {
+	for _, app := range apps {
+		appModel := plugin_models.GetAppsModel{}
+		appModel.Name = app.Name
+		appModel.Guid = app.Guid
+		appModel.TotalInstances = app.InstanceCount
+		appModel.RunningInstances = app.RunningInstances
+		appModel.Memory = app.Memory
+		appModel.State = app.State
+		appModel.DiskQuota = app.DiskQuota
+
+		*(cmd.pluginAppModels) = append(*(cmd.pluginAppModels), appModel)
+
+		for _, route := range app.Routes {
+			r := plugin_models.GetAppsRouteSummary{}
+			r.Host = route.Host
+			r.Guid = route.Guid
+			r.Domain.Guid = route.Domain.Guid
+			r.Domain.Name = route.Domain.Name
+			r.Domain.OwningOrganizationGuid = route.Domain.OwningOrganizationGuid
+			r.Domain.Shared = route.Domain.Shared
+
+			(*(cmd.pluginAppModels))[len(*(cmd.pluginAppModels))-1].Routes = append((*(cmd.pluginAppModels))[len(*(cmd.pluginAppModels))-1].Routes, r)
+		}
+
+	}
 }

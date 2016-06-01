@@ -2,6 +2,7 @@ package resources
 
 import (
 	"strings"
+	"time"
 
 	"github.com/cloudfoundry/cli/cf/models"
 )
@@ -25,10 +26,16 @@ type AppRouteResource struct {
 	Entity AppRouteEntity
 }
 
-type AppFileResource struct {
-	Path string `json:"fn"`
+type IntegrityFields struct {
 	Sha1 string `json:"sha1"`
 	Size int64  `json:"size"`
+}
+
+type AppFileResource struct {
+	Sha1 string `json:"sha1"`
+	Size int64  `json:"size"`
+	Path string `json:"fn"`
+	Mode string `json:"mode"`
 }
 
 type ApplicationResource struct {
@@ -49,10 +56,16 @@ type ApplicationEntity struct {
 	Stack                *StackResource          `json:"stack,omitempty"`
 	Routes               *[]AppRouteResource     `json:"routes,omitempty"`
 	Buildpack            *string                 `json:"buildpack,omitempty"`
+	DetectedBuildpack    *string                 `json:"detected_buildpack,omitempty"`
 	EnvironmentJson      *map[string]interface{} `json:"environment_json,omitempty"`
+	HealthCheckType      *string                 `json:"health_check_type,omitempty"`
 	HealthCheckTimeout   *int                    `json:"health_check_timeout,omitempty"`
 	PackageState         *string                 `json:"package_state,omitempty"`
 	StagingFailedReason  *string                 `json:"staging_failed_reason,omitempty"`
+	Diego                *bool                   `json:"diego,omitempty"`
+	DockerImage          *string                 `json:"docker_image,omitempty"`
+	EnableSsh            *bool                   `json:"enable_ssh,omitempty"`
+	PackageUpdatedAt     *time.Time              `json:"package_updated_at,omitempty"`
 }
 
 func (resource AppRouteResource) ToFields() (route models.RouteSummary) {
@@ -69,6 +82,13 @@ func (resource AppRouteResource) ToModel() (route models.RouteSummary) {
 	return
 }
 
+func (resource AppFileResource) ToIntegrityFields() IntegrityFields {
+	return IntegrityFields{
+		Sha1: resource.Sha1,
+		Size: resource.Size,
+	}
+}
+
 func NewApplicationEntityFromAppParams(app models.AppParams) ApplicationEntity {
 	entity := ApplicationEntity{
 		Buildpack:          app.BuildpackUrl,
@@ -79,8 +99,14 @@ func NewApplicationEntityFromAppParams(app models.AppParams) ApplicationEntity {
 		DiskQuota:          app.DiskQuota,
 		StackGuid:          app.StackGuid,
 		Command:            app.Command,
+		HealthCheckType:    app.HealthCheckType,
 		HealthCheckTimeout: app.HealthCheckTimeout,
+		DockerImage:        app.DockerImage,
+		Diego:              app.Diego,
+		EnableSsh:          app.EnableSsh,
+		PackageUpdatedAt:   app.PackageUpdatedAt,
 	}
+
 	if app.State != nil {
 		state := strings.ToUpper(*app.State)
 		entity.State = &state
@@ -128,6 +154,28 @@ func (resource ApplicationResource) ToFields() (app models.ApplicationFields) {
 	if entity.StagingFailedReason != nil {
 		app.StagingFailedReason = *entity.StagingFailedReason
 	}
+	if entity.DockerImage != nil {
+		app.DockerImage = *entity.DockerImage
+	}
+	if entity.Buildpack != nil {
+		app.Buildpack = *entity.Buildpack
+	}
+	if entity.DetectedBuildpack != nil {
+		app.DetectedBuildpack = *entity.DetectedBuildpack
+	}
+	if entity.HealthCheckType != nil {
+		app.HealthCheckType = *entity.HealthCheckType
+	}
+	if entity.Diego != nil {
+		app.Diego = *entity.Diego
+	}
+	if entity.EnableSsh != nil {
+		app.EnableSsh = *entity.EnableSsh
+	}
+	if entity.PackageUpdatedAt != nil {
+		app.PackageUpdatedAt = entity.PackageUpdatedAt
+	}
+
 	return
 }
 

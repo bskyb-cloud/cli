@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	term "github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/codegangsta/cli"
 )
 
 const QuietPanic = "I should not print anything"
@@ -19,6 +19,7 @@ type FakeUI struct {
 	WarnOutputs                []string
 	Prompts                    []string
 	PasswordPrompts            []string
+	InputsChan                 chan string
 	Inputs                     []string
 	FailedWithUsage            bool
 	FailedWithUsageCommandName string
@@ -64,15 +65,20 @@ func (ui *FakeUI) Warn(message string, args ...interface{}) {
 	return
 }
 
-func (ui *FakeUI) Ask(prompt string, args ...interface{}) (answer string) {
+func (ui *FakeUI) Ask(prompt string, args ...interface{}) string {
 	ui.Prompts = append(ui.Prompts, fmt.Sprintf(prompt, args...))
-	if len(ui.Inputs) == 0 {
-		panic("No input provided to Fake UI for prompt: " + fmt.Sprintf(prompt, args...))
+
+	if ui.InputsChan == nil {
+		if len(ui.Inputs) == 0 {
+			panic("No input provided to Fake UI for prompt: " + fmt.Sprintf(prompt, args...))
+		}
+
+		answer := ui.Inputs[0]
+		ui.Inputs = ui.Inputs[1:]
+		return answer
 	}
 
-	answer = ui.Inputs[0]
-	ui.Inputs = ui.Inputs[1:]
-	return
+	return <-ui.InputsChan
 }
 
 func (ui *FakeUI) ConfirmDelete(modelType, modelName string) bool {
@@ -96,19 +102,19 @@ func (ui *FakeUI) Confirm(prompt string, args ...interface{}) bool {
 	return false
 }
 
-func (ui *FakeUI) AskForPassword(prompt string, args ...interface{}) (answer string) {
+func (ui *FakeUI) AskForPassword(prompt string, args ...interface{}) string {
 	ui.PasswordPrompts = append(ui.PasswordPrompts, fmt.Sprintf(prompt, args...))
-	if len(ui.Inputs) == 0 {
-		println("__________________PANIC__________________")
-		println(ui.DumpOutputs())
-		println(ui.DumpPrompts())
-		println("_________________________________________")
-		panic("No input provided to Fake UI for prompt: " + fmt.Sprintf(prompt, args...))
+	if ui.InputsChan == nil {
+		if len(ui.Inputs) == 0 {
+			panic("No input provided to Fake UI for prompt: " + fmt.Sprintf(prompt, args...))
+		}
+
+		answer := ui.Inputs[0]
+		ui.Inputs = ui.Inputs[1:]
+		return answer
 	}
 
-	answer = ui.Inputs[0]
-	ui.Inputs = ui.Inputs[1:]
-	return
+	return <-ui.InputsChan
 }
 
 func (ui *FakeUI) Ok() {
@@ -119,14 +125,6 @@ func (ui *FakeUI) Failed(message string, args ...interface{}) {
 	ui.Say("FAILED")
 	ui.Say(message, args...)
 	panic(QuietPanic)
-	return
-}
-
-func (ui *FakeUI) FailWithUsage(context *cli.Context) {
-	ui.FailedWithUsage = true
-	ui.FailedWithUsageCommandName = context.Command.Name
-	ui.Failed("Incorrect Usage.")
-	ui.PanickedQuietly = true
 }
 
 func (ui *FakeUI) PanicQuietly() {
@@ -153,13 +151,19 @@ func (ui *FakeUI) ShowConfiguration(config core_config.Reader) {
 	ui.ShowConfigurationCalled = true
 }
 
-func (ui FakeUI) LoadingIndication() {
+func (ui *FakeUI) LoadingIndication() {
 }
 
-func (c FakeUI) Wait(duration time.Duration) {
+func (ui *FakeUI) Wait(duration time.Duration) {
 	time.Sleep(duration)
 }
 
 func (ui *FakeUI) Table(headers []string) term.Table {
 	return term.NewTable(ui, headers)
+}
+
+func (ui *FakeUI) NotifyUpdateIfNeeded(config core_config.Reader) {
+	if !config.IsMinCliVersion(cf.Version) {
+		ui.Say("Cloud Foundry API version {{.ApiVer}} requires CLI version " + config.MinCliVersion() + "  You are currently on version {{.CliVer}}. To upgrade your CLI, please visit: https://github.com/cloudfoundry/cli#downloads")
+	}
 }

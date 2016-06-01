@@ -2,6 +2,7 @@ package application_test
 
 import (
 	testApplication "github.com/cloudfoundry/cli/cf/api/applications/fakes"
+	"github.com/cloudfoundry/cli/cf/command_registry"
 	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
@@ -10,7 +11,6 @@ import (
 	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
-	. "github.com/cloudfoundry/cli/cf/commands/application"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -21,9 +21,17 @@ var _ = Describe("env command", func() {
 		ui                  *testterm.FakeUI
 		app                 models.Application
 		appRepo             *testApplication.FakeApplicationRepository
-		configRepo          core_config.ReadWriter
+		configRepo          core_config.Repository
 		requirementsFactory *testreq.FakeReqFactory
+		deps                command_registry.Dependency
 	)
+
+	updateCommandDependency := func(pluginCall bool) {
+		deps.Ui = ui
+		deps.Config = configRepo
+		deps.RepoLocator = deps.RepoLocator.SetApplicationRepository(appRepo)
+		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("env").SetDependency(deps, pluginCall))
+	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
@@ -31,15 +39,14 @@ var _ = Describe("env command", func() {
 		app = models.Application{}
 		app.Name = "my-app"
 		appRepo = &testApplication.FakeApplicationRepository{}
-		appRepo.ReadReturns.App = app
+		appRepo.ReadReturns(app, nil)
 
 		configRepo = testconfig.NewRepositoryWithDefaults()
 		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: true}
 	})
 
 	runCommand := func(args ...string) bool {
-		cmd := NewEnv(ui, configRepo, appRepo)
-		return testcmd.RunCommand(cmd, args, requirementsFactory)
+		return testcmd.RunCliCommand("env", args, requirementsFactory, updateCommandDependency, false)
 	}
 
 	Describe("Requirements", func() {
@@ -56,12 +63,14 @@ var _ = Describe("env command", func() {
 	It("fails with usage when no app name is given", func() {
 		passed := runCommand()
 
-		Expect(ui.FailedWithUsage).To(BeTrue())
+		Expect(ui.Outputs).To(ContainSubstrings(
+			[]string{"Incorrect Usage", "Requires", "argument"},
+		))
 		Expect(passed).To(BeFalse())
 	})
 
 	It("fails with usage when the app cannot be found", func() {
-		appRepo.ReadReturns.Error = errors.NewModelNotFoundError("app", "hocus-pocus")
+		appRepo.ReadReturns(models.Application{}, errors.NewModelNotFoundError("app", "hocus-pocus"))
 		runCommand("hocus-pocus")
 
 		Expect(ui.Outputs).To(ContainSubstrings(
@@ -76,7 +85,7 @@ var _ = Describe("env command", func() {
 			app.Name = "my-app"
 			app.Guid = "the-app-guid"
 
-			appRepo.ReadReturns.App = app
+			appRepo.ReadReturns(app, nil)
 			appRepo.ReadEnvReturns(&models.Environment{
 				Environment: map[string]interface{}{
 					"my-key":     "my-value",
@@ -166,7 +175,7 @@ var _ = Describe("env command", func() {
 			app.Name = "my-app"
 			app.Guid = "the-app-guid"
 
-			appRepo.ReadReturns.App = app
+			appRepo.ReadReturns(app, nil)
 			appRepo.ReadEnvReturns(&models.Environment{
 				Running: map[string]interface{}{
 					"running-key-1": "running-value-1",

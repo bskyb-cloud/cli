@@ -1,91 +1,281 @@
 package user_test
 
 import (
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	. "github.com/cloudfoundry/cli/cf/commands/user"
+	"errors"
+
+	"github.com/cloudfoundry/cli/cf/command_registry"
+	"github.com/cloudfoundry/cli/cf/commands/user"
 	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
-	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/flags"
+
+	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	fakefeatureflagsapi "github.com/cloudfoundry/cli/cf/api/feature_flags/fakes"
+	fakerequirements "github.com/cloudfoundry/cli/cf/requirements/fakes"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("unset-org-role command", func() {
+var _ = Describe("UnsetOrgRole", func() {
 	var (
-		ui                  *testterm.FakeUI
-		userRepo            *testapi.FakeUserRepository
-		configRepo          core_config.ReadWriter
-		requirementsFactory *testreq.FakeReqFactory
-	)
+		ui         *testterm.FakeUI
+		configRepo core_config.Repository
+		userRepo   *testapi.FakeUserRepository
+		flagRepo   *fakefeatureflagsapi.FakeFeatureFlagRepository
 
-	runCommand := func(args ...string) bool {
-		cmd := NewUnsetOrgRole(ui, configRepo, userRepo)
-		return testcmd.RunCommand(cmd, args, requirementsFactory)
-	}
+		cmd         command_registry.Command
+		deps        command_registry.Dependency
+		factory     *fakerequirements.FakeFactory
+		flagContext flags.FlagContext
+
+		loginRequirement        requirements.Requirement
+		userRequirement         *fakerequirements.FakeUserRequirement
+		organizationRequirement *fakerequirements.FakeOrganizationRequirement
+	)
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
-		userRepo = &testapi.FakeUserRepository{}
-		requirementsFactory = &testreq.FakeReqFactory{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
+		userRepo = &testapi.FakeUserRepository{}
+		repoLocator := deps.RepoLocator.SetUserRepository(userRepo)
+		flagRepo = &fakefeatureflagsapi.FakeFeatureFlagRepository{}
+		repoLocator = repoLocator.SetFeatureFlagRepository(flagRepo)
+
+		deps = command_registry.Dependency{
+			Ui:          ui,
+			Config:      configRepo,
+			RepoLocator: repoLocator,
+		}
+
+		cmd = &user.UnsetOrgRole{}
+		cmd.SetDependency(deps, false)
+
+		flagContext = flags.NewFlagContext(map[string]flags.FlagSet{})
+
+		factory = &fakerequirements.FakeFactory{}
+
+		loginRequirement = &passingRequirement{}
+		factory.NewLoginRequirementReturns(loginRequirement)
+
+		userRequirement = &fakerequirements.FakeUserRequirement{}
+		userRequirement.ExecuteReturns(true)
+		factory.NewUserRequirementReturns(userRequirement)
+
+		organizationRequirement = &fakerequirements.FakeOrganizationRequirement{}
+		organizationRequirement.ExecuteReturns(true)
+		factory.NewOrganizationRequirementReturns(organizationRequirement)
 	})
 
-	It("fails with usage when invoked without exactly three args", func() {
-		runCommand("username", "org")
-		Expect(ui.FailedWithUsage).To(BeTrue())
+	Describe("Requirements", func() {
+		Context("when not provided exactly three args", func() {
+			BeforeEach(func() {
+				flagContext.Parse("the-user-name", "the-org-name")
+			})
 
-		runCommand("woah", "too", "many", "args")
-		Expect(ui.FailedWithUsage).To(BeTrue())
-	})
-
-	Describe("requirements", func() {
-		It("fails when not logged in", func() {
-			requirementsFactory.LoginSuccess = false
-
-			Expect(runCommand("username", "org", "role")).To(BeFalse())
+			It("fails with usage", func() {
+				Expect(func() { cmd.Requirements(factory, flagContext) }).To(Panic())
+				Expect(ui.Outputs).To(ContainSubstrings(
+					[]string{"Incorrect Usage. Requires USERNAME, ORG, ROLE as arguments"},
+					[]string{"NAME"},
+					[]string{"USAGE"},
+				))
+			})
 		})
 
-		It("succeeds when logged in", func() {
-			requirementsFactory.LoginSuccess = true
-			passed := runCommand("username", "org", "role")
-			Expect(passed).To(BeTrue())
+		Context("when provided three args", func() {
+			BeforeEach(func() {
+				flagContext.Parse("the-user-name", "the-org-name", "OrgManager")
+			})
 
-			Expect(requirementsFactory.UserUsername).To(Equal("username"))
-			Expect(requirementsFactory.OrganizationName).To(Equal("org"))
+			It("returns a LoginRequirement", func() {
+				actualRequirements, err := cmd.Requirements(factory, flagContext)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(factory.NewLoginRequirementCallCount()).To(Equal(1))
+
+				Expect(actualRequirements).To(ContainElement(loginRequirement))
+			})
+
+			It("returns an OrgRequirement", func() {
+				actualRequirements, err := cmd.Requirements(factory, flagContext)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(factory.NewOrganizationRequirementCallCount()).To(Equal(1))
+				Expect(factory.NewOrganizationRequirementArgsForCall(0)).To(Equal("the-org-name"))
+
+				Expect(actualRequirements).To(ContainElement(organizationRequirement))
+			})
+
+			Context("when the config version is >=2.37.0", func() {
+				BeforeEach(func() {
+					configRepo.SetApiVersion("2.37.0")
+				})
+
+				It("requests the set_roles_by_username flag", func() {
+					cmd.Requirements(factory, flagContext)
+					Expect(flagRepo.FindByNameCallCount()).To(Equal(1))
+					Expect(flagRepo.FindByNameArgsForCall(0)).To(Equal("unset_roles_by_username"))
+				})
+
+				Context("when the set_roles_by_username flag exists and is enabled", func() {
+					BeforeEach(func() {
+						flagRepo.FindByNameReturns(models.FeatureFlag{Enabled: true}, nil)
+					})
+
+					It("returns a UserRequirement", func() {
+						actualRequirements, err := cmd.Requirements(factory, flagContext)
+						Expect(err).NotTo(HaveOccurred())
+						Expect(factory.NewUserRequirementCallCount()).To(Equal(1))
+						actualUsername, actualWantGuid := factory.NewUserRequirementArgsForCall(0)
+						Expect(actualUsername).To(Equal("the-user-name"))
+						Expect(actualWantGuid).To(BeFalse())
+
+						Expect(actualRequirements).To(ContainElement(userRequirement))
+					})
+				})
+
+				Context("when the set_roles_by_username flag exists and is disabled", func() {
+					BeforeEach(func() {
+						flagRepo.FindByNameReturns(models.FeatureFlag{Enabled: false}, nil)
+					})
+
+					It("returns a UserRequirement", func() {
+						actualRequirements, err := cmd.Requirements(factory, flagContext)
+						Expect(err).NotTo(HaveOccurred())
+						Expect(factory.NewUserRequirementCallCount()).To(Equal(1))
+						actualUsername, actualWantGuid := factory.NewUserRequirementArgsForCall(0)
+						Expect(actualUsername).To(Equal("the-user-name"))
+						Expect(actualWantGuid).To(BeTrue())
+
+						Expect(actualRequirements).To(ContainElement(userRequirement))
+					})
+				})
+
+				Context("when the set_roles_by_username flag cannot be retrieved", func() {
+					BeforeEach(func() {
+						flagRepo.FindByNameReturns(models.FeatureFlag{}, errors.New("some error"))
+					})
+
+					It("returns a UserRequirement", func() {
+						actualRequirements, err := cmd.Requirements(factory, flagContext)
+						Expect(err).NotTo(HaveOccurred())
+						Expect(factory.NewUserRequirementCallCount()).To(Equal(1))
+						actualUsername, actualWantGuid := factory.NewUserRequirementArgsForCall(0)
+						Expect(actualUsername).To(Equal("the-user-name"))
+						Expect(actualWantGuid).To(BeTrue())
+
+						Expect(actualRequirements).To(ContainElement(userRequirement))
+					})
+				})
+			})
+
+			Context("when the config version is <2.37.0", func() {
+				BeforeEach(func() {
+					configRepo.SetApiVersion("2.36.0")
+				})
+
+				It("returns a UserRequirement", func() {
+					actualRequirements, err := cmd.Requirements(factory, flagContext)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(factory.NewUserRequirementCallCount()).To(Equal(1))
+					actualUsername, actualWantGuid := factory.NewUserRequirementArgsForCall(0)
+					Expect(actualUsername).To(Equal("the-user-name"))
+					Expect(actualWantGuid).To(BeTrue())
+
+					Expect(actualRequirements).To(ContainElement(userRequirement))
+				})
+			})
 		})
 	})
 
-	Context("when logged in", func() {
+	Describe("Execute", func() {
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
+			flagContext.Parse("the-user-name", "the-org-name", "OrgManager")
+			_, err := cmd.Requirements(factory, flagContext)
+			Expect(err).NotTo(HaveOccurred())
 
-			user := models.UserFields{}
-			user.Username = "some-user"
-			user.Guid = "some-user-guid"
 			org := models.Organization{}
-			org.Name = "some-org"
-			org.Guid = "some-org-guid"
-
-			requirementsFactory.UserFields = user
-			requirementsFactory.Organization = org
+			org.Guid = "the-org-guid"
+			org.Name = "the-org-name"
+			organizationRequirement.GetOrganizationReturns(org)
 		})
 
-		It("unsets a user's org role", func() {
-			runCommand("my-username", "my-org", "OrgManager")
+		Context("when the UserRequirement returns a user with a GUID", func() {
+			BeforeEach(func() {
+				userFields := models.UserFields{Guid: "the-user-guid", Username: "the-user-name"}
+				userRequirement.GetUserReturns(userFields)
+			})
 
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Removing role", "OrgManager", "my-username", "my-org", "my-user"},
-				[]string{"OK"},
-			))
+			It("tells the user it is removing the role", func() {
+				cmd.Execute(flagContext)
+				Expect(ui.Outputs).To(ContainSubstrings(
+					[]string{"Removing role", "OrgManager", "the-user-name", "the-org", "the-user-name"},
+					[]string{"OK"},
+				))
+			})
 
-			Expect(userRepo.UnsetOrgRoleRole).To(Equal(models.ORG_MANAGER))
-			Expect(userRepo.UnsetOrgRoleUserGuid).To(Equal("some-user-guid"))
-			Expect(userRepo.UnsetOrgRoleOrganizationGuid).To(Equal("some-org-guid"))
+			It("removes the role using the GUID", func() {
+				cmd.Execute(flagContext)
+				Expect(userRepo.UnsetOrgRoleByGuidCallCount()).To(Equal(1))
+				actualUserGUID, actualOrgGUID, actualRole := userRepo.UnsetOrgRoleByGuidArgsForCall(0)
+				Expect(actualUserGUID).To(Equal("the-user-guid"))
+				Expect(actualOrgGUID).To(Equal("the-org-guid"))
+				Expect(actualRole).To(Equal("OrgManager"))
+			})
+
+			Context("when the call to CC fails", func() {
+				BeforeEach(func() {
+					userRepo.UnsetOrgRoleByGuidReturns(errors.New("user-repo-error"))
+				})
+
+				It("panics and prints a failure message", func() {
+					Expect(func() { cmd.Execute(flagContext) }).To(Panic())
+					Expect(ui.Outputs).To(BeInDisplayOrder(
+						[]string{"FAILED"},
+						[]string{"user-repo-error"},
+					))
+				})
+			})
+		})
+
+		Context("when the UserRequirement returns a user without a GUID", func() {
+			BeforeEach(func() {
+				userRequirement.GetUserReturns(models.UserFields{Username: "the-user-name"})
+			})
+
+			It("removes the role using the given username", func() {
+				cmd.Execute(flagContext)
+				Expect(userRepo.UnsetOrgRoleByUsernameCallCount()).To(Equal(1))
+				username, orgGuid, role := userRepo.UnsetOrgRoleByUsernameArgsForCall(0)
+				Expect(username).To(Equal("the-user-name"))
+				Expect(orgGuid).To(Equal("the-org-guid"))
+				Expect(role).To(Equal("OrgManager"))
+			})
+
+			It("tells the user it is removing the role", func() {
+				cmd.Execute(flagContext)
+				Expect(ui.Outputs).To(ContainSubstrings(
+					[]string{"Removing role", "OrgManager", "the-user-name", "the-org", "the-user-name"},
+					[]string{"OK"},
+				))
+			})
+
+			Context("when the call to CC fails", func() {
+				BeforeEach(func() {
+					userRepo.UnsetOrgRoleByUsernameReturns(errors.New("user-repo-error"))
+				})
+
+				It("panics and prints a failure message", func() {
+					Expect(func() { cmd.Execute(flagContext) }).To(Panic())
+					Expect(ui.Outputs).To(BeInDisplayOrder(
+						[]string{"FAILED"},
+						[]string{"user-repo-error"},
+					))
+				})
+			})
 		})
 	})
 })

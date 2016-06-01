@@ -22,21 +22,25 @@ func (resource ApplicationSummaries) ToModels() (apps []models.ApplicationFields
 }
 
 type ApplicationFromSummary struct {
-	Guid               string
-	Name               string
-	Routes             []RouteSummary
-	Services           []ServicePlanSummary
-	Diego              bool `json:"diego,omitempty"`
-	RunningInstances   int  `json:"running_instances"`
-	Memory             int64
-	Instances          int
-	DiskQuota          int64 `json:"disk_quota"`
-	Urls               []string
-	EnvironmentVars    map[string]interface{} `json:"environment_json,omitempty"`
-	HealthCheckTimeout int                    `json:"health_check_timeout"`
-	State              string
-	SpaceGuid          string     `json:"space_guid"`
-	PackageUpdatedAt   *time.Time `json:"package_updated_at"`
+	Guid                 string
+	Name                 string
+	Routes               []RouteSummary
+	Services             []ServicePlanSummary
+	Diego                bool `json:"diego,omitempty"`
+	RunningInstances     int  `json:"running_instances"`
+	Memory               int64
+	Instances            int
+	DiskQuota            int64 `json:"disk_quota"`
+	Urls                 []string
+	EnvironmentVars      map[string]interface{} `json:"environment_json,omitempty"`
+	HealthCheckTimeout   int                    `json:"health_check_timeout"`
+	State                string
+	DetectedStartCommand string     `json:"detected_start_command"`
+	SpaceGuid            string     `json:"space_guid"`
+	Command              string     `json:"command"`
+	PackageState         string     `json:"package_state"`
+	PackageUpdatedAt     *time.Time `json:"package_updated_at"`
+	Buildpack            string
 }
 
 func (resource ApplicationFromSummary) ToFields() (app models.ApplicationFields) {
@@ -51,7 +55,11 @@ func (resource ApplicationFromSummary) ToFields() (app models.ApplicationFields)
 	app.Memory = resource.Memory
 	app.SpaceGuid = resource.SpaceGuid
 	app.PackageUpdatedAt = resource.PackageUpdatedAt
+	app.PackageState = resource.PackageState
+	app.DetectedStartCommand = resource.DetectedStartCommand
 	app.HealthCheckTimeout = resource.HealthCheckTimeout
+	app.BuildpackUrl = resource.Buildpack
+	app.Command = resource.Command
 
 	return
 }
@@ -107,6 +115,7 @@ type DomainSummary struct {
 	OwningOrganizationGuid string
 }
 
+//go:generate counterfeiter -o fakes/fake_app_summary_repository.go . AppSummaryRepository
 type AppSummaryRepository interface {
 	GetSummariesInCurrentSpace() (apps []models.Application, apiErr error)
 	GetSummary(appGuid string) (summary models.Application, apiErr error)

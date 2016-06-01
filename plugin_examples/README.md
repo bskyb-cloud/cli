@@ -1,9 +1,14 @@
-# Changes in v6.11.0
--Plugins now have a hook-in that is called when the plugin is uninstalled, allowing cleanup of files.
+# Changes in v6.14.0
+- API `AccessToken()` now provides a refreshed o-auth token.
+- [Examples](https://github.com/cloudfoundry/cli/tree/master/plugin_examples#test-driven-development-tdd) on how to use fake `CliConnection` and test RPC server for TDD development.
+- Fix Plugin API file descriptors leakage.
+- Fix bug where some CLI versions does not respect `PluginMetadata.MinCliVersion`.
+- The field `PackageUpdatedAt` returned by `GetApp()` API is now populated.
 
 [Complete change log ...](https://github.com/cloudfoundry/cli/blob/master/plugin_examples/CHANGELOG.md) 
 
-# Developing a Plugin
+# Developing a Plugin 
+[Go here for documentation of the plugin API](https://github.com/cloudfoundry/cli/blob/master/plugin_examples/DOC.md)
 
 This README discusses how to develop a cf CLI plugin.
 For user-focused documentation, see [Using the cf CLI](http://docs.cloudfoundry.org/devguide/installcf/use-cli-plugins.html).
@@ -42,6 +47,8 @@ Here is an illustration of the workflow when a plugin command is being invoked.
 
 ## Writing a Plugin
 
+[Go here for documentation of the plugin API](https://github.com/cloudfoundry/cli/blob/master/plugin_examples/DOC.md)
+
 To write a plugin for the cf CLI, implement the 
 [predefined plugin interface](https://github.com/cloudfoundry/cli/blob/master/plugin/plugin.go).
 
@@ -51,8 +58,7 @@ and a plugin. This method receives the following arguments:
   - A struct `plugin.CliConnection` that contains methods for invoking cf CLI commands
   - A string array that contains the arguments passed from the `cf` process
 
-The `GetMetadata()` function informs the CLI of the name of a plugin, plugin version (optional), the 
-commands it implements, and help text for each command that users can display 
+The `GetMetadata()` function informs the CLI of the name of a plugin, plugin version (optional), minimum Cli version required (optional), the commands it implements, and help text for each command that users can display 
 with `cf help`.
 
   To initialize a plugin, call `plugin.Start(new(MyPluginStruct))` from within the `main()` method of your plugin. The `plugin.Start(...)` function requires a new reference to the struct that implements the defined interface. 
@@ -60,7 +66,10 @@ with `cf help`.
 This repo contains a basic plugin example [here](https://github.com/cloudfoundry/cli/blob/master/plugin_examples/basic_plugin.go).<br>
 To see more examples, go [here](https://github.com/cloudfoundry/cli/blob/master/plugin_examples/).
 
-If you wish to employ TDD in your plugin development, [here](https://github.com/cloudfoundry/cli/tree/master/plugin_examples/call_cli_cmd/main) is an example of a plugin that calls core cli command with the use of `FakeCliConnection` for testing.
+### Test Driven Development (TDD)
+2 libraries are available for TDD
+- `FakeCliConnection`: stub/mock the `plugin.CliConnection` object with this fake [See example](https://github.com/cloudfoundry/cli/tree/master/plugin_examples/call_cli_cmd/main)
+- `Test RPC server`: a RPC server to be used as a backend for the plugin. Allows plugin to be tested as a stand along binary without replying on CLI as a backend. [See example](https://github.com/cloudfoundry/cli/tree/master/plugin_examples/test_rpc_server_example)
 
 ### Using Command Line Arguments
 
@@ -88,6 +97,25 @@ Because a plugin has access to stdin during a call to the `Run(...)` method, you
 ### Creating Plugins with multiple commands
 
 A single plugin binary can have more than one command, and each command can have it's own help text defined. For an example of multi-comamnd plugins, see the [multiple commands example](https://github.com/cloudfoundry/cli/blob/master/plugin_examples/multiple_commands.go)
+
+### Notification upon uninstalling
+
+When a user calls the `cf uninstall-plugin` command, CLI notifies the plugin via a call with 'CLI-MESSAGE-UNINSTALL' as the first item in `[]args` from within the plugin's `Run(...)` method.
+
+### Enforcing a minimum CLI version required for the plugin.
+
+```go
+func (c *cmd) GetMetadata() plugin.PluginMetadata {
+	return plugin.PluginMetadata{
+		Name: "Test1",
+		MinCliVersion: plugin.VersionType{
+			Major: 6,
+			Minor: 12,
+			Build: 0,
+		},
+	}
+}
+```
 
 ## Compiling Plugin Source Code
 

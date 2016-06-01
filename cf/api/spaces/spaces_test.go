@@ -37,6 +37,7 @@ var _ = Describe("Space Repository", func() {
 							},
 							"entity": {
 								"name": "acceptance",
+								"allow_ssh": true,
 		            "security_groups": [
 		               {
 		                  "metadata": {
@@ -83,6 +84,7 @@ var _ = Describe("Space Repository", func() {
 
 		Expect(len(spaces)).To(Equal(2))
 		Expect(spaces[0].Guid).To(Equal("acceptance-space-guid"))
+		Expect(spaces[0].AllowSSH).To(BeTrue())
 		Expect(spaces[0].SecurityGroups[0].Name).To(Equal("imma-security-group"))
 		Expect(spaces[1].Guid).To(Equal("staging-space-guid"))
 		Expect(apiErr).NotTo(HaveOccurred())
@@ -174,6 +176,22 @@ var _ = Describe("Space Repository", func() {
 		Expect(apiErr).NotTo(HaveOccurred())
 		Expect(space.Guid).To(Equal("space-guid"))
 		Expect(space.SpaceQuotaGuid).To(Equal("space-quota-guid"))
+	})
+
+	It("sets allow_ssh field", func() {
+		request := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+			Method:   "PUT",
+			Path:     "/v2/spaces/my-space-guid",
+			Matcher:  testnet.RequestBodyMatcher(`{"allow_ssh":true}`),
+			Response: testnet.TestResponse{Status: http.StatusCreated},
+		})
+
+		ts, handler, repo := createSpacesRepo(request)
+		defer ts.Close()
+
+		apiErr := repo.SetAllowSSH("my-space-guid", true)
+		Expect(handler).To(HaveAllRequestsCalled())
+		Expect(apiErr).NotTo(HaveOccurred())
 	})
 
 	It("renames spaces", func() {

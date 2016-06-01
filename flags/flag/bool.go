@@ -3,9 +3,10 @@ package cliFlags
 import "strconv"
 
 type BoolFlag struct {
-	Name  string
-	Value bool
-	Usage string
+	Name      string
+	Value     bool
+	Usage     string
+	ShortName string
 }
 
 func (f *BoolFlag) Set(v string) {
@@ -14,11 +15,15 @@ func (f *BoolFlag) Set(v string) {
 }
 
 func (f *BoolFlag) String() string {
-	return f.Name
+	return f.Usage
 }
 
 func (f *BoolFlag) GetName() string {
 	return f.Name
+}
+
+func (f *BoolFlag) GetShortName() string {
+	return f.ShortName
 }
 
 func (f *BoolFlag) GetValue() interface{} {

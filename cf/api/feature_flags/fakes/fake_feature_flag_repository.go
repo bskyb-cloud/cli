@@ -2,9 +2,10 @@
 package fakes
 
 import (
-	. "github.com/cloudfoundry/cli/cf/api/feature_flags"
-	"github.com/cloudfoundry/cli/cf/models"
 	"sync"
+
+	"github.com/cloudfoundry/cli/cf/api/feature_flags"
+	"github.com/cloudfoundry/cli/cf/models"
 )
 
 type FakeFeatureFlagRepository struct {
@@ -37,8 +38,8 @@ type FakeFeatureFlagRepository struct {
 
 func (fake *FakeFeatureFlagRepository) List() ([]models.FeatureFlag, error) {
 	fake.listMutex.Lock()
-	defer fake.listMutex.Unlock()
 	fake.listArgsForCall = append(fake.listArgsForCall, struct{}{})
+	fake.listMutex.Unlock()
 	if fake.ListStub != nil {
 		return fake.ListStub()
 	} else {
@@ -53,6 +54,7 @@ func (fake *FakeFeatureFlagRepository) ListCallCount() int {
 }
 
 func (fake *FakeFeatureFlagRepository) ListReturns(result1 []models.FeatureFlag, result2 error) {
+	fake.ListStub = nil
 	fake.listReturns = struct {
 		result1 []models.FeatureFlag
 		result2 error
@@ -61,10 +63,10 @@ func (fake *FakeFeatureFlagRepository) ListReturns(result1 []models.FeatureFlag,
 
 func (fake *FakeFeatureFlagRepository) FindByName(arg1 string) (models.FeatureFlag, error) {
 	fake.findByNameMutex.Lock()
-	defer fake.findByNameMutex.Unlock()
 	fake.findByNameArgsForCall = append(fake.findByNameArgsForCall, struct {
 		arg1 string
 	}{arg1})
+	fake.findByNameMutex.Unlock()
 	if fake.FindByNameStub != nil {
 		return fake.FindByNameStub(arg1)
 	} else {
@@ -85,6 +87,7 @@ func (fake *FakeFeatureFlagRepository) FindByNameArgsForCall(i int) string {
 }
 
 func (fake *FakeFeatureFlagRepository) FindByNameReturns(result1 models.FeatureFlag, result2 error) {
+	fake.FindByNameStub = nil
 	fake.findByNameReturns = struct {
 		result1 models.FeatureFlag
 		result2 error
@@ -93,11 +96,11 @@ func (fake *FakeFeatureFlagRepository) FindByNameReturns(result1 models.FeatureF
 
 func (fake *FakeFeatureFlagRepository) Update(arg1 string, arg2 bool) error {
 	fake.updateMutex.Lock()
-	defer fake.updateMutex.Unlock()
 	fake.updateArgsForCall = append(fake.updateArgsForCall, struct {
 		arg1 string
 		arg2 bool
 	}{arg1, arg2})
+	fake.updateMutex.Unlock()
 	if fake.UpdateStub != nil {
 		return fake.UpdateStub(arg1, arg2)
 	} else {
@@ -118,9 +121,10 @@ func (fake *FakeFeatureFlagRepository) UpdateArgsForCall(i int) (string, bool) {
 }
 
 func (fake *FakeFeatureFlagRepository) UpdateReturns(result1 error) {
+	fake.UpdateStub = nil
 	fake.updateReturns = struct {
 		result1 error
 	}{result1}
 }
 
-var _ FeatureFlagRepository = new(FakeFeatureFlagRepository)
+var _ feature_flags.FeatureFlagRepository = new(FakeFeatureFlagRepository)

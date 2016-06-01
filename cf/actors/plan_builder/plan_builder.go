@@ -11,6 +11,7 @@ type PlanBuilder interface {
 	AttachOrgToPlans([]models.ServicePlanFields, string) ([]models.ServicePlanFields, error)
 	GetPlansForServiceForOrg(string, string) ([]models.ServicePlanFields, error)
 	GetPlansForServiceWithOrgs(string) ([]models.ServicePlanFields, error)
+	GetPlansForManyServicesWithOrgs([]string) ([]models.ServicePlanFields, error)
 	GetPlansForService(string) ([]models.ServicePlanFields, error)
 	GetPlansVisibleToOrg(string) ([]models.ServicePlanFields, error)
 }
@@ -39,7 +40,7 @@ func (builder Builder) AttachOrgToPlans(plans []models.ServicePlanFields, orgNam
 	if err != nil {
 		return nil, err
 	}
-	for planIndex, _ := range plans {
+	for planIndex := range plans {
 		plan := &plans[planIndex]
 		plan.OrgNames = visMap[plan.Guid]
 	}
@@ -52,7 +53,7 @@ func (builder Builder) AttachOrgsToPlans(plans []models.ServicePlanFields) ([]mo
 	if err != nil {
 		return nil, err
 	}
-	for planIndex, _ := range plans {
+	for planIndex := range plans {
 		plan := &plans[planIndex]
 		plan.OrgNames = visMap[plan.Guid]
 	}
@@ -82,7 +83,20 @@ func (builder Builder) GetPlansForService(serviceGuid string) ([]models.ServiceP
 }
 
 func (builder Builder) GetPlansForServiceWithOrgs(serviceGuid string) ([]models.ServicePlanFields, error) {
-	plans, err := builder.servicePlanRepo.Search(map[string]string{"service_guid": serviceGuid})
+	plans, err := builder.GetPlansForService(serviceGuid)
+	if err != nil {
+		return nil, err
+	}
+
+	plans, err = builder.AttachOrgsToPlans(plans)
+	if err != nil {
+		return nil, err
+	}
+	return plans, nil
+}
+
+func (builder Builder) GetPlansForManyServicesWithOrgs(serviceGuids []string) ([]models.ServicePlanFields, error) {
+	plans, err := builder.servicePlanRepo.ListPlansFromManyServices(serviceGuids)
 	if err != nil {
 		return nil, err
 	}
@@ -158,27 +172,47 @@ func (builder Builder) buildPlanToOrgsVisibilityMap() (map[string][]string, erro
 	if PlanToOrgsVisibilityMap == nil {
 		orgLookup := make(map[string]string)
 
-		orgs, err := builder.orgRepo.ListOrgs()
-		if err != nil {
-			return nil, err
-		}
-		for _, org := range orgs {
-			orgLookup[org.Guid] = org.Name
-		}
-
 		visibilities, err := builder.servicePlanVisibilityRepo.List()
 		if err != nil {
 			return nil, err
+		}
+
+		orgGuids := builder.getUniqueOrgGuidsFromVisibilities(visibilities)
+
+		orgs, err := builder.orgRepo.GetManyOrgsByGuid(orgGuids)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, org := range orgs {
+			orgLookup[org.Guid] = org.Name
 		}
 
 		visMap := make(map[string][]string)
 		for _, vis := range visibilities {
 			visMap[vis.ServicePlanGuid] = append(visMap[vis.ServicePlanGuid], orgLookup[vis.OrganizationGuid])
 		}
+
 		PlanToOrgsVisibilityMap = &visMap
 	}
 
 	return *PlanToOrgsVisibilityMap, nil
+}
+
+func (builder Builder) getUniqueOrgGuidsFromVisibilities(visibilities []models.ServicePlanVisibilityFields) (orgGuids []string) {
+	for _, visibility := range visibilities {
+		found := false
+		for _, orgGuid := range orgGuids {
+			if orgGuid == visibility.OrganizationGuid {
+				found = true
+				break
+			}
+		}
+		if !found {
+			orgGuids = append(orgGuids, visibility.OrganizationGuid)
+		}
+	}
+	return
 }
 
 func (builder Builder) buildOrgToPlansVisibilityMap(planToOrgsMap map[string][]string) map[string][]string {

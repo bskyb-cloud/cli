@@ -1,3 +1,804 @@
+## 6.15.0
+* Bump version to 6.15.0
+* Fix regression in table printer
+* Display text where rune len > string len properly
+* Remove full stop from files description
+* Upload release binaries to v${release_tag}
+* Upload release binaries as cf-cli-installer*
+* Display non-latin table headers properly
+* Remove named return args from CheckIfExists
+* CheckIfExists includes path in api call
+* files fails for Diego-deployed apps
+* Rewrite application/files_test
+* Dereference symlinks to app directories
+* Keep Alive for non-interactive sessions
+* i18n4go -c fixup && bin/generate-language-sources
+* Update hostname and path usage
+* check-route supports --path option
+* Rewrite check_route_test
+* push supports --route-path option
+* Update push-test to show product of domains/hosts
+* Move creation of semver lower in delete-route
+* delete-route supports --path option
+* Rewrite map_route_test
+* Remove unnecessary InputsChan from app_test
+* Update de_DE translations
+* Display two hyphens for all options
+* godep save ./...
+* Move simonleung8/flags back into cloudfoundry/cli
+* Move prepending of '/' to path into Route Repo
+* unmap-route supports --path option
+* Update unmap-route
+* Rewrite unmap-route test
+* updated vcap-dev to cf dev ML
+* Re-order create-route requirements
+* minRequiredAPIVersion -> requiredVersion
+* map-route supports --path option
+* Remove map-route Requirements' named return args
+* Update MinApiVersionRequirement
+* Rewrite map_route_test
+* Generate FakeDomainRepository with counterfeiter
+* Update create-route hostname help text
+* Use ja_JP instead of ja_JA
+* Update i18n README to reflect new translations
+* Remove extra spaces from some fr_FR entries
+* Update create-route examples
+* Convert dos format files to unix
+* Update translations
+* Add --hostname option name for other commands
+* Add --hostname option name for create-route
+* Set PATH in bin/i18n-checkup
+* Fix go vet errors
+* Invert conditional in UpdateEndpoint
+* Remove named return arguments from UpdateEndpoint
+* Don't get i18n4go with -u
+* Load core commands later in main
+* create-route requires CC 2.36.0+ for --path option
+* Remove named return arguments from CreateRoute
+* Don't add '/' to path when it's blank
+* Update README to reflect move to cloudfoundry/tap
+* Update bin/generate-release-notes
+* create-route doesn't require prepended / for path
+* Update create-route help
+* Add context path when listing routes
+* Fix help message as per feedback
+* Don't use magic empty string in RouteRepository
+* Don't construct domain/path with Sprintf
+* Move RouteSummary into its own file
+* create-route command now takes optional context path
+* Update bin/generate-release-notes
+
+## 6.14.1
+* Bump version to 6.14.1
+* Revert "Merge pull request #718 from cf-routing/list_route_services"
+* Revert "Remove extra space in command 'routes' prompt"
+* Remove extra space in command 'routes' prompt
+* Merge pull request #718 from cf-routing/list_route_services
+* Reword help text in `cf push -b` to mention CFF buildpack
+* Display route services in cf routes command
+* Publish edge installers
+* Fix delete-quota force flag text
+* Remove developing on windows with powershell note
+* Commit i18n_resources.go
+* Add missing windows dependencies
+* Move GO15VENDOREXPERIMENT lower
+* godep save ./...
+* Add -p -nodes=4 -randomizeAllSpecs to bin/test
+* WalkAppFiles returns error properly
+* Remove go vet from bin/get-tools
+* Add go fmt changes to fakes
+* Update README to reflect switch to Go 1.5
+* Add optimization to WalkAppFiles
+* pluginAppModel includes more fields
+* Export PluginModels
+* Remove WalkAppFiles SkipDir optimization
+* Skip WalkAppFiles test that expects an error
+* Add OS-generic assertions to WalkAppFiles test
+* WalkAppFiles skips problematic .cfignored paths
+* Don't dot import app_files in test
+* Remove named return args from WalkAppFiles
+* Update Travis to 1.5.2
+* Fix bug in GatherFiles
+* Defer close of files in CopyFiles properly
+* Add better error when pushing an empty app
+* Hoist ProcessPath usage
+* Don't use app_files as a local var
+* Add error handling to CopyPathToPath use
+* Remove copyPathToPath
+* Remove presentFiles from GatherFiles
+* Remove some private methods from Push actor
+* Backfill Push actor tests
+* Remove gofileutils from actors/push_test
+* Merge pull request #706 from cloudfoundry/shalako-patch-1
+* Zipped files on Windows are always 07xx
+* Restructure zipper Zip test
+* Resource-matched windows files are always 07xx
+* GatherFiles does not unzip
+* Add ProcessPath to push actor
+* Remove empty AfterEach
+* Update README.md
+* PurgeServiceInstance requires CC API 2.36.0+
+* Rewrite purge_service_instance_test
+* FakeUI accepts a channel for inputs
+* Generate FakeServiceRepository with counterfeiter
+* Update MinAPIVersionRequirement
+* purge-service-instance: confirmed -> force
+* purge-service-instance: Use idiomatic error check
+* purge-service-instance: Remove named return args
+* fake_registry_command -> fake_command
+* Remove diego-ssh/helpers from ssh command
+* Remove unused TestHostKeyFingerprint
+* Remove SynchronizedBeforeSuite from ssh suite
+* bin/test only gets godep if not present
+* bin/test doesn't run in a subshell
+* Update go vet list in bin/test
+* Stop using two copies of fileutils
+* godep update gofileutils/fileutils
+* Remove usages of CopyReaderToPath
+* log_message_queue_old -> loggregator_message_queue
+* logs_old_consumer -> log_repository
+* Update NewLogMessage helper
+* OldLogs -> Logs
+* Remove checkForOrgExistence
+* Remove unused Noaa code
+* Remove unused RunCommandMoreBetter helper
+* Move Requirement interface to requirement.go
+* Merge pull request #695 from jasonkeene/docs-fix
+* Update plugin README
+* Move FakeSSHCodeGetter into appropriate location
+* Move FakeCommand into appropriate location
+* Remove magic from i18n.go
+* Sort known locales when printed
+* Remove SUPPORTED_LOCALES
+* cf/i18n/init.go -> cf/i18n/i18n.go
+* Force zh-tw and zh-hk locales to zh-hant
+* Improve performance of i18n.Init
+* Simplify i18n.Init
+* Move `bind-service` fake into appropriate location
+* teach command_loader test to ignore fakes
+* remove unused fake `FakeApiEndpointSetter`
+* Add notes about untested lines in i18n/init
+* Fix defers in i18n/init
+* Update cf/i18n/init_unix_test
+* godep update github.com/nicksnyder/go-i18n/i18n
+* Fix build instructions.
+* Remove unused logRepo from application/start
+* Set BUILD TIME in help as cf.BuiltOnDate always
+* Remove Installed-Size from debian install template
+* i18n4go -c fixup
+* Add proper Installed-Size to debian installers
+* Update osx Distribution file
+* Show better message for auth ServerErrors
+* Remove -p from bin/test ginkgo
+* Fix reliance on test pollution in registry_test
+* Fix reliance on test pollution in service_keys_test
+* godep update github.com/cloudfoundry/jibber_jabber
+* Rename SUPPORTED_LOCALES ko_KO -> ko_KR
+* Add nodes=4, randomizeAllSpecs to bin/test
+* Add -p to bin/build ginkgo
+* Rewrite file_download_test
+* Add ko_KO i18n support
+* Update Contributing section in README
+* Remove unused ALL_CAPS const
+* findPlan returns error as the last arg
+* NoRedirectsErr -> ErrNoRedirects
+* Don't assign vars to their defaults
+* Don't assign and not use errors
+* Run goimports on files that were not goimported
+* Don't use underscore as receiver name
+* Omit unnecessary 2nd value from range
+* Update CHANGELOG.md
+* Update README.md
+* Update CHANGELOG.md
+* v6.14.0 CHANGELOG for plugin API
+* Add _osx to osx installer name created by CI
+* Add support for prefixed bytes to zipper
+
+## 6.14.0
+* Bump version to 6.14.0
+* Merge pull request #677 from aminjam/master
+* Don't use errors.New(fmt.Sprintf())
+* Remove fileutils.Tempdir/file from push command
+* Don't repeatedly do the same type assertion
+* Output unit 'B' during push when size is in byte size
+* Fix test of ApplicationZipper Unzip()
+* Add PackageUpdatedAt for cli plugins
+* Fix panic printer test
+* Update ApplicationZipper Unzip()
+* Include empty directories when unzipping archives
+* Remove fileutils usage from GatherFiles
+* Update crash dialog text and README
+* Backfill panic_printer tests
+* ignores 10003 error from attempt to add user to org in command 'set-space-role'
+* Calculate spacing for both core and plugin commands in 'cf' help
+* Do not show plugin command alias in 'cf' help
+* use RuneCountInString() instead of len()
+* Refactor cli_connection
+* Make date reported in --version semver compliant
+* Revert "Remove replace-sha"
+* Revert "Remove outdated homebrew installer"
+* Revert "Fix fallout from 'Remove replace-sha'"
+* Revert "Update date format for windows build"
+* Update date format for windows build
+* Remove outdated homebrew installer
+* Remove replace-sha
+* Remove strconv.FormatInt(int64(version.Major)
+* Replace non-test of config threadsafety with real test
+* Use blang/semver
+* Update config_data_test
+* Update config_repository_test
+* assign org role automatically during org creation
+* refactor set_org_role command into interface
+* Update README.md
+* Update README.md
+* Revert "Remove unnecessary interface arg"
+* Remove terminalUI.Wait()
+* Add warning to application start
+* Revert 29e491d0f399fe459819d4886ce759def5542963
+* Update create-service help text
+* Use bytes.NewReader instead of strings.NewReader
+* UnsetSpaceRole can unset via username
+* Add UnsetSpaceRoleByUsername
+* Remove checkSpaceRoleByGuid
+* Remove orgRolesPath from users api
+* Move api-switching logic into Requirements phase
+* Generate fake req. factory with counterfeiter
+* Add fallback to user requirement
+* Add missing tests for user requirement
+* Gateway's newRequest method doesn't return an error
+* Remove createUpdateOrDeleteResource
+* Remove unnecessary interface arg
+* Remove magic number
+* UnsetSpaceRole -> UnsetSpaceRoleByGuid
+* SetOrgRole -> SetOrgRoleByGuid
+* SetOrgRole uses the required user's username
+* router-groups command requires RoutingAPIEndpoint
+* Generate FakeUserRepository with counterfeiter
+* Rewrite api/users_test
+* UserRepository UnsetOrgRole -> UnsetOrgRoleByGuid
+* UserRepository SetSpaceRole -> SetSpaceRoleByGuid
+* Remove errors.NewWithError
+* Remove errors.NewWithSlice
+* Remove errors.NewWithFmt
+* Clean up main.go a bit
+* rename var '_' to arg
+* provide named argument in test rpc server interface
+* use new endpoint when CC support setting space role by name
+* Refactor users.go
+* Add some error handling to SetOrgRoleByUsername
+* Set org role by username
+* updated mailing list url from vcap google group to cf-dev
+* Document -u flag when go getting go-bindata
+* Update upload-binaries-gocd script
+* Merge pull request #635 from SrinivasChilveri/Issue_New
+* Update upload-binaries-gocd script
+* Update upload-binaries-gocd script
+* Include cli name and version in binary releases
+* Merge pull request #645 from cf-routing/wip-100975070-combined-PR610-PR632
+* Merge pull request #611 from utako/purge_service_instance_102318490
+* Add purge-service-instance command
+* Fix the typo in 'list router-groups' description
+* Fix router-group command error handling
+* Add cf router-groups command
+* Merge pull request #642 from cloudfoundry/multiple-rows-download
+* add file extensions, remove 32 bit entries and add reference for 32 bit releases to releases page
+* Refresh access token to avoid stale token
+* Use -v with i18n4go -c checkup
+* Merge pull request #638 from SrinivasChilveri/Isshe_sshcmd
+* Fix cf ssh with more than required args
+* Fix issues in stacks and stack commands
+* Fix the serviceaccess help
+
+## 6.13.0
+* Revert "Merge pull request #610 from atulkc/router_group_cli"
+* Populate file mode correctly for zip file [#105471590]
+* Do not shadow named return value
+* Upload file mode under Windows 
+* Remove comments related to Noaa [#105524354]
+* Update file mode test for multi platform [#105490454]
+* Merge pull request #624 from cloudfoundry/integrity-fields-only 
+* Merge pull request #622 from cloudfoundry/refactor_user_printing 
+* Exclude resource_matches we didn't request [#104364496]
+* resource_match requests use only sha1 and size [#104364496]
+* Some formatting our build tools wanted
+* Tidy and organise userprint package
+* Rename package user_printer => userprint 
+* not to upload file mode during push under Windows
+* skip testing ssh feature in windows
+* not to build unix only modules on Windows
+* fix filemode test for different platforms
+* deps
+* Merge pull request #614 from cloudfoundry/zero-users-message-improvement 
+* More privatisation. [#63224944]
+* Shuffle and correct stuff [#63224944]
+* Only pass guid and username to PrintUsers [#63224944]
+* Make plugin PrintUsers almost identical [#63224944]
+* Strengthen space-users network failure test [#63224944]
+* Test error handling for standard space-users call
+* Tidy whitespace [#63224944]
+* Deterministic ordering from space-users [#63224944]
+* Deduplicate call from either side of a branch [#63224944]
+* Split space printing into separate types [#63224944]
+* Move versioning decision outside of loop [#63224944]
+* Iterate over map instead of slice, then map lookup [#63224944]
+* Update to use renamed i18n4go binary name [#105200174]
+* Merge pull request #610 from atulkc/router_group_cli 
+* remove debugging message in create-app-manifest
+* better message in 'org-users' when no users found in role [#63224896]
+* Rename get-ssh-code to ssh-code [#104476010]
+* Merge pull request #609 from cloudfoundry/update-go [#104131294]
+* Move to go 1.5.1 [#104131294] 
+* Add cf router-groups command [#100975070]
+* Remove trailing semicolon in GOPATH [#104131294]
+* include file mode during upload file app bits
+* command ssh uses one time auth code
+* command get-ssh-code
+* includes SSHOAuthClient in .cf/config.json
+* add command ssh to cf help
+* includes file mode during push
+* update -t flag usage in ssh command
+* SSH command
+* add Wildcard in dependency for injecting fakes
+* Fix space SSH grouping and capitalisation strings [#102295832]
+* Add space-ssh-allowed query [#102295832]
+* remove debugging code and unused test 
+* remove unused import
+* Update dependencies away from code.google.com [#103336616]
+* command disallow-space-ssh [#102295832]
+* command allow-space-ssh [#102295832]
+* allow_ssh field in space model [#102295832]
+* ssh-enabled command [#102394414]
+* disable-ssh command [#102394414]
+* enable-ssh command [#102394414]
+* enable_ssh field in models [#102394414]
+* push --docker-image help text [#102218860]
+* --docker-image for cf push [#102218860]
+* adding --health-check-type as full name flag to -u [#101729532]
+* godep flags package [#101729532]
+* use external flags parsing package with improved features [#101729532]
+* add -u to push for health-check-type [#101729532]
+* help test for get-health-check and set-health-check [#100320472]
+* new get-health-check command [#100320472]
+* add HealthCheckType to applicaiton model [#100597578]
+* Run i18n4go fixup, which reordered things. [#97265950]
+* Merge pull request #607 from cloudfoundry/interactive_plugin_install
+* Installer factory constructs the plugin downloader [#97265950]
+* Separate files for installers/downloader [#97265950]
+* Reshuffles and renames [#97265950]
+* Add PluginDownloader abstraction [#97265950]
+* Use different var for result of installer.Install [#97265950]
+* Go back to context object passing Collapse a dependency into the installer [#97265950]
+* More dependency balancing [#97265950]
+* Move some deps to specific types [#97265950]
+* Pass context bag to plugin installers [#97265950]
+* Move payload to structs [#97265950]
+* Remove one newline after domain TIPs [#104341944]
+* Add more detail to delete-shared-domain error [#104341944]
+* Add more detail to delete-domain error [#104341944]
+* Add note about generating language resources Fix #529 [#100446378]
+* Prepare oauth-token command for plugin execution [#104431292]
+* Merge pull request #588 from pishro-cc/master 
+* Merge pull request #596 from SrinivasChilveri/Issue_68736518 [#103895494]
+* better error reporting with feeded curl data is not enclosed.
+* Fix to the delete-domain to fail early if domain is shared delete-domain [#68736518]
+* Merge pull request #590 from Zouuup/bug/555 Handles [#103621532] [#101509044]
+* Merge pull request #581 from mcowger/master [#103453474] [#103453190]
+* Can scale an app to 0 instances [#97749342]
+* Update CHANGELOG.md
+* typo fixed json test for password containing double quote is now standard
+* new test added to test for passwords containing double quotes
+* Sanitize now works on passwords containing double quotes
+* Change how space tip is presented to user - add quotes. 
+
+##6.12.4
+* Merge pull request #589 from cloudfoundry/usage-on-unadorned-push Provide usage on unadorned push
+* Provide usage on unadorned push [#103419480]
+* Update dependencies away from code.google.com [#103336616]
+* diego app not to use noaa for metrics [#103051454]
+* Merge pull request #562 from cloudfoundry/BuildpackErrorImprovement Improve error message when app fail to start with "NoAppDetectedError"
+* Fix hanging in herd-cats -linux ci script
+* Rename the concourse bosh manifest to something revealing aws-vpc.yml has very little meaning or discoverability.
+* populate organization name in security-group and security-groups [#102282206]
+* create-app-manifest includes command attribute [#102135048]
+* Merge pull request #572 from zachgersh/fix-extra-parsing Account for null being passed in extra
+* Account for null being passed in extra - fixes #570
+* handles cf --version [#102641456]
+* Update README.md
+* Improve error message when app fail to start with "NoAppDetectedError"
+* fix panic in cf marketplace with v1 services
+* fix panic in create-app-manifest [#101367528]
+* remove inappropriate error message
+
+##6.12.3
+* Insert debug messages into CI script
+* Merge pull request #544 from cloudfoundry/code-tidy Code tidy
+* Merge pull request #523 from zachgersh/master Unmarshal the extra field, get documentation url
+* Point to CATS in their new submodule for concourse [#100838442]
+* Put job type ahead of architecture in concourse [#100838442]
+* Clearer names for cf deployments [#100838442]
+* Consistant name for the cli repo Makes it more obvious when you see a path: cli/...[#100838442]
+* Unmarshal the extra field, get documentation url 
+* add Diego to application model
+* Code cleanup: remove unused variables
+* Code cleanup: remove orphan functions
+* Code cleanup: shadowing reserved word
+* update GATS new repo path [#98861144]
+* update jibber_jabber repo path [#98861144]
+* use go 1.4 to detect symlink file in windows [#75245040]
+* do not call GetContainerMetrics() when a diego app is stopped [#98672332]
+* Merge pull request #540 from cloudfoundry/use_go_yaml Support yaml '<<' merge type
+* remove CodeGangsta dependencies
+* complete removal of codegangsta related tests/packages [finishes #97061610 #97061532]
+* remove codegangsta from terminal/ui package [#97061610]
+* remove orphaned SetApplicationName() in requirements factory
+  - func was there to partially support concourrent command calls from plugin. Currently we don't support concurrent calls.
+* improve main package's readability [#97061610]
+* Clear out codegangsta reference and unused tests in main package [#97061610]
+* remove codegangsta from plugin/rpc package - remove deprecated SetTheApp() [#97061610]
+* Merge pull request #534 from cloudfoundry/feature/commands-restart-and-create Move commands to new command pattern.
+* Move commands to new command pattern. create-user, restart-app-instance [#97061558]
+* correct usage text in command space [finishes ##100470938]
+* update command_registry test to pass windows
+* show executable name instead of CF_NAME in usage help [finishes #100453848]
+* handles -v for cf version
+* handles usage help without codegangsta
+* help command for cmd usage
+* handle help menu printing without codegangsta - move cf/app/help into cf/help
+  - handles `cf help` / `cf --help` / `cf -h`
+* new func Metadatas() in command_registry for returning all metas
+* include additional command package in commands_loader
+* commands_loader package
+* convert commands to non-codegangsta [#97061558]
+  - service-key - delete-service-key - update-user-provided-service - unbind-service
+* convert commands to non-codegangsta [#97061558] - install-plugin - update-service
+* RemoveCommand() in command_registry
+* convert commands to non-codegangsta [#97061558]
+  - push - disable-service-access - enable-service-access
+* convert commands to non-codegangsta [#97061558]
+  - copy-source - service-access
+* convert commands to non-codegangsta [#97061558]
+  - restage - restart - scale - create-space - set-space-role
+* convert commands to non-codegangsta [#97061558]
+  - bind-service - service-keys - set-space-role
+* convert commands to non-codegangsta [#97061558]
+  - create-user-provided-service - create-service-key
+* BrokerBuilder and PlanBuilder in command_registry.Dependency
+* convert commands to non-codegangsta [#97061558]
+  - stop - restart
+* convert start commands to non-codegangsta [#97061558]
+* convert commands to non-codegangsta [#97061558]
+  - map-route - create-route
+* convert commands to non-codegangsta [#97061558]
+  - plugins - uninstall-plugin
+* update install-plugin to check conflicts with non-codegangsta commands
+* command_registry.CommandExists() returns false for empty string command name
+* convert commands to non-codegangsta [#97061558]
+  - config - curl - oauth-token - add-plugin-repo - list-plugin-repo - remove-plugin-repo - repo-plugins - update-space-quota
+* add plugin_repo.PluginRepo to command_registry dependency
+* remove hardcoded version number
+* add StringSlice flag feature
+* convert commands to non-codegangsta [#97061558]
+  - feature-flags - feature-flag - enable-feature-flag - disable-feature-flag
+* convert commands to non-codegangsta [#97061558]
+  - set-running-environment-variable-group - set-staging-environment-variable-group
+* add MaxCommandNameLength() to command_registry
+* convert commands to non-codegangsta [#97061558]
+  - staging-environment-variable-group
+* convert commands to non-codegangsta [#97061558]
+  - running-environment-variable-group - bind-running-security=group - running-security-groups - unbind-running-secuirty-group
+* convert commands to non-codegangsta [#97061558]
+  - bind-security-group - unbind-security-group - staging-seucirty-groups - unbind-staging-security-group - bind-staging-security-group
+* update french translation
+* convert commands to non-codegangsta [#97061558]
+  - create-security-group - delete-security-group - update-security-group
+* convert commands to non-codegangsta [#97061558]
+  - security-group - security-groups - purge-service-offering
+* convert commands to non-codegangsta [#97061558]
+  - delete-service-auth-token - update-service-auth-token - create-service-broker - delete-service-broker - rename-service-broker - service-brokers - update-service-broker - migrate-service-instances
+* convert commands to non-codegangsta [#97061558]
+  - create-service-auth-token - service-auth-tokens - delete-space-quota - set-space-quota - unset-space-quota
+* convert space-quotas, space-quota, create-space-quota, update-space-quota to non-codegangsta [#97061558]
+* convert rename-service to non-codegangsta [#97061558]
+* convert unshare-private-domain to non-codegangsta [#97061558]
+* convert share-private-domain to non-codegangsta [#97061558]
+* Merge pull request #505 from zhang-hua/bug-93578300 Reduce API calls when CRU operations of service keys
+* Merge branch 'story-87481016' of https://github.com/zhang-hua/cli into zhang-hua-story-87481016
+* convert share-private-domain to non-codegangsta [#97061558]
+* handles 'cf help <command>' for non-codegangsta command
+* convert delete-user, set-org-role, unset-org-role to non-codegangsta [#97061558]
+* convert delete-service to non-codegangsta [#97061558]
+* convert delete-space, rename-space to non-codegangsta [#97061558]
+* convert create-quota, delete-quota, update-quota to non-codegangsta [#97061558]
+* convert set-quota to non-codegangsta [#97061558]
+* convert delete-buildpack, rename-buildpack, quota, quotas to non-codegangsta [#97061558] 
+* convert buildpacks, create-buildpack, update-buildpack to non-codegangsta
+* Merge pull request #514 from HuaweiTech/hwcf-issue-34 Fix create-app-manifest only includes one host [92530254]
+* both godep and travis should use golang v.1.4.2
+* make reference to domain test suite for commands to self registered 
+  - Godep golang 1.4
+* use go v1.4.2 in travis
+* convert all check-route, delete-route and delete-orphaned-routes to non-codegangsta [#97061558]
+* convert map-route and unmap-route to non-codegangsta
+* convert all commands in domain/, rename-org to non-codegangsta [#97061558] 
+* convert delete-org to non-codegangsta [#97061558]
+* convert create-org to non-codegangsta [#97061558]
+* Fix create-app-manifest only includes one host [92530254] 
+* SpaceManager and SpaceAuditor should receive 403 [#87481016]
+* Reduce API calls when CRU operations of service keys [#93578300]
+
+##6.12.2
+* convert create-service to non-codegangsta [#97061558]
+* remove used constructor in cmd logs 
+* convert marketplace to non-codegangsta [#97061558] 
+* add ServiceBuilder to dependency object 
+* convert create-app-manifest to non-codegangsta [#97061558] 
+* add AppManifest to dependency object 
+* convert stack to non-codegangsta [#97061558] 
+* convert stacks to non-codegangsta [#97061558] 
+* convert unset-env to non-codegangsta [#97061558] 
+* convert set-env to non-codegangsta [#97061558] 
+* implement skipFlagParsing in flags package [#97061558]
+* convert env to non-codegangsta [#97061558] 
+* add tip to curl command for api doc url [#98862944]
+* convert logs to non-codegangsta [#97061558] 
+* convert files to non-codegangsta [#97061558] 
+* convert events to non-codegangsta [#97061558] 
+* convert rename to non-codegangsta [#97061558] 
+* convert delete to non-codegangsta [#97061558]
+* cmd passwd converted to non-codegangsta structure [#97061558]
+* convert login,logout to non-codegangsta structure [#97061558]
+* convert target into non-codegangsta structure [#97061558]
+* improve RunCliCommand in testhelper for non-CG command [#97061558]
+* change command auth to non codegangsta structure 
+* rpc server version check uses new version package [#98664206]
+* move version checking methods into utils package [#98664206]
+* move NotifyUpdateIfNeeded() into UI package [#98664206]
+* Fixed GetMinCliVersion and GetMinApiVersion to work with arbitrary version numbers. [#98664206]
+* Populate rpc test server with all plugin API interface 
+* Update README.md
+* fix bug in plugin API HasAPIEndpoint() 
+
+##6.12.1
+* improve method to compare domains of local and redirecting target [98132086]
+* Updated config repo fake
+* only copy Authorization header when redirecting to same base domain [98132086]
+* Revert "Merge pull request #490 from zhang-hua/story-93578300" 
+  This reverts commit f449846870ab5fdb360a7345ff83ed73eedfbbfe,
+  reversing changes made to 81bf4c37fd40171dd64b48ac57287eb619038fdf.
+* security-groups to not use inline-relation-depth to populate spaces model [96033766]
+* add spaces_url field to SecurityGroup model [96033766]
+
+##6.12.0 
+* Merge pull request #487 from cloudfoundry/96912324-disable-service-access-performance
+  - Improve performance of disable-service-access
+* Update plugin_examples/README.md 
+* Create plugin_examples/DOC.md 
+* Merge pull request #490 from zhang-hua/story-93578300
+  - Reduce API calls when creating,listing and getting details of service…
+* Merge pull request #478 from cloudfoundry/update-empty-tags
+  - Allow update service instances with empty tags
+* Use expect in test instead of eventually 
+* fix race condition in start_test.go 
+* fix bug in uninstall-plugin
+* add .exe to ignore list in command_factory test
+* add needed files for concourse to run
+* trigger concourse with cli changes
+* enable concourse ci on master branch
+* plugin API GetService() [#90442132]
+* restructure plugin models file names
+* Create unique plugin model for GetServices 
+* Create unique plugin model for GetOrgUsers, GetSpaceUsers 
+* expand model properties for GetSpace, GetOrg 
+* Merge pull request #484 from zhang-hua/list_key_endpoint
+  - Change api endpoint for listing service keys
+* Create unique plugin model for GetSpace, GetOrg, GetCurrentSpace, GetCurrentOrg
+* Create unique plugin model for GetSpaces
+* Create unique plugin model for GetOrgs 
+* Create unique plugin model for GetApp 
+* Create unique plugin model for GetApps
+* move command service to non-codegangsta structure [#90442132]
+* Reduce API calls when creating,listing and getting details of service keys [#93578300]
+  - Leveraging existing API calls in ServiceInstanceRequirement to find service
+    instance info by name so that no need to send the same request twice.
+* added GetSpaces to api test plugin 
+* Merge branch 'improved-service-broker-no-permissions-message' 
+* Merge branch 'master' into improved-service-broker-no-permissions-message 
+* no translation needed for error text [#95180230]
+* Merge pull request #483 from cloudfoundry/service_access_performance
+  - improve cf service-access performance
+* Merge pull request #470 from cloudfoundry/go14_flake
+  - Fix flaky test for go 1.4 where map iteration order is randomized.
+* Declare return vars explicitly in func - And return them by name
+* Improve performance of disable-service-access - It was making an `async=true` delete request for each
+  service_plan_visibility. This meant each delete would take at least 5 seconds due to polling.
+- Deleting service plan visibilities does not interact with the broker and can be completed synchronously in ~.5s
+- Add new http test matcher for testing empty query strings. [#96912324]
+* Refactor to rename SpaceDetails to Space for Plugin API [#97159474]
+* Change GetCurrentSpace to use SpaceSummary (vs Space) model [#97159474] 
+* Rename OrganizationDetails to Organization in the API Plugin Model [#97159476]
+* Change GetCurrentOrg to use OrganizationSummary vs. Organization plugin model structure [#97159476] 
+* Add test for GetSpace Plugin API [#97159474] 
+* Add getSpace API [#97159474]
+* Add plugin API getSpace. [#97159474]
+* Change api endpoint for listing service keys [#87481016]
+  - CLI should use the endpoint `/v2/service_instances/:fake-guid/service_keys`
+    to list service keys instead of using `/v2/service_keys?q=service_instance_guid:fake-guid`
+* Backwards compatibility for getCurrentOrg and getCurrentSpace getCurrentOrg returns Organization
+getOrg returns OrganizationDetails [#97159474]
+getOrgs returns OrganizationSummary
+getCurrentSpace returns Space
+getSpace returns SpaceDetails
+getSpaces returns SpaceSummary
+* Change getSpace to be non-CG. Updated some getCurrentSpace which will be reverted [#97159474]
+* Make delete service instance as Warn vs. regular Say. make consistent with delete service key 
+* Merge pull request #480 from cloudfoundry/missing_service_key_delete
+  - Missing service key coloring message from dsk  now matches the coloring from ds
+* Reduce service_access API requests: orgs - To map org guids to org names, we make individual requests for each
+  org instead of requesting all orgs. [#96912380]
+  - This is optimized for the case where there are fewer orgs associated
+    with service_plan_visibilities than the total number of org pages.
+    This seemed to be the case on all environments we checked.
+  - /v2/organizations does not support filtering on a list of org or
+    service_plan_visiblility guids, so we have to make separate GETs
+- In plan_builder, there are package variables that are used to memoize
+  maps. This causes pollution plan_builder tests, so we nil them in test
+  setup
+* Reduce service_access API requests: service plans [#96912380]
+  - Get all service plans in one request instead of a request per service offering
+
+* Reduce service_access API requests: service offerings - Get all service offerings in one request instead of a request per
+  broker [#96912380]
+* godeps newest noaa package - implement new noaa.Close() method
+* Changed the getSpaces API to use SpaceSummary model [#97159474]
+* Added space quotas to plugin_model.Organization, fixed plugin API GetCurrentOrg() to work with new org model [ #97159476]
+* Add Spaces in plugin API GetOrg() [#97159476]
+* Added domains to plugin API GetOrg() [#97159476] 
+* Refactor to change Organization to OrganizationSummary for Get Orgs plugin API [#97159476] 
+* Add 'org' Plugin API, still needs spaces and domains.. prerefactor for get current org and orgs usage [#97159476]
+* Convert 'org' command to non-CG [#97159476] 
+* remove windows incompatible language test 
+* enable yes for confirmation when lang is not en_US 
+* :snowflake: Deflakey-ify the org and space user tests. 
+  - Tests were failing in go1.4 due to random org in map.. fixed test to be less brittle
+* update vet tool url for travis build 
+* Added Services Plugin API [#90441956] 
+* Convert services command to non-CG [#90441956]
+* Fix up Incorrect Usage i18n in new Plugin APIs [#90440496, #90062486]
+* Updated to add the translated string for the usage [#97030456] 
+* Implemented the getSpaceUsers plugin API [#90441958]
+* Convert spaces-users to non CG [#90441958] 
+* Add OrgUsers plugin API [#97030456] 
+* Add GetOrgUsers Plugin API [#97030456]
+* Add plugin API for Get Org Users [#97030456] 
+* Finish convert Org users to non-codegansta cli framework [#97030456]
+* Add new plugin test 
+* Remove codegansta from Get Org Users [#97030456]
+* Missing service key coloring message from dsk  now matches the coloring from ds. - ui type is now `Warn` instead of `Say`
+  - Keyword highlight is now switched off [#94220156]
+* New plugin api GetSpaces() [#90442002]
+* allow command spaces to populate plugin model [#90442002]
+* Allow update service instances with empty tags [#96329216]
+* convert command `spaces` to non-codegangsta structure [#90442002]
+* Fix logic to handle graceful timeout if we cannot talk to log server. 
+  - Also make log server connection timeout internally configurable. [#96626036]
+* Merge pull request #453 from cloudfoundry/last-operation-timestamps
+  - Last operation timestamps
+* Updated cf service-access and cf service-brokers so that they only pass through the 403 error, 
+  rather than giving specific lookup information. [#91452714]
+* Refactor created_at test fixtures [#91240396]
+* Updated the CLI to not return a Started date if the service/operation does not have a CreatedAt in it's JSON. [#91240396]
+* Add started and updated timestamps to service instance operations [#91240396]
+* Merge pull request #465 from cloudfoundry/94892746-service-brokers-403 
+  - Expose api errors for service broker commands
+* Merge pull request #469 from cloudfoundry/missing_service_key_delete 
+  - Display correct error when deleting nonexistent service key
+* Merge pull request #472 from cloudfoundry/service_access_performance 
+  - Improve performance of enable/disable service access
+* Made command_factory_test.go ignore .coverprofile files from running ginkgo in code-coverage mode. [#89585004]
+* Update help text for update-service [#72117050]
+* Allow `cf app` to display buildpack [#96147958]
+* Fixed passing in nil error handler to command_registry [#90652456]
+* Merge pull request #463 from cloudfoundry/cli_user_can_provide_tags 
+  - Add optional tags to create-service command
+* Fix indentation in create-service help text - And rearrange translation files to appease i18n4go
+* Add fields to cli msi to show app/publisher name in windows. [#93634720]
+* Merge pull request #366 from HuaweiTech/hwcf-issue-15 
+  - Fixed error message when there is a mismatch in the order of arguments for create-buildpack
+* plugin Api `GetOrgs()` [#90442006]
+* enable `orgs` to populate plugin model [#90442006]
+* Highlight restage command in uups tip [#96470272]
+* convert command `orgs` to non-codegangsta structure [#90442006]
+* plugin api GetApps() [#90062486]
+* Add Buildpack to cf create-app-manifest [#96041780,91458856]
+* Update README.md 
+* Update CHANGELOG.md 
+* Merge pull request #474 from cloudfoundry/cli_update_service_tags Update user-provided service tags
+* Merge pull request #473 from cloudfoundry/i18n-readme-update Update readme with i18n info
+* Update error message when plugin file does not exist. [#96267092]
+* convert command `apps` to non-codegangsta structure [#90062486]
+* add alias support to command_registry [#90062486]
+* Update arbitrary params error message [#96313592]
+* Merge branch 'master' into cli_update_service_tags Conflicts:
+	cf/commands/service/update_service.go
+	cf/i18n/resources/de_DE.all.json
+	cf/i18n/resources/en_US.all.json
+	cf/i18n/resources/es_ES.all.json
+	cf/i18n/resources/fr_FR.all.json
+	cf/i18n/resources/it_IT.all.json
+	cf/i18n/resources/ja_JA.all.json
+	cf/i18n/resources/pt_BR.all.json
+	cf/i18n/resources/zh_Hans.all.json
+	cf/i18n/resources/zh_Hant.all.json
+* Update tip for updating UPSIs - UPSIs now propogate their credentials on update, so it is no longer
+  necessary to unbind and rebind them. [#96470272]
+* Update readme with i18n info 
+* Split bind-service usage for easier translation - Improve params example to resemble a bind [#96320118, #72117050]
+* Split long usage for update-service [#72117050]
+* Update service can pass instance tags - Add ui_helpers/tags_parser.go [#72117050]
+* Update service without changing plan works - Fixing a bug where passing arbitrary params without a plan change
+  would result in making no changess [#96250704]
+* Refactor update service - Plan validation in separate function [#72117050]
+* Add optional tags to create-service [#61861194]
+* Improve performance of enable/disable service access - Service access commands were embedding org names in service plans, but
+  not using them. This resulted in calls to /v2/organizations, which
+  would take a long time on environments with many orgs. [#95214984]
+* Update help text for update-service [#96313962]
+* Merge pull request #440 from xingzhou/service_key_cascade implement the story of delete service instance that has keys
+* implement the story of delete service instance that has keys [#92185380]
+  https://www.pivotaltracker.com/story/show/92185380
+* Fix flaky test for go 1.4 where map iteration order is randomized. [#96235836]
+* Display correct error when deleting nonexistent service key [#94220156]
+* Merge pull request #452 from cloudfoundry/arbitrary-params-final
+  - Arbitrary params for create-service, update-service, bind-service, create-service-key
+* Expose api errors for service broker commands - Unless it is a specific case where there was no error but there were
+  also no existing service brokers [#94892746]
+* Update arbitrary parameter error message - Sometimes it is unclear if the user is intending to provide a file
+  path or JSON. Showing the underlying error in these cases can be
+  confusing. [#89843658]
+* Merge branch 'cmdOutputCapture' 
+* update test for non-codegangsta command requirement execution 
+* take out unused output capturing method 
+* Toggle output to terminal from plugin calls without adding new interface 
+* not all calls to non-codegangsta command are from plugin APIs 
+* Alternative output capture method - exposes SetOutputBucket() for passing in *[]string as capture bucket
+  - passes in nil to disable output capturing.
+* Added the changes suggested in the pull request. - Errors no longer overwrite, they bubble up
+  - Files are now checked for existance before reading [#89843658]
+* Surface error when json from file is invalid - When parsing arbitrary parameters from a file path
+  - Only read file contents if we know it's a file [#88670540]
+* Merge pull request #365 from HuaweiTech/hwcf-issue-14 Removed as admin.. clause from create-user since it is confusing.
+* Added error handling for when diego /instances is up but /noaa is down. [#95483596]
+* test should be agnostic to location timezone 
+* `GetApp()` plugin api [#90440496]
+* plugin model for Application [#90440496]
+* new pluginCall field in Command SetDependency() [#90440496]
+* convert `app` to non-codegangsta structure [#90440496]
+* ShowUsage() to construct cmd usage template [#90440496]
+* Merge pull request #443 from xingzhou/service_key_list_newline
+  - add a new line before the table of listing keys
+* Merge pull request #442 from xingzhou/service_key_detail_newline 
+  - add new line before detail output of service key
+* move `api` command to new architecture (non-codegangsta) [#90562248]
+* flags.String() returns Usage [#90562248]
+* command_registry for non-codegangsta command [#90562248]
+* Add usage for service key arbitrary params. [#90163332]
+* Add more description to bind-service usage - To reflect arbitrary params [#89843654]
+* Add detailed usage for update-service - In light of arbitrary params feature [#89843656]
+* Remove repeated OPTIONS from create-service [#89843658]
+* Add more examples to create-service help file - Arbitrary params examples and description [#89843658]
+* User can pass arbitary params during create-service-key Includes code for both json file and raw json [#90163332, #90163330]
+* User can pass arbitrary params during  bind-service includes code for both json file and raw json [#89843654, #88670578]
+* Do not send async:true in request body for bind-service Two problems: [#92396108]
+  1. async flag is a query parameter, not a post body parameter
+  2. POST /v2/service_bindings does not respect the async flag anyway
+* Add translation for error during update-service with arbitrary params 
+* Backfill tests for update-service when sending arbitrary params when they are provided in a file [#88670566]
+* user can provide raw JSON when updating a service instance [#89843656]
+* add new line before detail output of service key implement story [#94024396]
+* add a new line before the table of listing keys implement story [#94026928]
+* Fixed error message when there is a mismatch in the order of arguments for create-buildpack. Story in CLI [#82598260].
+* Removed as admin.. clause from create-user since it is confusing. Story in CLI [#74893356].
+
 ##v6.11.3
 * Improve Tip for bind-service command [#94153632]
 * fix bug where app's PackageState is incorrectly set in restage [#93382608]

@@ -2,7 +2,8 @@ package service_test
 
 import (
 	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	. "github.com/cloudfoundry/cli/cf/commands/service"
+	"github.com/cloudfoundry/cli/cf/command_registry"
+	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
@@ -15,62 +16,74 @@ import (
 	"os"
 )
 
-var (
-	args        []string
-	reqFactory  *testreq.FakeReqFactory
-	serviceRepo *testapi.FakeServiceRepo
-)
-
 var _ = Describe("Set Schema for proxy service", func() {
+
+	var args []string
+	var requirementsFactory *testreq.FakeReqFactory
+
+	var ui *testterm.FakeUI
+	var serviceRepo *testapi.FakeServiceRepository
+	var config core_config.Repository
+	var deps command_registry.Dependency
+
+	updateCommandDependency := func(pluginCall bool) {
+		deps.Ui = ui
+		deps.Config = config
+		deps.RepoLocator = deps.RepoLocator.SetServiceRepository(serviceRepo)
+		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("set-schema").SetDependency(deps, pluginCall))
+	}
+
+	BeforeEach(func() {
+		ui = &testterm.FakeUI{}
+		config = testconfig.NewRepositoryWithDefaults()
+	})
 
 	Context("required params", func() {
 
 		It("fails with usage when no args are passed", func() {
 			args = []string{}
-			serviceRepo = &testapi.FakeServiceRepo{}
-			reqFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: true}
+			requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: true}
 
-			result, ui := callSetSchema(args, reqFactory, serviceRepo)
-			Expect(ui.FailedWithUsage).To(BeTrue())
+			result := testcmd.RunCliCommand("set-schema", args, requirementsFactory, updateCommandDependency, false)
+
 			Expect(result).To(BeFalse())
 		})
 
 		It("fails with usage when only one arg is passed", func() {
 			args = []string{"my-service"}
-			serviceRepo = &testapi.FakeServiceRepo{}
-			reqFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: true}
+			requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: true}
 
-			result, ui := callSetSchema(args, reqFactory, serviceRepo)
-			Expect(ui.FailedWithUsage).To(BeTrue())
+			result := testcmd.RunCliCommand("set-schema", args, requirementsFactory, updateCommandDependency, false)
+
 			Expect(result).To(BeFalse())
 		})
 
 		It("fails when not logged in", func() {
 			args = []string{"my-service", "schema-file"}
-			serviceRepo = &testapi.FakeServiceRepo{}
-			reqFactory = &testreq.FakeReqFactory{LoginSuccess: false, TargetedSpaceSuccess: false}
+			requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: false, TargetedSpaceSuccess: false}
 
-			result, _ := callSetSchema(args, reqFactory, serviceRepo)
+			result := testcmd.RunCliCommand("set-schema", args, requirementsFactory, updateCommandDependency, false)
+
 			Expect(result).To(BeFalse())
 		})
 
 		It("fails when logged in but space is not targetted", func() {
 			args = []string{"my-service", "schema-file"}
-			serviceRepo = &testapi.FakeServiceRepo{}
-			reqFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: false}
+			requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: false}
 
-			result, _ := callSetSchema(args, reqFactory, serviceRepo)
+			result := testcmd.RunCliCommand("set-schema", args, requirementsFactory, updateCommandDependency, false)
+
 			Expect(result).To(BeFalse())
 		})
 
 		It("succeeds when logged in with targetted space and two arguments are passed", func() {
 			args = []string{"my-service", "schema-file"}
-			serviceRepo = &testapi.FakeServiceRepo{}
-			reqFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: true}
+			requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: true}
 
-			result, _ := callSetSchema(args, reqFactory, serviceRepo)
+			result := testcmd.RunCliCommand("set-schema", args, requirementsFactory, updateCommandDependency, false)
+
 			Expect(result).To(BeTrue())
-			Expect(reqFactory.ServiceInstanceName).To(Equal("my-service"))
+			Expect(requirementsFactory.ServiceInstanceName).To(Equal("my-service"))
 		})
 
 	})
@@ -81,13 +94,13 @@ var _ = Describe("Set Schema for proxy service", func() {
 			serviceInstance := models.ServiceInstance{}
 			serviceInstance.Name = "my-proxy-service"
 
-			reqFactory = &testreq.FakeReqFactory{
+			requirementsFactory = &testreq.FakeReqFactory{
 				LoginSuccess:         true,
 				TargetedSpaceSuccess: true,
 				ServiceInstance:      serviceInstance,
 			}
 
-			serviceRepo = &testapi.FakeServiceRepo{}
+			serviceRepo = &testapi.FakeServiceRepository{}
 			args = []string{"my-proxy-service", "schemafile.txt"}
 		})
 
@@ -96,7 +109,7 @@ var _ = Describe("Set Schema for proxy service", func() {
 		})
 
 		It("fails when schema file does not exists", func() {
-			_, ui := callSetSchema(args, reqFactory, serviceRepo)
+			testcmd.RunCliCommand("set-schema", args, requirementsFactory, updateCommandDependency, false)
 
 			Expect(ui.Outputs).To(ContainSubstrings(
 				[]string{"Failed to read file schemafile.txt."},
@@ -106,7 +119,7 @@ var _ = Describe("Set Schema for proxy service", func() {
 
 		It("works when empty schema file is given", func() {
 			ioutil.WriteFile("schemafile.txt", []byte(nil), 0644)
-			_, ui := callSetSchema(args, reqFactory, serviceRepo)
+			testcmd.RunCliCommand("set-schema", args, requirementsFactory, updateCommandDependency, false)
 
 			Expect(ui.Outputs).To(ContainSubstrings(
 				[]string{"Applying schema to my-proxy-service in org my-org / space my-space as my-user..."},
@@ -116,7 +129,7 @@ var _ = Describe("Set Schema for proxy service", func() {
 
 		It("works when schema file with no duplicates is given", func() {
 			ioutil.WriteFile("schemafile.txt", []byte(".sky.com"), 0644)
-			_, ui := callSetSchema(args, reqFactory, serviceRepo)
+			testcmd.RunCliCommand("set-schema", args, requirementsFactory, updateCommandDependency, false)
 
 			Expect(ui.Outputs).To(ContainSubstrings(
 				[]string{"Applying schema to my-proxy-service in org my-org / space my-space as my-user..."},
@@ -126,7 +139,7 @@ var _ = Describe("Set Schema for proxy service", func() {
 
 		It("fails when schema file with duplicates is given", func() {
 			ioutil.WriteFile("schemafile.txt", []byte(".sky.com\nupload.sky.com"), 0644)
-			_, ui := callSetSchema(args, reqFactory, serviceRepo)
+			testcmd.RunCliCommand("set-schema", args, requirementsFactory, updateCommandDependency, false)
 
 			Expect(ui.Outputs).To(ContainSubstrings(
 				[]string{`Failed: top level domain 'sky.com' duplicates found: [".sky.com" "upload.sky.com"]`},
@@ -136,11 +149,3 @@ var _ = Describe("Set Schema for proxy service", func() {
 	})
 
 })
-
-func callSetSchema(args []string, reqFactory *testreq.FakeReqFactory, serviceRepo *testapi.FakeServiceRepo) (bool, *testterm.FakeUI) {
-	ui := &testterm.FakeUI{}
-
-	configRepo := testconfig.NewRepositoryWithDefaults()
-	cmd := NewSetSchema(ui, configRepo, serviceRepo)
-	return testcmd.RunCommand(cmd, args, reqFactory), ui
-}

@@ -3,17 +3,18 @@ package net
 import (
 	_ "crypto/sha512"
 	"crypto/x509"
+	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strings"
 	"time"
 
-	"code.google.com/p/go.net/websocket"
 	"github.com/cloudfoundry/cli/cf/errors"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/cloudfoundry/cli/cf/trace"
+	"golang.org/x/net/websocket"
 )
 
 type HttpClientInterface interface {
@@ -33,16 +34,16 @@ func PrepareRedirect(req *http.Request, via []*http.Request) error {
 	}
 
 	prevReq := via[len(via)-1]
-	copyHeaders(prevReq, req)
+	copyHeaders(prevReq, req, getBaseDomain(req.URL.String()) == getBaseDomain(via[0].URL.String()))
 	dumpRequest(req)
 
 	return nil
 }
 
-func copyHeaders(from *http.Request, to *http.Request) {
+func copyHeaders(from *http.Request, to *http.Request, sameDomain bool) {
 	for key, values := range from.Header {
 		// do not copy POST-specific headers
-		if key != "Content-Type" && key != "Content-Length" {
+		if key != "Content-Type" && key != "Content-Length" && !(!sameDomain && key == "Authorization") {
 			to.Header.Set(key, strings.Join(values, ","))
 		}
 	}
@@ -90,6 +91,12 @@ func WrapNetworkErrors(host string, err error) error {
 		}
 	}
 
-	return errors.NewWithError(T("Error performing request"), err)
+	return fmt.Errorf("%s: %s", T("Error performing request"), err.Error())
 
+}
+
+func getBaseDomain(host string) string {
+	hostUrl, _ := url.Parse(host)
+	hostStrs := strings.Split(hostUrl.Host, ".")
+	return hostStrs[len(hostStrs)-2] + "." + hostStrs[len(hostStrs)-1]
 }
