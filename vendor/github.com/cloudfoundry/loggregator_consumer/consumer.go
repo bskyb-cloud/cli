@@ -235,7 +235,7 @@ func (cnsmr *consumer) dump(appGuid string, authToken string) ([]*logmessage.Log
 		close(messageChan)
 	}()
 
-	drainLoop:
+drainLoop:
 	for {
 		select {
 		case msg, ok := <-messageChan:
@@ -336,16 +336,16 @@ func (cnsmr *consumer) establishWebsocketConnection(path string, authToken strin
 
 	cnsmr.debugPrinter.Print("WEBSOCKET REQUEST:",
 		"GET "+path+" HTTP/1.1\n"+
-		"Host: "+cnsmr.endpoint+"\n"+
-		"Upgrade: websocket\nConnection: Upgrade\nSec-WebSocket-Version: 13\nSec-WebSocket-Key: [HIDDEN]\n"+
-		headersString(header))
+			"Host: "+cnsmr.endpoint+"\n"+
+			"Upgrade: websocket\nConnection: Upgrade\nSec-WebSocket-Version: 13\nSec-WebSocket-Key: [HIDDEN]\n"+
+			headersString(header))
 
 	ws, resp, err := dialer.Dial(url, header)
 
 	if resp != nil {
 		cnsmr.debugPrinter.Print("WEBSOCKET RESPONSE:",
 			resp.Proto+" "+resp.Status+"\n"+
-			headersString(resp.Header))
+				headersString(resp.Header))
 	}
 
 	if resp != nil && resp.StatusCode == http.StatusUnauthorized {
