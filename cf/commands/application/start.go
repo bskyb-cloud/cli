@@ -1,26 +1,28 @@
 package application
 
 import (
+	"errors"
 	"fmt"
 	"os"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"sync"
+
 	"github.com/cloudfoundry/cli/cf"
-	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/api/app_instances"
+	"github.com/cloudfoundry/cli/cf/api/appinstances"
 	"github.com/cloudfoundry/cli/cf/api/applications"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/logs"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
-	"github.com/cloudfoundry/loggregatorlib/logmessage"
+	"sync/atomic"
 )
 
 const (
@@ -31,25 +33,28 @@ const (
 
 const LogMessageTypeStaging = "STG"
 
-type ApplicationStagingWatcher interface {
-	ApplicationWatchStaging(app models.Application, orgName string, spaceName string, startCommand func(app models.Application) (models.Application, error)) (updatedApp models.Application, err error)
+//go:generate counterfeiter . StagingWatcher
+
+type StagingWatcher interface {
+	WatchStaging(app models.Application, orgName string, spaceName string, startCommand func(app models.Application) (models.Application, error)) (updatedApp models.Application, err error)
 }
 
-//go:generate counterfeiter -o fakes/fake_application_starter.go . ApplicationStarter
-type ApplicationStarter interface {
-	command_registry.Command
+//go:generate counterfeiter . Starter
+
+type Starter interface {
+	commandregistry.Command
 	SetStartTimeoutInSeconds(timeout int)
 	ApplicationStart(app models.Application, orgName string, spaceName string) (updatedApp models.Application, err error)
 }
 
 type Start struct {
 	ui               terminal.UI
-	config           core_config.Reader
-	appDisplayer     ApplicationDisplayer
+	config           coreconfig.Reader
+	appDisplayer     Displayer
 	appReq           requirements.ApplicationRequirement
-	appRepo          applications.ApplicationRepository
-	appInstancesRepo app_instances.AppInstancesRepository
-	logRepo          api.LogsRepository
+	appRepo          applications.Repository
+	logRepo          logs.Repository
+	appInstancesRepo appinstances.Repository
 
 	LogServerConnectionTimeout time.Duration
 	StartupTimeout             time.Duration
@@ -58,31 +63,38 @@ type Start struct {
 }
 
 func init() {
-	command_registry.Register(&Start{})
+	commandregistry.Register(&Start{})
 }
 
-func (cmd *Start) MetaData() command_registry.CommandMetadata {
-	return command_registry.CommandMetadata{
+func (cmd *Start) MetaData() commandregistry.CommandMetadata {
+	return commandregistry.CommandMetadata{
 		Name:        "start",
 		ShortName:   "st",
 		Description: T("Start an app"),
-		Usage:       T("CF_NAME start APP_NAME"),
+		Usage: []string{
+			T("CF_NAME start APP_NAME"),
+		},
 	}
 }
 
-func (cmd *Start) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+func (cmd *Start) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
 	if len(fc.Args()) != 1 {
-		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + command_registry.Commands.CommandUsage("start"))
+		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + commandregistry.Commands.CommandUsage("start"))
 	}
 
 	cmd.appReq = requirementsFactory.NewApplicationRequirement(fc.Args()[0])
 
-	reqs = []requirements.Requirement{requirementsFactory.NewLoginRequirement(), requirementsFactory.NewTargetedSpaceRequirement(), cmd.appReq}
-	return
+	reqs := []requirements.Requirement{
+		requirementsFactory.NewLoginRequirement(),
+		requirementsFactory.NewTargetedSpaceRequirement(),
+		cmd.appReq,
+	}
+
+	return reqs
 }
 
-func (cmd *Start) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *Start) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.appRepo = deps.RepoLocator.GetApplicationRepository()
 	cmd.appInstancesRepo = deps.RepoLocator.GetAppInstancesRepository()
@@ -112,24 +124,25 @@ func (cmd *Start) SetDependency(deps command_registry.Dependency, pluginCall boo
 		cmd.StartupTimeout = DefaultStartupTimeout
 	}
 
-	appCommand := command_registry.Commands.FindCommand("app")
+	appCommand := commandregistry.Commands.FindCommand("app")
 	appCommand = appCommand.SetDependency(deps, false)
-	cmd.appDisplayer = appCommand.(ApplicationDisplayer)
+	cmd.appDisplayer = appCommand.(Displayer)
 
 	return cmd
 }
 
-func (cmd *Start) Execute(c flags.FlagContext) {
-	cmd.ApplicationStart(cmd.appReq.GetApplication(), cmd.config.OrganizationFields().Name, cmd.config.SpaceFields().Name)
+func (cmd *Start) Execute(c flags.FlagContext) error {
+	_, err := cmd.ApplicationStart(cmd.appReq.GetApplication(), cmd.config.OrganizationFields().Name, cmd.config.SpaceFields().Name)
+	return err
 }
 
-func (cmd *Start) ApplicationStart(app models.Application, orgName, spaceName string) (updatedApp models.Application, err error) {
+func (cmd *Start) ApplicationStart(app models.Application, orgName, spaceName string) (models.Application, error) {
 	if app.State == "started" {
 		cmd.ui.Say(terminal.WarningColor(T("App ") + app.Name + T(" is already started")))
-		return
+		return models.Application{}, nil
 	}
 
-	return cmd.ApplicationWatchStaging(app, orgName, spaceName, func(app models.Application) (models.Application, error) {
+	return cmd.WatchStaging(app, orgName, spaceName, func(app models.Application) (models.Application, error) {
 		cmd.ui.Say(T("Starting app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
 			map[string]interface{}{
 				"AppName":     terminal.EntityNameColor(app.Name),
@@ -138,61 +151,55 @@ func (cmd *Start) ApplicationStart(app models.Application, orgName, spaceName st
 				"CurrentUser": terminal.EntityNameColor(cmd.config.Username())}))
 
 		state := "STARTED"
-		return cmd.appRepo.Update(app.Guid, models.AppParams{State: &state})
+		return cmd.appRepo.Update(app.GUID, models.AppParams{State: &state})
 	})
 }
 
-func (cmd *Start) ApplicationWatchStaging(app models.Application, orgName, spaceName string, start func(app models.Application) (models.Application, error)) (updatedApp models.Application, err error) {
-	var isConnected bool
-	loggingStartedChan := make(chan bool)
-	doneLoggingChan := make(chan bool)
+func (cmd *Start) WatchStaging(app models.Application, orgName, spaceName string, start func(app models.Application) (models.Application, error)) (models.Application, error) {
+	stopChan := make(chan bool, 1)
 
-	go cmd.tailStagingLogs(app, loggingStartedChan, doneLoggingChan)
-	timeout := make(chan struct{})
-	go func() {
-		time.Sleep(cmd.LogServerConnectionTimeout)
-		close(timeout)
-	}()
+	loggingStartedWait := new(sync.WaitGroup)
+	loggingStartedWait.Add(1)
 
-	select {
-	case <-timeout:
-		cmd.ui.Warn("timeout connecting to log server, no log will be shown")
-		break
-	case <-loggingStartedChan: // block until we have established connection to Loggregator
-		isConnected = true
-		break
+	loggingDoneWait := new(sync.WaitGroup)
+	loggingDoneWait.Add(1)
+
+	go cmd.TailStagingLogs(app, stopChan, loggingStartedWait, loggingDoneWait)
+
+	loggingStartedWait.Wait()
+
+	updatedApp, err := start(app)
+	if err != nil {
+		return models.Application{}, err
 	}
 
-	updatedApp, apiErr := start(app)
-	if apiErr != nil {
-		cmd.ui.Failed(apiErr.Error())
-		return
+	isStaged, err := cmd.waitForInstancesToStage(updatedApp)
+	if err != nil {
+		return models.Application{}, err
 	}
 
-	isStaged := cmd.waitForInstancesToStage(updatedApp)
+	stopChan <- true
 
-	if isConnected { //only close when actually connected, else CLI hangs at closing consumer connection
-		cmd.logRepo.Close()
-	}
-
-	<-doneLoggingChan
+	loggingDoneWait.Wait()
 
 	cmd.ui.Say("")
 
 	if !isStaged {
-		cmd.ui.Failed(fmt.Sprintf("%s failed to stage within %f minutes", app.Name, cmd.StagingTimeout.Minutes()))
+		return models.Application{}, fmt.Errorf("%s failed to stage within %f minutes", app.Name, cmd.StagingTimeout.Minutes())
 	}
 
-	cmd.waitForOneRunningInstance(updatedApp)
+	err = cmd.waitForOneRunningInstance(updatedApp)
+	if err != nil {
+		return models.Application{}, err
+	}
 	cmd.ui.Say(terminal.HeaderColor(T("\nApp started\n")))
 	cmd.ui.Say("")
 	cmd.ui.Ok()
 
 	//detectedstartcommand on first push is not present until starting completes
-	startedApp, apiErr := cmd.appRepo.Read(updatedApp.Name)
+	startedApp, err := cmd.appRepo.GetApp(updatedApp.GUID)
 	if err != nil {
-		cmd.ui.Failed(apiErr.Error())
-		return
+		return models.Application{}, err
 	}
 
 	var appStartCommand string
@@ -208,54 +215,96 @@ func (cmd *Start) ApplicationWatchStaging(app models.Application, orgName, space
 			"Command": appStartCommand,
 		}))
 
-	cmd.appDisplayer.ShowApp(startedApp, orgName, spaceName)
-	return
+	err = cmd.appDisplayer.ShowApp(startedApp, orgName, spaceName)
+	if err != nil {
+		return models.Application{}, err
+	}
+
+	return updatedApp, nil
 }
 
 func (cmd *Start) SetStartTimeoutInSeconds(timeout int) {
 	cmd.StartupTimeout = time.Duration(timeout) * time.Second
 }
 
-func simpleLogMessageOutput(logMsg *logmessage.LogMessage) (msgText string) {
-	msgText = string(logMsg.GetMessage())
-	reg, err := regexp.Compile("[\n\r]+$")
-	if err != nil {
-		return
-	}
-	msgText = reg.ReplaceAllString(msgText, "")
-	return
-}
+type ConnectionType int
 
-func (cmd *Start) tailStagingLogs(app models.Application, startChan, doneChan chan bool) {
+const (
+	NoConnection ConnectionType = iota
+	ConnectionWasEstablished
+	ConnectionWasClosed
+	StoppedTrying
+)
+
+func (cmd *Start) TailStagingLogs(app models.Application, stopChan chan bool, startWait, doneWait *sync.WaitGroup) {
+	var connectionStatus atomic.Value
+	connectionStatus.Store(NoConnection)
+
 	onConnect := func() {
-		startChan <- true
-	}
-
-	err := cmd.logRepo.TailLogsFor(app.Guid, onConnect, func(msg *logmessage.LogMessage) {
-		if msg.GetSourceName() == LogMessageTypeStaging {
-			cmd.ui.Say(simpleLogMessageOutput(msg))
+		if connectionStatus.Load() != StoppedTrying {
+			connectionStatus.Store(ConnectionWasEstablished)
+			startWait.Done()
 		}
-	})
-
-	if err != nil {
-		cmd.ui.Warn(T("Warning: error tailing logs"))
-		cmd.ui.Say("%s", err)
-		close(startChan)
 	}
 
-	close(doneChan)
+	timer := time.NewTimer(cmd.LogServerConnectionTimeout)
+
+	c := make(chan logs.Loggable)
+	e := make(chan error)
+
+	defer doneWait.Done()
+
+	go cmd.logRepo.TailLogsFor(app.GUID, onConnect, c, e)
+
+	for {
+		select {
+		case <-timer.C:
+			if connectionStatus.Load() == NoConnection {
+				connectionStatus.Store(StoppedTrying)
+				cmd.ui.Warn("timeout connecting to log server, no log will be shown")
+				startWait.Done()
+				return
+			}
+		case msg, ok := <-c:
+			if !ok {
+				return
+			} else if msg.GetSourceName() == LogMessageTypeStaging {
+				cmd.ui.Say(msg.ToSimpleLog())
+			}
+
+		case err, ok := <-e:
+			if ok {
+				if connectionStatus.Load() != ConnectionWasClosed {
+					cmd.ui.Warn(T("Warning: error tailing logs"))
+					cmd.ui.Say("%s", err)
+					if connectionStatus.Load() == NoConnection {
+						startWait.Done()
+					}
+					return
+				}
+			}
+
+		case <-stopChan:
+			if connectionStatus.Load() == ConnectionWasEstablished {
+				connectionStatus.Store(ConnectionWasClosed)
+				cmd.logRepo.Close()
+			} else {
+				return
+			}
+		}
+	}
 }
 
-func (cmd *Start) waitForInstancesToStage(app models.Application) bool {
+func (cmd *Start) waitForInstancesToStage(app models.Application) (bool, error) {
 	stagingStartTime := time.Now()
 
 	var err error
 
 	if cmd.StagingTimeout == 0 {
-		app, err = cmd.appRepo.GetApp(app.Guid)
+		app, err = cmd.appRepo.GetApp(app.GUID)
 	} else {
 		for app.PackageState != "STAGED" && app.PackageState != "FAILED" && time.Since(stagingStartTime) < cmd.StagingTimeout {
-			app, err = cmd.appRepo.GetApp(app.Guid)
+			app, err = cmd.appRepo.GetApp(app.GUID)
 			if err != nil {
 				break
 			}
@@ -265,13 +314,13 @@ func (cmd *Start) waitForInstancesToStage(app models.Application) bool {
 	}
 
 	if err != nil {
-		cmd.ui.Failed(err.Error())
+		return false, err
 	}
 
 	if app.PackageState == "FAILED" {
 		cmd.ui.Say("")
 		if app.StagingFailedReason == "NoAppDetectedError" {
-			cmd.ui.Failed(T(`{{.Err}}
+			return false, errors.New(T(`{{.Err}}
 			
 TIP: Buildpacks are detected when the "{{.PushCommand}}" is executed from within the directory that contains the app source code.
 
@@ -280,56 +329,55 @@ Use '{{.BuildpackCommand}}' to see a list of supported buildpacks.
 Use '{{.Command}}' for more in depth log information.`,
 				map[string]interface{}{
 					"Err":              app.StagingFailedReason,
-					"PushCommand":      terminal.CommandColor(fmt.Sprintf("%s push", cf.Name())),
-					"BuildpackCommand": terminal.CommandColor(fmt.Sprintf("%s buildpacks", cf.Name())),
-					"Command":          terminal.CommandColor(fmt.Sprintf("%s logs %s --recent", cf.Name(), app.Name))}))
-		} else {
-			cmd.ui.Failed(T("{{.Err}}\n\nTIP: use '{{.Command}}' for more information",
-				map[string]interface{}{
-					"Err":     app.StagingFailedReason,
-					"Command": terminal.CommandColor(fmt.Sprintf("%s logs %s --recent", cf.Name(), app.Name))}))
+					"PushCommand":      terminal.CommandColor(fmt.Sprintf("%s push", cf.Name)),
+					"BuildpackCommand": terminal.CommandColor(fmt.Sprintf("%s buildpacks", cf.Name)),
+					"Command":          terminal.CommandColor(fmt.Sprintf("%s logs %s --recent", cf.Name, app.Name))}))
 		}
+		return false, errors.New(T("{{.Err}}\n\nTIP: use '{{.Command}}' for more information",
+			map[string]interface{}{
+				"Err":     app.StagingFailedReason,
+				"Command": terminal.CommandColor(fmt.Sprintf("%s logs %s --recent", cf.Name, app.Name))}))
 	}
 
 	if time.Since(stagingStartTime) >= cmd.StagingTimeout {
-		return false
+		return false, nil
 	}
 
-	return true
+	return true, nil
 }
 
-func (cmd *Start) waitForOneRunningInstance(app models.Application) {
-	startupStartTime := time.Now()
+func (cmd *Start) waitForOneRunningInstance(app models.Application) error {
+	timer := time.NewTimer(cmd.StartupTimeout)
 
 	for {
-		if time.Since(startupStartTime) > cmd.StartupTimeout {
+		select {
+		case <-timer.C:
 			tipMsg := T("Start app timeout\n\nTIP: Application must be listening on the right port. Instead of hard coding the port, use the $PORT environment variable.") + "\n\n"
-			tipMsg += T("Use '{{.Command}}' for more information", map[string]interface{}{"Command": terminal.CommandColor(fmt.Sprintf("%s logs %s --recent", cf.Name(), app.Name))})
+			tipMsg += T("Use '{{.Command}}' for more information", map[string]interface{}{"Command": terminal.CommandColor(fmt.Sprintf("%s logs %s --recent", cf.Name, app.Name))})
 
-			cmd.ui.Failed(tipMsg)
-			return
-		}
+			return errors.New(tipMsg)
 
-		count, err := cmd.fetchInstanceCount(app.Guid)
-		if err != nil {
-			cmd.ui.Warn("Could not fetch instance count: %s", err.Error())
+		default:
+			count, err := cmd.fetchInstanceCount(app.GUID)
+			if err != nil {
+				cmd.ui.Warn("Could not fetch instance count: %s", err.Error())
+				time.Sleep(cmd.PingerThrottle)
+				continue
+			}
+
+			cmd.ui.Say(instancesDetails(count))
+
+			if count.running > 0 {
+				return nil
+			}
+
+			if count.flapping > 0 || count.crashed > 0 {
+				return fmt.Errorf(T("Start unsuccessful\n\nTIP: use '{{.Command}}' for more information",
+					map[string]interface{}{"Command": terminal.CommandColor(fmt.Sprintf("%s logs %s --recent", cf.Name, app.Name))}))
+			}
+
 			time.Sleep(cmd.PingerThrottle)
-			continue
 		}
-
-		cmd.ui.Say(instancesDetails(count))
-
-		if count.running > 0 {
-			return
-		}
-
-		if count.flapping > 0 || count.crashed > 0 {
-			cmd.ui.Failed(fmt.Sprintf(T("Start unsuccessful\n\nTIP: use '{{.Command}}' for more information",
-				map[string]interface{}{"Command": terminal.CommandColor(fmt.Sprintf("%s logs %s --recent", cf.Name(), app.Name))})))
-			return
-		}
-
-		time.Sleep(cmd.PingerThrottle)
 	}
 }
 
@@ -343,12 +391,12 @@ type instanceCount struct {
 	total           int
 }
 
-func (cmd Start) fetchInstanceCount(appGuid string) (instanceCount, error) {
+func (cmd Start) fetchInstanceCount(appGUID string) (instanceCount, error) {
 	count := instanceCount{
 		startingDetails: make(map[string]struct{}),
 	}
 
-	instances, apiErr := cmd.appInstancesRepo.GetInstances(appGuid)
+	instances, apiErr := cmd.appInstancesRepo.GetInstances(appGUID)
 	if apiErr != nil {
 		return instanceCount{}, apiErr
 	}

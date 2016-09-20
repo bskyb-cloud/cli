@@ -3,6 +3,7 @@ package net
 import (
 	"io"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/cloudfoundry/cli/cf/formatters"
@@ -16,6 +17,7 @@ type ProgressReader struct {
 	quit           chan bool
 	ui             terminal.UI
 	outputInterval time.Duration
+	mutex          sync.RWMutex
 }
 
 func NewProgressReader(readSeeker io.ReadSeeker, ui terminal.UI, outputInterval time.Duration) *ProgressReader {
@@ -23,6 +25,7 @@ func NewProgressReader(readSeeker io.ReadSeeker, ui terminal.UI, outputInterval 
 		ioReadSeeker:   readSeeker,
 		ui:             ui,
 		outputInterval: outputInterval,
+		mutex:          sync.RWMutex{},
 	}
 }
 
@@ -40,7 +43,9 @@ func (progressReader *ProgressReader) Read(p []byte) (int, error) {
 				go progressReader.printProgress(progressReader.quit)
 			}
 
+			progressReader.mutex.Lock()
 			progressReader.bytesRead += int64(n)
+			progressReader.mutex.Unlock()
 
 			if progressReader.total == progressReader.bytesRead {
 				progressReader.quit <- true
@@ -68,7 +73,9 @@ func (progressReader *ProgressReader) printProgress(quit chan bool) {
 			progressReader.ui.Say("\rDone uploading")
 			return
 		case <-timer.C:
+			progressReader.mutex.RLock()
 			progressReader.ui.PrintCapturingNoOutput("\r%s uploaded...", formatters.ByteSize(progressReader.bytesRead))
+			progressReader.mutex.RUnlock()
 		}
 	}
 }

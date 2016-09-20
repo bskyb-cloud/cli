@@ -3,20 +3,20 @@ package application_test
 import (
 	"time"
 
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
+	"github.com/cloudfoundry/cli/cf/api/logs"
+	"github.com/cloudfoundry/cli/cf/api/logs/logsfakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testlogs "github.com/cloudfoundry/cli/testhelpers/logs"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	"github.com/cloudfoundry/loggregatorlib/logmessage"
 
-	. "github.com/cloudfoundry/cli/cf/commands/application"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -25,46 +25,49 @@ import (
 var _ = Describe("logs command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		logsRepo            *testapi.FakeLogsRepository
-		requirementsFactory *testreq.FakeReqFactory
-		configRepo          core_config.Repository
-		deps                command_registry.Dependency
+		logsRepo            *logsfakes.FakeRepository
+		requirementsFactory *requirementsfakes.FakeFactory
+		configRepo          coreconfig.Repository
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.RepoLocator = deps.RepoLocator.SetLogsRepository(logsRepo)
 		deps.Config = configRepo
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("logs").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("logs").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		logsRepo = &testapi.FakeLogsRepository{}
-		requirementsFactory = &testreq.FakeReqFactory{}
+		logsRepo = new(logsfakes.FakeRepository)
+		requirementsFactory = new(requirementsfakes.FakeFactory)
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("logs", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("logs", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Describe("requirements", func() {
 		It("fails with usage when called without one argument", func() {
-			requirementsFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
 
 			runCommand()
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Incorrect Usage", "Requires an argument"},
 			))
 		})
 
 		It("fails requirements when not logged in", func() {
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{})
+
 			Expect(runCommand("my-app")).To(BeFalse())
 		})
+
 		It("fails if a space is not targeted", func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedSpaceSuccess = false
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Failing{Message: "not targeting space"})
 			Expect(runCommand("--recent", "my-app")).To(BeFalse())
 		})
 
@@ -76,41 +79,45 @@ var _ = Describe("logs command", func() {
 		)
 
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedSpaceSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Passing{})
 
 			app = models.Application{}
 			app.Name = "my-app"
-			app.Guid = "my-app-guid"
+			app.GUID = "my-app-guid"
 
 			currentTime := time.Now()
-			recentLogs := []*logmessage.LogMessage{
-				testlogs.NewLogMessage("Log Line 1", app.Guid, "DEA", "1", logmessage.LogMessage_ERR, currentTime),
-				testlogs.NewLogMessage("Log Line 2", app.Guid, "DEA", "1", logmessage.LogMessage_ERR, currentTime),
+			recentLogs := []logs.Loggable{
+				testlogs.NewLogMessage("Log Line 1", app.GUID, "DEA", "1", logmessage.LogMessage_ERR, currentTime),
+				testlogs.NewLogMessage("Log Line 2", app.GUID, "DEA", "1", logmessage.LogMessage_ERR, currentTime),
 			}
 
-			appLogs := []*logmessage.LogMessage{
-				testlogs.NewLogMessage("Log Line 1", app.Guid, "DEA", "1", logmessage.LogMessage_ERR, time.Now()),
+			appLogs := []logs.Loggable{
+				testlogs.NewLogMessage("Log Line 1", app.GUID, "DEA", "1", logmessage.LogMessage_ERR, time.Now()),
 			}
 
-			requirementsFactory.Application = app
+			applicationReq := new(requirementsfakes.FakeApplicationRequirement)
+			applicationReq.GetApplicationReturns(app)
+			requirementsFactory.NewApplicationRequirementReturns(applicationReq)
+
 			logsRepo.RecentLogsForReturns(recentLogs, nil)
-			logsRepo.TailLogsForStub = func(appGuid string, onConnect func(), onMessage func(*logmessage.LogMessage)) error {
+			logsRepo.TailLogsForStub = func(appGUID string, onConnect func(), logChan chan<- logs.Loggable, errChan chan<- error) {
 				onConnect()
-				for _, log := range appLogs {
-					onMessage(log)
-				}
-				return nil
+				go func() {
+					for _, log := range appLogs {
+						logChan <- log
+					}
+					close(logChan)
+					close(errChan)
+				}()
 			}
-
 		})
 
 		It("shows the recent logs when the --recent flag is provided", func() {
 			runCommand("--recent", "my-app")
 
-			Expect(requirementsFactory.ApplicationName).To(Equal("my-app"))
-			Expect(app.Guid).To(Equal(logsRepo.RecentLogsForArgsForCall(0)))
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(app.GUID).To(Equal(logsRepo.RecentLogsForArgsForCall(0)))
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Connected, dumping recent logs for app", "my-app", "my-org", "my-space", "my-user"},
 				[]string{"Log Line 1"},
 				[]string{"Log Line 2"},
@@ -119,24 +126,23 @@ var _ = Describe("logs command", func() {
 
 		Context("when the log messages contain format string identifiers", func() {
 			BeforeEach(func() {
-				logsRepo.RecentLogsForReturns([]*logmessage.LogMessage{
-					testlogs.NewLogMessage("hello%2Bworld%v", app.Guid, "DEA", "1", logmessage.LogMessage_ERR, time.Now()),
+				logsRepo.RecentLogsForReturns([]logs.Loggable{
+					testlogs.NewLogMessage("hello%2Bworld%v", app.GUID, "DEA", "1", logmessage.LogMessage_ERR, time.Now()),
 				}, nil)
 			})
 
 			It("does not treat them as format strings", func() {
 				runCommand("--recent", "my-app")
-				Expect(ui.Outputs).To(ContainSubstrings([]string{"hello%2Bworld%v"}))
+				Expect(ui.Outputs()).To(ContainSubstrings([]string{"hello%2Bworld%v"}))
 			})
 		})
 
 		It("tails the app's logs when no flags are given", func() {
 			runCommand("my-app")
 
-			Expect(requirementsFactory.ApplicationName).To(Equal("my-app"))
-			appGuid, _, _ := logsRepo.TailLogsForArgsForCall(0)
-			Expect(app.Guid).To(Equal(appGuid))
-			Expect(ui.Outputs).To(ContainSubstrings(
+			appGUID, _, _, _ := logsRepo.TailLogsForArgsForCall(0)
+			Expect(app.GUID).To(Equal(appGUID))
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Connected, tailing logs for app", "my-app", "my-org", "my-space", "my-user"},
 				[]string{"Log Line 1"},
 			))
@@ -145,10 +151,12 @@ var _ = Describe("logs command", func() {
 		Context("when the loggregator server has an invalid cert", func() {
 			Context("when the skip-ssl-validation flag is not set", func() {
 				It("fails and informs the user about the skip-ssl-validation flag", func() {
-					logsRepo.TailLogsForReturns(errors.NewInvalidSSLCert("https://example.com", "it don't work good"))
+					logsRepo.TailLogsForStub = func(appGUID string, onConnect func(), logChan chan<- logs.Loggable, errChan chan<- error) {
+						errChan <- errors.NewInvalidSSLCert("https://example.com", "it don't work good")
+					}
 					runCommand("my-app")
 
-					Expect(ui.Outputs).To(ContainSubstrings(
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"Received invalid SSL certificate", "https://example.com"},
 						[]string{"TIP"},
 					))
@@ -158,7 +166,7 @@ var _ = Describe("logs command", func() {
 					logsRepo.RecentLogsForReturns(nil, errors.NewInvalidSSLCert("https://example.com", "how does SSL work???"))
 					runCommand("--recent", "my-app")
 
-					Expect(ui.Outputs).To(ContainSubstrings(
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"Received invalid SSL certificate", "https://example.com"},
 						[]string{"TIP"},
 					))
@@ -169,41 +177,9 @@ var _ = Describe("logs command", func() {
 		Context("when the loggregator server has a valid cert", func() {
 			It("tails logs", func() {
 				runCommand("my-app")
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Connected, tailing logs for app", "my-org", "my-space", "my-user"},
 				))
-			})
-		})
-
-		Describe("Helpers", func() {
-			var date time.Time
-
-			BeforeEach(func() {
-				date = time.Date(2014, 4, 4, 11, 39, 20, 5, time.UTC)
-			})
-
-			Context("when the message comes", func() {
-				It("include the instance index", func() {
-					msg := testlogs.NewLogMessage("Hello World!", app.Guid, "DEA", "4", logmessage.LogMessage_OUT, date)
-					Expect(terminal.Decolorize(LogMessageOutput(msg, time.UTC))).To(Equal("2014-04-04T11:39:20.00+0000 [DEA/4]      OUT Hello World!"))
-				})
-
-				It("doesn't include the instance index if sourceID is empty", func() {
-					msg := testlogs.NewLogMessage("Hello World!", app.Guid, "DEA", "", logmessage.LogMessage_OUT, date)
-					Expect(terminal.Decolorize(LogMessageOutput(msg, time.UTC))).To(Equal("2014-04-04T11:39:20.00+0000 [DEA]        OUT Hello World!"))
-				})
-			})
-
-			Context("when the message was written to stderr", func() {
-				It("shows the log type as 'ERR'", func() {
-					msg := testlogs.NewLogMessage("Hello World!", app.Guid, "DEA", "4", logmessage.LogMessage_ERR, date)
-					Expect(terminal.Decolorize(LogMessageOutput(msg, time.UTC))).To(Equal("2014-04-04T11:39:20.00+0000 [DEA/4]      ERR Hello World!"))
-				})
-			})
-
-			It("formats the time in the given time zone", func() {
-				msg := testlogs.NewLogMessage("Hello World!", app.Guid, "DEA", "4", logmessage.LogMessage_ERR, date)
-				Expect(terminal.Decolorize(LogMessageOutput(msg, time.FixedZone("the-zone", 3*60*60)))).To(Equal("2014-04-04T14:39:20.00+0300 [DEA/4]      ERR Hello World!"))
 			})
 		})
 	})

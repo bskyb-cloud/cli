@@ -12,12 +12,7 @@ function printStatus {
 
 trap printStatus EXIT
 
-bin/generate-language-resources
-
-echo -e "\n Running i18n checkup..."
 bin/i18n-checkup
-
-export GO15VENDOREXPERIMENT=1
 
 echo -e "\n Cleaning build artifacts..."
 
@@ -38,16 +33,12 @@ go fmt ./...
 
 echo -e "\n Vetting packages for potential issues..."
 go tool vet cf/.
-for file in $(find {cf,commands_loader,downloader,generic,glob,main,plugin,testhelpers,utils,words} \( -name "*.go" -not -iname "*test.go" \))
-do
-  go tool vet -all -shadow=true $file
-done
+#for file in $(find {cf,commands_loader,downloader,generic,glob,main,plugin,testhelpers,utils,words} \( -name "*.go" -not -iname "*test.go" \))
+#do
+#  go tool vet -all -shadow=true $file
+#done
 
-echo -e "\n Verifying total commands registered..."
-ginkgo commands_loader
-
-echo -e "\n Testing packages..."
-CF_HOME=$(pwd)/fixtures ginkgo -r -p -nodes=4 -randomizeAllSpecs $@
+CF_HOME=$(pwd)/fixtures ginkgo -r -randomizeAllSpecs -randomizeSuites $@
 
 echo -e "\n Running build script to confirm everything compiles..."
 bin/build

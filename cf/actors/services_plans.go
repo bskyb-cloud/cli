@@ -5,28 +5,21 @@ import (
 
 	"github.com/cloudfoundry/cli/cf/api/organizations"
 
-	"github.com/cloudfoundry/cli/cf/actors/plan_builder"
-	"github.com/cloudfoundry/cli/cf/actors/service_builder"
+	"github.com/cloudfoundry/cli/cf/actors/planbuilder"
+	"github.com/cloudfoundry/cli/cf/actors/servicebuilder"
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/models"
 )
 
+//go:generate counterfeiter . ServicePlanActor
+
 type ServicePlanActor interface {
 	FindServiceAccess(string, string) (ServiceAccess, error)
-	UpdateAllPlansForService(string, bool) (bool, error)
-	UpdateOrgForService(string, string, bool) (bool, error)
-	UpdateSinglePlanForService(string, string, bool) (PlanAccess, error)
-	UpdatePlanAndOrgForService(string, string, string, bool) (PlanAccess, error)
+	UpdateAllPlansForService(string, bool) error
+	UpdateOrgForService(string, string, bool) error
+	UpdateSinglePlanForService(string, string, bool) error
+	UpdatePlanAndOrgForService(string, string, string, bool) error
 }
-
-type PlanAccess int
-
-const (
-	PlanAccessError PlanAccess = iota
-	All
-	Limited
-	None
-)
 
 type ServiceAccess int
 
@@ -45,11 +38,11 @@ type ServicePlanHandler struct {
 	servicePlanRepo           api.ServicePlanRepository
 	servicePlanVisibilityRepo api.ServicePlanVisibilityRepository
 	orgRepo                   organizations.OrganizationRepository
-	serviceBuilder            service_builder.ServiceBuilder
-	planBuilder               plan_builder.PlanBuilder
+	serviceBuilder            servicebuilder.ServiceBuilder
+	planBuilder               planbuilder.PlanBuilder
 }
 
-func NewServicePlanHandler(plan api.ServicePlanRepository, vis api.ServicePlanVisibilityRepository, org organizations.OrganizationRepository, planBuilder plan_builder.PlanBuilder, serviceBuilder service_builder.ServiceBuilder) ServicePlanHandler {
+func NewServicePlanHandler(plan api.ServicePlanRepository, vis api.ServicePlanVisibilityRepository, org organizations.OrganizationRepository, planBuilder planbuilder.PlanBuilder, serviceBuilder servicebuilder.ServiceBuilder) ServicePlanHandler {
 	return ServicePlanHandler{
 		servicePlanRepo:           plan,
 		servicePlanVisibilityRepo: vis,
@@ -59,67 +52,61 @@ func NewServicePlanHandler(plan api.ServicePlanRepository, vis api.ServicePlanVi
 	}
 }
 
-func (actor ServicePlanHandler) UpdateAllPlansForService(serviceName string, setPlanVisibility bool) (bool, error) {
+func (actor ServicePlanHandler) UpdateAllPlansForService(serviceName string, setPlanVisibility bool) error {
 	service, err := actor.serviceBuilder.GetServiceByNameWithPlans(serviceName)
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	allPlansWereSet := true
 	for _, plan := range service.Plans {
-		planAccess, err := actor.updateSinglePlan(service, plan.Name, setPlanVisibility)
+		err = actor.updateSinglePlan(service, plan.Name, setPlanVisibility)
 		if err != nil {
-			return false, err
+			return err
 		}
-		// If any plan is Limited we know that we have to change the visibility.
-		planAlreadySet := ((planAccess == All) == setPlanVisibility) && planAccess != Limited
-		allPlansWereSet = allPlansWereSet && planAlreadySet
 	}
-	return allPlansWereSet, nil
+	return nil
 }
 
-func (actor ServicePlanHandler) UpdateOrgForService(serviceName string, orgName string, setPlanVisibility bool) (bool, error) {
-	var err error
-	var service models.ServiceOffering
-
-	service, err = actor.serviceBuilder.GetServiceByNameForOrg(serviceName, orgName)
+func (actor ServicePlanHandler) UpdateOrgForService(serviceName string, orgName string, setPlanVisibility bool) error {
+	service, err := actor.serviceBuilder.GetServiceByNameWithPlans(serviceName)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	org, err := actor.orgRepo.FindByName(orgName)
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	allPlansWereSet := true
 	for _, plan := range service.Plans {
-		visibilityExists := plan.OrgHasVisibility(org.Name)
-		if plan.Public || visibilityExists == setPlanVisibility {
+		switch {
+		case plan.Public:
 			continue
-		} else if visibilityExists && !setPlanVisibility {
-			actor.deleteServicePlanVisibilities(map[string]string{"organization_guid": org.Guid, "service_plan_guid": plan.Guid})
-		} else if !visibilityExists && setPlanVisibility {
-			err = actor.servicePlanVisibilityRepo.Create(plan.Guid, org.Guid)
+		case setPlanVisibility:
+			err = actor.servicePlanVisibilityRepo.Create(plan.GUID, org.GUID)
 			if err != nil {
-				return false, err
+				return err
+			}
+		case !setPlanVisibility:
+			err = actor.deleteServicePlanVisibilities(map[string]string{"organization_guid": org.GUID, "service_plan_guid": plan.GUID})
+			if err != nil {
+				return err
 			}
 		}
-		// We only get here once we have already updated a plan.
-		allPlansWereSet = false
 	}
-	return allPlansWereSet, nil
+
+	return nil
 }
 
-func (actor ServicePlanHandler) UpdatePlanAndOrgForService(serviceName, planName, orgName string, setPlanVisibility bool) (PlanAccess, error) {
-	service, err := actor.serviceBuilder.GetServiceByNameForOrg(serviceName, orgName)
+func (actor ServicePlanHandler) UpdatePlanAndOrgForService(serviceName, planName, orgName string, setPlanVisibility bool) error {
+	service, err := actor.serviceBuilder.GetServiceByNameWithPlans(serviceName)
 	if err != nil {
-		return PlanAccessError, err
+		return err
 	}
 
 	org, err := actor.orgRepo.FindByName(orgName)
 	if err != nil {
-		return PlanAccessError, err
+		return err
 	}
 
 	found := false
@@ -131,42 +118,32 @@ func (actor ServicePlanHandler) UpdatePlanAndOrgForService(serviceName, planName
 		}
 	}
 	if !found {
-		return PlanAccessError, fmt.Errorf("Service plan %s not found", planName)
+		return fmt.Errorf("Service plan %s not found", planName)
 	}
 
-	if !servicePlan.Public && setPlanVisibility {
-		if servicePlan.OrgHasVisibility(orgName) {
-			return Limited, nil
-		}
-
+	switch {
+	case servicePlan.Public:
+		return nil
+	case setPlanVisibility:
 		// Enable service access
-		err = actor.servicePlanVisibilityRepo.Create(servicePlan.Guid, org.Guid)
-		if err != nil {
-			return PlanAccessError, err
-		}
-	} else if !servicePlan.Public && !setPlanVisibility {
+		err = actor.servicePlanVisibilityRepo.Create(servicePlan.GUID, org.GUID)
+	case !setPlanVisibility:
 		// Disable service access
-		if servicePlan.OrgHasVisibility(org.Name) {
-			err = actor.deleteServicePlanVisibilities(map[string]string{"organization_guid": org.Guid, "service_plan_guid": servicePlan.Guid})
-			if err != nil {
-				return PlanAccessError, err
-			}
-		}
+		err = actor.deleteServicePlanVisibilities(map[string]string{"organization_guid": org.GUID, "service_plan_guid": servicePlan.GUID})
 	}
 
-	access := actor.findPlanAccess(servicePlan)
-	return access, nil
+	return err
 }
 
-func (actor ServicePlanHandler) UpdateSinglePlanForService(serviceName string, planName string, setPlanVisibility bool) (PlanAccess, error) {
+func (actor ServicePlanHandler) UpdateSinglePlanForService(serviceName string, planName string, setPlanVisibility bool) error {
 	serviceOffering, err := actor.serviceBuilder.GetServiceByNameWithPlans(serviceName)
 	if err != nil {
-		return PlanAccessError, err
+		return err
 	}
 	return actor.updateSinglePlan(serviceOffering, planName, setPlanVisibility)
 }
 
-func (actor ServicePlanHandler) updateSinglePlan(serviceOffering models.ServiceOffering, planName string, setPlanVisibility bool) (PlanAccess, error) {
+func (actor ServicePlanHandler) updateSinglePlan(serviceOffering models.ServiceOffering, planName string, setPlanVisibility bool) error {
 	var planToUpdate *models.ServicePlanFields
 
 	for _, servicePlan := range serviceOffering.Plans {
@@ -177,16 +154,10 @@ func (actor ServicePlanHandler) updateSinglePlan(serviceOffering models.ServiceO
 	}
 
 	if planToUpdate == nil {
-		return PlanAccessError, fmt.Errorf("The plan %s could not be found for service %s", planName, serviceOffering.Label)
+		return fmt.Errorf("The plan %s could not be found for service %s", planName, serviceOffering.Label)
 	}
 
-	err := actor.updateServicePlanAvailability(serviceOffering.Guid, *planToUpdate, setPlanVisibility)
-	if err != nil {
-		return PlanAccessError, err
-	}
-
-	access := actor.findPlanAccess(*planToUpdate)
-	return access, nil
+	return actor.updateServicePlanAvailability(serviceOffering.GUID, *planToUpdate, setPlanVisibility)
 }
 
 func (actor ServicePlanHandler) deleteServicePlanVisibilities(queryParams map[string]string) error {
@@ -194,8 +165,9 @@ func (actor ServicePlanHandler) deleteServicePlanVisibilities(queryParams map[st
 	if err != nil {
 		return err
 	}
+
 	for _, visibility := range visibilities {
-		err = actor.servicePlanVisibilityRepo.Delete(visibility.Guid)
+		err = actor.servicePlanVisibilityRepo.Delete(visibility.GUID)
 		if err != nil {
 			return err
 		}
@@ -204,10 +176,10 @@ func (actor ServicePlanHandler) deleteServicePlanVisibilities(queryParams map[st
 	return nil
 }
 
-func (actor ServicePlanHandler) updateServicePlanAvailability(serviceGuid string, servicePlan models.ServicePlanFields, setPlanVisibility bool) error {
+func (actor ServicePlanHandler) updateServicePlanAvailability(serviceGUID string, servicePlan models.ServicePlanFields, setPlanVisibility bool) error {
 	// We delete all service plan visibilities for the given Plan since the attribute public should function as a giant on/off
 	// switch for all orgs. Thus we need to clean up any visibilities laying around so that they don't carry over.
-	err := actor.deleteServicePlanVisibilities(map[string]string{"service_plan_guid": servicePlan.Guid})
+	err := actor.deleteServicePlanVisibilities(map[string]string{"service_plan_guid": servicePlan.GUID})
 	if err != nil {
 		return err
 	}
@@ -216,7 +188,7 @@ func (actor ServicePlanHandler) updateServicePlanAvailability(serviceGuid string
 		return nil
 	}
 
-	return actor.servicePlanRepo.Update(servicePlan, serviceGuid, setPlanVisibility)
+	return actor.servicePlanRepo.Update(servicePlan, serviceGUID, setPlanVisibility)
 }
 
 func (actor ServicePlanHandler) FindServiceAccess(serviceName string, orgName string) (ServiceAccess, error) {
@@ -258,6 +230,15 @@ func (actor ServicePlanHandler) FindServiceAccess(serviceName string, orgName st
 	}
 	return SomePlansArePublicSomeAreLimitedSomeArePrivate, nil
 }
+
+type PlanAccess int
+
+const (
+	PlanAccessError PlanAccess = iota
+	All
+	Limited
+	None
+)
 
 func (actor ServicePlanHandler) findPlanAccess(plan models.ServicePlanFields) PlanAccess {
 	if plan.Public {

@@ -8,16 +8,27 @@ type PaginatedQuotaResources struct {
 
 type QuotaResource struct {
 	Resource
-	Entity models.QuotaFields
+	Entity models.QuotaResponse
 }
 
-func (resource QuotaResource) ToFields() (quota models.QuotaFields) {
-	quota.Guid = resource.Metadata.Guid
-	quota.Name = resource.Entity.Name
-	quota.MemoryLimit = resource.Entity.MemoryLimit
-	quota.InstanceMemoryLimit = resource.Entity.InstanceMemoryLimit
-	quota.RoutesLimit = resource.Entity.RoutesLimit
-	quota.ServicesLimit = resource.Entity.ServicesLimit
-	quota.NonBasicServicesAllowed = resource.Entity.NonBasicServicesAllowed
-	return
+func (resource QuotaResource) ToFields() models.QuotaFields {
+	appInstanceLimit := UnlimitedAppInstances
+	if resource.Entity.AppInstanceLimit != "" {
+		i, err := resource.Entity.AppInstanceLimit.Int64()
+		if err == nil {
+			appInstanceLimit = int(i)
+		}
+	}
+
+	return models.QuotaFields{
+		GUID:                    resource.Metadata.GUID,
+		Name:                    resource.Entity.Name,
+		MemoryLimit:             resource.Entity.MemoryLimit,
+		InstanceMemoryLimit:     resource.Entity.InstanceMemoryLimit,
+		RoutesLimit:             resource.Entity.RoutesLimit,
+		ServicesLimit:           resource.Entity.ServicesLimit,
+		NonBasicServicesAllowed: resource.Entity.NonBasicServicesAllowed,
+		AppInstanceLimit:        appInstanceLimit,
+		ReservedRoutePorts:      resource.Entity.ReservedRoutePorts,
+	}
 }

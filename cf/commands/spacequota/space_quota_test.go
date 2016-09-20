@@ -1,14 +1,15 @@
 package spacequota_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/api/space_quotas/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/spacequotas/spacequotasfakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -19,53 +20,54 @@ import (
 var _ = Describe("quotas command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		quotaRepo           *fakes.FakeSpaceQuotaRepository
-		requirementsFactory *testreq.FakeReqFactory
-		configRepo          core_config.Repository
-		deps                command_registry.Dependency
+		quotaRepo           *spacequotasfakes.FakeSpaceQuotaRepository
+		requirementsFactory *requirementsfakes.FakeFactory
+		configRepo          coreconfig.Repository
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.RepoLocator = deps.RepoLocator.SetSpaceQuotaRepository(quotaRepo)
 		deps.Config = configRepo
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("space-quota").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("space-quota").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
-		quotaRepo = &fakes.FakeSpaceQuotaRepository{}
+		quotaRepo = new(spacequotasfakes.FakeSpaceQuotaRepository)
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true}
+		requirementsFactory = new(requirementsfakes.FakeFactory)
+		requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("space-quota", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("space-quota", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Describe("requirements", func() {
 		It("requires the user to be logged in", func() {
-			requirementsFactory.LoginSuccess = false
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 			Expect(runCommand("foo")).ToNot(HavePassedRequirements())
 		})
 
 		It("requires the user to target an org", func() {
-			requirementsFactory.TargetedOrgSuccess = false
+			orgReq := new(requirementsfakes.FakeTargetedOrgRequirement)
+			orgReq.ExecuteReturns(errors.New("not targeting org"))
+			requirementsFactory.NewTargetedOrgRequirementReturns(orgReq)
 			Expect(runCommand("bar")).ToNot(HavePassedRequirements())
 		})
 
 		It("fails when a quota name is not provided", func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedOrgSuccess = true
+			requirementsFactory.NewTargetedOrgRequirementReturns(new(requirementsfakes.FakeTargetedOrgRequirement))
 			Expect(runCommand()).ToNot(HavePassedRequirements())
 		})
 	})
 
 	Context("when logged in", func() {
 		JustBeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedOrgSuccess = true
-			Expect(runCommand("quota-name")).To(HavePassedRequirements())
+			requirementsFactory.NewTargetedOrgRequirementReturns(new(requirementsfakes.FakeTargetedOrgRequirement))
+			runCommand("quota-name")
 		})
 
 		Context("when quotas exist", func() {
@@ -78,13 +80,15 @@ var _ = Describe("quotas command", func() {
 						RoutesLimit:             111,
 						ServicesLimit:           222,
 						NonBasicServicesAllowed: true,
-						OrgGuid:                 "my-org-guid",
+						OrgGUID:                 "my-org-guid",
+						AppInstanceLimit:        5,
+						ReservedRoutePortsLimit: "4",
 					}, nil)
 			})
 
 			It("lists the specific quota info", func() {
 				Expect(quotaRepo.FindByNameArgsForCall(0)).To(Equal("quota-name"))
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Getting space quota quota-name info as", "my-user"},
 					[]string{"OK"},
 					[]string{"total memory limit", "1G"},
@@ -92,6 +96,8 @@ var _ = Describe("quotas command", func() {
 					[]string{"routes", "111"},
 					[]string{"service", "222"},
 					[]string{"non basic services", "allowed"},
+					[]string{"app instance limit", "5"},
+					[]string{"reserved route ports", "4"},
 				))
 			})
 
@@ -105,14 +111,14 @@ var _ = Describe("quotas command", func() {
 							RoutesLimit:             111,
 							ServicesLimit:           -1,
 							NonBasicServicesAllowed: true,
-							OrgGuid:                 "my-org-guid",
+							OrgGUID:                 "my-org-guid",
 						}, nil)
 
 				})
 
 				It("replaces -1 with unlimited", func() {
 					Expect(quotaRepo.FindByNameArgsForCall(0)).To(Equal("quota-name"))
-					Expect(ui.Outputs).To(ContainSubstrings(
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"Getting space quota quota-name info as", "my-user"},
 						[]string{"OK"},
 						[]string{"total memory limit", "1G"},
@@ -123,6 +129,36 @@ var _ = Describe("quotas command", func() {
 					))
 				})
 			})
+
+			Context("when the app instances are unlimited", func() {
+				BeforeEach(func() {
+					quotaRepo.FindByNameReturns(
+						models.SpaceQuota{
+							Name:                    "quota-name",
+							MemoryLimit:             1024,
+							InstanceMemoryLimit:     -1,
+							RoutesLimit:             111,
+							ServicesLimit:           222,
+							NonBasicServicesAllowed: true,
+							OrgGUID:                 "my-org-guid",
+							AppInstanceLimit:        -1,
+						}, nil)
+				})
+
+				It("replaces -1 with unlimited", func() {
+					Expect(quotaRepo.FindByNameArgsForCall(0)).To(Equal("quota-name"))
+					Expect(ui.Outputs()).To(ContainSubstrings(
+						[]string{"Getting space quota quota-name info as", "my-user"},
+						[]string{"OK"},
+						[]string{"total memory limit", "1G"},
+						[]string{"instance memory limit", "unlimited"},
+						[]string{"routes", "111"},
+						[]string{"service", "222"},
+						[]string{"non basic services", "allowed"},
+						[]string{"app instance limit", "unlimited"},
+					))
+				})
+			})
 		})
 		Context("when an error occurs fetching quotas", func() {
 			BeforeEach(func() {
@@ -130,7 +166,7 @@ var _ = Describe("quotas command", func() {
 			})
 
 			It("prints an error", func() {
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Getting space quota quota-name info as", "my-user"},
 					[]string{"FAILED"},
 				))

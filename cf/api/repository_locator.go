@@ -4,58 +4,65 @@ import (
 	"crypto/tls"
 	"net/http"
 
-	"github.com/cloudfoundry/cli/cf/api/environment_variable_groups"
-	"github.com/cloudfoundry/cli/cf/api/organizations"
-
-	"github.com/cloudfoundry/cli/cf/api/app_events"
-	api_app_files "github.com/cloudfoundry/cli/cf/api/app_files"
-	"github.com/cloudfoundry/cli/cf/api/app_instances"
-	"github.com/cloudfoundry/cli/cf/api/application_bits"
-	applications "github.com/cloudfoundry/cli/cf/api/applications"
+	"github.com/blang/semver"
+	"github.com/cloudfoundry/cli/cf"
+	"github.com/cloudfoundry/cli/cf/api/appevents"
+	api_appfiles "github.com/cloudfoundry/cli/cf/api/appfiles"
+	"github.com/cloudfoundry/cli/cf/api/appinstances"
+	"github.com/cloudfoundry/cli/cf/api/applicationbits"
+	"github.com/cloudfoundry/cli/cf/api/applications"
 	"github.com/cloudfoundry/cli/cf/api/authentication"
-	"github.com/cloudfoundry/cli/cf/api/copy_application_source"
-	"github.com/cloudfoundry/cli/cf/api/feature_flags"
+	"github.com/cloudfoundry/cli/cf/api/copyapplicationsource"
+	"github.com/cloudfoundry/cli/cf/api/environmentvariablegroups"
+	"github.com/cloudfoundry/cli/cf/api/featureflags"
+	"github.com/cloudfoundry/cli/cf/api/logs"
+	"github.com/cloudfoundry/cli/cf/api/organizations"
 	"github.com/cloudfoundry/cli/cf/api/password"
 	"github.com/cloudfoundry/cli/cf/api/quotas"
-	"github.com/cloudfoundry/cli/cf/api/security_groups"
-	"github.com/cloudfoundry/cli/cf/api/security_groups/defaults/running"
-	"github.com/cloudfoundry/cli/cf/api/security_groups/defaults/staging"
-	securitygroupspaces "github.com/cloudfoundry/cli/cf/api/security_groups/spaces"
-	"github.com/cloudfoundry/cli/cf/api/space_quotas"
+	"github.com/cloudfoundry/cli/cf/api/securitygroups"
+	"github.com/cloudfoundry/cli/cf/api/securitygroups/defaults/running"
+	"github.com/cloudfoundry/cli/cf/api/securitygroups/defaults/staging"
+	securitygroupspaces "github.com/cloudfoundry/cli/cf/api/securitygroups/spaces"
+	"github.com/cloudfoundry/cli/cf/api/spacequotas"
 	"github.com/cloudfoundry/cli/cf/api/spaces"
-	stacks "github.com/cloudfoundry/cli/cf/api/stacks"
+	"github.com/cloudfoundry/cli/cf/api/stacks"
 	"github.com/cloudfoundry/cli/cf/api/strategy"
-	"github.com/cloudfoundry/cli/cf/app_files"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/appfiles"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/net"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	consumer "github.com/cloudfoundry/loggregator_consumer"
+	"github.com/cloudfoundry/cli/cf/trace"
+	"github.com/cloudfoundry/cli/cf/v3/repository"
+	v3client "github.com/cloudfoundry/go-ccapi/v3/client"
+	"github.com/cloudfoundry/loggregator_consumer"
+	"github.com/cloudfoundry/noaa/consumer"
 )
 
 type RepositoryLocator struct {
-	authRepo                        authentication.AuthenticationRepository
+	authRepo                        authentication.Repository
 	curlRepo                        CurlRepository
-	endpointRepo                    EndpointRepository
+	endpointRepo                    coreconfig.EndpointRepository
 	organizationRepo                organizations.OrganizationRepository
 	quotaRepo                       quotas.QuotaRepository
 	spaceRepo                       spaces.SpaceRepository
-	appRepo                         applications.ApplicationRepository
-	appBitsRepo                     application_bits.CloudControllerApplicationBitsRepository
+	appRepo                         applications.Repository
+	appBitsRepo                     applicationbits.CloudControllerApplicationBitsRepository
 	appSummaryRepo                  AppSummaryRepository
-	appInstancesRepo                app_instances.AppInstancesRepository
-	appEventsRepo                   app_events.AppEventsRepository
-	appFilesRepo                    api_app_files.AppFilesRepository
+	appInstancesRepo                appinstances.Repository
+	appEventsRepo                   appevents.Repository
+	appFilesRepo                    api_appfiles.Repository
 	domainRepo                      DomainRepository
 	routeRepo                       RouteRepository
-	routingApiRepo                  RoutingApiRepository
+	routingAPIRepo                  RoutingAPIRepository
 	stackRepo                       stacks.StackRepository
 	serviceRepo                     ServiceRepository
 	serviceKeyRepo                  ServiceKeyRepository
 	serviceBindingRepo              ServiceBindingRepository
+	routeServiceBindingRepo         RouteServiceBindingRepository
 	serviceSummaryRepo              ServiceSummaryRepository
 	userRepo                        UserRepository
-	passwordRepo                    password.PasswordRepository
-	logsRepo                        LogsRepository
+	passwordRepo                    password.Repository
+	logsRepo                        logs.Repository
 	authTokenRepo                   ServiceAuthTokenRepository
 	serviceBrokerRepo               ServiceBrokerRepository
 	servicePlanRepo                 CloudControllerServicePlanRepository
@@ -63,51 +70,65 @@ type RepositoryLocator struct {
 	userProvidedServiceInstanceRepo UserProvidedServiceInstanceRepository
 	buildpackRepo                   BuildpackRepository
 	buildpackBitsRepo               BuildpackBitsRepository
-	securityGroupRepo               security_groups.SecurityGroupRepo
-	stagingSecurityGroupRepo        staging.StagingSecurityGroupsRepo
-	runningSecurityGroupRepo        running.RunningSecurityGroupsRepo
+	securityGroupRepo               securitygroups.SecurityGroupRepo
+	stagingSecurityGroupRepo        staging.SecurityGroupsRepo
+	runningSecurityGroupRepo        running.SecurityGroupsRepo
 	securityGroupSpaceBinder        securitygroupspaces.SecurityGroupSpaceBinder
-	spaceQuotaRepo                  space_quotas.SpaceQuotaRepository
-	featureFlagRepo                 feature_flags.FeatureFlagRepository
-	environmentVariableGroupRepo    environment_variable_groups.EnvironmentVariableGroupsRepository
-	copyAppSourceRepo               copy_application_source.CopyApplicationSourceRepository
+	spaceQuotaRepo                  spacequotas.SpaceQuotaRepository
+	featureFlagRepo                 featureflags.FeatureFlagRepository
+	environmentVariableGroupRepo    environmentvariablegroups.Repository
+	copyAppSourceRepo               copyapplicationsource.Repository
+
+	v3Repository repository.Repository
 
 	appSshRepo CloudControllerAppSshRepository
 }
 
-func NewRepositoryLocator(config core_config.ReadWriter, gatewaysByName map[string]net.Gateway) (loc RepositoryLocator) {
-	strategy := strategy.NewEndpointStrategy(config.ApiVersion())
+func NewRepositoryLocator(config coreconfig.ReadWriter, gatewaysByName map[string]net.Gateway, logger trace.Printer) (loc RepositoryLocator) {
+	strategy := strategy.NewEndpointStrategy(config.APIVersion())
 
 	cloudControllerGateway := gatewaysByName["cloud-controller"]
-	routingApiGateway := gatewaysByName["routing-api"]
+	routingAPIGateway := gatewaysByName["routing-api"]
 	uaaGateway := gatewaysByName["uaa"]
-	loc.authRepo = authentication.NewUAAAuthenticationRepository(uaaGateway, config)
+	loc.authRepo = authentication.NewUAARepository(uaaGateway, config, net.NewRequestDumper(logger))
 
 	// ensure gateway refreshers are set before passing them by value to repositories
 	cloudControllerGateway.SetTokenRefresher(loc.authRepo)
 	uaaGateway.SetTokenRefresher(loc.authRepo)
 
-	tlsConfig := net.NewTLSConfig([]tls.Certificate{}, config.IsSSLDisabled())
-	loggregatorConsumer := consumer.New(config.LoggregatorEndpoint(), tlsConfig, http.ProxyFromEnvironment)
-	loggregatorConsumer.SetDebugPrinter(terminal.DebugPrinter{})
-
-	loc.appBitsRepo = application_bits.NewCloudControllerApplicationBitsRepository(config, cloudControllerGateway)
-	loc.appEventsRepo = app_events.NewCloudControllerAppEventsRepository(config, cloudControllerGateway, strategy)
-	loc.appFilesRepo = api_app_files.NewCloudControllerAppFilesRepository(config, cloudControllerGateway)
-	loc.appSshRepo = NewCloudControllerAppSshRepository(config, cloudControllerGateway)
-	loc.appRepo = applications.NewCloudControllerApplicationRepository(config, cloudControllerGateway)
+	loc.appBitsRepo = applicationbits.NewCloudControllerApplicationBitsRepository(config, cloudControllerGateway)
+	loc.appEventsRepo = appevents.NewCloudControllerAppEventsRepository(config, cloudControllerGateway, strategy)
+	loc.appFilesRepo = api_appfiles.NewCloudControllerAppFilesRepository(config, cloudControllerGateway)
+	loc.appRepo = applications.NewCloudControllerRepository(config, cloudControllerGateway)
 	loc.appSummaryRepo = NewCloudControllerAppSummaryRepository(config, cloudControllerGateway)
-	loc.appInstancesRepo = app_instances.NewCloudControllerAppInstancesRepository(config, cloudControllerGateway)
+	loc.appInstancesRepo = appinstances.NewCloudControllerAppInstancesRepository(config, cloudControllerGateway)
 	loc.authTokenRepo = NewCloudControllerServiceAuthTokenRepository(config, cloudControllerGateway)
 	loc.curlRepo = NewCloudControllerCurlRepository(config, cloudControllerGateway)
 	loc.domainRepo = NewCloudControllerDomainRepository(config, cloudControllerGateway, strategy)
-	loc.endpointRepo = NewEndpointRepository(config, cloudControllerGateway)
-	loc.logsRepo = NewLoggregatorLogsRepository(config, loggregatorConsumer, loc.authRepo)
+	loc.endpointRepo = NewEndpointRepository(cloudControllerGateway)
+
+	loc.appSshRepo = NewCloudControllerAppSshRepository(config, cloudControllerGateway)
+
+	tlsConfig := net.NewTLSConfig([]tls.Certificate{}, config.IsSSLDisabled())
+
+	apiVersion, _ := semver.Make(config.APIVersion())
+
+	if apiVersion.GTE(cf.NoaaMinimumAPIVersion) {
+		consumer := consumer.New(config.DopplerEndpoint(), tlsConfig, http.ProxyFromEnvironment)
+		consumer.SetDebugPrinter(terminal.DebugPrinter{Logger: logger})
+		loc.logsRepo = logs.NewNoaaLogsRepository(config, consumer, loc.authRepo)
+	} else {
+		consumer := loggregator_consumer.New(config.LoggregatorEndpoint(), tlsConfig, http.ProxyFromEnvironment)
+		consumer.SetDebugPrinter(terminal.DebugPrinter{Logger: logger})
+		loc.logsRepo = logs.NewLoggregatorLogsRepository(config, consumer, loc.authRepo)
+	}
+
 	loc.organizationRepo = organizations.NewCloudControllerOrganizationRepository(config, cloudControllerGateway)
-	loc.passwordRepo = password.NewCloudControllerPasswordRepository(config, uaaGateway)
+	loc.passwordRepo = password.NewCloudControllerRepository(config, uaaGateway)
 	loc.quotaRepo = quotas.NewCloudControllerQuotaRepository(config, cloudControllerGateway)
 	loc.routeRepo = NewCloudControllerRouteRepository(config, cloudControllerGateway)
-	loc.routingApiRepo = NewRoutingApiRepository(config, routingApiGateway)
+	loc.routeServiceBindingRepo = NewCloudControllerRouteServiceBindingRepository(config, cloudControllerGateway)
+	loc.routingAPIRepo = NewRoutingAPIRepository(config, routingAPIGateway)
 	loc.stackRepo = stacks.NewCloudControllerStackRepository(config, cloudControllerGateway)
 	loc.serviceRepo = NewCloudControllerServiceRepository(config, cloudControllerGateway)
 	loc.serviceKeyRepo = NewCloudControllerServiceKeyRepository(config, cloudControllerGateway)
@@ -120,24 +141,28 @@ func NewRepositoryLocator(config core_config.ReadWriter, gatewaysByName map[stri
 	loc.userProvidedServiceInstanceRepo = NewCCUserProvidedServiceInstanceRepository(config, cloudControllerGateway)
 	loc.userRepo = NewCloudControllerUserRepository(config, uaaGateway, cloudControllerGateway)
 	loc.buildpackRepo = NewCloudControllerBuildpackRepository(config, cloudControllerGateway)
-	loc.buildpackBitsRepo = NewCloudControllerBuildpackBitsRepository(config, cloudControllerGateway, app_files.ApplicationZipper{})
-	loc.securityGroupRepo = security_groups.NewSecurityGroupRepo(config, cloudControllerGateway)
-	loc.stagingSecurityGroupRepo = staging.NewStagingSecurityGroupsRepo(config, cloudControllerGateway)
-	loc.runningSecurityGroupRepo = running.NewRunningSecurityGroupsRepo(config, cloudControllerGateway)
+	loc.buildpackBitsRepo = NewCloudControllerBuildpackBitsRepository(config, cloudControllerGateway, appfiles.ApplicationZipper{})
+	loc.securityGroupRepo = securitygroups.NewSecurityGroupRepo(config, cloudControllerGateway)
+	loc.stagingSecurityGroupRepo = staging.NewSecurityGroupsRepo(config, cloudControllerGateway)
+	loc.runningSecurityGroupRepo = running.NewSecurityGroupsRepo(config, cloudControllerGateway)
 	loc.securityGroupSpaceBinder = securitygroupspaces.NewSecurityGroupSpaceBinder(config, cloudControllerGateway)
-	loc.spaceQuotaRepo = space_quotas.NewCloudControllerSpaceQuotaRepository(config, cloudControllerGateway)
-	loc.featureFlagRepo = feature_flags.NewCloudControllerFeatureFlagRepository(config, cloudControllerGateway)
-	loc.environmentVariableGroupRepo = environment_variable_groups.NewCloudControllerEnvironmentVariableGroupsRepository(config, cloudControllerGateway)
-	loc.copyAppSourceRepo = copy_application_source.NewCloudControllerCopyApplicationSourceRepository(config, cloudControllerGateway)
+	loc.spaceQuotaRepo = spacequotas.NewCloudControllerSpaceQuotaRepository(config, cloudControllerGateway)
+	loc.featureFlagRepo = featureflags.NewCloudControllerFeatureFlagRepository(config, cloudControllerGateway)
+	loc.environmentVariableGroupRepo = environmentvariablegroups.NewCloudControllerRepository(config, cloudControllerGateway)
+	loc.copyAppSourceRepo = copyapplicationsource.NewCloudControllerCopyApplicationSourceRepository(config, cloudControllerGateway)
+
+	client := v3client.NewClient(config.APIEndpoint(), config.AuthenticationEndpoint(), config.AccessToken(), config.RefreshToken())
+	loc.v3Repository = repository.NewRepository(config, client)
+
 	return
 }
 
-func (locator RepositoryLocator) SetAuthenticationRepository(repo authentication.AuthenticationRepository) RepositoryLocator {
+func (locator RepositoryLocator) SetAuthenticationRepository(repo authentication.Repository) RepositoryLocator {
 	locator.authRepo = repo
 	return locator
 }
 
-func (locator RepositoryLocator) GetAuthenticationRepository() authentication.AuthenticationRepository {
+func (locator RepositoryLocator) GetAuthenticationRepository() authentication.Repository {
 	return locator.authRepo
 }
 
@@ -150,11 +175,11 @@ func (locator RepositoryLocator) GetCurlRepository() CurlRepository {
 	return locator.curlRepo
 }
 
-func (locator RepositoryLocator) GetEndpointRepository() EndpointRepository {
+func (locator RepositoryLocator) GetEndpointRepository() coreconfig.EndpointRepository {
 	return locator.endpointRepo
 }
 
-func (locator RepositoryLocator) SetEndpointRepository(e EndpointRepository) RepositoryLocator {
+func (locator RepositoryLocator) SetEndpointRepository(e coreconfig.EndpointRepository) RepositoryLocator {
 	locator.endpointRepo = e
 	return locator
 }
@@ -186,16 +211,16 @@ func (locator RepositoryLocator) GetSpaceRepository() spaces.SpaceRepository {
 	return locator.spaceRepo
 }
 
-func (locator RepositoryLocator) SetApplicationRepository(repo applications.ApplicationRepository) RepositoryLocator {
+func (locator RepositoryLocator) SetApplicationRepository(repo applications.Repository) RepositoryLocator {
 	locator.appRepo = repo
 	return locator
 }
 
-func (locator RepositoryLocator) GetApplicationRepository() applications.ApplicationRepository {
+func (locator RepositoryLocator) GetApplicationRepository() applications.Repository {
 	return locator.appRepo
 }
 
-func (locator RepositoryLocator) GetApplicationBitsRepository() application_bits.ApplicationBitsRepository {
+func (locator RepositoryLocator) GetApplicationBitsRepository() applicationbits.Repository {
 	return locator.appBitsRepo
 }
 
@@ -213,30 +238,30 @@ func (locator RepositoryLocator) GetAppSummaryRepository() AppSummaryRepository 
 	return locator.appSummaryRepo
 }
 
-func (locator RepositoryLocator) SetAppInstancesRepository(repo app_instances.AppInstancesRepository) RepositoryLocator {
+func (locator RepositoryLocator) SetAppInstancesRepository(repo appinstances.Repository) RepositoryLocator {
 	locator.appInstancesRepo = repo
 	return locator
 }
 
-func (locator RepositoryLocator) GetAppInstancesRepository() app_instances.AppInstancesRepository {
+func (locator RepositoryLocator) GetAppInstancesRepository() appinstances.Repository {
 	return locator.appInstancesRepo
 }
 
-func (locator RepositoryLocator) SetAppEventsRepository(repo app_events.AppEventsRepository) RepositoryLocator {
+func (locator RepositoryLocator) SetAppEventsRepository(repo appevents.Repository) RepositoryLocator {
 	locator.appEventsRepo = repo
 	return locator
 }
 
-func (locator RepositoryLocator) GetAppEventsRepository() app_events.AppEventsRepository {
+func (locator RepositoryLocator) GetAppEventsRepository() appevents.Repository {
 	return locator.appEventsRepo
 }
 
-func (locator RepositoryLocator) SetAppFileRepository(repo api_app_files.AppFilesRepository) RepositoryLocator {
+func (locator RepositoryLocator) SetAppFileRepository(repo api_appfiles.Repository) RepositoryLocator {
 	locator.appFilesRepo = repo
 	return locator
 }
 
-func (locator RepositoryLocator) GetAppFilesRepository() api_app_files.AppFilesRepository {
+func (locator RepositoryLocator) GetAppFilesRepository() api_appfiles.Repository {
 	return locator.appFilesRepo
 }
 
@@ -254,12 +279,12 @@ func (locator RepositoryLocator) SetRouteRepository(repo RouteRepository) Reposi
 	return locator
 }
 
-func (locator RepositoryLocator) GetRoutingApiRepository() RoutingApiRepository {
-	return locator.routingApiRepo
+func (locator RepositoryLocator) GetRoutingAPIRepository() RoutingAPIRepository {
+	return locator.routingAPIRepo
 }
 
-func (locator RepositoryLocator) SetRoutingApiRepository(repo RoutingApiRepository) RepositoryLocator {
-	locator.routingApiRepo = repo
+func (locator RepositoryLocator) SetRoutingAPIRepository(repo RoutingAPIRepository) RepositoryLocator {
+	locator.routingAPIRepo = repo
 	return locator
 }
 
@@ -294,6 +319,15 @@ func (locator RepositoryLocator) GetServiceKeyRepository() ServiceKeyRepository 
 	return locator.serviceKeyRepo
 }
 
+func (locator RepositoryLocator) SetRouteServiceBindingRepository(repo RouteServiceBindingRepository) RepositoryLocator {
+	locator.routeServiceBindingRepo = repo
+	return locator
+}
+
+func (locator RepositoryLocator) GetRouteServiceBindingRepository() RouteServiceBindingRepository {
+	return locator.routeServiceBindingRepo
+}
+
 func (locator RepositoryLocator) SetServiceBindingRepository(repo ServiceBindingRepository) RepositoryLocator {
 	locator.serviceBindingRepo = repo
 	return locator
@@ -315,21 +349,21 @@ func (locator RepositoryLocator) GetUserRepository() UserRepository {
 	return locator.userRepo
 }
 
-func (locator RepositoryLocator) SetPasswordRepository(repo password.PasswordRepository) RepositoryLocator {
+func (locator RepositoryLocator) SetPasswordRepository(repo password.Repository) RepositoryLocator {
 	locator.passwordRepo = repo
 	return locator
 }
 
-func (locator RepositoryLocator) GetPasswordRepository() password.PasswordRepository {
+func (locator RepositoryLocator) GetPasswordRepository() password.Repository {
 	return locator.passwordRepo
 }
 
-func (locator RepositoryLocator) SetLogsRepository(repo LogsRepository) RepositoryLocator {
+func (locator RepositoryLocator) SetLogsRepository(repo logs.Repository) RepositoryLocator {
 	locator.logsRepo = repo
 	return locator
 }
 
-func (locator RepositoryLocator) GetLogsRepository() LogsRepository {
+func (locator RepositoryLocator) GetLogsRepository() logs.Repository {
 	return locator.logsRepo
 }
 
@@ -382,30 +416,30 @@ func (locator RepositoryLocator) GetBuildpackBitsRepository() BuildpackBitsRepos
 	return locator.buildpackBitsRepo
 }
 
-func (locator RepositoryLocator) SetSecurityGroupRepository(repo security_groups.SecurityGroupRepo) RepositoryLocator {
+func (locator RepositoryLocator) SetSecurityGroupRepository(repo securitygroups.SecurityGroupRepo) RepositoryLocator {
 	locator.securityGroupRepo = repo
 	return locator
 }
 
-func (locator RepositoryLocator) GetSecurityGroupRepository() security_groups.SecurityGroupRepo {
+func (locator RepositoryLocator) GetSecurityGroupRepository() securitygroups.SecurityGroupRepo {
 	return locator.securityGroupRepo
 }
 
-func (locator RepositoryLocator) SetStagingSecurityGroupRepository(repo staging.StagingSecurityGroupsRepo) RepositoryLocator {
+func (locator RepositoryLocator) SetStagingSecurityGroupRepository(repo staging.SecurityGroupsRepo) RepositoryLocator {
 	locator.stagingSecurityGroupRepo = repo
 	return locator
 }
 
-func (locator RepositoryLocator) GetStagingSecurityGroupsRepository() staging.StagingSecurityGroupsRepo {
+func (locator RepositoryLocator) GetStagingSecurityGroupsRepository() staging.SecurityGroupsRepo {
 	return locator.stagingSecurityGroupRepo
 }
 
-func (locator RepositoryLocator) SetRunningSecurityGroupRepository(repo running.RunningSecurityGroupsRepo) RepositoryLocator {
+func (locator RepositoryLocator) SetRunningSecurityGroupRepository(repo running.SecurityGroupsRepo) RepositoryLocator {
 	locator.runningSecurityGroupRepo = repo
 	return locator
 }
 
-func (locator RepositoryLocator) GetRunningSecurityGroupsRepository() running.RunningSecurityGroupsRepo {
+func (locator RepositoryLocator) GetRunningSecurityGroupsRepository() running.SecurityGroupsRepo {
 	return locator.runningSecurityGroupRepo
 }
 
@@ -422,40 +456,49 @@ func (locator RepositoryLocator) GetServicePlanVisibilityRepository() ServicePla
 	return locator.servicePlanVisibilityRepo
 }
 
-func (locator RepositoryLocator) GetSpaceQuotaRepository() space_quotas.SpaceQuotaRepository {
+func (locator RepositoryLocator) GetSpaceQuotaRepository() spacequotas.SpaceQuotaRepository {
 	return locator.spaceQuotaRepo
 }
 
-func (locator RepositoryLocator) SetSpaceQuotaRepository(repo space_quotas.SpaceQuotaRepository) RepositoryLocator {
+func (locator RepositoryLocator) SetSpaceQuotaRepository(repo spacequotas.SpaceQuotaRepository) RepositoryLocator {
 	locator.spaceQuotaRepo = repo
 	return locator
 }
 
-func (locator RepositoryLocator) SetFeatureFlagRepository(repo feature_flags.FeatureFlagRepository) RepositoryLocator {
+func (locator RepositoryLocator) SetFeatureFlagRepository(repo featureflags.FeatureFlagRepository) RepositoryLocator {
 	locator.featureFlagRepo = repo
 	return locator
 }
 
-func (locator RepositoryLocator) GetFeatureFlagRepository() feature_flags.FeatureFlagRepository {
+func (locator RepositoryLocator) GetFeatureFlagRepository() featureflags.FeatureFlagRepository {
 	return locator.featureFlagRepo
 }
 
-func (locator RepositoryLocator) SetEnvironmentVariableGroupsRepository(repo environment_variable_groups.EnvironmentVariableGroupsRepository) RepositoryLocator {
+func (locator RepositoryLocator) SetEnvironmentVariableGroupsRepository(repo environmentvariablegroups.Repository) RepositoryLocator {
 	locator.environmentVariableGroupRepo = repo
 	return locator
 }
 
-func (locator RepositoryLocator) GetEnvironmentVariableGroupsRepository() environment_variable_groups.EnvironmentVariableGroupsRepository {
+func (locator RepositoryLocator) GetEnvironmentVariableGroupsRepository() environmentvariablegroups.Repository {
 	return locator.environmentVariableGroupRepo
 }
 
-func (locator RepositoryLocator) SetCopyApplicationSourceRepository(repo copy_application_source.CopyApplicationSourceRepository) RepositoryLocator {
+func (locator RepositoryLocator) SetCopyApplicationSourceRepository(repo copyapplicationsource.Repository) RepositoryLocator {
 	locator.copyAppSourceRepo = repo
 	return locator
 }
 
-func (locator RepositoryLocator) GetCopyApplicationSourceRepository() copy_application_source.CopyApplicationSourceRepository {
+func (locator RepositoryLocator) GetCopyApplicationSourceRepository() copyapplicationsource.Repository {
 	return locator.copyAppSourceRepo
+}
+
+func (locator RepositoryLocator) GetV3Repository() repository.Repository {
+	return locator.v3Repository
+}
+
+func (locator RepositoryLocator) SetV3Repository(r repository.Repository) RepositoryLocator {
+	locator.v3Repository = r
+	return locator
 }
 
 func (locator RepositoryLocator) GetAppSshRepository() AppSshRepository {

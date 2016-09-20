@@ -14,8 +14,16 @@ func TestCommands(t *testing.T) {
 	config := configuration.NewRepositoryWithDefaults()
 	i18n.T = i18n.Init(config)
 
-	_ = commands.Api{}
+	_ = commands.API{}
 
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Commands Suite")
+}
+
+type passingRequirement struct {
+	Name string
+}
+
+func (r passingRequirement) Execute() error {
+	return nil
 }

@@ -15,41 +15,41 @@ type Application struct {
 
 func (model Application) HasRoute(route Route) bool {
 	for _, boundRoute := range model.Routes {
-		if boundRoute.Guid == route.Guid {
+		if boundRoute.GUID == route.GUID {
 			return true
 		}
 	}
 	return false
 }
 
-func (model Application) ToParams() (params AppParams) {
+func (model Application) ToParams() AppParams {
 	state := strings.ToUpper(model.State)
-	params = AppParams{
-		Guid:            &model.Guid,
+	params := AppParams{
+		GUID:            &model.GUID,
 		Name:            &model.Name,
-		BuildpackUrl:    &model.BuildpackUrl,
+		BuildpackURL:    &model.BuildpackURL,
 		Command:         &model.Command,
 		DiskQuota:       &model.DiskQuota,
 		InstanceCount:   &model.InstanceCount,
 		HealthCheckType: &model.HealthCheckType,
 		Memory:          &model.Memory,
 		State:           &state,
-		SpaceGuid:       &model.SpaceGuid,
+		SpaceGUID:       &model.SpaceGUID,
 		EnvironmentVars: &model.EnvironmentVars,
 		DockerImage:     &model.DockerImage,
 	}
 
 	if model.Stack != nil {
-		params.StackGuid = &model.Stack.Guid
+		params.StackGUID = &model.Stack.GUID
 	}
 
-	return
+	return params
 }
 
 type ApplicationFields struct {
-	Guid                 string
+	GUID                 string
 	Name                 string
-	BuildpackUrl         string
+	BuildpackURL         string
 	Command              string
 	Diego                bool
 	DetectedStartCommand string
@@ -61,48 +61,66 @@ type ApplicationFields struct {
 	HealthCheckType      string
 	HealthCheckTimeout   int
 	State                string
-	SpaceGuid            string
+	SpaceGUID            string
+	StackGUID            string
 	PackageUpdatedAt     *time.Time
 	PackageState         string
 	StagingFailedReason  string
 	Buildpack            string
 	DetectedBuildpack    string
 	DockerImage          string
-	EnableSsh            bool
+	EnableSSH            bool
+	AppPorts             []int
 }
 
+const (
+	ApplicationStateStopped  = "stopped"
+	ApplicationStateStarted  = "started"
+	ApplicationStateRunning  = "running"
+	ApplicationStateCrashed  = "crashed"
+	ApplicationStateFlapping = "flapping"
+	ApplicationStateDown     = "down"
+	ApplicationStateStarting = "starting"
+)
+
 type AppParams struct {
-	BuildpackUrl       *string
+	BuildpackURL       *string
 	Command            *string
 	DiskQuota          *int64
-	Domains            *[]string
+	Domains            []string
 	EnvironmentVars    *map[string]interface{}
-	Guid               *string
+	GUID               *string
 	HealthCheckType    *string
 	HealthCheckTimeout *int
 	DockerImage        *string
 	Diego              *bool
-	EnableSsh          *bool
-	Hosts              *[]string
+	EnableSSH          *bool
+	Hosts              []string
 	RoutePath          *string
 	InstanceCount      *int
 	Memory             *int64
 	Name               *string
-	NoHostname         bool
+	NoHostname         *bool
 	NoRoute            bool
-	UseRandomHostname  bool
+	UseRandomRoute     bool
+	UseRandomPort      bool
 	Path               *string
-	ServicesToBind     *[]string
-	SpaceGuid          *string
-	StackGuid          *string
+	ServicesToBind     []string
+	SpaceGUID          *string
+	StackGUID          *string
 	StackName          *string
 	State              *string
 	PackageUpdatedAt   *time.Time
+	AppPorts           *[]int
+	Routes             []ManifestRoute
 }
 
 func (app *AppParams) Merge(other *AppParams) {
-	if other.BuildpackUrl != nil {
-		app.BuildpackUrl = other.BuildpackUrl
+	if other.AppPorts != nil {
+		app.AppPorts = other.AppPorts
+	}
+	if other.BuildpackURL != nil {
+		app.BuildpackURL = other.BuildpackURL
 	}
 	if other.Command != nil {
 		app.Command = other.Command
@@ -110,14 +128,20 @@ func (app *AppParams) Merge(other *AppParams) {
 	if other.DiskQuota != nil {
 		app.DiskQuota = other.DiskQuota
 	}
+	if other.DockerImage != nil {
+		app.DockerImage = other.DockerImage
+	}
 	if other.Domains != nil {
 		app.Domains = other.Domains
+	}
+	if other.EnableSSH != nil {
+		app.EnableSSH = other.EnableSSH
 	}
 	if other.EnvironmentVars != nil {
 		app.EnvironmentVars = other.EnvironmentVars
 	}
-	if other.Guid != nil {
-		app.Guid = other.Guid
+	if other.GUID != nil {
+		app.GUID = other.GUID
 	}
 	if other.HealthCheckType != nil {
 		app.HealthCheckType = other.HealthCheckType
@@ -128,20 +152,11 @@ func (app *AppParams) Merge(other *AppParams) {
 	if other.Hosts != nil {
 		app.Hosts = other.Hosts
 	}
-	if other.RoutePath != nil {
-		app.RoutePath = other.RoutePath
-	}
 	if other.InstanceCount != nil {
 		app.InstanceCount = other.InstanceCount
 	}
-	if other.DiskQuota != nil {
-		app.DiskQuota = other.DiskQuota
-	}
 	if other.Memory != nil {
 		app.Memory = other.Memory
-	}
-	if other.DockerImage != nil {
-		app.DockerImage = other.DockerImage
 	}
 	if other.Name != nil {
 		app.Name = other.Name
@@ -149,14 +164,17 @@ func (app *AppParams) Merge(other *AppParams) {
 	if other.Path != nil {
 		app.Path = other.Path
 	}
+	if other.RoutePath != nil {
+		app.RoutePath = other.RoutePath
+	}
 	if other.ServicesToBind != nil {
 		app.ServicesToBind = other.ServicesToBind
 	}
-	if other.SpaceGuid != nil {
-		app.SpaceGuid = other.SpaceGuid
+	if other.SpaceGUID != nil {
+		app.SpaceGUID = other.SpaceGUID
 	}
-	if other.StackGuid != nil {
-		app.StackGuid = other.StackGuid
+	if other.StackGUID != nil {
+		app.StackGUID = other.StackGUID
 	}
 	if other.StackName != nil {
 		app.StackName = other.StackName
@@ -164,19 +182,25 @@ func (app *AppParams) Merge(other *AppParams) {
 	if other.State != nil {
 		app.State = other.State
 	}
-	if other.EnableSsh != nil {
-		app.EnableSsh = other.EnableSsh
-	}
 
 	app.NoRoute = app.NoRoute || other.NoRoute
-	app.NoHostname = app.NoHostname || other.NoHostname
-	app.UseRandomHostname = app.UseRandomHostname || other.UseRandomHostname
+	noHostBool := app.IsNoHostnameTrue() || other.IsNoHostnameTrue()
+	app.NoHostname = &noHostBool
+	app.UseRandomRoute = app.UseRandomRoute || other.UseRandomRoute
 }
 
 func (app *AppParams) IsEmpty() bool {
-	return reflect.DeepEqual(*app, AppParams{})
+	noHostBool := false
+	return reflect.DeepEqual(*app, AppParams{NoHostname: &noHostBool})
 }
 
 func (app *AppParams) IsHostEmpty() bool {
-	return app.Hosts == nil || len(*app.Hosts) == 0
+	return app.Hosts == nil || len(app.Hosts) == 0
+}
+
+func (app *AppParams) IsNoHostnameTrue() bool {
+	if app.NoHostname == nil {
+		return false
+	}
+	return *app.NoHostname
 }

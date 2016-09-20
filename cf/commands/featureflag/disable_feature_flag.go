@@ -1,61 +1,64 @@
 package featureflag
 
 import (
-	"github.com/cloudfoundry/cli/cf/api/feature_flags"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/featureflags"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
 )
 
 type DisableFeatureFlag struct {
 	ui       terminal.UI
-	config   core_config.ReadWriter
-	flagRepo feature_flags.FeatureFlagRepository
+	config   coreconfig.ReadWriter
+	flagRepo featureflags.FeatureFlagRepository
 }
 
 func init() {
-	command_registry.Register(&DisableFeatureFlag{})
+	commandregistry.Register(&DisableFeatureFlag{})
 }
 
-func (cmd *DisableFeatureFlag) MetaData() command_registry.CommandMetadata {
-	return command_registry.CommandMetadata{
+func (cmd *DisableFeatureFlag) MetaData() commandregistry.CommandMetadata {
+	return commandregistry.CommandMetadata{
 		Name:        "disable-feature-flag",
-		Description: T("Disable the use of a feature so that users have access to and can use the feature."),
-		Usage:       T("CF_NAME disable-feature-flag FEATURE_NAME"),
+		Description: T("Disable the use of a feature so that users have access to and can use the feature"),
+		Usage: []string{
+			T("CF_NAME disable-feature-flag FEATURE_NAME"),
+		},
 	}
 }
 
-func (cmd *DisableFeatureFlag) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+func (cmd *DisableFeatureFlag) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
 	if len(fc.Args()) != 1 {
-		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + command_registry.Commands.CommandUsage("disable-feature-flag"))
+		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + commandregistry.Commands.CommandUsage("disable-feature-flag"))
 	}
 
-	reqs = []requirements.Requirement{
+	reqs := []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 	}
-	return reqs, err
+
+	return reqs
 }
 
-func (cmd *DisableFeatureFlag) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *DisableFeatureFlag) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.flagRepo = deps.RepoLocator.GetFeatureFlagRepository()
 	return cmd
 }
 
-func (cmd *DisableFeatureFlag) Execute(c flags.FlagContext) {
+func (cmd *DisableFeatureFlag) Execute(c flags.FlagContext) error {
 	flag := c.Args()[0]
 
 	cmd.ui.Say(T("Setting status of {{.FeatureFlag}} as {{.Username}}...", map[string]interface{}{
 		"FeatureFlag": terminal.EntityNameColor(flag),
 		"Username":    terminal.EntityNameColor(cmd.config.Username())}))
 
-	apiErr := cmd.flagRepo.Update(flag, false)
-	if apiErr != nil {
-		cmd.ui.Failed(apiErr.Error())
+	err := cmd.flagRepo.Update(flag, false)
+	if err != nil {
+		return err
 	}
 
 	cmd.ui.Say("")
@@ -63,5 +66,5 @@ func (cmd *DisableFeatureFlag) Execute(c flags.FlagContext) {
 	cmd.ui.Say("")
 	cmd.ui.Say(T("Feature {{.FeatureFlag}} Disabled.", map[string]interface{}{
 		"FeatureFlag": terminal.EntityNameColor(flag)}))
-	return
+	return nil
 }

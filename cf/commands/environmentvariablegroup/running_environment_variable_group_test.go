@@ -1,14 +1,17 @@
 package environmentvariablegroup_test
 
 import (
-	test_environmentVariableGroups "github.com/cloudfoundry/cli/cf/api/environment_variable_groups/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/environmentvariablegroups/environmentvariablegroupsfakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/commands/environmentvariablegroup"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -17,58 +20,73 @@ import (
 var _ = Describe("running-environment-variable-group command", func() {
 	var (
 		ui                           *testterm.FakeUI
-		requirementsFactory          *testreq.FakeReqFactory
-		configRepo                   core_config.Repository
-		environmentVariableGroupRepo *test_environmentVariableGroups.FakeEnvironmentVariableGroupsRepository
-		deps                         command_registry.Dependency
+		requirementsFactory          *requirementsfakes.FakeFactory
+		configRepo                   coreconfig.Repository
+		environmentVariableGroupRepo *environmentvariablegroupsfakes.FakeRepository
+		deps                         commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.RepoLocator = deps.RepoLocator.SetEnvironmentVariableGroupsRepository(environmentVariableGroupRepo)
 		deps.Config = configRepo
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("running-environment-variable-group").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("running-environment-variable-group").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true}
-		environmentVariableGroupRepo = &test_environmentVariableGroups.FakeEnvironmentVariableGroupsRepository{}
+		requirementsFactory = new(requirementsfakes.FakeFactory)
+		environmentVariableGroupRepo = new(environmentvariablegroupsfakes.FakeRepository)
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("running-environment-variable-group", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("running-environment-variable-group", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Describe("requirements", func() {
 		It("requires the user to be logged in", func() {
-			requirementsFactory.LoginSuccess = false
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 			Expect(runCommand()).ToNot(HavePassedRequirements())
 		})
-		It("should fail with usage when provided any arguments", func() {
-			requirementsFactory.LoginSuccess = true
-			Expect(runCommand("blahblah")).To(BeFalse())
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Incorrect Usage", "No argument"},
-			))
+
+		Context("when arguments are provided", func() {
+			var cmd commandregistry.Command
+			var flagContext flags.FlagContext
+
+			BeforeEach(func() {
+				cmd = &environmentvariablegroup.RunningEnvironmentVariableGroup{}
+				cmd.SetDependency(deps, false)
+				flagContext = flags.NewFlagContext(cmd.MetaData().Flags)
+			})
+
+			It("should fail with usage", func() {
+				flagContext.Parse("blahblah")
+
+				reqs := cmd.Requirements(requirementsFactory, flagContext)
+
+				err := testcmd.RunRequirements(reqs)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("Incorrect Usage"))
+				Expect(err.Error()).To(ContainSubstring("No argument required"))
+			})
 		})
 	})
 
 	Describe("when logged in", func() {
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
 			environmentVariableGroupRepo.ListRunningReturns(
 				[]models.EnvironmentVariable{
-					models.EnvironmentVariable{Name: "abc", Value: "123"},
-					models.EnvironmentVariable{Name: "def", Value: "456"},
+					{Name: "abc", Value: "123"},
+					{Name: "def", Value: "456"},
 				}, nil)
 		})
 
 		It("Displays the running environment variable group", func() {
 			runCommand()
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Retrieving the contents of the running environment variable group as my-user..."},
 				[]string{"OK"},
 				[]string{"Variable Name", "Assigned Value"},

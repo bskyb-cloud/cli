@@ -3,9 +3,10 @@ package models
 import "time"
 
 type EventFields struct {
-	Guid        string
+	GUID        string
 	Name        string
 	Timestamp   time.Time
 	Description string
+	Actor       string
 	ActorName   string
 }

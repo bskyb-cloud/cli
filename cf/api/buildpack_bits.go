@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"mime/multipart"
 	gonet "net"
 	"net/http"
@@ -15,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudfoundry/cli/cf/app_files"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/appfiles"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
@@ -24,86 +25,98 @@ import (
 	"github.com/cloudfoundry/gofileutils/fileutils"
 )
 
+//go:generate counterfeiter . BuildpackBitsRepository
+
 type BuildpackBitsRepository interface {
-	UploadBuildpack(buildpack models.Buildpack, dir string) (apiErr error)
+	UploadBuildpack(buildpack models.Buildpack, buildpackFile *os.File, zipFileName string) error
+	CreateBuildpackZipFile(buildpackPath string) (*os.File, string, error)
 }
 
 type CloudControllerBuildpackBitsRepository struct {
-	config       core_config.Reader
+	config       coreconfig.Reader
 	gateway      net.Gateway
-	zipper       app_files.Zipper
+	zipper       appfiles.Zipper
 	TrustedCerts []tls.Certificate
 }
 
-func NewCloudControllerBuildpackBitsRepository(config core_config.Reader, gateway net.Gateway, zipper app_files.Zipper) (repo CloudControllerBuildpackBitsRepository) {
+func NewCloudControllerBuildpackBitsRepository(config coreconfig.Reader, gateway net.Gateway, zipper appfiles.Zipper) (repo CloudControllerBuildpackBitsRepository) {
 	repo.config = config
 	repo.gateway = gateway
 	repo.zipper = zipper
 	return
 }
 
-func (repo CloudControllerBuildpackBitsRepository) UploadBuildpack(buildpack models.Buildpack, buildpackLocation string) (apiErr error) {
-	fileutils.TempFile("buildpack-upload", func(zipFileToUpload *os.File, err error) {
-		if err != nil {
-			apiErr = fmt.Errorf("%s: %s", T("Couldn't create temp file for upload"), err.Error())
-			return
-		}
+func zipErrorHelper(err error) error {
+	return fmt.Errorf("%s: %s", T("Couldn't write zip file"), err.Error())
+}
 
-		var buildpackFileName string
-		if isWebURL(buildpackLocation) {
-			buildpackFileName = path.Base(buildpackLocation)
-			repo.downloadBuildpack(buildpackLocation, func(downloadFile *os.File, downloadErr error) {
-				if downloadErr != nil {
-					err = downloadErr
-					return
-				}
+func (repo CloudControllerBuildpackBitsRepository) CreateBuildpackZipFile(buildpackPath string) (*os.File, string, error) {
+	zipFileToUpload, err := ioutil.TempFile("", "buildpack-upload")
+	if err != nil {
+		return nil, "", fmt.Errorf("%s: %s", T("Couldn't create temp file for upload"), err.Error())
+	}
 
-				err = normalizeBuildpackArchive(downloadFile, zipFileToUpload)
-			})
-		} else {
-			buildpackFileName = filepath.Base(buildpackLocation)
-
-			stats, statError := os.Stat(buildpackLocation)
-			if statError != nil {
-				apiErr = fmt.Errorf("%s: %s", T("Error opening buildpack file"), statError.Error())
-				err = statError
+	var buildpackFileName string
+	if isWebURL(buildpackPath) {
+		buildpackFileName = path.Base(buildpackPath)
+		repo.downloadBuildpack(buildpackPath, func(downloadFile *os.File, downloadErr error) {
+			if downloadErr != nil {
+				err = downloadErr
 				return
 			}
 
-			if stats.IsDir() {
-				buildpackFileName += ".zip" // FIXME: remove once #71167394 is fixed
-				err = repo.zipper.Zip(buildpackLocation, zipFileToUpload)
-			} else {
-				specifiedFile, openError := os.Open(buildpackLocation)
-				if openError != nil {
-					apiErr = fmt.Errorf("%s: %s", T("Couldn't open buildpack file"), openError.Error())
-					err = openError
-					return
-				}
-				err = normalizeBuildpackArchive(specifiedFile, zipFileToUpload)
+			downloadErr = normalizeBuildpackArchive(downloadFile, zipFileToUpload)
+			if downloadErr != nil {
+				err = downloadErr
+				return
+			}
+		})
+		if err != nil {
+			return nil, "", zipErrorHelper(err)
+		}
+	} else {
+		buildpackFileName = filepath.Base(buildpackPath)
+		dir, err := filepath.Abs(buildpackPath)
+		if err != nil {
+			return nil, "", zipErrorHelper(err)
+		}
+
+		buildpackFileName = filepath.Base(dir)
+		stats, err := os.Stat(dir)
+		if err != nil {
+			return nil, "", fmt.Errorf("%s: %s", T("Error opening buildpack file"), err.Error())
+		}
+
+		if stats.IsDir() {
+			buildpackFileName += ".zip" // FIXME: remove once #71167394 is fixed
+			err = repo.zipper.Zip(buildpackPath, zipFileToUpload)
+			if err != nil {
+				return nil, "", zipErrorHelper(err)
+			}
+		} else {
+			specifiedFile, err := os.Open(buildpackPath)
+			if err != nil {
+				return nil, "", fmt.Errorf("%s: %s", T("Couldn't open buildpack file"), err.Error())
+			}
+			err = normalizeBuildpackArchive(specifiedFile, zipFileToUpload)
+			if err != nil {
+				return nil, "", zipErrorHelper(err)
 			}
 		}
+	}
 
-		if err != nil {
-			apiErr = fmt.Errorf("%s: %s", T("Couldn't write zip file"), err.Error())
-			return
-		}
-
-		apiErr = repo.uploadBits(buildpack, zipFileToUpload, buildpackFileName)
-	})
-
-	return
+	return zipFileToUpload, buildpackFileName, nil
 }
 
 func normalizeBuildpackArchive(inputFile *os.File, outputFile *os.File) error {
-	stats, err := inputFile.Stat()
-	if err != nil {
-		return err
+	stats, toplevelErr := inputFile.Stat()
+	if toplevelErr != nil {
+		return toplevelErr
 	}
 
-	reader, err := zip.NewReader(inputFile, stats.Size())
-	if err != nil {
-		return err
+	reader, toplevelErr := zip.NewReader(inputFile, stats.Size())
+	if toplevelErr != nil {
+		return toplevelErr
 	}
 
 	contents := reader.File
@@ -141,7 +154,11 @@ func normalizeBuildpackArchive(inputFile *os.File, outputFile *os.File) error {
 				return err
 			}
 
-			io.Copy(w, r)
+			_, err = io.Copy(w, r)
+			if err != nil {
+				return err
+			}
+
 			err = r.Close()
 			if err != nil {
 				return err
@@ -149,8 +166,16 @@ func normalizeBuildpackArchive(inputFile *os.File, outputFile *os.File) error {
 		}
 	}
 
-	writer.Close()
-	outputFile.Seek(0, 0)
+	toplevelErr = writer.Close()
+	if toplevelErr != nil {
+		return toplevelErr
+	}
+
+	_, toplevelErr = outputFile.Seek(0, 0)
+	if toplevelErr != nil {
+		return toplevelErr
+	}
+
 	return nil
 }
 
@@ -205,24 +230,40 @@ func (repo CloudControllerBuildpackBitsRepository) downloadBuildpack(url string,
 		}
 		defer response.Body.Close()
 
-		io.Copy(tempfile, response.Body)
-		tempfile.Seek(0, 0)
+		_, err = io.Copy(tempfile, response.Body)
+		if err != nil {
+			cb(nil, err)
+			return
+		}
+
+		_, err = tempfile.Seek(0, 0)
+		if err != nil {
+			cb(nil, err)
+			return
+		}
+
 		cb(tempfile, nil)
 	})
 }
 
-func (repo CloudControllerBuildpackBitsRepository) uploadBits(buildpack models.Buildpack, body io.Reader, buildpackName string) error {
+func (repo CloudControllerBuildpackBitsRepository) UploadBuildpack(buildpack models.Buildpack, buildpackFile *os.File, buildpackName string) error {
+	defer func() {
+		buildpackFile.Close()
+		os.Remove(buildpackFile.Name())
+	}()
 	return repo.performMultiPartUpload(
-		fmt.Sprintf("%s/v2/buildpacks/%s/bits", repo.config.ApiEndpoint(), buildpack.Guid),
+		fmt.Sprintf("%s/v2/buildpacks/%s/bits", repo.config.APIEndpoint(), buildpack.GUID),
 		"buildpack",
 		buildpackName,
-		body)
+		buildpackFile)
 }
 
-func (repo CloudControllerBuildpackBitsRepository) performMultiPartUpload(url string, fieldName string, fileName string, body io.Reader) (apiErr error) {
+func (repo CloudControllerBuildpackBitsRepository) performMultiPartUpload(url string, fieldName string, fileName string, body io.Reader) error {
+	var capturedErr error
+
 	fileutils.TempFile("requests", func(requestFile *os.File, err error) {
 		if err != nil {
-			apiErr = err
+			capturedErr = err
 			return
 		}
 
@@ -230,28 +271,38 @@ func (repo CloudControllerBuildpackBitsRepository) performMultiPartUpload(url st
 		part, err := writer.CreateFormFile(fieldName, fileName)
 
 		if err != nil {
-			writer.Close()
+			_ = writer.Close()
+			capturedErr = err
 			return
 		}
 
 		_, err = io.Copy(part, body)
-		writer.Close()
-
 		if err != nil {
-			apiErr = fmt.Errorf("%s: %s", T("Error creating upload"), err.Error())
+			capturedErr = fmt.Errorf("%s: %s", T("Error creating upload"), err.Error())
+			return
+		}
+
+		err = writer.Close()
+		if err != nil {
+			capturedErr = err
 			return
 		}
 
 		var request *net.Request
-		request, apiErr = repo.gateway.NewRequestForFile("PUT", url, repo.config.AccessToken(), requestFile)
-		contentType := fmt.Sprintf("multipart/form-data; boundary=%s", writer.Boundary())
-		request.HttpReq.Header.Set("Content-Type", contentType)
-		if apiErr != nil {
+		request, err = repo.gateway.NewRequestForFile("PUT", url, repo.config.AccessToken(), requestFile)
+		if err != nil {
+			capturedErr = err
 			return
 		}
 
-		_, apiErr = repo.gateway.PerformRequest(request)
+		contentType := fmt.Sprintf("multipart/form-data; boundary=%s", writer.Boundary())
+		request.HTTPReq.Header.Set("Content-Type", contentType)
+
+		_, err = repo.gateway.PerformRequest(request)
+		if err != nil {
+			capturedErr = err
+		}
 	})
 
-	return
+	return capturedErr
 }

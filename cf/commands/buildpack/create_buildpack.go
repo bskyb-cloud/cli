@@ -2,16 +2,14 @@ package buildpack
 
 import (
 	"fmt"
-	"path/filepath"
 	"strconv"
 
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/flags"
-	"github.com/cloudfoundry/cli/flags/flag"
 
 	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/command_registry"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
@@ -25,78 +23,81 @@ type CreateBuildpack struct {
 }
 
 func init() {
-	command_registry.Register(&CreateBuildpack{})
+	commandregistry.Register(&CreateBuildpack{})
 }
 
-func (cmd *CreateBuildpack) MetaData() command_registry.CommandMetadata {
+func (cmd *CreateBuildpack) MetaData() commandregistry.CommandMetadata {
 	fs := make(map[string]flags.FlagSet)
-	fs["enable"] = &cliFlags.BoolFlag{Name: "enable", Usage: T("Enable the buildpack to be used for staging")}
-	fs["disable"] = &cliFlags.BoolFlag{Name: "disable", Usage: T("Disable the buildpack from being used for staging")}
+	fs["enable"] = &flags.BoolFlag{Name: "enable", Usage: T("Enable the buildpack to be used for staging")}
+	fs["disable"] = &flags.BoolFlag{Name: "disable", Usage: T("Disable the buildpack from being used for staging")}
 
-	return command_registry.CommandMetadata{
+	return commandregistry.CommandMetadata{
 		Name:        "create-buildpack",
 		Description: T("Create a buildpack"),
-		Usage: T("CF_NAME create-buildpack BUILDPACK PATH POSITION [--enable|--disable]") +
-			T("\n\nTIP:\n") + T("   Path should be a zip file, a url to a zip file, or a local directory. Position is a positive integer, sets priority, and is sorted from lowest to highest."),
+		Usage: []string{
+			T("CF_NAME create-buildpack BUILDPACK PATH POSITION [--enable|--disable]"),
+			T("\n\nTIP:\n"),
+			T("   Path should be a zip file, a url to a zip file, or a local directory. Position is a positive integer, sets priority, and is sorted from lowest to highest."),
+		},
 		Flags:     fs,
 		TotalArgs: 3,
 	}
 }
 
-func (cmd *CreateBuildpack) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+func (cmd *CreateBuildpack) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
 	if len(fc.Args()) != 3 {
-		cmd.ui.Failed(T("Incorrect Usage. Requires buildpack_name, path and position as arguments\n\n") + command_registry.Commands.CommandUsage("create-buildpack"))
+		cmd.ui.Failed(T("Incorrect Usage. Requires buildpack_name, path and position as arguments\n\n") + commandregistry.Commands.CommandUsage("create-buildpack"))
 	}
 
-	reqs = []requirements.Requirement{
+	reqs := []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 	}
 
-	return
+	return reqs
 }
 
-func (cmd *CreateBuildpack) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *CreateBuildpack) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.buildpackRepo = deps.RepoLocator.GetBuildpackRepository()
 	cmd.buildpackBitsRepo = deps.RepoLocator.GetBuildpackBitsRepository()
 	return cmd
 }
 
-func (cmd *CreateBuildpack) Execute(c flags.FlagContext) {
+func (cmd *CreateBuildpack) Execute(c flags.FlagContext) error {
 	buildpackName := c.Args()[0]
+
+	buildpackFile, buildpackFileName, err := cmd.buildpackBitsRepo.CreateBuildpackZipFile(c.Args()[1])
+	if err != nil {
+		cmd.ui.Warn(T("Failed to create a local temporary zip file for the buildpack"))
+		return err
+	}
 
 	cmd.ui.Say(T("Creating buildpack {{.BuildpackName}}...", map[string]interface{}{"BuildpackName": terminal.EntityNameColor(buildpackName)}))
 
 	buildpack, err := cmd.createBuildpack(buildpackName, c)
 
 	if err != nil {
-		if httpErr, ok := err.(errors.HttpError); ok && httpErr.ErrorCode() == errors.BUILDPACK_EXISTS {
+		if httpErr, ok := err.(errors.HTTPError); ok && httpErr.ErrorCode() == errors.BuildpackNameTaken {
 			cmd.ui.Ok()
 			cmd.ui.Warn(T("Buildpack {{.BuildpackName}} already exists", map[string]interface{}{"BuildpackName": buildpackName}))
-			cmd.ui.Say(T("TIP: use '{{.CfUpdateBuildpackCommand}}' to update this buildpack", map[string]interface{}{"CfUpdateBuildpackCommand": terminal.CommandColor(cf.Name() + " " + "update-buildpack")}))
+			cmd.ui.Say(T("TIP: use '{{.CfUpdateBuildpackCommand}}' to update this buildpack", map[string]interface{}{"CfUpdateBuildpackCommand": terminal.CommandColor(cf.Name + " " + "update-buildpack")}))
 		} else {
-			cmd.ui.Failed(err.Error())
+			return err
 		}
-		return
+		return nil
 	}
 	cmd.ui.Ok()
 	cmd.ui.Say("")
 
 	cmd.ui.Say(T("Uploading buildpack {{.BuildpackName}}...", map[string]interface{}{"BuildpackName": terminal.EntityNameColor(buildpackName)}))
 
-	dir, err := filepath.Abs(c.Args()[1])
+	err = cmd.buildpackBitsRepo.UploadBuildpack(buildpack, buildpackFile, buildpackFileName)
 	if err != nil {
-		cmd.ui.Failed(err.Error())
-		return
-	}
-
-	err = cmd.buildpackBitsRepo.UploadBuildpack(buildpack, dir)
-	if err != nil {
-		cmd.ui.Failed(err.Error())
-		return
+		return err
 	}
 
 	cmd.ui.Ok()
+	return nil
 }
 
 func (cmd CreateBuildpack) createBuildpack(buildpackName string, c flags.FlagContext) (buildpack models.Buildpack, apiErr error) {

@@ -4,16 +4,16 @@ import (
 	"errors"
 
 	"github.com/blang/semver"
-	"github.com/cloudfoundry/cli/cf/command_registry"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
 	"github.com/cloudfoundry/cli/cf/commands/service"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	cferrors "github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/flags"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/flags"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 
-	fakeapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	fakerequirements "github.com/cloudfoundry/cli/cf/requirements/fakes"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
 
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
@@ -24,21 +24,15 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-type passingRequirement struct{}
-
-func (r passingRequirement) Execute() bool {
-	return true
-}
-
 var _ = Describe("PurgeServiceInstance", func() {
 	var (
 		ui          *testterm.FakeUI
-		configRepo  core_config.Repository
-		serviceRepo *fakeapi.FakeServiceRepository
+		configRepo  coreconfig.Repository
+		serviceRepo *apifakes.FakeServiceRepository
 
-		cmd         command_registry.Command
-		deps        command_registry.Dependency
-		factory     *fakerequirements.FakeFactory
+		cmd         commandregistry.Command
+		deps        commandregistry.Dependency
+		factory     *requirementsfakes.FakeFactory
 		flagContext flags.FlagContext
 
 		loginRequirement         requirements.Requirement
@@ -47,13 +41,12 @@ var _ = Describe("PurgeServiceInstance", func() {
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
-		ui.InputsChan = make(chan string)
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		serviceRepo = &fakeapi.FakeServiceRepository{}
+		serviceRepo = new(apifakes.FakeServiceRepository)
 		repoLocator := deps.RepoLocator.SetServiceRepository(serviceRepo)
 
-		deps = command_registry.Dependency{
-			Ui:          ui,
+		deps = commandregistry.Dependency{
+			UI:          ui,
 			Config:      configRepo,
 			RepoLocator: repoLocator,
 		}
@@ -63,7 +56,7 @@ var _ = Describe("PurgeServiceInstance", func() {
 
 		flagContext = flags.NewFlagContext(cmd.MetaData().Flags)
 
-		factory = &fakerequirements.FakeFactory{}
+		factory = new(requirementsfakes.FakeFactory)
 
 		loginRequirement = &passingRequirement{}
 		factory.NewLoginRequirementReturns(loginRequirement)
@@ -80,7 +73,7 @@ var _ = Describe("PurgeServiceInstance", func() {
 
 			It("fails with usage", func() {
 				Expect(func() { cmd.Requirements(factory, flagContext) }).To(Panic())
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Incorrect Usage. Requires an argument"},
 					[]string{"NAME"},
 					[]string{"USAGE"},
@@ -94,16 +87,14 @@ var _ = Describe("PurgeServiceInstance", func() {
 			})
 
 			It("returns a LoginRequirement", func() {
-				actualRequirements, err := cmd.Requirements(factory, flagContext)
-				Expect(err).NotTo(HaveOccurred())
+				actualRequirements := cmd.Requirements(factory, flagContext)
 				Expect(factory.NewLoginRequirementCallCount()).To(Equal(1))
 
 				Expect(actualRequirements).To(ContainElement(loginRequirement))
 			})
 
 			It("returns a MinAPIVersionRequirement", func() {
-				actualRequirements, err := cmd.Requirements(factory, flagContext)
-				Expect(err).NotTo(HaveOccurred())
+				actualRequirements := cmd.Requirements(factory, flagContext)
 				Expect(factory.NewMinAPIVersionRequirementCallCount()).To(Equal(1))
 
 				expectedVersion, err := semver.Make("2.36.0")
@@ -122,8 +113,7 @@ var _ = Describe("PurgeServiceInstance", func() {
 		BeforeEach(func() {
 			err := flagContext.Parse("service-instance-name")
 			Expect(err).NotTo(HaveOccurred())
-			_, err = cmd.Requirements(factory, flagContext)
-			Expect(err).NotTo(HaveOccurred())
+			cmd.Requirements(factory, flagContext)
 		})
 
 		It("finds the instance by name in the service repo", func() {
@@ -143,29 +133,34 @@ var _ = Describe("PurgeServiceInstance", func() {
 			})
 
 			It("warns the user", func() {
-				go cmd.Execute(flagContext)
-				Eventually(func() []string { return ui.Outputs }).Should(ContainSubstrings(
+				ui.Inputs = []string{"n"}
+				cmd.Execute(flagContext)
+				Eventually(func() []string {
+					return ui.Outputs()
+				}).Should(ContainSubstrings(
 					[]string{"WARNING"},
 				))
 			})
 
 			It("asks the user if they would like to proceed", func() {
-				go cmd.Execute(flagContext)
+				ui.Inputs = []string{"n"}
+				cmd.Execute(flagContext)
 				Eventually(func() []string { return ui.Prompts }).Should(ContainSubstrings(
 					[]string{"Really purge service instance service-instance-name from Cloud Foundry?"},
 				))
 			})
 
 			It("purges the service instance when the response is to proceed", func() {
-				go cmd.Execute(flagContext)
-				ui.InputsChan <- "y"
-				Eventually(serviceRepo.PurgeServiceInstanceCallCount()).Should(Equal(1))
+				ui.Inputs = []string{"y"}
+				cmd.Execute(flagContext)
+
+				Eventually(serviceRepo.PurgeServiceInstanceCallCount).Should(Equal(1))
 				Expect(serviceRepo.PurgeServiceInstanceArgsForCall(0)).To(Equal(serviceInstance))
 			})
 
 			It("does not purge the service instance when the response is not to proceed", func() {
-				go cmd.Execute(flagContext)
-				ui.InputsChan <- "n"
+				ui.Inputs = []string{"n"}
+				cmd.Execute(flagContext)
 				Consistently(serviceRepo.PurgeServiceInstanceCallCount).Should(BeZero())
 			})
 
@@ -196,23 +191,25 @@ var _ = Describe("PurgeServiceInstance", func() {
 
 			It("prints a warning", func() {
 				cmd.Execute(flagContext)
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Service instance service-instance-name not found"},
 				))
 			})
 		})
 
 		Context("when an error occurs fetching the instance", func() {
+			var runCLIErr error
+
 			BeforeEach(func() {
 				serviceRepo.FindInstanceByNameReturns(models.ServiceInstance{}, errors.New("an-error"))
 			})
 
+			JustBeforeEach(func() {
+				runCLIErr = cmd.Execute(flagContext)
+			})
+
 			It("panics and prints a message with the error", func() {
-				Expect(func() { cmd.Execute(flagContext) }).To(Panic())
-				Expect(ui.Outputs).To(ContainSubstrings(
-					[]string{"FAILED"},
-					[]string{"an-error"},
-				))
+				Expect(runCLIErr).To(HaveOccurred())
 			})
 		})
 	})

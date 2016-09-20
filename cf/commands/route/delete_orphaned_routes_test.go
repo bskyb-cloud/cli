@@ -1,15 +1,18 @@
 package route_test
 
 import (
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
+	"github.com/cloudfoundry/cli/cf/flags"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/commands/route"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -17,54 +20,69 @@ import (
 
 var _ = Describe("delete-orphaned-routes command", func() {
 	var (
-		ui         *testterm.FakeUI
-		routeRepo  *testapi.FakeRouteRepository
-		configRepo core_config.Repository
-		reqFactory *testreq.FakeReqFactory
-		deps       command_registry.Dependency
+		ui                  *testterm.FakeUI
+		routeRepo           *apifakes.FakeRouteRepository
+		configRepo          coreconfig.Repository
+		requirementsFactory *requirementsfakes.FakeFactory
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.RepoLocator = deps.RepoLocator.SetRouteRepository(routeRepo)
 		deps.Config = configRepo
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("delete-orphaned-routes").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("delete-orphaned-routes").SetDependency(deps, pluginCall))
 	}
 
-	callDeleteOrphanedRoutes := func(confirmation string, args []string, reqFactory *testreq.FakeReqFactory, routeRepo *testapi.FakeRouteRepository) (*testterm.FakeUI, bool) {
+	callDeleteOrphanedRoutes := func(confirmation string, args []string, requirementsFactory *requirementsfakes.FakeFactory, routeRepo *apifakes.FakeRouteRepository) (*testterm.FakeUI, bool) {
 		ui = &testterm.FakeUI{Inputs: []string{confirmation}}
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		passed := testcmd.RunCliCommand("delete-orphaned-routes", args, reqFactory, updateCommandDependency, false)
+		passed := testcmd.RunCLICommand("delete-orphaned-routes", args, requirementsFactory, updateCommandDependency, false, ui)
 
 		return ui, passed
 	}
 
 	BeforeEach(func() {
-		routeRepo = &testapi.FakeRouteRepository{}
-		reqFactory = &testreq.FakeReqFactory{}
+		routeRepo = new(apifakes.FakeRouteRepository)
+		requirementsFactory = new(requirementsfakes.FakeFactory)
 	})
 
 	It("fails requirements when not logged in", func() {
-		_, passed := callDeleteOrphanedRoutes("y", []string{}, reqFactory, routeRepo)
+		requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
+		_, passed := callDeleteOrphanedRoutes("y", []string{}, requirementsFactory, routeRepo)
 		Expect(passed).To(BeFalse())
 	})
-	It("should fail with usage when provided any arguments", func() {
-		reqFactory.LoginSuccess = true
-		ui, passed := callDeleteOrphanedRoutes("y", []string{"blahblah"}, reqFactory, routeRepo)
-		Expect(passed).To(BeFalse())
-		Expect(ui.Outputs).To(ContainSubstrings(
-			[]string{"Incorrect Usage", "No argument required"},
-		))
+
+	Context("when arguments are provided", func() {
+		var cmd commandregistry.Command
+		var flagContext flags.FlagContext
+
+		BeforeEach(func() {
+			cmd = &route.DeleteOrphanedRoutes{}
+			cmd.SetDependency(deps, false)
+			flagContext = flags.NewFlagContext(cmd.MetaData().Flags)
+		})
+
+		It("should fail with usage", func() {
+			flagContext.Parse("blahblah")
+
+			reqs := cmd.Requirements(requirementsFactory, flagContext)
+
+			err := testcmd.RunRequirements(reqs)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("Incorrect Usage"))
+			Expect(err.Error()).To(ContainSubstring("No argument required"))
+		})
 	})
 
 	Context("when logged in successfully", func() {
 
 		BeforeEach(func() {
-			reqFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
 		})
 
 		It("passes requirements when logged in", func() {
-			_, passed := callDeleteOrphanedRoutes("y", []string{}, reqFactory, routeRepo)
+			_, passed := callDeleteOrphanedRoutes("y", []string{}, requirementsFactory, routeRepo)
 			Expect(passed).To(BeTrue())
 		})
 
@@ -77,13 +95,13 @@ var _ = Describe("delete-orphaned-routes command", func() {
 
 			routeRepo.ListRoutesStub = func(cb func(models.Route) bool) error {
 				route := models.Route{}
-				route.Guid = "route1-guid"
+				route.GUID = "route1-guid"
 				route.Host = "hostname-1"
 				route.Domain = domain
 				route.Apps = []models.ApplicationFields{app1}
 
 				route2 := models.Route{}
-				route2.Guid = "route2-guid"
+				route2.GUID = "route2-guid"
 				route2.Host = "hostname-2"
 				route2.Domain = domain2
 
@@ -93,13 +111,13 @@ var _ = Describe("delete-orphaned-routes command", func() {
 				return nil
 			}
 
-			ui, _ = callDeleteOrphanedRoutes("y", []string{}, reqFactory, routeRepo)
+			ui, _ = callDeleteOrphanedRoutes("y", []string{}, requirementsFactory, routeRepo)
 
 			Expect(ui.Prompts).To(ContainSubstrings(
 				[]string{"Really delete orphaned routes"},
 			))
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Deleting route", "hostname-2.cookieclicker.co"},
 				[]string{"OK"},
 			))
@@ -122,7 +140,7 @@ var _ = Describe("delete-orphaned-routes command", func() {
 				}
 
 				route2 := models.Route{}
-				route2.Guid = "route2-guid"
+				route2.GUID = "route2-guid"
 				route2.Host = "hostname-2"
 				route2.Domain = models.DomainFields{Name: "cookieclicker.co"}
 
@@ -132,11 +150,11 @@ var _ = Describe("delete-orphaned-routes command", func() {
 				return nil
 			}
 
-			ui, _ = callDeleteOrphanedRoutes("", []string{"-f"}, reqFactory, routeRepo)
+			ui, _ = callDeleteOrphanedRoutes("", []string{"-f"}, requirementsFactory, routeRepo)
 
 			Expect(len(ui.Prompts)).To(Equal(0))
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Deleting route", "hostname-2.cookieclicker.co"},
 				[]string{"OK"},
 			))

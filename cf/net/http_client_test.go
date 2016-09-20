@@ -9,14 +9,26 @@ import (
 
 	"github.com/cloudfoundry/cli/cf/errors"
 	. "github.com/cloudfoundry/cli/cf/net"
+	"github.com/cloudfoundry/cli/cf/trace/tracefakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"golang.org/x/net/websocket"
 )
 
 var _ = Describe("HTTP Client", func() {
+	var (
+		client      HTTPClientInterface
+		dumper      RequestDumper
+		fakePrinter *tracefakes.FakePrinter
+	)
 
-	Describe("PrepareRedirect", func() {
+	BeforeEach(func() {
+		fakePrinter = new(tracefakes.FakePrinter)
+		dumper = NewRequestDumper(fakePrinter)
+		client = NewHTTPClient(&http.Transport{}, dumper)
+	})
+
+	Describe("ExecuteCheckRedirect", func() {
 		It("transfers original headers", func() {
 			originalReq, err := http.NewRequest("GET", "http://local.com/foo", nil)
 			Expect(err).NotTo(HaveOccurred())
@@ -28,7 +40,7 @@ var _ = Describe("HTTP Client", func() {
 
 			via := []*http.Request{originalReq}
 
-			err = PrepareRedirect(redirectReq, via)
+			err = client.ExecuteCheckRedirect(redirectReq, via)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(redirectReq.Header.Get("Authorization")).To(Equal("my-auth-token"))
@@ -46,7 +58,7 @@ var _ = Describe("HTTP Client", func() {
 
 			via := []*http.Request{originalReq}
 
-			err = PrepareRedirect(redirectReq, via)
+			err = client.ExecuteCheckRedirect(redirectReq, via)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(redirectReq.Header.Get("Authorization")).To(Equal(""))
@@ -64,7 +76,7 @@ var _ = Describe("HTTP Client", func() {
 
 			via := []*http.Request{originalReq}
 
-			err = PrepareRedirect(redirectReq, via)
+			err = client.ExecuteCheckRedirect(redirectReq, via)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(redirectReq.Header.Get("Content-Type")).To(Equal(""))
@@ -84,7 +96,7 @@ var _ = Describe("HTTP Client", func() {
 
 			via := []*http.Request{firstReq, secondReq}
 
-			err = PrepareRedirect(redirectReq, via)
+			err = client.ExecuteCheckRedirect(redirectReq, via)
 
 			Expect(err).To(HaveOccurred())
 		})
@@ -139,6 +151,18 @@ var _ = Describe("HTTP Client", func() {
 
 			_, ok := err.(*errors.InvalidSSLCert)
 			Expect(ok).To(BeFalse())
+		})
+
+		It("returns an error with a tip when it is a tcp dial error", func() {
+			err := WrapNetworkErrors("example.com", &url.Error{Err: &net.OpError{Op: "dial", Net: "tcp", Err: errors.New("tcp-dial-error")}})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("TIP: If you are behind a firewall and require an HTTP proxy, verify the https_proxy environment variable is correctly set. Else, check your network connection."))
+		})
+
+		It("does not return an error with a tip when it is not a network error", func() {
+			err := WrapNetworkErrors("example.com", errors.New("an-error"))
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Not(ContainSubstring("TIP: If you are behind a firewall and require an HTTP proxy, verify the https_proxy environment variable is correctly set. Else, check your network connection.")))
 		})
 	})
 })

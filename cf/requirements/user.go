@@ -3,53 +3,50 @@ package requirements
 import (
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/terminal"
 )
 
-//go:generate counterfeiter -o fakes/fake_user_requirement.go . UserRequirement
+//go:generate counterfeiter . UserRequirement
+
 type UserRequirement interface {
 	Requirement
 	GetUser() models.UserFields
 }
 
-type userApiRequirement struct {
+type userAPIRequirement struct {
 	username string
-	ui       terminal.UI
 	userRepo api.UserRepository
-	wantGuid bool
+	wantGUID bool
 
 	user models.UserFields
 }
 
 func NewUserRequirement(
 	username string,
-	ui terminal.UI,
 	userRepo api.UserRepository,
-	wantGuid bool,
-) *userApiRequirement {
-	req := new(userApiRequirement)
+	wantGUID bool,
+) *userAPIRequirement {
+	req := new(userAPIRequirement)
 	req.username = username
-	req.ui = ui
 	req.userRepo = userRepo
-	req.wantGuid = wantGuid
+	req.wantGUID = wantGUID
 
 	return req
 }
 
-func (req *userApiRequirement) Execute() bool {
-	if req.wantGuid {
+func (req *userAPIRequirement) Execute() error {
+	if req.wantGUID {
 		var err error
 		req.user, err = req.userRepo.FindByUsername(req.username)
 		if err != nil {
-			req.ui.Failed(err.Error())
+			return err
 		}
 	} else {
 		req.user = models.UserFields{Username: req.username}
 	}
 
-	return true
+	return nil
 }
 
-func (req *userApiRequirement) GetUser() models.UserFields {
+func (req *userAPIRequirement) GetUser() models.UserFields {
 	return req.user
 }

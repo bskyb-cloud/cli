@@ -6,35 +6,40 @@ import (
 	"path"
 	"strings"
 
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
 	"github.com/cloudfoundry/cli/cf/resources"
 	go_i18n "github.com/nicksnyder/go-i18n/i18n"
 	"github.com/nicksnyder/go-i18n/i18n/language"
 )
 
 const (
-	defaultLocale  = "en_US"
+	defaultLocale  = "en-us"
 	lang           = "LANG"
 	lcAll          = "LC_ALL"
 	resourceSuffix = ".all.json"
 	zhTW           = "zh-tw"
 	zhHK           = "zh-hk"
-	zhHant         = "zhHant"
+	zhHant         = "zh-hant"
 	hyphen         = "-"
 	underscore     = "_"
 )
 
 var T go_i18n.TranslateFunc
 
-func Init(config core_config.Reader) go_i18n.TranslateFunc {
+type LocalReader interface {
+	Locale() string
+}
+
+func Init(config LocalReader) go_i18n.TranslateFunc {
+	loadAsset("cf/i18n/resources/" + defaultLocale + resourceSuffix)
+	defaultTfunc := go_i18n.MustTfunc(defaultLocale)
+
+	assetNames := resources.AssetNames()
+
 	sources := []string{
 		config.Locale(),
 		os.Getenv(lcAll),
 		os.Getenv(lang),
-		defaultLocale,
 	}
-
-	assetNames := resources.AssetNames()
 
 	for _, source := range sources {
 		if source == "" {
@@ -49,58 +54,33 @@ func Init(config core_config.Reader) go_i18n.TranslateFunc {
 			for _, assetName := range assetNames {
 				assetLocale := strings.ToLower(strings.Replace(path.Base(assetName), underscore, hyphen, -1))
 				if strings.HasPrefix(assetLocale, l.Tag) {
-					assetBytes, err := resources.Asset(assetName)
-					if err != nil {
-						panic(fmt.Sprintf("Could not load asset '%s': %s", assetName, err.Error()))
-					}
+					loadAsset(assetName)
 
-					err = go_i18n.ParseTranslationFileBytes(assetName, assetBytes)
-					if err != nil {
-						panic(fmt.Sprintf("Could not load translations '%s': %s", assetName, err.Error()))
-					}
+					t := go_i18n.MustTfunc(l.Tag)
 
-					T, err := go_i18n.Tfunc(source)
-					if err == nil {
-						return T
+					return func(translationID string, args ...interface{}) string {
+						if translated := t(translationID, args...); translated != translationID {
+							return translated
+						}
+
+						return defaultTfunc(translationID, args...)
 					}
 				}
 			}
 		}
 	}
 
-	panic("Unable to find suitable translation")
+	return defaultTfunc
 }
 
-func SupportedLocales() []string {
-	assetNames := resources.AssetNames()
-	locales := make([]string, len(assetNames))
-
-	for i := range assetNames {
-		locales[i] = strings.TrimSuffix(path.Base(assetNames[i]), resourceSuffix)
+func loadAsset(assetName string) {
+	assetBytes, err := resources.Asset(assetName)
+	if err != nil {
+		panic(fmt.Sprintf("Could not load asset '%s': %s", assetName, err.Error()))
 	}
 
-	return locales
-}
-
-func NormalizedSupportedLocales() []string {
-	supportedLocales := SupportedLocales()
-	locales := make([]string, len(supportedLocales))
-
-	for i := range supportedLocales {
-		locales[i] = language.NormalizeTag(supportedLocales[i])
+	err = go_i18n.ParseTranslationFileBytes(assetName, assetBytes)
+	if err != nil {
+		panic(fmt.Sprintf("Could not load translations '%s': %s", assetName, err.Error()))
 	}
-
-	return locales
-}
-
-func IsSupportedLocale(locale string) bool {
-	for _, supportedLocale := range NormalizedSupportedLocales() {
-		for _, l := range language.Parse(locale) {
-			if supportedLocale == l.String() {
-				return true
-			}
-		}
-	}
-
-	return false
 }

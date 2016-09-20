@@ -1,29 +1,30 @@
 package requirements
 
 import (
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"errors"
+
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/terminal"
 )
 
 type LoginRequirement struct {
-	ui                     terminal.UI
-	config                 core_config.Reader
-	apiEndpointRequirement ApiEndpointRequirement
+	config                 coreconfig.Reader
+	apiEndpointRequirement APIEndpointRequirement
 }
 
-func NewLoginRequirement(ui terminal.UI, config core_config.Reader) LoginRequirement {
-	return LoginRequirement{ui, config, ApiEndpointRequirement{ui, config}}
+func NewLoginRequirement(config coreconfig.Reader) LoginRequirement {
+	return LoginRequirement{config, APIEndpointRequirement{config}}
 }
 
-func (req LoginRequirement) Execute() (success bool) {
-	if !req.apiEndpointRequirement.Execute() {
-		return false
+func (req LoginRequirement) Execute() error {
+
+	if err := req.apiEndpointRequirement.Execute(); err != nil {
+		return err
 	}
 
 	if !req.config.IsLoggedIn() {
-		req.ui.Say(terminal.NotLoggedInText())
-		return false
+		return errors.New(terminal.NotLoggedInText())
 	}
 
-	return true
+	return nil
 }

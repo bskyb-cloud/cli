@@ -4,14 +4,15 @@ import (
 	"io/ioutil"
 	"os"
 
-	fakeSecurityGroup "github.com/cloudfoundry/cli/cf/api/security_groups/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/securitygroups/securitygroupsfakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -22,47 +23,48 @@ import (
 var _ = Describe("update-security-group command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		securityGroupRepo   *fakeSecurityGroup.FakeSecurityGroupRepo
-		requirementsFactory *testreq.FakeReqFactory
-		configRepo          core_config.Repository
-		deps                command_registry.Dependency
+		securityGroupRepo   *securitygroupsfakes.FakeSecurityGroupRepo
+		requirementsFactory *requirementsfakes.FakeFactory
+		configRepo          coreconfig.Repository
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.RepoLocator = deps.RepoLocator.SetSecurityGroupRepository(securityGroupRepo)
 		deps.Config = configRepo
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("update-security-group").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("update-security-group").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
-		requirementsFactory = &testreq.FakeReqFactory{}
-		securityGroupRepo = &fakeSecurityGroup.FakeSecurityGroupRepo{}
+		requirementsFactory = new(requirementsfakes.FakeFactory)
+		securityGroupRepo = new(securitygroupsfakes.FakeSecurityGroupRepo)
 		configRepo = testconfig.NewRepositoryWithDefaults()
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("update-security-group", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("update-security-group", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Describe("requirements", func() {
 		It("fails when the user is not logged in", func() {
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 			Expect(runCommand("the-security-group")).To(BeFalse())
 		})
 
 		It("fails with usage when a name is not provided", func() {
-			requirementsFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
 			runCommand()
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Incorrect Usage", "Requires", "arguments"},
 			))
 		})
 
 		It("fails with usage when a file path is not provided", func() {
-			requirementsFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
 			runCommand("my-group-name")
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Incorrect Usage", "Requires", "arguments"},
 			))
 		})
@@ -71,11 +73,11 @@ var _ = Describe("update-security-group command", func() {
 	Context("when the user is logged in", func() {
 		var tempFile *os.File
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
 			securityGroup := models.SecurityGroup{
 				SecurityGroupFields: models.SecurityGroupFields{
 					Name: "my-group-name",
-					Guid: "my-group-guid",
+					GUID: "my-group-guid",
 				},
 			}
 			securityGroupRepo.ReadReturns(securityGroup, nil)
@@ -97,7 +99,7 @@ var _ = Describe("update-security-group command", func() {
 			})
 
 			It("displays a message describing what its going to do", func() {
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Updating security group", "my-group-name", "my-user"},
 					[]string{"OK"},
 					[]string{"TIP: Changes will not apply to existing running applications until they are restarted."},
@@ -121,7 +123,7 @@ var _ = Describe("update-security-group command", func() {
 					})
 
 					It("fails loudly", func() {
-						Expect(ui.Outputs).To(ContainSubstrings(
+						Expect(ui.Outputs()).To(ContainSubstrings(
 							[]string{"Updating security group", "my-group-name"},
 							[]string{"FAILED"},
 						))
@@ -135,7 +137,7 @@ var _ = Describe("update-security-group command", func() {
 				})
 
 				It("freaks out", func() {
-					Expect(ui.Outputs).To(ContainSubstrings(
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"FAILED"},
 					))
 				})

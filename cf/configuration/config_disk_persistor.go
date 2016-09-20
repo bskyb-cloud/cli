@@ -3,7 +3,6 @@ package configuration
 import (
 	"io/ioutil"
 	"os"
-	"path/filepath"
 )
 
 const (
@@ -11,7 +10,8 @@ const (
 	dirPermissions  = 0700
 )
 
-//go:generate counterfeiter -o fakes/fake_persistor.go . Persistor
+//go:generate counterfeiter . Persistor
+
 type Persistor interface {
 	Delete()
 	Exists() bool
@@ -19,16 +19,18 @@ type Persistor interface {
 	Save(DataInterface) error
 }
 
+//go:generate counterfeiter . DataInterface
+
 type DataInterface interface {
-	JsonMarshalV3() ([]byte, error)
-	JsonUnmarshalV3([]byte) error
+	JSONMarshalV3() ([]byte, error)
+	JSONUnmarshalV3([]byte) error
 }
 
 type DiskPersistor struct {
 	filePath string
 }
 
-func NewDiskPersistor(path string) (dp DiskPersistor) {
+func NewDiskPersistor(path string) DiskPersistor {
 	return DiskPersistor{
 		filePath: path,
 	}
@@ -43,7 +45,7 @@ func (dp DiskPersistor) Exists() bool {
 }
 
 func (dp DiskPersistor) Delete() {
-	os.Remove(dp.filePath)
+	_ = os.Remove(dp.filePath)
 }
 
 func (dp DiskPersistor) Load(data DataInterface) error {
@@ -58,12 +60,12 @@ func (dp DiskPersistor) Load(data DataInterface) error {
 	return err
 }
 
-func (dp DiskPersistor) Save(data DataInterface) (err error) {
+func (dp DiskPersistor) Save(data DataInterface) error {
 	return dp.write(data)
 }
 
 func (dp DiskPersistor) read(data DataInterface) error {
-	err := os.MkdirAll(filepath.Dir(dp.filePath), dirPermissions)
+	err := dp.makeDirectory()
 	if err != nil {
 		return err
 	}
@@ -73,12 +75,12 @@ func (dp DiskPersistor) read(data DataInterface) error {
 		return err
 	}
 
-	err = data.JsonUnmarshalV3(jsonBytes)
+	err = data.JSONUnmarshalV3(jsonBytes)
 	return err
 }
 
 func (dp DiskPersistor) write(data DataInterface) error {
-	bytes, err := data.JsonMarshalV3()
+	bytes, err := data.JSONMarshalV3()
 	if err != nil {
 		return err
 	}

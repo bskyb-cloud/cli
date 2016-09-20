@@ -1,14 +1,15 @@
 package domain_test
 
 import (
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -19,17 +20,17 @@ import (
 var _ = Describe("delete-domain command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		configRepo          core_config.Repository
-		domainRepo          *testapi.FakeDomainRepository
-		requirementsFactory *testreq.FakeReqFactory
-		deps                command_registry.Dependency
+		configRepo          coreconfig.Repository
+		domainRepo          *apifakes.FakeDomainRepository
+		requirementsFactory *requirementsfakes.FakeFactory
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.RepoLocator = deps.RepoLocator.SetDomainRepository(domainRepo)
 		deps.Config = configRepo
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("delete-domain").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("delete-domain").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
@@ -37,27 +38,38 @@ var _ = Describe("delete-domain command", func() {
 			Inputs: []string{"yes"},
 		}
 
-		domainRepo = &testapi.FakeDomainRepository{}
-		requirementsFactory = &testreq.FakeReqFactory{
-			LoginSuccess:       true,
-			TargetedOrgSuccess: true,
-		}
+		domainRepo = new(apifakes.FakeDomainRepository)
+
+		requirementsFactory = new(requirementsfakes.FakeFactory)
+		requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+		requirementsFactory.NewTargetedOrgRequirementReturns(new(requirementsfakes.FakeTargetedOrgRequirement))
+
+		fakeOrgRequirement := new(requirementsfakes.FakeOrganizationRequirement)
+		fakeOrgRequirement.GetOrganizationReturns(models.Organization{
+			OrganizationFields: models.OrganizationFields{
+				Name: "my-org",
+			},
+		})
+		requirementsFactory.NewOrganizationRequirementReturns(fakeOrgRequirement)
+
 		configRepo = testconfig.NewRepositoryWithDefaults()
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("delete-domain", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("delete-domain", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Describe("requirements", func() {
 		It("fails when the user is not logged in", func() {
-			requirementsFactory.LoginSuccess = false
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 
 			Expect(runCommand("foo.com")).To(BeFalse())
 		})
 
 		It("fails when the an org is not targetted", func() {
-			requirementsFactory.TargetedOrgSuccess = false
+			targetedOrganizationReq := new(requirementsfakes.FakeTargetedOrgRequirement)
+			targetedOrganizationReq.ExecuteReturns(errors.New("not targeted"))
+			requirementsFactory.NewTargetedOrgRequirementReturns(targetedOrganizationReq)
 
 			Expect(runCommand("foo.com")).To(BeFalse())
 		})
@@ -68,7 +80,7 @@ var _ = Describe("delete-domain command", func() {
 			domainRepo.FindByNameInOrgReturns(
 				models.DomainFields{
 					Name:   "foo1.com",
-					Guid:   "foo1-guid",
+					GUID:   "foo1-guid",
 					Shared: true,
 				}, nil)
 		})
@@ -76,7 +88,7 @@ var _ = Describe("delete-domain command", func() {
 			runCommand("foo1.com")
 
 			Expect(domainRepo.DeleteCallCount()).To(BeZero())
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"FAILED"},
 				[]string{"domain"},
 				[]string{"foo1.com"},
@@ -92,7 +104,7 @@ var _ = Describe("delete-domain command", func() {
 			domainRepo.FindByNameInOrgReturns(
 				models.DomainFields{
 					Name: "foo.com",
-					Guid: "foo-guid",
+					GUID: "foo-guid",
 				}, nil)
 		})
 
@@ -102,7 +114,7 @@ var _ = Describe("delete-domain command", func() {
 			Expect(domainRepo.DeleteArgsForCall(0)).To(Equal("foo-guid"))
 
 			Expect(ui.Prompts).To(ContainSubstrings([]string{"Really delete the domain foo.com"}))
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Deleting domain", "foo.com", "my-user"},
 				[]string{"OK"},
 			))
@@ -118,7 +130,7 @@ var _ = Describe("delete-domain command", func() {
 
 				Expect(domainRepo.DeleteArgsForCall(0)).To(Equal("foo-guid"))
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Deleting domain", "foo.com"},
 					[]string{"FAILED"},
 					[]string{"foo.com"},
@@ -139,7 +151,7 @@ var _ = Describe("delete-domain command", func() {
 
 				Expect(ui.Prompts).To(ContainSubstrings([]string{"delete", "foo.com"}))
 
-				Expect(ui.Outputs).To(BeEmpty())
+				Expect(ui.Outputs()).To(BeEmpty())
 			})
 		})
 
@@ -153,7 +165,7 @@ var _ = Describe("delete-domain command", func() {
 
 				Expect(domainRepo.DeleteArgsForCall(0)).To(Equal("foo-guid"))
 				Expect(ui.Prompts).To(BeEmpty())
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Deleting domain", "foo.com"},
 					[]string{"OK"},
 				))
@@ -171,7 +183,7 @@ var _ = Describe("delete-domain command", func() {
 
 			Expect(domainRepo.DeleteCallCount()).To(BeZero())
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"OK"},
 				[]string{"foo.com", "not found"},
 			))
@@ -188,7 +200,7 @@ var _ = Describe("delete-domain command", func() {
 
 			Expect(domainRepo.DeleteCallCount()).To(BeZero())
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"FAILED"},
 				[]string{"foo.com"},
 				[]string{"failed badly"},

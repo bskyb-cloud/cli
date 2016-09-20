@@ -6,11 +6,13 @@ import (
 	"net/http/httptest"
 	"time"
 
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
 	. "github.com/cloudfoundry/cli/cf/net"
+	"github.com/cloudfoundry/cli/cf/terminal/terminalfakes"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+
+	"github.com/cloudfoundry/cli/cf/trace/tracefakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -29,11 +31,16 @@ var invalidTokenCloudControllerRequest = func(writer http.ResponseWriter, reques
 
 var _ = Describe("Cloud Controller Gateway", func() {
 	var gateway Gateway
-	var config core_config.Reader
+	var config coreconfig.Reader
+	var timeout string
 
 	BeforeEach(func() {
+		timeout = "1"
+	})
+
+	JustBeforeEach(func() {
 		config = testconfig.NewRepository()
-		gateway = NewCloudControllerGateway(config, time.Now, &testterm.FakeUI{})
+		gateway = NewCloudControllerGateway(config, time.Now, new(terminalfakes.FakeUI), new(tracefakes.FakePrinter), timeout)
 	})
 
 	It("parses error responses", func() {
@@ -46,7 +53,7 @@ var _ = Describe("Cloud Controller Gateway", func() {
 
 		Expect(apiErr).NotTo(BeNil())
 		Expect(apiErr.Error()).To(ContainSubstring("The host is taken: test1"))
-		Expect(apiErr.(errors.HttpError).ErrorCode()).To(ContainSubstring("210003"))
+		Expect(apiErr.(errors.HTTPError).ErrorCode()).To(ContainSubstring("210003"))
 	})
 
 	It("parses invalid token responses", func() {
@@ -60,5 +67,19 @@ var _ = Describe("Cloud Controller Gateway", func() {
 		Expect(apiErr).NotTo(BeNil())
 		Expect(apiErr.Error()).To(ContainSubstring("The token is invalid"))
 		Expect(apiErr.(*errors.InvalidTokenError)).To(HaveOccurred())
+	})
+
+	It("uses the set dial timeout", func() {
+		Expect(gateway.DialTimeout).To(Equal(1 * time.Second))
+	})
+
+	Context("with an invalid timeout", func() {
+		BeforeEach(func() {
+			timeout = ""
+		})
+
+		It("uses the default dial timeout", func() {
+			Expect(gateway.DialTimeout).To(Equal(5 * time.Second))
+		})
 	})
 })

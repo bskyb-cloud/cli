@@ -1,14 +1,15 @@
 package domain_test
 
 import (
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -19,39 +20,42 @@ import (
 var _ = Describe("delete-shared-domain command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		domainRepo          *testapi.FakeDomainRepository
-		requirementsFactory *testreq.FakeReqFactory
-		configRepo          core_config.Repository
-		deps                command_registry.Dependency
+		domainRepo          *apifakes.FakeDomainRepository
+		requirementsFactory *requirementsfakes.FakeFactory
+		configRepo          coreconfig.Repository
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.RepoLocator = deps.RepoLocator.SetDomainRepository(domainRepo)
 		deps.Config = configRepo
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("delete-shared-domain").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("delete-shared-domain").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
-		domainRepo = &testapi.FakeDomainRepository{}
-		requirementsFactory = &testreq.FakeReqFactory{}
+		domainRepo = new(apifakes.FakeDomainRepository)
+		requirementsFactory = new(requirementsfakes.FakeFactory)
 		configRepo = testconfig.NewRepositoryWithDefaults()
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("delete-shared-domain", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("delete-shared-domain", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Describe("requirements", func() {
 		It("fails if you are not logged in", func() {
-			requirementsFactory.TargetedOrgSuccess = true
-
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 			Expect(runCommand("foo.com")).To(BeFalse())
 		})
 
 		It("fails if an organiztion is not targeted", func() {
-			requirementsFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+
+			targetedOrganizationReq := new(requirementsfakes.FakeTargetedOrgRequirement)
+			targetedOrganizationReq.ExecuteReturns(errors.New("not targeted"))
+			requirementsFactory.NewTargetedOrgRequirementReturns(targetedOrganizationReq)
 
 			Expect(runCommand("foo.com")).To(BeFalse())
 		})
@@ -59,20 +63,21 @@ var _ = Describe("delete-shared-domain command", func() {
 
 	Context("when the domain is owned", func() {
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedOrgSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewTargetedOrgRequirementReturns(new(requirementsfakes.FakeTargetedOrgRequirement))
 			domainRepo.FindByNameInOrgReturns(
 				models.DomainFields{
 					Name:   "foo1.com",
-					Guid:   "foo1-guid",
+					GUID:   "foo1-guid",
 					Shared: false,
 				}, nil)
 		})
+
 		It("informs the user that the domain is not shared", func() {
 			runCommand("foo1.com")
 
 			Expect(domainRepo.DeleteSharedDomainCallCount()).To(BeZero())
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"FAILED"},
 				[]string{"domain"},
 				[]string{"foo1.com"},
@@ -82,14 +87,15 @@ var _ = Describe("delete-shared-domain command", func() {
 			))
 		})
 	})
+
 	Context("when logged in and targeted an organiztion", func() {
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedOrgSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewTargetedOrgRequirementReturns(new(requirementsfakes.FakeTargetedOrgRequirement))
 			domainRepo.FindByNameInOrgReturns(
 				models.DomainFields{
 					Name:   "foo.com",
-					Guid:   "foo-guid",
+					GUID:   "foo-guid",
 					Shared: true,
 				}, nil)
 		})
@@ -103,7 +109,7 @@ var _ = Describe("delete-shared-domain command", func() {
 				domainRepo.FindByNameInOrgReturns(models.DomainFields{}, errors.NewModelNotFoundError("Domain", "foo.com"))
 				runCommand("foo.com")
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Deleting domain", "foo.com"},
 					[]string{"OK"},
 					[]string{"foo.com", "not found"},
@@ -114,7 +120,7 @@ var _ = Describe("delete-shared-domain command", func() {
 				domainRepo.FindByNameInOrgReturns(models.DomainFields{}, errors.New("couldn't find the droids you're lookin for"))
 				runCommand("foo.com")
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Deleting domain", "foo.com"},
 					[]string{"FAILED"},
 					[]string{"foo.com"},
@@ -127,7 +133,7 @@ var _ = Describe("delete-shared-domain command", func() {
 				runCommand("foo.com")
 
 				Expect(domainRepo.DeleteSharedDomainArgsForCall(0)).To(Equal("foo-guid"))
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Deleting domain", "foo.com"},
 					[]string{"FAILED"},
 					[]string{"foo.com"},
@@ -140,7 +146,7 @@ var _ = Describe("delete-shared-domain command", func() {
 
 				Expect(domainRepo.DeleteSharedDomainArgsForCall(0)).To(Equal("foo-guid"))
 				Expect(ui.Prompts).To(ContainSubstrings([]string{"delete", "domain", "foo.com"}))
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Deleting domain", "foo.com"},
 					[]string{"OK"},
 				))
@@ -152,7 +158,7 @@ var _ = Describe("delete-shared-domain command", func() {
 
 			Expect(domainRepo.DeleteSharedDomainArgsForCall(0)).To(Equal("foo-guid"))
 			Expect(ui.Prompts).To(BeEmpty())
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Deleting domain", "foo.com"},
 				[]string{"OK"},
 			))

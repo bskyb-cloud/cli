@@ -12,8 +12,8 @@ import (
 
 	"github.com/cloudfoundry/cli/cf/formatters"
 	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/generic"
-	"github.com/cloudfoundry/cli/words/generator"
+	"github.com/cloudfoundry/cli/utils/generic"
+	"github.com/cloudfoundry/cli/utils/words/generator"
 )
 
 type Manifest struct {
@@ -172,16 +172,20 @@ func mapToAppParams(basePath string, yamlMap generic.Map) (models.AppParams, err
 
 	var appParams models.AppParams
 	var errs []error
-	appParams.BuildpackUrl = stringValOrDefault(yamlMap, "buildpack", &errs)
+	appParams.BuildpackURL = stringValOrDefault(yamlMap, "buildpack", &errs)
 	appParams.DiskQuota = bytesVal(yamlMap, "disk_quota", &errs)
 
-	domainAry := *sliceOrEmptyVal(yamlMap, "domains", &errs)
+	domainAry := sliceOrNil(yamlMap, "domains", &errs)
 	if domain := stringVal(yamlMap, "domain", &errs); domain != nil {
-		domainAry = append(domainAry, *domain)
+		if domainAry == nil {
+			domainAry = []string{*domain}
+		} else {
+			domainAry = append(domainAry, *domain)
+		}
 	}
 	appParams.Domains = removeDuplicatedValue(domainAry)
 
-	hostsArr := *sliceOrEmptyVal(yamlMap, "hosts", &errs)
+	hostsArr := sliceOrNil(yamlMap, "hosts", &errs)
 	if host := stringVal(yamlMap, "host", &errs); host != nil {
 		hostsArr = append(hostsArr, *host)
 	}
@@ -195,11 +199,13 @@ func mapToAppParams(basePath string, yamlMap generic.Map) (models.AppParams, err
 	appParams.InstanceCount = intVal(yamlMap, "instances", &errs)
 	appParams.HealthCheckTimeout = intVal(yamlMap, "timeout", &errs)
 	appParams.NoRoute = boolVal(yamlMap, "no-route", &errs)
-	appParams.NoHostname = boolVal(yamlMap, "no-hostname", &errs)
-	appParams.UseRandomHostname = boolVal(yamlMap, "random-route", &errs)
-	appParams.ServicesToBind = sliceOrEmptyVal(yamlMap, "services", &errs)
+	appParams.NoHostname = boolOrNil(yamlMap, "no-hostname", &errs)
+	appParams.UseRandomRoute = boolVal(yamlMap, "random-route", &errs)
+	appParams.ServicesToBind = sliceOrNil(yamlMap, "services", &errs)
 	appParams.EnvironmentVars = envVarOrEmptyMap(yamlMap, &errs)
 	appParams.HealthCheckType = stringVal(yamlMap, "health-check-type", &errs)
+	appParams.AppPorts = intSliceVal(yamlMap, "app-ports", &errs)
+	appParams.Routes = parseRoutes(yamlMap, &errs)
 
 	if appParams.Path != nil {
 		path := *appParams.Path
@@ -222,7 +228,7 @@ func mapToAppParams(basePath string, yamlMap generic.Map) (models.AppParams, err
 	return appParams, nil
 }
 
-func removeDuplicatedValue(ary []string) *[]string {
+func removeDuplicatedValue(ary []string) []string {
 	if ary == nil {
 		return nil
 	}
@@ -233,10 +239,13 @@ func removeDuplicatedValue(ary []string) *[]string {
 	}
 
 	newAry := []string{}
-	for k := range m {
-		newAry = append(newAry, k)
+	for _, val := range ary {
+		if m[val] {
+			newAry = append(newAry, val)
+			m[val] = false
+		}
 	}
-	return &newAry
+	return newAry
 }
 
 func checkForNulls(yamlMap generic.Map) error {
@@ -359,15 +368,28 @@ func boolVal(yamlMap generic.Map, key string, errs *[]error) bool {
 	}
 }
 
-func sliceOrEmptyVal(yamlMap generic.Map, key string, errs *[]error) *[]string {
+func boolOrNil(yamlMap generic.Map, key string, errs *[]error) *bool {
+	result := false
+	switch val := yamlMap.Get(key).(type) {
+	case nil:
+		return nil
+	case bool:
+		return &val
+	case string:
+		result = val == "true"
+		return &result
+	default:
+		*errs = append(*errs, fmt.Errorf(T("Expected {{.PropertyName}} to be a boolean.", map[string]interface{}{"PropertyName": key})))
+		return &result
+	}
+}
+func sliceOrNil(yamlMap generic.Map, key string, errs *[]error) []string {
 	if !yamlMap.Has(key) {
-		return new([]string)
+		return nil
 	}
 
-	var (
-		stringSlice []string
-		err         error
-	)
+	var err error
+	stringSlice := []string{}
 
 	sliceErr := fmt.Errorf(T("Expected {{.PropertyName}} to be a list of strings.", map[string]interface{}{"PropertyName": key}))
 
@@ -387,10 +409,40 @@ func sliceOrEmptyVal(yamlMap generic.Map, key string, errs *[]error) *[]string {
 
 	if err != nil {
 		*errs = append(*errs, err)
-		return &[]string{}
+		return []string{}
 	}
 
-	return &stringSlice
+	return stringSlice
+}
+
+func intSliceVal(yamlMap generic.Map, key string, errs *[]error) *[]int {
+	if !yamlMap.Has(key) {
+		return nil
+	}
+
+	err := fmt.Errorf(T("Expected {{.PropertyName}} to be a list of integers.", map[string]interface{}{"PropertyName": key}))
+
+	s, ok := yamlMap.Get(key).([]interface{})
+
+	if !ok {
+		*errs = append(*errs, err)
+		return nil
+	}
+
+	var intSlice []int
+
+	for _, el := range s {
+		intValue, ok := el.(int)
+
+		if !ok {
+			*errs = append(*errs, err)
+			return nil
+		}
+
+		intSlice = append(intSlice, intValue)
+	}
+
+	return &intSlice
 }
 
 func envVarOrEmptyMap(yamlMap generic.Map, errs *[]error) *map[string]interface{} {
@@ -433,4 +485,35 @@ func validateEnvVars(input generic.Map) (errs []error) {
 		}
 	})
 	return
+}
+
+func parseRoutes(input generic.Map, errs *[]error) []models.ManifestRoute {
+	if !input.Has("routes") {
+		return nil
+	}
+
+	genericRoutes, ok := input.Get("routes").([]interface{})
+	if !ok {
+		*errs = append(*errs, fmt.Errorf(T("'routes' should be a list")))
+		return nil
+	}
+
+	manifestRoutes := []models.ManifestRoute{}
+	for _, genericRoute := range genericRoutes {
+		route, ok := genericRoute.(map[interface{}]interface{})
+		if !ok {
+			*errs = append(*errs, fmt.Errorf(T("each route in 'routes' must have a 'route' property")))
+			continue
+		}
+
+		if routeVal, exist := route["route"]; exist {
+			manifestRoutes = append(manifestRoutes, models.ManifestRoute{
+				Route: routeVal.(string),
+			})
+		} else {
+			*errs = append(*errs, fmt.Errorf(T("each route in 'routes' must have a 'route' property")))
+		}
+	}
+
+	return manifestRoutes
 }

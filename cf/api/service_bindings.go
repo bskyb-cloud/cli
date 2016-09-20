@@ -3,33 +3,38 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/resources"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
 )
 
+//go:generate counterfeiter . ServiceBindingRepository
+
 type ServiceBindingRepository interface {
-	Create(instanceGuid, appGuid string, paramsMap map[string]interface{}) (apiErr error)
-	Delete(instance models.ServiceInstance, appGuid string) (found bool, apiErr error)
+	Create(instanceGUID string, appGUID string, paramsMap map[string]interface{}) error
+	Delete(instance models.ServiceInstance, appGUID string) (bool, error)
+	ListAllForService(instanceGUID string) ([]models.ServiceBindingFields, error)
 }
 
 type CloudControllerServiceBindingRepository struct {
-	config  core_config.Reader
+	config  coreconfig.Reader
 	gateway net.Gateway
 }
 
-func NewCloudControllerServiceBindingRepository(config core_config.Reader, gateway net.Gateway) (repo CloudControllerServiceBindingRepository) {
+func NewCloudControllerServiceBindingRepository(config coreconfig.Reader, gateway net.Gateway) (repo CloudControllerServiceBindingRepository) {
 	repo.config = config
 	repo.gateway = gateway
 	return
 }
 
-func (repo CloudControllerServiceBindingRepository) Create(instanceGuid, appGuid string, paramsMap map[string]interface{}) (apiErr error) {
+func (repo CloudControllerServiceBindingRepository) Create(instanceGUID, appGUID string, paramsMap map[string]interface{}) error {
 	path := "/v2/service_bindings"
 	request := models.ServiceBindingRequest{
-		AppGuid:             appGuid,
-		ServiceInstanceGuid: instanceGuid,
+		AppGUID:             appGUID,
+		ServiceInstanceGUID: instanceGUID,
 		Params:              paramsMap,
 	}
 
@@ -38,25 +43,37 @@ func (repo CloudControllerServiceBindingRepository) Create(instanceGuid, appGuid
 		return err
 	}
 
-	return repo.gateway.CreateResource(repo.config.ApiEndpoint(), path, bytes.NewReader(jsonBytes))
+	return repo.gateway.CreateResource(repo.config.APIEndpoint(), path, bytes.NewReader(jsonBytes))
 }
 
-func (repo CloudControllerServiceBindingRepository) Delete(instance models.ServiceInstance, appGuid string) (found bool, apiErr error) {
+func (repo CloudControllerServiceBindingRepository) Delete(instance models.ServiceInstance, appGUID string) (bool, error) {
 	var path string
-
 	for _, binding := range instance.ServiceBindings {
-		if binding.AppGuid == appGuid {
-			path = binding.Url
+		if binding.AppGUID == appGUID {
+			path = binding.URL
 			break
 		}
 	}
 
 	if path == "" {
-		return
+		return false, nil
 	}
 
-	found = true
+	return true, repo.gateway.DeleteResource(repo.config.APIEndpoint(), path)
+}
 
-	apiErr = repo.gateway.DeleteResource(repo.config.ApiEndpoint(), path)
-	return
+func (repo CloudControllerServiceBindingRepository) ListAllForService(instanceGUID string) ([]models.ServiceBindingFields, error) {
+	serviceBindings := []models.ServiceBindingFields{}
+	err := repo.gateway.ListPaginatedResources(
+		repo.config.APIEndpoint(),
+		fmt.Sprintf("/v2/service_instances/%s/service_bindings", instanceGUID),
+		resources.ServiceBindingResource{},
+		func(resource interface{}) bool {
+			if serviceBindingResource, ok := resource.(resources.ServiceBindingResource); ok {
+				serviceBindings = append(serviceBindings, serviceBindingResource.ToFields())
+			}
+			return true
+		},
+	)
+	return serviceBindings, err
 }

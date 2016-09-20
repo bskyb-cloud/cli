@@ -1,91 +1,94 @@
 package application
 
 import (
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
 )
 
-//go:generate counterfeiter -o fakes/fake_application_restarter.go . ApplicationRestarter
-type ApplicationRestarter interface {
-	command_registry.Command
-	ApplicationRestart(app models.Application, orgName string, spaceName string)
+//go:generate counterfeiter . Restarter
+
+type Restarter interface {
+	commandregistry.Command
+	ApplicationRestart(app models.Application, orgName string, spaceName string) error
 }
 
 type Restart struct {
 	ui      terminal.UI
-	config  core_config.Reader
-	starter ApplicationStarter
-	stopper ApplicationStopper
+	config  coreconfig.Reader
+	starter Starter
+	stopper Stopper
 	appReq  requirements.ApplicationRequirement
 }
 
 func init() {
-	command_registry.Register(&Restart{})
+	commandregistry.Register(&Restart{})
 }
 
-func (cmd *Restart) MetaData() command_registry.CommandMetadata {
-	return command_registry.CommandMetadata{
+func (cmd *Restart) MetaData() commandregistry.CommandMetadata {
+	return commandregistry.CommandMetadata{
 		Name:        "restart",
 		ShortName:   "rs",
 		Description: T("Restart an app"),
-		Usage:       T("CF_NAME restart APP_NAME"),
+		Usage: []string{
+			T("CF_NAME restart APP_NAME"),
+		},
 	}
 }
 
-func (cmd *Restart) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+func (cmd *Restart) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
 	if len(fc.Args()) != 1 {
-		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + command_registry.Commands.CommandUsage("restart"))
+		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + commandregistry.Commands.CommandUsage("restart"))
 	}
 
 	cmd.appReq = requirementsFactory.NewApplicationRequirement(fc.Args()[0])
 
-	reqs = []requirements.Requirement{
+	reqs := []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 		requirementsFactory.NewTargetedSpaceRequirement(),
 		cmd.appReq,
 	}
-	return
+
+	return reqs
 }
 
-func (cmd *Restart) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *Restart) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 
 	//get start for dependency
-	starter := command_registry.Commands.FindCommand("start")
+	starter := commandregistry.Commands.FindCommand("start")
 	starter = starter.SetDependency(deps, false)
-	cmd.starter = starter.(ApplicationStarter)
+	cmd.starter = starter.(Starter)
 
 	//get stop for dependency
-	stopper := command_registry.Commands.FindCommand("stop")
+	stopper := commandregistry.Commands.FindCommand("stop")
 	stopper = stopper.SetDependency(deps, false)
-	cmd.stopper = stopper.(ApplicationStopper)
+	cmd.stopper = stopper.(Stopper)
 
 	return cmd
 }
 
-func (cmd *Restart) Execute(c flags.FlagContext) {
+func (cmd *Restart) Execute(c flags.FlagContext) error {
 	app := cmd.appReq.GetApplication()
-	cmd.ApplicationRestart(app, cmd.config.OrganizationFields().Name, cmd.config.SpaceFields().Name)
+	return cmd.ApplicationRestart(app, cmd.config.OrganizationFields().Name, cmd.config.SpaceFields().Name)
 }
 
-func (cmd *Restart) ApplicationRestart(app models.Application, orgName, spaceName string) {
+func (cmd *Restart) ApplicationRestart(app models.Application, orgName, spaceName string) error {
 	stoppedApp, err := cmd.stopper.ApplicationStop(app, orgName, spaceName)
 	if err != nil {
-		cmd.ui.Failed(err.Error())
-		return
+		return err
 	}
 
 	cmd.ui.Say("")
 
 	_, err = cmd.starter.ApplicationStart(stoppedApp, orgName, spaceName)
 	if err != nil {
-		cmd.ui.Failed(err.Error())
-		return
+		return err
 	}
+	return nil
 }

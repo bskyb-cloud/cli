@@ -6,64 +6,70 @@ import (
 
 	"github.com/cloudfoundry/cli/cf/actors"
 	"github.com/cloudfoundry/cli/cf/api/authentication"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
-	"github.com/cloudfoundry/cli/flags/flag"
 )
 
 type ServiceAccess struct {
 	ui             terminal.UI
-	config         core_config.Reader
+	config         coreconfig.Reader
 	actor          actors.ServiceActor
 	tokenRefresher authentication.TokenRefresher
 }
 
 func init() {
-	command_registry.Register(&ServiceAccess{})
+	commandregistry.Register(&ServiceAccess{})
 }
 
-func (cmd *ServiceAccess) MetaData() command_registry.CommandMetadata {
+func (cmd *ServiceAccess) MetaData() commandregistry.CommandMetadata {
 	fs := make(map[string]flags.FlagSet)
-	fs["b"] = &cliFlags.StringFlag{ShortName: "b", Usage: T("access for plans of a particular broker")}
-	fs["e"] = &cliFlags.StringFlag{ShortName: "e", Usage: T("access for service name of a particular service offering")}
-	fs["o"] = &cliFlags.StringFlag{ShortName: "o", Usage: T("plans accessible by a particular organization")}
+	fs["b"] = &flags.StringFlag{ShortName: "b", Usage: T("Access for plans of a particular broker")}
+	fs["e"] = &flags.StringFlag{ShortName: "e", Usage: T("Access for service name of a particular service offering")}
+	fs["o"] = &flags.StringFlag{ShortName: "o", Usage: T("Plans accessible by a particular organization")}
 
-	return command_registry.CommandMetadata{
+	return commandregistry.CommandMetadata{
 		Name:        "service-access",
 		Description: T("List service access settings"),
-		Usage:       "CF_NAME service-access [-b BROKER] [-e SERVICE] [-o ORG]",
-		Flags:       fs,
+		Usage: []string{
+			"CF_NAME service-access [-b BROKER] [-e SERVICE] [-o ORG]",
+		},
+		Flags: fs,
 	}
 }
 
-func (cmd *ServiceAccess) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
-	if len(fc.Args()) != 0 {
-		cmd.ui.Failed(T("Incorrect Usage. No argument required\n\n") + command_registry.Commands.CommandUsage("service-access"))
-	}
+func (cmd *ServiceAccess) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+	usageReq := requirements.NewUsageRequirement(commandregistry.CLICommandUsagePresenter(cmd),
+		T("No argument required"),
+		func() bool {
+			return len(fc.Args()) != 0
+		},
+	)
 
-	reqs = []requirements.Requirement{
+	reqs := []requirements.Requirement{
+		usageReq,
 		requirementsFactory.NewLoginRequirement(),
 	}
-	return
+
+	return reqs
 }
 
-func (cmd *ServiceAccess) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *ServiceAccess) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.actor = deps.ServiceHandler
 	cmd.tokenRefresher = deps.RepoLocator.GetAuthenticationRepository()
 	return cmd
 }
 
-func (cmd *ServiceAccess) Execute(c flags.FlagContext) {
+func (cmd *ServiceAccess) Execute(c flags.FlagContext) error {
 	_, err := cmd.tokenRefresher.RefreshAuthToken()
 	if err != nil {
-		cmd.ui.Failed(err.Error())
+		return err
 	}
 
 	brokerName := c.String("b")
@@ -110,17 +116,17 @@ func (cmd *ServiceAccess) Execute(c flags.FlagContext) {
 
 	brokers, err := cmd.actor.FilterBrokers(brokerName, serviceName, orgName)
 	if err != nil {
-		cmd.ui.Failed(err.Error())
-		return
+		return err
 	}
 	cmd.printTable(brokers)
+	return nil
 }
 
 func (cmd ServiceAccess) printTable(brokers []models.ServiceBroker) {
 	for _, serviceBroker := range brokers {
 		cmd.ui.Say(fmt.Sprintf(T("broker: {{.Name}}", map[string]interface{}{"Name": serviceBroker.Name})))
 
-		table := terminal.NewTable(cmd.ui, []string{"", T("service"), T("plan"), T("access"), T("orgs")})
+		table := cmd.ui.Table([]string{"", T("service"), T("plan"), T("access"), T("orgs")})
 		for _, service := range serviceBroker.Services {
 			if len(service.Plans) > 0 {
 				for _, plan := range service.Plans {

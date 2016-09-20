@@ -3,27 +3,27 @@ package service
 import (
 	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/flags"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
 )
 
 type GetSchema struct {
 	ui                 terminal.UI
-	config             core_config.Reader
+	config             coreconfig.Reader
 	serviceRepo        api.ServiceRepository
 	serviceInstanceReq requirements.ServiceInstanceRequirement
 }
 
 func init() {
-	command_registry.Register(&GetSchema{})
+	commandregistry.Register(&GetSchema{})
 }
 
-func (cmd *GetSchema) MetaData() command_registry.CommandMetadata {
-	return command_registry.CommandMetadata{
+func (cmd *GetSchema) MetaData() commandregistry.CommandMetadata {
+	return commandregistry.CommandMetadata{
 		Name:        "get-schema",
 		ShortName:   "gs",
 		Description: "Get a service schema. Currently only supported in the webproxy.",
@@ -31,10 +31,10 @@ func (cmd *GetSchema) MetaData() command_registry.CommandMetadata {
 	}
 }
 
-func (cmd *GetSchema) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+func (cmd *GetSchema) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement) {
 
 	if len(fc.Args()) != 1 {
-		cmd.ui.Failed("Incorrect Usage." + "\n\n" + command_registry.Commands.CommandUsage("get-schema"))
+		cmd.ui.Failed("Incorrect Usage." + "\n\n" + commandregistry.Commands.CommandUsage("get-schema"))
 	}
 
 	cmd.serviceInstanceReq = requirementsFactory.NewServiceInstanceRequirement(fc.Args()[0])
@@ -48,14 +48,14 @@ func (cmd *GetSchema) Requirements(requirementsFactory requirements.Factory, fc 
 	return
 }
 
-func (cmd *GetSchema) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *GetSchema) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.serviceRepo = deps.RepoLocator.GetServiceRepository()
 	return cmd
 }
 
-func (cmd *GetSchema) Execute(fc flags.FlagContext) {
+func (cmd *GetSchema) Execute(fc flags.FlagContext) error {
 	serviceInstance := cmd.serviceInstanceReq.GetServiceInstance()
 
 	cmd.ui.Say("Getting schema for %s in org %s / space %s as %s...",
@@ -67,13 +67,15 @@ func (cmd *GetSchema) Execute(fc flags.FlagContext) {
 	schema, err := cmd.serviceRepo.GetSchema(serviceInstance)
 
 	if err != nil {
-		if httpError, ok := err.(errors.HttpError); ok && httpError.ErrorCode() == errors.SERVICE_INSTANCE_NAME_TAKEN {
+		if httpError, ok := err.(errors.HTTPError); ok && httpError.ErrorCode() == errors.SERVICE_INSTANCE_NAME_TAKEN {
 			cmd.ui.Failed("%s\nTIP: Use '%s services' to view all services in this org and space.", httpError.Error(), cf.Name())
 		} else {
 			cmd.ui.Failed(err.Error())
 		}
+		return errors.New("Error reading schema: " + err.Error())
 	}
 
 	cmd.ui.Ok()
 	cmd.ui.Say("Schema is:\n\n%s\n", schema)
+	return nil
 }

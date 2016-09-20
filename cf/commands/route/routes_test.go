@@ -3,93 +3,145 @@ package route_test
 import (
 	"errors"
 
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
+	"github.com/cloudfoundry/cli/cf/terminal"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
+	"github.com/cloudfoundry/cli/cf/commands/route"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 )
 
 var _ = Describe("routes command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		routeRepo           *testapi.FakeRouteRepository
-		configRepo          core_config.Repository
-		requirementsFactory *testreq.FakeReqFactory
-		deps                command_registry.Dependency
+		routeRepo           *apifakes.FakeRouteRepository
+		domainRepo          *apifakes.FakeDomainRepository
+		configRepo          coreconfig.Repository
+		requirementsFactory *requirementsfakes.FakeFactory
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
-		deps.RepoLocator = deps.RepoLocator.SetRouteRepository(routeRepo)
+		deps.UI = ui
+		deps.RepoLocator = deps.RepoLocator.SetRouteRepository(routeRepo).SetDomainRepository(domainRepo)
 		deps.Config = configRepo
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("routes").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("routes").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		requirementsFactory = &testreq.FakeReqFactory{
-			LoginSuccess:         true,
-			TargetedSpaceSuccess: true,
-		}
-		routeRepo = &testapi.FakeRouteRepository{}
+		requirementsFactory = new(requirementsfakes.FakeFactory)
+		requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+		requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Passing{})
+		routeRepo = new(apifakes.FakeRouteRepository)
+		domainRepo = new(apifakes.FakeDomainRepository)
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("routes", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("routes", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Describe("login requirements", func() {
 		It("fails if the user is not logged in", func() {
-			requirementsFactory.LoginSuccess = false
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 			Expect(runCommand()).To(BeFalse())
 		})
 
 		It("fails when an org and space is not targeted", func() {
-			requirementsFactory.TargetedSpaceSuccess = false
+			requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Failing{Message: "not logged in"})
 
 			Expect(runCommand()).To(BeFalse())
 		})
-		It("should fail with usage when provided any arguments", func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedSpaceSuccess = true
-			Expect(runCommand("blahblah")).To(BeFalse())
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Incorrect Usage", "No argument required"},
-			))
+
+		Context("when arguments are provided", func() {
+			var cmd commandregistry.Command
+			var flagContext flags.FlagContext
+
+			BeforeEach(func() {
+				cmd = &route.ListRoutes{}
+				cmd.SetDependency(deps, false)
+				flagContext = flags.NewFlagContext(cmd.MetaData().Flags)
+			})
+
+			It("should fail with usage", func() {
+				flagContext.Parse("blahblah")
+
+				reqs := cmd.Requirements(requirementsFactory, flagContext)
+
+				err := testcmd.RunRequirements(reqs)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("Incorrect Usage"))
+				Expect(err.Error()).To(ContainSubstring("No argument required"))
+			})
 		})
 	})
 
 	Context("when there are routes", func() {
 		BeforeEach(func() {
+			cookieClickerGUID := "cookie-clicker-guid"
+
+			domainRepo.ListDomainsForOrgStub = func(_ string, cb func(models.DomainFields) bool) error {
+				tcpDomain := models.DomainFields{
+					GUID:            cookieClickerGUID,
+					RouterGroupType: "tcp",
+				}
+				cb(tcpDomain)
+				return nil
+			}
+
 			routeRepo.ListRoutesStub = func(cb func(models.Route) bool) error {
 				app1 := models.ApplicationFields{Name: "dora"}
-
-				route := models.Route{}
-				route.Host = "hostname-1"
-				route.Domain = models.DomainFields{Name: "example.com"}
-				route.Apps = []models.ApplicationFields{app1}
-
-				cb(route)
-
-				domain2 := models.DomainFields{Name: "cookieclicker.co"}
 				app2 := models.ApplicationFields{Name: "bora"}
 
-				route2 := models.Route{}
-				route2.Host = "hostname-2"
-				route2.Path = "/foo"
-				route2.Domain = domain2
-				route2.Apps = []models.ApplicationFields{app1, app2}
+				route := models.Route{
+					Space: models.SpaceFields{
+						Name: "my-space",
+					},
+					Host:   "hostname-1",
+					Domain: models.DomainFields{Name: "example.com"},
+					Apps:   []models.ApplicationFields{app1},
+					ServiceInstance: models.ServiceInstanceFields{
+						Name: "test-service",
+						GUID: "service-guid",
+					},
+				}
 
+				route2 := models.Route{
+					Space: models.SpaceFields{
+						Name: "my-space",
+					},
+					Host:   "hostname-2",
+					Path:   "/foo",
+					Domain: models.DomainFields{Name: "cookieclicker.co"},
+					Apps:   []models.ApplicationFields{app1, app2},
+				}
+
+				route3 := models.Route{
+					Space: models.SpaceFields{
+						Name: "my-space",
+					},
+					Domain: models.DomainFields{
+						GUID: cookieClickerGUID,
+						Name: "cookieclicker.co",
+					},
+					Apps: []models.ApplicationFields{app1, app2},
+					Port: 9090,
+				}
+
+				cb(route)
 				cb(route2)
+				cb(route3)
 
 				return nil
 			}
@@ -98,12 +150,15 @@ var _ = Describe("routes command", func() {
 		It("lists routes", func() {
 			runCommand()
 
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Getting routes", "my-user"},
-				[]string{"host", "domain", "apps"},
-				[]string{"hostname-1", "example.com", "dora"},
-				[]string{"hostname-2", "cookieclicker.co", "/foo", "dora", "bora"},
+			Expect(ui.Outputs()).To(BeInDisplayOrder(
+				[]string{"Getting routes for org my-org / space my-space as my-user ..."},
+				[]string{"space", "host", "domain", "port", "path", "type", "apps", "service"},
 			))
+
+			Expect(terminal.Decolorize(ui.Outputs()[3])).To(MatchRegexp(`^my-space\s+hostname-1\s+example.com\s+dora\s+test-service\s*$`))
+			Expect(terminal.Decolorize(ui.Outputs()[4])).To(MatchRegexp(`^my-space\s+hostname-2\s+cookieclicker\.co\s+/foo\s+dora,bora\s*$`))
+			Expect(terminal.Decolorize(ui.Outputs()[5])).To(MatchRegexp(`^my-space\s+cookieclicker\.co\s+9090\s+tcp\s+dora,bora\s*$`))
+
 		})
 	})
 
@@ -124,6 +179,10 @@ var _ = Describe("routes command", func() {
 				route.Domain = domain
 				route.Apps = []models.ApplicationFields{app1}
 				route.Space = space1
+				route.ServiceInstance = models.ServiceInstanceFields{
+					Name: "test-service",
+					GUID: "service-guid",
+				}
 
 				route2 := models.Route{}
 				route2.Host = "hostname-2"
@@ -142,11 +201,11 @@ var _ = Describe("routes command", func() {
 		It("lists routes at orglevel", func() {
 			runCommand("--orglevel")
 
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Getting routes", "my-user"},
-				[]string{"space", "host", "domain", "apps"},
-				[]string{"space-1", "hostname-1", "example.com", "dora"},
-				[]string{"space-2", "hostname-2", "cookieclicker.co", "/foo", "dora", "bora"},
+			Expect(ui.Outputs()).To(ContainSubstrings(
+				[]string{"Getting routes for org", "my-org", "my-user"},
+				[]string{"space", "host", "domain", "apps", "service"},
+				[]string{"space-1", "hostname-1", "example.com", "dora", "test-service"},
+				[]string{"space-2", "hostname-2", "cookieclicker.co", "dora", "bora"},
 			))
 		})
 	})
@@ -155,7 +214,7 @@ var _ = Describe("routes command", func() {
 		It("tells the user when no routes were found", func() {
 			runCommand()
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Getting routes"},
 				[]string{"No routes found"},
 			))
@@ -170,7 +229,7 @@ var _ = Describe("routes command", func() {
 		It("returns an error to the user", func() {
 			runCommand()
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Getting routes"},
 				[]string{"FAILED"},
 			))

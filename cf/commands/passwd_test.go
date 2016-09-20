@@ -1,13 +1,14 @@
 package commands_test
 
 import (
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -19,19 +20,19 @@ var _ = Describe("password command", func() {
 	var (
 		pwDeps passwordDeps
 		ui     *testterm.FakeUI
-		deps   command_registry.Dependency
+		deps   commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.Config = pwDeps.Config
 		deps.RepoLocator = deps.RepoLocator.SetPasswordRepository(pwDeps.PwdRepo)
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("passwd").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("passwd").SetDependency(deps, pluginCall))
 	}
 
 	callPassword := func(inputs []string, pwDeps passwordDeps) (*testterm.FakeUI, bool) {
 		ui = &testterm.FakeUI{Inputs: inputs}
-		passed := testcmd.RunCliCommand("passwd", []string{}, pwDeps.ReqFactory, updateCommandDependency, false)
+		passed := testcmd.RunCLICommand("passwd", []string{}, pwDeps.ReqFactory, updateCommandDependency, false, ui)
 		return ui, passed
 	}
 
@@ -40,14 +41,14 @@ var _ = Describe("password command", func() {
 	})
 
 	It("does not pass requirements if you are not logged in", func() {
-		pwDeps.ReqFactory.LoginSuccess = false
+		pwDeps.ReqFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 		_, passed := callPassword([]string{}, pwDeps)
 		Expect(passed).To(BeFalse())
 	})
 
 	Context("when logged in successfully", func() {
 		BeforeEach(func() {
-			pwDeps.ReqFactory.LoginSuccess = true
+			pwDeps.ReqFactory.NewLoginRequirementReturns(requirements.Passing{})
 			pwDeps.PwdRepo.UpdateUnauthorized = false
 		})
 
@@ -66,7 +67,7 @@ var _ = Describe("password command", func() {
 				[]string{"Verify Password"},
 			))
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Changing password..."},
 				[]string{"OK"},
 				[]string{"Please log in again"},
@@ -89,7 +90,7 @@ var _ = Describe("password command", func() {
 				[]string{"Verify Password"},
 			))
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"FAILED"},
 				[]string{"Password verification does not match"},
 			))
@@ -107,7 +108,7 @@ var _ = Describe("password command", func() {
 				[]string{"Verify Password"},
 			))
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Changing password..."},
 				[]string{"FAILED"},
 				[]string{"Current password did not match"},
@@ -120,15 +121,15 @@ var _ = Describe("password command", func() {
 })
 
 type passwordDeps struct {
-	ReqFactory *testreq.FakeReqFactory
-	PwdRepo    *testapi.FakePasswordRepo
-	Config     core_config.Repository
+	ReqFactory *requirementsfakes.FakeFactory
+	PwdRepo    *apifakes.OldFakePasswordRepo
+	Config     coreconfig.Repository
 }
 
 func getPasswordDeps() passwordDeps {
 	return passwordDeps{
-		ReqFactory: &testreq.FakeReqFactory{LoginSuccess: true},
-		PwdRepo:    &testapi.FakePasswordRepo{UpdateUnauthorized: true},
+		ReqFactory: new(requirementsfakes.FakeFactory),
+		PwdRepo:    &apifakes.OldFakePasswordRepo{UpdateUnauthorized: true},
 		Config:     testconfig.NewRepository(),
 	}
 }

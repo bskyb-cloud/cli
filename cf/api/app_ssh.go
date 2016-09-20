@@ -2,7 +2,7 @@ package api
 
 import (
 	"fmt"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
 )
@@ -12,11 +12,11 @@ type AppSshRepository interface {
 }
 
 type CloudControllerAppSshRepository struct {
-	config  core_config.Reader
+	config  coreconfig.Reader
 	gateway net.Gateway
 }
 
-func NewCloudControllerAppSshRepository(config core_config.Reader, gateway net.Gateway) (repo CloudControllerAppSshRepository) {
+func NewCloudControllerAppSshRepository(config coreconfig.Reader, gateway net.Gateway) (repo CloudControllerAppSshRepository) {
 	repo.config = config
 	repo.gateway = gateway
 	return
@@ -24,7 +24,7 @@ func NewCloudControllerAppSshRepository(config core_config.Reader, gateway net.G
 
 func (repo CloudControllerAppSshRepository) GetSshDetails(appGuid string, instance int) (sshDetails models.SshConnectionDetails, apiErr error) {
 
-	url := fmt.Sprintf("%s/v2/apps/%s/instances/%d/ssh", repo.config.ApiEndpoint(), appGuid, instance)
+	url := fmt.Sprintf("%s/v2/apps/%s/instances/%d/ssh", repo.config.APIEndpoint(), appGuid, instance)
 	request, apiErr := repo.gateway.NewRequest("GET", url, repo.config.AccessToken(), nil)
 
 	if apiErr != nil {

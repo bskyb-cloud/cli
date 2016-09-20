@@ -2,8 +2,11 @@ package io
 
 import (
 	"bytes"
+	"github.com/fatih/color"
+	"github.com/mattn/go-colorable"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 )
 
@@ -29,6 +32,19 @@ func CaptureOutput(block func()) []string {
 	defer func() {
 		os.Stdout = oldSTDOUT
 	}()
+
+	//////
+	// We use fmt.Fprintf() to write to the "github.com/fatih/color".Output file
+	// to get colors on Windows machines.
+	// That variable gets initialized with a reference to os.Stdout when that library is imported.
+	// That means that when we muck with os.Stdout above, it doesn't get reflected in
+	// the printing code for windows.
+	// Instead, we can just redeclare that color.Output variable with a colorable version of our
+	// redirect pipe.
+	if runtime.GOOS == "windows" {
+		color.Output = colorable.NewColorable(w)
+	}
+	//////
 
 	doneWriting := make(chan bool)
 	result := make(chan []string)

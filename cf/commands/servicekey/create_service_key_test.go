@@ -4,17 +4,18 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
-	"github.com/cloudfoundry/cli/cf/command_registry"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 
 	. "github.com/onsi/ginkgo"
@@ -24,41 +25,45 @@ import (
 var _ = Describe("create-service-key command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		config              core_config.Repository
-		requirementsFactory *testreq.FakeReqFactory
-		serviceRepo         *testapi.FakeServiceRepository
-		serviceKeyRepo      *testapi.FakeServiceKeyRepo
-		deps                command_registry.Dependency
+		config              coreconfig.Repository
+		requirementsFactory *requirementsfakes.FakeFactory
+		serviceRepo         *apifakes.FakeServiceRepository
+		serviceKeyRepo      *apifakes.OldFakeServiceKeyRepo
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.RepoLocator = deps.RepoLocator.SetServiceRepository(serviceRepo)
 		deps.RepoLocator = deps.RepoLocator.SetServiceKeyRepository(serviceKeyRepo)
 		deps.Config = config
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("create-service-key").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("create-service-key").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		config = testconfig.NewRepositoryWithDefaults()
-		serviceRepo = &testapi.FakeServiceRepository{}
+		serviceRepo = &apifakes.FakeServiceRepository{}
 		serviceInstance := models.ServiceInstance{}
-		serviceInstance.Guid = "fake-instance-guid"
+		serviceInstance.GUID = "fake-instance-guid"
 		serviceInstance.Name = "fake-service-instance"
 		serviceRepo.FindInstanceByNameReturns(serviceInstance, nil)
-		serviceKeyRepo = testapi.NewFakeServiceKeyRepo()
-		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: true, ServiceInstanceNotFound: false}
-		requirementsFactory.ServiceInstance = serviceInstance
+		serviceKeyRepo = apifakes.NewFakeServiceKeyRepo()
+		requirementsFactory = new(requirementsfakes.FakeFactory)
+		requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+		requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Passing{})
+		serviceInstanceReq := new(requirementsfakes.FakeServiceInstanceRequirement)
+		requirementsFactory.NewServiceInstanceRequirementReturns(serviceInstanceReq)
+		serviceInstanceReq.GetServiceInstanceReturns(serviceInstance)
 	})
 
 	var callCreateService = func(args []string) bool {
-		return testcmd.RunCliCommand("create-service-key", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("create-service-key", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Describe("requirements", func() {
 		It("fails when not logged in", func() {
-			requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: false}
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 			Expect(callCreateService([]string{"fake-service-instance", "fake-service-key"})).To(BeFalse())
 		})
 
@@ -69,25 +74,27 @@ var _ = Describe("create-service-key command", func() {
 		})
 
 		It("fails when service instance is not found", func() {
-			requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true, ServiceInstanceNotFound: true}
+			serviceInstanceReq := new(requirementsfakes.FakeServiceInstanceRequirement)
+			serviceInstanceReq.ExecuteReturns(errors.New("no service instance"))
+			requirementsFactory.NewServiceInstanceRequirementReturns(serviceInstanceReq)
 			Expect(callCreateService([]string{"non-exist-service-instance", "fake-service-key"})).To(BeFalse())
 		})
 
 		It("fails when space is not targetted", func() {
-			requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: false}
+			requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Failing{Message: "no targeted space"})
 			Expect(callCreateService([]string{"non-exist-service-instance", "fake-service-key"})).To(BeFalse())
 		})
 	})
 
-	Describe("requiremnts are satisfied", func() {
+	Describe("requirements are satisfied", func() {
 		It("create service key successfully", func() {
 			callCreateService([]string{"fake-service-instance", "fake-service-key"})
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Creating service key", "fake-service-key", "for service instance", "fake-service-instance", "as", "my-user"},
 				[]string{"OK"},
 			))
-			Expect(serviceKeyRepo.CreateServiceKeyMethod.InstanceGuid).To(Equal("fake-instance-guid"))
+			Expect(serviceKeyRepo.CreateServiceKeyMethod.InstanceGUID).To(Equal("fake-instance-guid"))
 			Expect(serviceKeyRepo.CreateServiceKeyMethod.KeyName).To(Equal("fake-service-key"))
 		})
 
@@ -96,7 +103,7 @@ var _ = Describe("create-service-key command", func() {
 
 			callCreateService([]string{"fake-service-instance", "exist-service-key"})
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Creating service key", "exist-service-key", "for service instance", "fake-service-instance", "as", "my-user"},
 				[]string{"OK"},
 				[]string{"Service key exist-service-key already exists"}))
@@ -106,7 +113,7 @@ var _ = Describe("create-service-key command", func() {
 			serviceKeyRepo.CreateServiceKeyMethod.Error = errors.NewUnbindableServiceError()
 			callCreateService([]string{"fake-service-instance", "exist-service-key"})
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Creating service key", "exist-service-key", "for service instance", "fake-service-instance", "as", "my-user"},
 				[]string{"FAILED"},
 				[]string{"This service doesn't support creation of keys."}))
@@ -118,11 +125,11 @@ var _ = Describe("create-service-key command", func() {
 			It("successfully creates a service key and passes the params as a json string", func() {
 				callCreateService([]string{"fake-service-instance", "fake-service-key", "-c", `{"foo": "bar"}`})
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Creating service key", "fake-service-key", "for service instance", "fake-service-instance", "as", "my-user"},
 					[]string{"OK"},
 				))
-				Expect(serviceKeyRepo.CreateServiceKeyMethod.InstanceGuid).To(Equal("fake-instance-guid"))
+				Expect(serviceKeyRepo.CreateServiceKeyMethod.InstanceGUID).To(Equal("fake-instance-guid"))
 				Expect(serviceKeyRepo.CreateServiceKeyMethod.KeyName).To(Equal("fake-service-key"))
 				Expect(serviceKeyRepo.CreateServiceKeyMethod.Params).To(Equal(map[string]interface{}{"foo": "bar"}))
 			})
@@ -132,7 +139,7 @@ var _ = Describe("create-service-key command", func() {
 			It("returns an error to the UI", func() {
 				callCreateService([]string{"fake-service-instance", "fake-service-key", "-c", `bad-json`})
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"FAILED"},
 					[]string{"Invalid configuration provided for -c flag. Please provide a valid JSON object or path to a file containing a valid JSON object."},
 				))
@@ -165,7 +172,7 @@ var _ = Describe("create-service-key command", func() {
 			It("successfully creates a service key and passes the params as a json", func() {
 				callCreateService([]string{"fake-service-instance", "fake-service-key", "-c", jsonFile.Name()})
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Creating service key", "fake-service-key", "for service instance", "fake-service-instance", "as", "my-user"},
 					[]string{"OK"},
 				))
@@ -180,7 +187,7 @@ var _ = Describe("create-service-key command", func() {
 				It("returns an error to the UI", func() {
 					callCreateService([]string{"fake-service-instance", "fake-service-key", "-c", jsonFile.Name()})
 
-					Expect(ui.Outputs).To(ContainSubstrings(
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"FAILED"},
 						[]string{"Invalid configuration provided for -c flag. Please provide a valid JSON object or path to a file containing a valid JSON object."},
 					))

@@ -1,12 +1,13 @@
 package buildpack_test
 
 import (
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -17,30 +18,30 @@ import (
 var _ = Describe("delete-buildpack command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		buildpackRepo       *testapi.FakeBuildpackRepository
-		requirementsFactory *testreq.FakeReqFactory
-		deps                command_registry.Dependency
+		buildpackRepo       *apifakes.OldFakeBuildpackRepository
+		requirementsFactory *requirementsfakes.FakeFactory
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.RepoLocator = deps.RepoLocator.SetBuildpackRepository(buildpackRepo)
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("delete-buildpack").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("delete-buildpack").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
-		buildpackRepo = &testapi.FakeBuildpackRepository{}
-		requirementsFactory = &testreq.FakeReqFactory{}
+		buildpackRepo = new(apifakes.OldFakeBuildpackRepository)
+		requirementsFactory = new(requirementsfakes.FakeFactory)
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("delete-buildpack", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("delete-buildpack", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Context("when the user is not logged in", func() {
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = false
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 		})
 
 		It("fails requirements", func() {
@@ -50,14 +51,14 @@ var _ = Describe("delete-buildpack command", func() {
 
 	Context("when the user is logged in", func() {
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
 		})
 
 		Context("when the buildpack exists", func() {
 			BeforeEach(func() {
 				buildpackRepo.FindByNameBuildpack = models.Buildpack{
 					Name: "my-buildpack",
-					Guid: "my-buildpack-guid",
+					GUID: "my-buildpack-guid",
 				}
 			})
 
@@ -66,10 +67,10 @@ var _ = Describe("delete-buildpack command", func() {
 
 				runCommand("my-buildpack")
 
-				Expect(buildpackRepo.DeleteBuildpackGuid).To(Equal("my-buildpack-guid"))
+				Expect(buildpackRepo.DeleteBuildpackGUID).To(Equal("my-buildpack-guid"))
 
 				Expect(ui.Prompts).To(ContainSubstrings([]string{"delete the buildpack my-buildpack"}))
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Deleting buildpack", "my-buildpack"},
 					[]string{"OK"},
 				))
@@ -79,10 +80,10 @@ var _ = Describe("delete-buildpack command", func() {
 				It("does not prompt the user to delete the buildback", func() {
 					runCommand("-f", "my-buildpack")
 
-					Expect(buildpackRepo.DeleteBuildpackGuid).To(Equal("my-buildpack-guid"))
+					Expect(buildpackRepo.DeleteBuildpackGUID).To(Equal("my-buildpack-guid"))
 
 					Expect(len(ui.Prompts)).To(Equal(0))
-					Expect(ui.Outputs).To(ContainSubstrings(
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"Deleting buildpack", "my-buildpack"},
 						[]string{"OK"},
 					))
@@ -102,7 +103,7 @@ var _ = Describe("delete-buildpack command", func() {
 				Expect(buildpackRepo.FindByNameName).To(Equal("my-buildpack"))
 				Expect(buildpackRepo.FindByNameNotFound).To(BeTrue())
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Deleting", "my-buildpack"},
 					[]string{"OK"},
 				))
@@ -117,17 +118,17 @@ var _ = Describe("delete-buildpack command", func() {
 
 				buildpackRepo.FindByNameBuildpack = models.Buildpack{
 					Name: "my-buildpack",
-					Guid: "my-buildpack-guid",
+					GUID: "my-buildpack-guid",
 				}
-				buildpackRepo.DeleteApiResponse = errors.New("failed badly")
+				buildpackRepo.DeleteAPIResponse = errors.New("failed badly")
 			})
 
 			It("fails with the error", func() {
 				runCommand("my-buildpack")
 
-				Expect(buildpackRepo.DeleteBuildpackGuid).To(Equal("my-buildpack-guid"))
+				Expect(buildpackRepo.DeleteBuildpackGUID).To(Equal("my-buildpack-guid"))
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Deleting buildpack", "my-buildpack"},
 					[]string{"FAILED"},
 					[]string{"my-buildpack"},

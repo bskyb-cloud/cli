@@ -8,7 +8,7 @@ import (
 
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/generic"
+	"github.com/cloudfoundry/cli/utils/generic"
 )
 
 type EventResource interface {
@@ -20,6 +20,7 @@ type EventResourceNewV2 struct {
 	Entity struct {
 		Timestamp time.Time
 		Type      string
+		Actor     string `json:"actor"`
 		ActorName string `json:"actor_name"`
 		Metadata  map[string]interface{}
 	}
@@ -42,17 +43,18 @@ func (resource EventResourceNewV2) ToFields() models.EventFields {
 	}
 
 	return models.EventFields{
-		Guid:        resource.Metadata.Guid,
+		GUID:        resource.Metadata.GUID,
 		Name:        resource.Entity.Type,
 		Timestamp:   resource.Entity.Timestamp,
 		Description: formatDescription(metadata, knownMetadataKeys),
+		Actor:       resource.Entity.Actor,
 		ActorName:   resource.Entity.ActorName,
 	}
 }
 
 func (resource EventResourceOldV2) ToFields() models.EventFields {
 	return models.EventFields{
-		Guid:      resource.Metadata.Guid,
+		GUID:      resource.Metadata.GUID,
 		Name:      T("app crashed"),
 		Timestamp: resource.Entity.Timestamp,
 		Description: fmt.Sprintf(T("instance: {{.InstanceIndex}}, reason: {{.ExitDescription}}, exit_status: {{.ExitStatus}}",

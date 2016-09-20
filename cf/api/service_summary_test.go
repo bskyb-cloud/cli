@@ -5,13 +5,14 @@ import (
 	"net/http/httptest"
 	"time"
 
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
 	"github.com/cloudfoundry/cli/cf/net"
+	"github.com/cloudfoundry/cli/cf/terminal/terminalfakes"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testnet "github.com/cloudfoundry/cli/testhelpers/net"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/trace/tracefakes"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -63,7 +64,7 @@ var _ = Describe("ServiceSummaryRepository", func() {
 	})
 
 	It("gets a summary of services in the given space", func() {
-		req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+		req := apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 			Method:   "GET",
 			Path:     "/v2/spaces/my-space-guid/summary",
 			Response: serviceInstanceSummariesResponse,
@@ -97,8 +98,8 @@ var _ = Describe("ServiceSummaryRepository", func() {
 func createServiceSummaryRepo(req testnet.TestRequest) (ts *httptest.Server, handler *testnet.TestHandler, repo ServiceSummaryRepository) {
 	ts, handler = testnet.NewServer([]testnet.TestRequest{req})
 	configRepo := testconfig.NewRepositoryWithDefaults()
-	configRepo.SetApiEndpoint(ts.URL)
-	gateway := net.NewCloudControllerGateway(configRepo, time.Now, &testterm.FakeUI{})
+	configRepo.SetAPIEndpoint(ts.URL)
+	gateway := net.NewCloudControllerGateway(configRepo, time.Now, new(terminalfakes.FakeUI), new(tracefakes.FakePrinter), "")
 	repo = NewCloudControllerServiceSummaryRepository(configRepo, gateway)
 	return
 }

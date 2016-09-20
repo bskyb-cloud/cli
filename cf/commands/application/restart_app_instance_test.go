@@ -3,15 +3,16 @@ package application_test
 import (
 	"errors"
 
-	testApplication "github.com/cloudfoundry/cli/cf/api/app_instances/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/appinstances/appinstancesfakes"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
-	"github.com/cloudfoundry/cli/cf/command_registry"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -20,48 +21,50 @@ import (
 var _ = Describe("restart-app-instance", func() {
 	var (
 		ui                  *testterm.FakeUI
-		config              core_config.Repository
-		appInstancesRepo    *testApplication.FakeAppInstancesRepository
-		requirementsFactory *testreq.FakeReqFactory
+		config              coreconfig.Repository
+		appInstancesRepo    *appinstancesfakes.FakeAppInstancesRepository
+		requirementsFactory *requirementsfakes.FakeFactory
 		application         models.Application
-		deps                command_registry.Dependency
+		deps                commandregistry.Dependency
 	)
 
 	BeforeEach(func() {
-		application = models.Application{}
-		application.Name = "my-app"
-		application.Guid = "my-app-guid"
-		application.InstanceCount = 1
 
 		ui = &testterm.FakeUI{}
-		appInstancesRepo = &testApplication.FakeAppInstancesRepository{}
+		appInstancesRepo = new(appinstancesfakes.FakeAppInstancesRepository)
 		config = testconfig.NewRepositoryWithDefaults()
-		requirementsFactory = &testreq.FakeReqFactory{
-			LoginSuccess:         true,
-			TargetedSpaceSuccess: true,
-			Application:          application,
-		}
+		requirementsFactory = new(requirementsfakes.FakeFactory)
+		requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+		requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Passing{})
+
+		application = models.Application{}
+		application.Name = "my-app"
+		application.GUID = "my-app-guid"
+		application.InstanceCount = 1
+		applicationReq := new(requirementsfakes.FakeApplicationRequirement)
+		applicationReq.GetApplicationReturns(application)
+		requirementsFactory.NewApplicationRequirementReturns(applicationReq)
 	})
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.Config = config
 		deps.RepoLocator = deps.RepoLocator.SetAppInstancesRepository(appInstancesRepo)
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("restart-app-instance").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("restart-app-instance").SetDependency(deps, pluginCall))
 	}
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("restart-app-instance", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("restart-app-instance", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Describe("requirements", func() {
 		It("fails if not logged in", func() {
-			requirementsFactory.LoginSuccess = false
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 			Expect(runCommand("my-app", "0")).To(BeFalse())
 		})
 
 		It("fails if a space is not targeted", func() {
-			requirementsFactory.TargetedSpaceSuccess = false
+			requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Failing{Message: "not targeting space"})
 			Expect(runCommand("my-app", "0")).To(BeFalse())
 		})
 
@@ -77,9 +80,9 @@ var _ = Describe("restart-app-instance", func() {
 			runCommand("my-app", "0")
 
 			app_guid, instance := appInstancesRepo.DeleteInstanceArgsForCall(0)
-			Expect(app_guid).To(Equal(application.Guid))
+			Expect(app_guid).To(Equal(application.GUID))
 			Expect(instance).To(Equal(0))
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Restarting instance 0 of application my-app as my-user"},
 				[]string{"OK"},
 			))
@@ -93,10 +96,10 @@ var _ = Describe("restart-app-instance", func() {
 				runCommand("my-app", "0")
 
 				app_guid, instance := appInstancesRepo.DeleteInstanceArgsForCall(0)
-				Expect(app_guid).To(Equal(application.Guid))
+				Expect(app_guid).To(Equal(application.GUID))
 				Expect(instance).To(Equal(0))
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"FAILED"},
 					[]string{"deletion failed"},
 				))
@@ -107,7 +110,7 @@ var _ = Describe("restart-app-instance", func() {
 			It("fails when it is a string", func() {
 				runCommand("my-app", "some-silly-thing")
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Instance must be a non-negative integer"},
 				))
 			})

@@ -3,13 +3,14 @@ package application_test
 import (
 	"errors"
 
-	testApplication "github.com/cloudfoundry/cli/cf/api/applications/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/applications/applicationsfakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -20,56 +21,60 @@ import (
 var _ = Describe("set-env command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		configRepo          core_config.Repository
+		configRepo          coreconfig.Repository
 		app                 models.Application
-		appRepo             *testApplication.FakeApplicationRepository
-		requirementsFactory *testreq.FakeReqFactory
-		deps                command_registry.Dependency
+		appRepo             *applicationsfakes.FakeRepository
+		requirementsFactory *requirementsfakes.FakeFactory
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.Config = configRepo
 		deps.RepoLocator = deps.RepoLocator.SetApplicationRepository(appRepo)
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("set-env").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("set-env").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		app = models.Application{}
 		app.Name = "my-app"
-		app.Guid = "my-app-guid"
-		appRepo = &testApplication.FakeApplicationRepository{}
-		requirementsFactory = &testreq.FakeReqFactory{}
+		app.GUID = "my-app-guid"
+		appRepo = new(applicationsfakes.FakeRepository)
+		requirementsFactory = new(requirementsfakes.FakeFactory)
 		configRepo = testconfig.NewRepositoryWithDefaults()
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("set-env", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("set-env", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Describe("requirements", func() {
+		BeforeEach(func() {
+			applicationReq := new(requirementsfakes.FakeApplicationRequirement)
+			applicationReq.GetApplicationReturns(app)
+			requirementsFactory.NewApplicationRequirementReturns(applicationReq)
+		})
+
 		It("fails when login is not successful", func() {
-			requirementsFactory.Application = app
-			requirementsFactory.TargetedSpaceSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 
 			Expect(runCommand("hey", "gabba", "gabba")).To(BeFalse())
 		})
 
 		It("fails when a space is not targeted", func() {
-			requirementsFactory.Application = app
-			requirementsFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Failing{Message: "not targeting space"})
 
 			Expect(runCommand("hey", "gabba", "gabba")).To(BeFalse())
 		})
 
 		It("fails with usage when not provided with exactly three args", func() {
-			requirementsFactory.Application = app
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedSpaceSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Passing{})
 
 			runCommand("zomg", "too", "many", "args")
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Incorrect Usage", "Requires", "arguments"},
 			))
 		})
@@ -78,16 +83,18 @@ var _ = Describe("set-env command", func() {
 	Context("when logged in, a space is targeted and given enough args", func() {
 		BeforeEach(func() {
 			app.EnvironmentVars = map[string]interface{}{"foo": "bar"}
-			requirementsFactory.Application = app
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedSpaceSuccess = true
+			applicationReq := new(requirementsfakes.FakeApplicationRequirement)
+			applicationReq.GetApplicationReturns(app)
+			requirementsFactory.NewApplicationRequirementReturns(applicationReq)
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Passing{})
 		})
 
 		Context("when it is new", func() {
 			It("is created", func() {
 				runCommand("my-app", "DATABASE_URL", "mysql://new-example.com/my-db")
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{
 						"Setting env variable",
 						"DATABASE_URL",
@@ -101,9 +108,8 @@ var _ = Describe("set-env command", func() {
 					[]string{"TIP"},
 				))
 
-				Expect(requirementsFactory.ApplicationName).To(Equal("my-app"))
 				appGUID, params := appRepo.UpdateArgsForCall(0)
-				Expect(appGUID).To(Equal(app.Guid))
+				Expect(appGUID).To(Equal(app.GUID))
 				Expect(*params.EnvironmentVars).To(Equal(map[string]interface{}{
 					"DATABASE_URL": "mysql://new-example.com/my-db",
 					"foo":          "bar",
@@ -119,7 +125,7 @@ var _ = Describe("set-env command", func() {
 			It("is updated", func() {
 				runCommand("my-app", "DATABASE_URL", "mysql://new-example.com/my-db")
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{
 						"Setting env variable",
 						"DATABASE_URL",
@@ -138,7 +144,7 @@ var _ = Describe("set-env command", func() {
 		It("allows the variable value to begin with a hyphen", func() {
 			runCommand("my-app", "MY_VAR", "--has-a-cool-value")
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{
 					"Setting env variable",
 					"MY_VAR",
@@ -162,12 +168,19 @@ var _ = Describe("set-env command", func() {
 			It("tells the user", func() {
 				runCommand("please", "dont", "fail")
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Setting env variable"},
 					[]string{"FAILED"},
 					[]string{"Error updating app."},
 				))
 			})
+		})
+
+		It("gives the appropriate tip", func() {
+			runCommand("my-app", "DATABASE_URL", "mysql://new-example.com/my-db")
+			Expect(ui.Outputs()).To(ContainSubstrings(
+				[]string{"TIP: Use 'cf restage my-app' to ensure your env variable changes take effect"},
+			))
 		})
 	})
 })

@@ -4,23 +4,21 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/flags"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/flags"
+	"github.com/cloudfoundry/cli/cf/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 )
 
 type RunCommandResult int
 
 const (
-	RunCommandResultSuccess            = iota
-	RunCommandResultFailed             = iota
-	RunCommandResultRequirementsFailed = iota
+	RunCommandResultSuccess = iota
 )
 
-func RunCliCommand(cmdName string, args []string, requirementsFactory *testreq.FakeReqFactory, updateFunc func(bool), pluginCall bool) (passedRequirements bool) {
+func RunCLICommand(cmdName string, args []string, requirementsFactory requirements.Factory, updateFunc func(bool), pluginCall bool, ui *testterm.FakeUI) bool {
 	updateFunc(pluginCall)
-	cmd := command_registry.Commands.FindCommand(cmdName)
+	cmd := commandregistry.Commands.FindCommand(cmdName)
 	context := flags.NewFlagContext(cmd.MetaData().Flags)
 	context.SkipFlagParsing(cmd.MetaData().SkipFlagParsing)
 	err := context.Parse(args...)
@@ -36,26 +34,23 @@ func RunCliCommand(cmdName string, args []string, requirementsFactory *testreq.F
 			panic(errMsg)
 		}
 	}()
-	requirements, err := cmd.Requirements(requirementsFactory, context)
-	if err != nil {
-		return false
-	}
-
+	requirements := cmd.Requirements(requirementsFactory, context)
 	for _, requirement := range requirements {
-		if !requirement.Execute() {
+		if err = requirement.Execute(); err != nil {
 			return false
 		}
 	}
 
-	passedRequirements = true
+	err = cmd.Execute(context)
+	if err != nil {
+		ui.Failed(err.Error())
+	}
 
-	cmd.Execute(context)
-
-	return
+	return true
 }
 
-func RunCliCommandWithoutDependency(cmdName string, args []string, requirementsFactory *testreq.FakeReqFactory) (passedRequirements bool) {
-	cmd := command_registry.Commands.FindCommand(cmdName)
+func RunCLICommandWithoutDependency(cmdName string, args []string, requirementsFactory requirements.Factory, ui *testterm.FakeUI) bool {
+	cmd := commandregistry.Commands.FindCommand(cmdName)
 	context := flags.NewFlagContext(cmd.MetaData().Flags)
 	context.SkipFlagParsing(cmd.MetaData().SkipFlagParsing)
 	err := context.Parse(args...)
@@ -71,20 +66,19 @@ func RunCliCommandWithoutDependency(cmdName string, args []string, requirementsF
 			panic(errMsg)
 		}
 	}()
-	requirements, err := cmd.Requirements(requirementsFactory, context)
-	if err != nil {
-		return false
-	}
+
+	requirements := cmd.Requirements(requirementsFactory, context)
 
 	for _, requirement := range requirements {
-		if !requirement.Execute() {
+		if err = requirement.Execute(); err != nil {
 			return false
 		}
 	}
 
-	passedRequirements = true
+	err = cmd.Execute(context)
+	if err != nil {
+		ui.Failed(err.Error())
+	}
 
-	cmd.Execute(context)
-
-	return
+	return true
 }

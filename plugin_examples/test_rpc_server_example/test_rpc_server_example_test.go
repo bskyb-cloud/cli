@@ -7,8 +7,8 @@ import (
 
 	. "github.com/cloudfoundry/cli/plugin_examples/test_rpc_server_example"
 
-	"github.com/cloudfoundry/cli/testhelpers/rpc_server"
-	fake_rpc_handlers "github.com/cloudfoundry/cli/testhelpers/rpc_server/fakes"
+	"github.com/cloudfoundry/cli/testhelpers/rpcserver"
+	"github.com/cloudfoundry/cli/testhelpers/rpcserver/rpcserverfakes"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -21,18 +21,15 @@ const validPluginPath = "./test_rpc_server_example.exe"
 var _ = Describe("App-Lister", func() {
 
 	var (
-		rpcHandlers *fake_rpc_handlers.FakeHandlers
-		ts          *test_rpc_server.TestServer
+		rpcHandlers *rpcserverfakes.FakeHandlers
+		ts          *rpcserver.TestServer
 		err         error
 	)
 
 	BeforeEach(func() {
-		rpcHandlers = &fake_rpc_handlers.FakeHandlers{}
-		ts, err = test_rpc_server.NewTestRpcServer(rpcHandlers)
-		Ω(err).NotTo(HaveOccurred())
-
-		err = ts.Start()
-		Ω(err).NotTo(HaveOccurred())
+		rpcHandlers = new(rpcserverfakes.FakeHandlers)
+		ts, err = rpcserver.NewTestRPCServer(rpcHandlers)
+		Expect(err).NotTo(HaveOccurred())
 
 		//set rpc.CallCoreCommand to a successful call
 		//rpc.CallCoreCommand is used in both cliConnection.CliCommand() and
@@ -49,6 +46,11 @@ var _ = Describe("App-Lister", func() {
 		}
 	})
 
+	JustBeforeEach(func() {
+		err = ts.Start()
+		Expect(err).NotTo(HaveOccurred())
+	})
+
 	AfterEach(func() {
 		ts.Stop()
 	})
@@ -59,118 +61,132 @@ var _ = Describe("App-Lister", func() {
 				args := []string{ts.Port(), "list-apps", "--started"}
 				session, err := gexec.Start(exec.Command(validPluginPath, args...), GinkgoWriter, GinkgoWriter)
 				session.Wait()
-				Ω(err).NotTo(HaveOccurred())
+				Expect(err).NotTo(HaveOccurred())
 
 				args = []string{ts.Port(), "list-apps", "--stopped"}
 				session, err = gexec.Start(exec.Command(validPluginPath, args...), GinkgoWriter, GinkgoWriter)
 				session.Wait()
-				Ω(err).NotTo(HaveOccurred())
+				Expect(err).NotTo(HaveOccurred())
 			})
 
 			It("raises error when invalid flag is provided", func() {
 				args := []string{ts.Port(), "list-apps", "--invalid_flag"}
 				session, err := gexec.Start(exec.Command(validPluginPath, args...), GinkgoWriter, GinkgoWriter)
 				session.Wait()
-				Ω(err).NotTo(HaveOccurred())
-				Ω(session).To(gbytes.Say("FAILED"))
-				Ω(session).To(gbytes.Say("invalid_flag"))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(session).To(gbytes.Say("FAILED"))
+				Expect(session).To(gbytes.Say("invalid_flag"))
 			})
 		})
 
 		Context("Running the command", func() {
 			Context("Curling v2/apps endpoint", func() {
-				It("shows the endpoint it is curling", func() {
+				BeforeEach(func() {
 					rpcHandlers.ApiEndpointStub = func(_ string, retVal *string) error {
 						*retVal = "api.example.com"
 						return nil
 					}
-
-					args := []string{ts.Port(), "list-apps"}
-					session, err := gexec.Start(exec.Command(validPluginPath, args...), GinkgoWriter, GinkgoWriter)
-					session.Wait()
-					Ω(err).NotTo(HaveOccurred())
-					Ω(session).To(gbytes.Say("api.example.com/v2/apps"))
 				})
 
-				It("raises an error when ApiEndpoint() returns an error", func() {
-					rpcHandlers.ApiEndpointStub = func(_ string, retVal *string) error {
-						*retVal = ""
-						return errors.New("Bad bad error")
-					}
-
+				It("shows the endpoint it is curling", func() {
 					args := []string{ts.Port(), "list-apps"}
 					session, err := gexec.Start(exec.Command(validPluginPath, args...), GinkgoWriter, GinkgoWriter)
 					session.Wait()
-					Ω(err).NotTo(HaveOccurred())
-					Ω(session).To(gbytes.Say("FAILED"))
-					Ω(session).To(gbytes.Say("Bad bad error"))
-					Ω(session.ExitCode()).To(Equal(1))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(session).To(gbytes.Say("api.example.com/v2/apps"))
+				})
+
+				Context("when ApiEndpoint() returns an error", func() {
+					BeforeEach(func() {
+						rpcHandlers.ApiEndpointStub = func(_ string, retVal *string) error {
+							*retVal = ""
+							return errors.New("Bad bad error")
+						}
+					})
+
+					It("raises an error when ApiEndpoint() returns an error", func() {
+						args := []string{ts.Port(), "list-apps"}
+						session, err := gexec.Start(exec.Command(validPluginPath, args...), GinkgoWriter, GinkgoWriter)
+						session.Wait()
+						Expect(err).NotTo(HaveOccurred())
+						Expect(session).To(gbytes.Say("FAILED"))
+						Expect(session).To(gbytes.Say("Bad bad error"))
+						Expect(session.ExitCode()).To(Equal(1))
+					})
 				})
 
 				Context("when getting a list of apps", func() {
 					Context("without option flag", func() {
-						It("lists all apps", func() {
+						BeforeEach(func() {
 							rpcHandlers.GetOutputAndResetStub = func(_ bool, retVal *[]string) error {
 								*retVal = []string{marshal(sampleApps())}
 								return nil
 							}
+						})
 
+						It("lists all apps", func() {
 							args := []string{ts.Port(), "list-apps"}
 							session, err := gexec.Start(exec.Command(validPluginPath, args...), GinkgoWriter, GinkgoWriter)
 							session.Wait()
-							Ω(err).NotTo(HaveOccurred())
-							Ω(session).To(gbytes.Say("app1"))
-							Ω(session).To(gbytes.Say("app2"))
-							Ω(session).To(gbytes.Say("app3"))
+							Expect(err).NotTo(HaveOccurred())
+							Expect(session).To(gbytes.Say("app1"))
+							Expect(session).To(gbytes.Say("app2"))
+							Expect(session).To(gbytes.Say("app3"))
 						})
 					})
 
 					Context("with --started", func() {
-						It("lists only started apps", func() {
+						BeforeEach(func() {
 							rpcHandlers.GetOutputAndResetStub = func(_ bool, retVal *[]string) error {
 								*retVal = []string{marshal(sampleApps())}
 								return nil
 							}
+						})
 
+						It("lists only started apps", func() {
 							args := []string{ts.Port(), "list-apps", "--started"}
 							session, err := gexec.Start(exec.Command(validPluginPath, args...), GinkgoWriter, GinkgoWriter)
 							session.Wait()
-							Ω(err).NotTo(HaveOccurred())
-							Ω(session).To(gbytes.Say("app1"))
-							Ω(session).To(gbytes.Say("app2"))
-							Ω(session).ToNot(gbytes.Say("app3"))
+							Expect(err).NotTo(HaveOccurred())
+							Expect(session).To(gbytes.Say("app1"))
+							Expect(session).To(gbytes.Say("app2"))
+							Expect(session).NotTo(gbytes.Say("app3"))
 						})
 					})
 
 					Context("with --stopped", func() {
-						It("lists only stopped apps", func() {
+						BeforeEach(func() {
 							rpcHandlers.GetOutputAndResetStub = func(_ bool, retVal *[]string) error {
 								*retVal = []string{marshal(sampleApps())}
 								return nil
 							}
+						})
 
+						It("lists only stopped apps", func() {
 							args := []string{ts.Port(), "list-apps", "--stopped"}
 							session, err := gexec.Start(exec.Command(validPluginPath, args...), GinkgoWriter, GinkgoWriter)
 							session.Wait()
-							Ω(err).NotTo(HaveOccurred())
-							Ω(session).ToNot(gbytes.Say("app1"))
-							Ω(session).ToNot(gbytes.Say("app2"))
-							Ω(session).To(gbytes.Say("app3"))
+							Expect(err).NotTo(HaveOccurred())
+							Expect(session).NotTo(gbytes.Say("app1"))
+							Expect(session).NotTo(gbytes.Say("app2"))
+							Expect(session).To(gbytes.Say("app3"))
 						})
 					})
 
 					Context("when CliCommandWithoutTerminalOutput() returns an error", func() {
-						It("notifies the user about the error", func() {
+						BeforeEach(func() {
 							rpcHandlers.CallCoreCommandStub = func(_ []string, retVal *bool) error {
 								return errors.New("something went wrong")
 							}
+						})
 
+						It("notifies the user about the error", func() {
 							args := []string{ts.Port(), "list-apps", "--stopped"}
 							session, err := gexec.Start(exec.Command(validPluginPath, args...), GinkgoWriter, GinkgoWriter)
 							session.Wait()
-							Ω(err).NotTo(HaveOccurred())
-							Ω(session).To(gbytes.Say("FAILED"))
-							Ω(session).To(gbytes.Say("something went wrong"))
+							Expect(err).NotTo(HaveOccurred())
+							Expect(session).To(gbytes.Say("FAILED"))
+							Expect(session).To(gbytes.Say("something went wrong"))
 						})
 					})
 
@@ -180,7 +196,7 @@ var _ = Describe("App-Lister", func() {
 							rpcHandlers.GetOutputAndResetStub = func(_ bool, retVal *[]string) error {
 								apps := sampleApps()
 								if count == 0 {
-									apps.NextUrl = "v2/apps?page=2"
+									apps.NextURL = "v2/apps?page=2"
 									*retVal = []string{marshal(apps)}
 									count++
 								} else {
@@ -195,25 +211,25 @@ var _ = Describe("App-Lister", func() {
 							args := []string{ts.Port(), "list-apps"}
 							session, err := gexec.Start(exec.Command(validPluginPath, args...), GinkgoWriter, GinkgoWriter)
 							session.Wait()
-							Ω(err).NotTo(HaveOccurred())
-							Ω(rpcHandlers.CallCoreCommandCallCount()).To(Equal(2))
+							Expect(err).NotTo(HaveOccurred())
+							Expect(rpcHandlers.CallCoreCommandCallCount()).To(Equal(2))
 
 							params, _ := rpcHandlers.CallCoreCommandArgsForCall(0)
-							Ω(params[1]).To(Equal("v2/apps"))
+							Expect(params[1]).To(Equal("v2/apps"))
 
 							params, _ = rpcHandlers.CallCoreCommandArgsForCall(1)
-							Ω(params[1]).To(Equal("v2/apps?page=2"))
+							Expect(params[1]).To(Equal("v2/apps?page=2"))
 						})
 
 						It("traverses through all pages and list all the apps", func() {
 							args := []string{ts.Port(), "list-apps"}
 							session, err := gexec.Start(exec.Command(validPluginPath, args...), GinkgoWriter, GinkgoWriter)
 							session.Wait()
-							Ω(err).NotTo(HaveOccurred())
-							Ω(session).To(gbytes.Say("app1"))
-							Ω(session).To(gbytes.Say("app2"))
-							Ω(session).To(gbytes.Say("app3"))
-							Ω(session).To(gbytes.Say("app4"))
+							Expect(err).NotTo(HaveOccurred())
+							Expect(session).To(gbytes.Say("app1"))
+							Expect(session).To(gbytes.Say("app2"))
+							Expect(session).To(gbytes.Say("app3"))
+							Expect(session).To(gbytes.Say("app4"))
 						})
 					})
 				})
@@ -225,13 +241,13 @@ var _ = Describe("App-Lister", func() {
 func sampleApps() AppsModel {
 	allApps := AppsModel{
 		Resources: []AppModel{
-			AppModel{
+			{
 				EntityModel{Name: "app1", State: "STARTED"},
 			},
-			AppModel{
+			{
 				EntityModel{Name: "app2", State: "STARTED"},
 			},
-			AppModel{
+			{
 				EntityModel{Name: "app3", State: "STOPPED"},
 			},
 		},
@@ -242,7 +258,7 @@ func sampleApps() AppsModel {
 
 func marshal(apps AppsModel) string {
 	b, err := json.Marshal(apps)
-	Ω(err).ToNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 
 	return string(b)
 }

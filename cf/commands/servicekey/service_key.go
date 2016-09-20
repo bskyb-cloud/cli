@@ -4,47 +4,48 @@ import (
 	"encoding/json"
 
 	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/flags"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
-	"github.com/cloudfoundry/cli/flags/flag"
 
 	. "github.com/cloudfoundry/cli/cf/i18n"
 )
 
 type ServiceKey struct {
 	ui                         terminal.UI
-	config                     core_config.Reader
+	config                     coreconfig.Reader
 	serviceRepo                api.ServiceRepository
 	serviceKeyRepo             api.ServiceKeyRepository
 	serviceInstanceRequirement requirements.ServiceInstanceRequirement
 }
 
 func init() {
-	command_registry.Register(&ServiceKey{})
+	commandregistry.Register(&ServiceKey{})
 }
 
-func (cmd *ServiceKey) MetaData() command_registry.CommandMetadata {
+func (cmd *ServiceKey) MetaData() commandregistry.CommandMetadata {
 	fs := make(map[string]flags.FlagSet)
-	fs["guid"] = &cliFlags.BoolFlag{Name: "guid", Usage: T("Retrieve and display the given service-key's guid.  All other output for the service is suppressed.")}
+	fs["guid"] = &flags.BoolFlag{Name: "guid", Usage: T("Retrieve and display the given service-key's guid.  All other output for the service is suppressed.")}
 
-	return command_registry.CommandMetadata{
+	return commandregistry.CommandMetadata{
 		Name:        "service-key",
 		Description: T("Show service key info"),
-		Usage: T(`CF_NAME service-key SERVICE_INSTANCE SERVICE_KEY
-
-EXAMPLE:
-   CF_NAME service-key mydb mykey`),
+		Usage: []string{
+			T("CF_NAME service-key SERVICE_INSTANCE SERVICE_KEY"),
+		},
+		Examples: []string{
+			"CF_NAME service-key mydb mykey",
+		},
 		Flags: fs,
 	}
 }
 
-func (cmd *ServiceKey) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
+func (cmd *ServiceKey) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
 	if len(fc.Args()) != 2 {
-		cmd.ui.Failed(T("Incorrect Usage. Requires SERVICE_INSTANCE SERVICE_KEY as arguments\n\n") + command_registry.Commands.CommandUsage("service-key"))
+		cmd.ui.Failed(T("Incorrect Usage. Requires SERVICE_INSTANCE SERVICE_KEY as arguments\n\n") + commandregistry.Commands.CommandUsage("service-key"))
 	}
 
 	loginRequirement := requirementsFactory.NewLoginRequirement()
@@ -52,18 +53,18 @@ func (cmd *ServiceKey) Requirements(requirementsFactory requirements.Factory, fc
 	targetSpaceRequirement := requirementsFactory.NewTargetedSpaceRequirement()
 
 	reqs := []requirements.Requirement{loginRequirement, cmd.serviceInstanceRequirement, targetSpaceRequirement}
-	return reqs, nil
+	return reqs
 }
 
-func (cmd *ServiceKey) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *ServiceKey) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.serviceRepo = deps.RepoLocator.GetServiceRepository()
 	cmd.serviceKeyRepo = deps.RepoLocator.GetServiceKeyRepository()
 	return cmd
 }
 
-func (cmd *ServiceKey) Execute(c flags.FlagContext) {
+func (cmd *ServiceKey) Execute(c flags.FlagContext) error {
 	serviceInstance := cmd.serviceInstanceRequirement.GetServiceInstance()
 	serviceKeyName := c.Args()[1]
 
@@ -76,7 +77,7 @@ func (cmd *ServiceKey) Execute(c flags.FlagContext) {
 			}))
 	}
 
-	serviceKey, err := cmd.serviceKeyRepo.GetServiceKey(serviceInstance.Guid, serviceKeyName)
+	serviceKey, err := cmd.serviceKeyRepo.GetServiceKey(serviceInstance.GUID, serviceKeyName)
 	if err != nil {
 		switch err.(type) {
 		case *errors.NotAuthorizedError:
@@ -84,31 +85,30 @@ func (cmd *ServiceKey) Execute(c flags.FlagContext) {
 				map[string]interface{}{
 					"ServiceKeyName":      terminal.EntityNameColor(serviceKeyName),
 					"ServiceInstanceName": terminal.EntityNameColor(serviceInstance.Name)}))
-			return
+			return nil
 		default:
-			cmd.ui.Failed(err.Error())
-			return
+			return err
 		}
 	}
 
 	if c.Bool("guid") {
-		cmd.ui.Say(serviceKey.Fields.Guid)
+		cmd.ui.Say(serviceKey.Fields.GUID)
 	} else {
 		if serviceKey.Fields.Name == "" {
 			cmd.ui.Say(T("No service key {{.ServiceKeyName}} found for service instance {{.ServiceInstanceName}}",
 				map[string]interface{}{
 					"ServiceKeyName":      terminal.EntityNameColor(serviceKeyName),
 					"ServiceInstanceName": terminal.EntityNameColor(serviceInstance.Name)}))
-			return
+			return nil
 		}
 
 		jsonBytes, err := json.MarshalIndent(serviceKey.Credentials, "", " ")
 		if err != nil {
-			cmd.ui.Failed(err.Error())
-			return
+			return err
 		}
 
 		cmd.ui.Say("")
 		cmd.ui.Say(string(jsonBytes))
 	}
+	return nil
 }

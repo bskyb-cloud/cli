@@ -1,64 +1,93 @@
 package rpc_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	. "github.com/cloudfoundry/cli/plugin/rpc"
-	. "github.com/cloudfoundry/cli/plugin/rpc/fake_command"
+	"os"
 
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/terminal/terminalfakes"
+	"github.com/cloudfoundry/cli/cf/trace/tracefakes"
+	. "github.com/cloudfoundry/cli/plugin/rpc"
+	. "github.com/cloudfoundry/cli/plugin/rpc/fakecommand"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("calling commands in command_registry", func() {
+var _ = Describe("calling commands in commandregistry", func() {
 
 	_ = FakeCommand1{} //make sure fake_command is imported and self-registered with init()
+	_ = FakeCommand3{} //make sure fake_command is imported and self-registered with init()
+	_ = FakeCommand4{} //make sure fake_command is imported and self-registered with init()
 
 	var (
-		ui   *testterm.FakeUI
-		deps command_registry.Dependency
+		ui         *terminalfakes.FakeUI
+		deps       commandregistry.Dependency
+		fakeLogger *tracefakes.FakePrinter
 	)
 
 	BeforeEach(func() {
-		deps = command_registry.NewDependency()
-		ui = &testterm.FakeUI{}
-		deps.Ui = ui
+		fakeLogger = new(tracefakes.FakePrinter)
+		deps = commandregistry.NewDependency(os.Stdout, fakeLogger, "")
+		ui = new(terminalfakes.FakeUI)
+		deps.UI = ui
 
-		cmd := command_registry.Commands.FindCommand("fake-non-codegangsta-command")
-		command_registry.Commands.SetCommand(cmd.SetDependency(deps, true))
+		cmd := commandregistry.Commands.FindCommand("fake-command")
+		commandregistry.Commands.SetCommand(cmd.SetDependency(deps, true))
 
-		cmd2 := command_registry.Commands.FindCommand("fake-non-codegangsta-command2")
-		command_registry.Commands.SetCommand(cmd2.SetDependency(deps, true))
+		cmd2 := commandregistry.Commands.FindCommand("fake-command2")
+		commandregistry.Commands.SetCommand(cmd2.SetDependency(deps, true))
 	})
 
-	It("runs the command requirements", func() {
-		NewNonCodegangstaRunner().Command([]string{"fake-non-codegangsta-command"}, deps, false)
-		Expect(ui.Outputs).To(ContainSubstrings([]string{"Requirement executed"}))
+	Context("when command exists and the correct flags are passed", func() {
+		BeforeEach(func() {
+			err := NewCommandRunner().Command([]string{"fake-command"}, deps, false)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("should set dependencies, execute requirements, and execute the command", func() {
+			Expect(ui.SayArgsForCall(0)).To(ContainSubstring("SetDependency() called, pluginCall true"))
+			Expect(ui.SayArgsForCall(1)).To(ContainSubstring("SetDependency() called, pluginCall false"))
+			Expect(ui.SayArgsForCall(2)).To(ContainSubstring("Requirement executed"))
+			Expect(ui.SayArgsForCall(3)).To(ContainSubstring("Command Executed"))
+		})
 	})
 
-	It("calls the command Execute() func", func() {
-		NewNonCodegangstaRunner().Command([]string{"fake-non-codegangsta-command"}, deps, false)
-		Expect(ui.Outputs).To(ContainSubstrings([]string{"Command Executed"}))
+	Context("when any of the command requirements fails", func() {
+		It("returns an error", func() {
+			err := NewCommandRunner().Command([]string{"fake-command2"}, deps, false)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("Requirement executed and failed"))
+		})
 	})
 
-	It("sets the dependency of the command", func() {
-		NewNonCodegangstaRunner().Command([]string{"fake-non-codegangsta-command"}, deps, false)
-		Expect(ui.Outputs).To(ContainSubstrings([]string{"SetDependency() called, pluginCall true"}))
+	Context("when invalid flags are provided", func() {
+		It("returns an error", func() {
+			err := NewCommandRunner().Command([]string{"fake-command", "-badFlag"}, deps, false)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("Invalid flag: -badFlag"))
+		})
 	})
 
-	It("returns an error if any of the requirements fail", func() {
-		err := NewNonCodegangstaRunner().Command([]string{"fake-non-codegangsta-command2"}, deps, false)
+	Context("when the command execute errors", func() {
+		BeforeEach(func() {
+			cmd4 := commandregistry.Commands.FindCommand("fake-command4")
+			commandregistry.Commands.SetCommand(cmd4.SetDependency(deps, true))
+		})
 
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("Error in requirement"))
+		It("returns an error", func() {
+			err := NewCommandRunner().Command([]string{"fake-command4"}, deps, false)
+			Expect(err).To(MatchError(ErrFakeCommand4))
+		})
 	})
 
-	It("returns an error if invalid flag is provided", func() {
-		err := NewNonCodegangstaRunner().Command([]string{"fake-non-codegangsta-command", "-badFlag"}, deps, false)
+	Context("when the command execute panics", func() {
+		BeforeEach(func() {
+			cmd3 := commandregistry.Commands.FindCommand("fake-command3")
+			commandregistry.Commands.SetCommand(cmd3.SetDependency(deps, true))
+		})
 
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("Invalid flag: -badFlag"))
+		It("returns an error", func() {
+			err := NewCommandRunner().Command([]string{"fake-command3"}, deps, false)
+			Expect(err.Error()).To(MatchRegexp("cli_rpc_server_test"))
+		})
 	})
-
 })

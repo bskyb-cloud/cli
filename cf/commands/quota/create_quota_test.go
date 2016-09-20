@@ -1,50 +1,103 @@
 package quota_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/cloudfoundry/cli/cf/api/quotas/fakes"
+	"encoding/json"
+
+	"github.com/blang/semver"
+	"github.com/cloudfoundry/cli/cf/api/quotas/quotasfakes"
+	"github.com/cloudfoundry/cli/cf/api/resources"
+	"github.com/cloudfoundry/cli/cf/commands/quota"
 	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 )
 
 var _ = Describe("create-quota command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		quotaRepo           *fakes.FakeQuotaRepository
-		requirementsFactory *testreq.FakeReqFactory
-		configRepo          core_config.Repository
-		deps                command_registry.Dependency
+		quotaRepo           *quotasfakes.FakeQuotaRepository
+		requirementsFactory *requirementsfakes.FakeFactory
+		configRepo          coreconfig.Repository
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.Config = configRepo
 		deps.RepoLocator = deps.RepoLocator.SetQuotaRepository(quotaRepo)
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("create-quota").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("create-quota").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		quotaRepo = &fakes.FakeQuotaRepository{}
-		requirementsFactory = &testreq.FakeReqFactory{}
+		quotaRepo = new(quotasfakes.FakeQuotaRepository)
+		requirementsFactory = new(requirementsfakes.FakeFactory)
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("create-quota", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("create-quota", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
+
+	Describe("Help text", func() {
+		var usage string
+
+		BeforeEach(func() {
+			cq := &quota.CreateQuota{}
+			up := commandregistry.CLICommandUsagePresenter(cq)
+			usage = up.Usage()
+		})
+
+		It("has a reserved route ports flag", func() {
+			Expect(usage).To(MatchRegexp(`--reserved-route-ports\s+Maximum number of routes that may be created with reserved ports \(Default: 0\)`))
+
+			Expect(usage).To(MatchRegexp(`cf create-quota.*\[--reserved-route-ports RESERVED_ROUTE_PORTS\]`))
+		})
+
+		It("has an instance memory flag", func() {
+			Expect(usage).To(MatchRegexp(`-i\s+Maximum amount of memory an application instance can have \(e.g. 1024M, 1G, 10G\). -1 represents an unlimited amount.`))
+
+			Expect(usage).To(MatchRegexp(`cf create-quota.*\[-i INSTANCE_MEMORY\]`))
+		})
+
+		It("has a total memory flag", func() {
+			Expect(usage).To(MatchRegexp(`-m\s+Total amount of memory \(e.g. 1024M, 1G, 10G\)`))
+
+			Expect(usage).To(MatchRegexp(`cf create-quota.*\[-m TOTAL_MEMORY\]`))
+		})
+
+		It("has a routes flag", func() {
+			Expect(usage).To(MatchRegexp(`-r\s+Total number of routes`))
+
+			Expect(usage).To(MatchRegexp(`cf create-quota.*\[-r ROUTES\]`))
+		})
+
+		It("has a service instances flag", func() {
+			Expect(usage).To(MatchRegexp(`-s\s+Total number of service instances`))
+
+			Expect(usage).To(MatchRegexp(`cf create-quota.*\[-s SERVICE_INSTANCES\]`))
+		})
+
+		It("has an app instances flag", func() {
+			Expect(usage).To(MatchRegexp(`-a\s+Total number of application instances. -1 represents an unlimited amount. \(Default: unlimited\)`))
+
+			Expect(usage).To(MatchRegexp(`cf create-quota.*\[-a APP_INSTANCES\]`))
+		})
+	})
 
 	Context("when the user is not logged in", func() {
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = false
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 		})
 
 		It("fails requirements", func() {
@@ -54,12 +107,13 @@ var _ = Describe("create-quota command", func() {
 
 	Context("when the user is logged in", func() {
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewMinAPIVersionRequirementReturns(requirements.Passing{})
 		})
 
 		It("fails requirements when called without a quota name", func() {
 			runCommand()
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Incorrect Usage", "Requires an argument"},
 			))
 		})
@@ -67,7 +121,7 @@ var _ = Describe("create-quota command", func() {
 		It("creates a quota with a given name", func() {
 			runCommand("my-quota")
 			Expect(quotaRepo.CreateArgsForCall(0).Name).To(Equal("my-quota"))
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Creating quota", "my-quota", "my-user", "..."},
 				[]string{"OK"},
 			))
@@ -90,7 +144,7 @@ var _ = Describe("create-quota command", func() {
 			It("alerts the user when parsing the memory limit fails", func() {
 				runCommand("whoops", "12")
 
-				Expect(ui.Outputs).To(ContainSubstrings([]string{"FAILED"}))
+				Expect(ui.Outputs()).To(ContainSubstrings([]string{"FAILED"}))
 			})
 		})
 
@@ -103,7 +157,7 @@ var _ = Describe("create-quota command", func() {
 			It("alerts the user when parsing the memory limit fails", func() {
 				runCommand("-i", "whoops", "wit mah hussle", "12")
 
-				Expect(ui.Outputs).To(ContainSubstrings([]string{"FAILED"}))
+				Expect(ui.Outputs()).To(ContainSubstrings([]string{"FAILED"}))
 			})
 
 			Context("and the provided value is -1", func() {
@@ -113,6 +167,35 @@ var _ = Describe("create-quota command", func() {
 				})
 			})
 		})
+
+		Context("when the -a flag is provided", func() {
+			It("sets the app limit", func() {
+				runCommand("my-quota", "-a", "10")
+
+				Expect(quotaRepo.CreateArgsForCall(0).AppInstanceLimit).To(Equal(10))
+			})
+
+			It("defaults to unlimited", func() {
+				runCommand("my-quota")
+
+				Expect(quotaRepo.CreateArgsForCall(0).AppInstanceLimit).To(Equal(resources.UnlimitedAppInstances))
+			})
+		})
+
+		Context("when the --reserved-route-ports flag is provided", func() {
+			It("sets route port limit", func() {
+				runCommand("my-quota", "--reserved-route-ports", "5")
+
+				Expect(quotaRepo.CreateArgsForCall(0).ReservedRoutePorts).To(Equal(json.Number("5")))
+			})
+
+			It("defaults be empty", func() {
+				runCommand("my-quota")
+
+				Expect(quotaRepo.CreateArgsForCall(0).ReservedRoutePorts).To(BeEmpty())
+			})
+		})
+
 		It("sets the route limit", func() {
 			runCommand("-r", "12", "ecstatic")
 
@@ -124,15 +207,15 @@ var _ = Describe("create-quota command", func() {
 			Expect(quotaRepo.CreateArgsForCall(0).ServicesLimit).To(Equal(42))
 		})
 
-		It("defaults to not allowing paid service plans", func() {
-			runCommand("my-pro-bono-quota")
-			Expect(quotaRepo.CreateArgsForCall(0).NonBasicServicesAllowed).To(BeFalse())
-		})
-
 		Context("when requesting to allow paid service plans", func() {
 			It("creates the quota with paid service plans allowed", func() {
 				runCommand("--allow-paid-service-plans", "my-for-profit-quota")
 				Expect(quotaRepo.CreateArgsForCall(0).NonBasicServicesAllowed).To(BeTrue())
+			})
+
+			It("defaults to not allowing paid service plans", func() {
+				runCommand("my-pro-bono-quota")
+				Expect(quotaRepo.CreateArgsForCall(0).NonBasicServicesAllowed).To(BeFalse())
 			})
 		})
 
@@ -141,17 +224,17 @@ var _ = Describe("create-quota command", func() {
 				quotaRepo.CreateReturns(errors.New("WHOOP THERE IT IS"))
 				runCommand("my-quota")
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Creating quota", "my-quota"},
 					[]string{"FAILED"},
 				))
 			})
 
 			It("warns the user when quota already exists", func() {
-				quotaRepo.CreateReturns(errors.NewHttpError(400, "240002", "Quota Definition is taken: quota-sct"))
+				quotaRepo.CreateReturns(errors.NewHTTPError(400, errors.QuotaDefinitionNameTaken, "Quota Definition is taken: quota-sct"))
 				runCommand("Banana")
 
-				Expect(ui.Outputs).ToNot(ContainSubstrings(
+				Expect(ui.Outputs()).ToNot(ContainSubstrings(
 					[]string{"FAILED"},
 				))
 				Expect(ui.WarnOutputs).To(ContainSubstrings([]string{"already exists"}))
@@ -159,4 +242,127 @@ var _ = Describe("create-quota command", func() {
 
 		})
 	})
+
+	Describe("Requirements", func() {
+		var (
+			requirementsFactory *requirementsfakes.FakeFactory
+
+			ui   *testterm.FakeUI
+			cmd  commandregistry.Command
+			deps commandregistry.Dependency
+
+			quotaRepo   *quotasfakes.FakeQuotaRepository
+			flagContext flags.FlagContext
+
+			loginRequirement         requirements.Requirement
+			minAPIVersionRequirement requirements.Requirement
+		)
+
+		BeforeEach(func() {
+			ui = &testterm.FakeUI{}
+
+			configRepo = testconfig.NewRepositoryWithDefaults()
+			quotaRepo = new(quotasfakes.FakeQuotaRepository)
+			repoLocator := deps.RepoLocator.SetQuotaRepository(quotaRepo)
+
+			deps = commandregistry.Dependency{
+				UI:          ui,
+				Config:      configRepo,
+				RepoLocator: repoLocator,
+			}
+
+			requirementsFactory = new(requirementsfakes.FakeFactory)
+
+			cmd = &quota.CreateQuota{}
+			cmd.SetDependency(deps, false)
+
+			flagContext = flags.NewFlagContext(cmd.MetaData().Flags)
+
+			loginRequirement = &passingRequirement{Name: "login-requirement"}
+			requirementsFactory.NewLoginRequirementReturns(loginRequirement)
+
+			minAPIVersionRequirement = &passingRequirement{Name: "min-api-version-requirement"}
+			requirementsFactory.NewMinAPIVersionRequirementReturns(minAPIVersionRequirement)
+		})
+
+		Context("when not provided exactly one arg", func() {
+			BeforeEach(func() {
+				flagContext.Parse("quota", "extra-arg")
+			})
+
+			It("fails with usage", func() {
+				Expect(func() { cmd.Requirements(requirementsFactory, flagContext) }).To(Panic())
+				Expect(ui.Outputs()).To(ContainSubstrings(
+					[]string{"FAILED"},
+					[]string{"Incorrect Usage. Requires an argument"},
+				))
+			})
+		})
+
+		Context("when provided exactly one arg", func() {
+			BeforeEach(func() {
+				flagContext.Parse("quota")
+			})
+
+			It("returns a LoginRequirement", func() {
+				actualRequirements := cmd.Requirements(requirementsFactory, flagContext)
+				Expect(requirementsFactory.NewLoginRequirementCallCount()).To(Equal(1))
+				Expect(actualRequirements).To(ContainElement(loginRequirement))
+			})
+
+			It("does not return a MinAPIVersionRequirement", func() {
+				actualRequirements := cmd.Requirements(requirementsFactory, flagContext)
+				Expect(requirementsFactory.NewMinAPIVersionRequirementCallCount()).To(Equal(0))
+				Expect(actualRequirements).NotTo(ContainElement(minAPIVersionRequirement))
+			})
+
+			Context("when an app instance limit is passed", func() {
+				BeforeEach(func() {
+					flagContext = flags.NewFlagContext(cmd.MetaData().Flags)
+					flagContext.Parse("domain-name", "-a", "2")
+				})
+
+				It("returns a MinAPIVersionRequirement as the second requirement", func() {
+					actualRequirements := cmd.Requirements(requirementsFactory, flagContext)
+
+					expectedVersion, err := semver.Make("2.33.0")
+					Expect(err).NotTo(HaveOccurred())
+
+					Expect(requirementsFactory.NewMinAPIVersionRequirementCallCount()).To(Equal(1))
+					feature, requiredVersion := requirementsFactory.NewMinAPIVersionRequirementArgsForCall(0)
+					Expect(feature).To(Equal("Option '-a'"))
+					Expect(requiredVersion).To(Equal(expectedVersion))
+					Expect(actualRequirements[1]).To(Equal(minAPIVersionRequirement))
+				})
+			})
+
+			Context("when reserved route ports limit is passed", func() {
+				BeforeEach(func() {
+					flagContext = flags.NewFlagContext(cmd.MetaData().Flags)
+					flagContext.Parse("domain-name", "--reserved-route-ports", "3")
+				})
+
+				It("returns a MinAPIVersionRequirement as the second requirement", func() {
+					actualRequirements := cmd.Requirements(requirementsFactory, flagContext)
+
+					expectedVersion, err := semver.Make("2.55.0")
+					Expect(err).NotTo(HaveOccurred())
+
+					Expect(requirementsFactory.NewMinAPIVersionRequirementCallCount()).To(Equal(1))
+					feature, requiredVersion := requirementsFactory.NewMinAPIVersionRequirementArgsForCall(0)
+					Expect(feature).To(Equal("Option '--reserved-route-ports'"))
+					Expect(requiredVersion).To(Equal(expectedVersion))
+					Expect(actualRequirements[1]).To(Equal(minAPIVersionRequirement))
+				})
+			})
+		})
+	})
 })
+
+type passingRequirement struct {
+	Name string
+}
+
+func (r passingRequirement) Execute() error {
+	return nil
+}

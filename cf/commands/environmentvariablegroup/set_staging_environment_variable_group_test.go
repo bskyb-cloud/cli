@@ -1,14 +1,15 @@
 package environmentvariablegroup_test
 
 import (
-	test_environmentVariableGroups "github.com/cloudfoundry/cli/cf/api/environment_variable_groups/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/environmentvariablegroups/environmentvariablegroupsfakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	cf_errors "github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -17,40 +18,40 @@ import (
 var _ = Describe("set-staging-environment-variable-group command", func() {
 	var (
 		ui                           *testterm.FakeUI
-		requirementsFactory          *testreq.FakeReqFactory
-		environmentVariableGroupRepo *test_environmentVariableGroups.FakeEnvironmentVariableGroupsRepository
-		configRepo                   core_config.Repository
-		deps                         command_registry.Dependency
+		requirementsFactory          *requirementsfakes.FakeFactory
+		environmentVariableGroupRepo *environmentvariablegroupsfakes.FakeRepository
+		configRepo                   coreconfig.Repository
+		deps                         commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.RepoLocator = deps.RepoLocator.SetEnvironmentVariableGroupsRepository(environmentVariableGroupRepo)
 		deps.Config = configRepo
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("set-staging-environment-variable-group").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("set-staging-environment-variable-group").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true}
-		environmentVariableGroupRepo = &test_environmentVariableGroups.FakeEnvironmentVariableGroupsRepository{}
+		requirementsFactory = new(requirementsfakes.FakeFactory)
+		environmentVariableGroupRepo = new(environmentvariablegroupsfakes.FakeRepository)
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("set-staging-environment-variable-group", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("set-staging-environment-variable-group", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Describe("requirements", func() {
 		It("requires the user to be logged in", func() {
-			requirementsFactory.LoginSuccess = false
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 			Expect(runCommand()).ToNot(HavePassedRequirements())
 		})
 
 		It("fails with usage when it does not receive any arguments", func() {
-			requirementsFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
 			runCommand()
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Incorrect Usage", "Requires an argument"},
 			))
 		})
@@ -58,13 +59,13 @@ var _ = Describe("set-staging-environment-variable-group command", func() {
 
 	Describe("when logged in", func() {
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
 		})
 
 		It("Sets the staging environment variable group", func() {
 			runCommand(`{"abc":"123", "def": "456"}`)
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Setting the contents of the staging environment variable group as my-user..."},
 				[]string{"OK"},
 			))
@@ -72,9 +73,9 @@ var _ = Describe("set-staging-environment-variable-group command", func() {
 		})
 
 		It("Fails with a reasonable message when invalid JSON is passed", func() {
-			environmentVariableGroupRepo.SetStagingReturns(cf_errors.NewHttpError(400, cf_errors.PARSE_ERROR, "Request invalid due to parse error"))
+			environmentVariableGroupRepo.SetStagingReturns(cf_errors.NewHTTPError(400, cf_errors.MessageParseError, "Request invalid due to parse error"))
 			runCommand(`{"abc":"123", "invalid : "json"}`)
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Setting the contents of the staging environment variable group as my-user..."},
 				[]string{"FAILED"},
 				[]string{`Your JSON string syntax is invalid.  Proper syntax is this:  cf set-staging-environment-variable-group '{"name":"value","name":"value"}'`},

@@ -1,74 +1,103 @@
 package quota
 
 import (
+	"errors"
+	"fmt"
+
+	"encoding/json"
+
+	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/api/quotas"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	"github.com/cloudfoundry/cli/cf/formatters"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
-	"github.com/cloudfoundry/cli/flags/flag"
 )
 
-type updateQuota struct {
+type UpdateQuota struct {
 	ui        terminal.UI
-	config    core_config.Reader
+	config    coreconfig.Reader
 	quotaRepo quotas.QuotaRepository
 }
 
 func init() {
-	command_registry.Register(&updateQuota{})
+	commandregistry.Register(&UpdateQuota{})
 }
 
-func (cmd *updateQuota) MetaData() command_registry.CommandMetadata {
+func (cmd *UpdateQuota) MetaData() commandregistry.CommandMetadata {
 	fs := make(map[string]flags.FlagSet)
-	fs["allow-paid-service-plans"] = &cliFlags.BoolFlag{Name: "allow-paid-service-plans", Usage: T("Can provision instances of paid service plans")}
-	fs["disallow-paid-service-plans"] = &cliFlags.BoolFlag{Name: "disallow-paid-service-plans", Usage: T("Cannot provision instances of paid service plans")}
-	fs["i"] = &cliFlags.StringFlag{ShortName: "i", Usage: T("Maximum amount of memory an application instance can have (e.g. 1024M, 1G, 10G)")}
-	fs["m"] = &cliFlags.StringFlag{ShortName: "m", Usage: T("Total amount of memory (e.g. 1024M, 1G, 10G)")}
-	fs["n"] = &cliFlags.StringFlag{ShortName: "n", Usage: T("New name")}
-	fs["r"] = &cliFlags.IntFlag{ShortName: "r", Usage: T("Total number of routes")}
-	fs["s"] = &cliFlags.IntFlag{ShortName: "s", Usage: T("Total number of service instances")}
+	fs["allow-paid-service-plans"] = &flags.BoolFlag{Name: "allow-paid-service-plans", Usage: T("Can provision instances of paid service plans")}
+	fs["disallow-paid-service-plans"] = &flags.BoolFlag{Name: "disallow-paid-service-plans", Usage: T("Cannot provision instances of paid service plans")}
+	fs["i"] = &flags.StringFlag{ShortName: "i", Usage: T("Maximum amount of memory an application instance can have (e.g. 1024M, 1G, 10G)")}
+	fs["m"] = &flags.StringFlag{ShortName: "m", Usage: T("Total amount of memory (e.g. 1024M, 1G, 10G)")}
+	fs["n"] = &flags.StringFlag{ShortName: "n", Usage: T("New name")}
+	fs["r"] = &flags.IntFlag{ShortName: "r", Usage: T("Total number of routes")}
+	fs["s"] = &flags.IntFlag{ShortName: "s", Usage: T("Total number of service instances")}
+	fs["a"] = &flags.IntFlag{ShortName: "a", Usage: T("Total number of application instances. -1 represents an unlimited amount.")}
+	fs["reserved-route-ports"] = &flags.StringFlag{Name: "reserved-route-ports", Usage: T("Maximum number of routes that may be created with reserved ports")}
 
-	return command_registry.CommandMetadata{
+	return commandregistry.CommandMetadata{
 		Name:        "update-quota",
 		Description: T("Update an existing resource quota"),
-		Usage:       T("CF_NAME update-quota QUOTA [-m TOTAL_MEMORY] [-i INSTANCE_MEMORY][-n NEW_NAME] [-r ROUTES] [-s SERVICE_INSTANCES] [--allow-paid-service-plans | --disallow-paid-service-plans]"),
-		Flags:       fs,
+		Usage: []string{
+			"CF_NAME update-quota ",
+			T("QUOTA"),
+			" ",
+			fmt.Sprintf("[-m %s] ", T("TOTAL_MEMORY")),
+			fmt.Sprintf("[-i %s] ", T("INSTANCE_MEMORY")),
+			fmt.Sprintf("[-n %s] ", T("NEW_NAME")),
+			fmt.Sprintf("[-r %s] ", T("ROUTES")),
+			fmt.Sprintf("[-s %s] ", T("SERVICE_INSTANCES")),
+			fmt.Sprintf("[-a %s] ", T("APP_INSTANCES")),
+			"[--allow-paid-service-plans | --disallow-paid-service-plans] ",
+			fmt.Sprintf("[--reserved-route-ports %s] ", T("RESERVED_ROUTE_PORTS")),
+		},
+		Flags: fs,
 	}
 }
 
-func (cmd *updateQuota) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+func (cmd *UpdateQuota) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
 	if len(fc.Args()) != 1 {
-		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + command_registry.Commands.CommandUsage("update-quota"))
+		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + commandregistry.Commands.CommandUsage("update-quota"))
 	}
 
-	return []requirements.Requirement{
+	reqs := []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
-	}, nil
+	}
+
+	if fc.IsSet("a") {
+		reqs = append(reqs, requirementsFactory.NewMinAPIVersionRequirement("Option '-a'", cf.OrgAppInstanceLimitMinimumAPIVersion))
+	}
+
+	if fc.IsSet("reserved-route-ports") {
+		reqs = append(reqs, requirementsFactory.NewMinAPIVersionRequirement("Option '--reserved-route-ports'", cf.ReservedRoutePortsMinimumAPIVersion))
+	}
+
+	return reqs
 }
 
-func (cmd *updateQuota) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *UpdateQuota) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.quotaRepo = deps.RepoLocator.GetQuotaRepository()
 	return cmd
 }
 
-func (cmd *updateQuota) Execute(c flags.FlagContext) {
+func (cmd *UpdateQuota) Execute(c flags.FlagContext) error {
 	oldQuotaName := c.Args()[0]
 	quota, err := cmd.quotaRepo.FindByName(oldQuotaName)
 
 	if err != nil {
-		cmd.ui.Failed(err.Error())
+		return err
 	}
 
 	allowPaidServices := c.Bool("allow-paid-service-plans")
 	disallowPaidServices := c.Bool("disallow-paid-service-plans")
 	if allowPaidServices && disallowPaidServices {
-		cmd.ui.Failed(T("Please choose either allow or disallow. Both flags are not permitted to be passed in the same command."))
+		return errors.New(T("Please choose either allow or disallow. Both flags are not permitted to be passed in the same command."))
 	}
 
 	if allowPaidServices {
@@ -79,7 +108,7 @@ func (cmd *updateQuota) Execute(c flags.FlagContext) {
 		quota.NonBasicServicesAllowed = false
 	}
 
-	if c.String("i") != "" {
+	if c.IsSet("i") {
 		var memory int64
 
 		if c.String("i") == "-1" {
@@ -90,24 +119,28 @@ func (cmd *updateQuota) Execute(c flags.FlagContext) {
 			memory, formatError = formatters.ToMegabytes(c.String("i"))
 
 			if formatError != nil {
-				cmd.ui.Failed(T("Incorrect Usage.\n\n") + command_registry.Commands.CommandUsage("update-quota"))
+				return errors.New(T("Incorrect Usage") + "\n\n" + commandregistry.Commands.CommandUsage("update-quota"))
 			}
 		}
 
 		quota.InstanceMemoryLimit = memory
 	}
 
-	if c.String("m") != "" {
+	if c.IsSet("a") {
+		quota.AppInstanceLimit = c.Int("a")
+	}
+
+	if c.IsSet("m") {
 		memory, formatError := formatters.ToMegabytes(c.String("m"))
 
 		if formatError != nil {
-			cmd.ui.Failed(T("Incorrect Usage.\n\n") + command_registry.Commands.CommandUsage("update-quota"))
+			return errors.New(T("Incorrect Usage") + "\n\n" + commandregistry.Commands.CommandUsage("update-quota"))
 		}
 
 		quota.MemoryLimit = memory
 	}
 
-	if c.String("n") != "" {
+	if c.IsSet("n") {
 		quota.Name = c.String("n")
 	}
 
@@ -119,6 +152,10 @@ func (cmd *updateQuota) Execute(c flags.FlagContext) {
 		quota.RoutesLimit = c.Int("r")
 	}
 
+	if c.IsSet("reserved-route-ports") {
+		quota.ReservedRoutePorts = json.Number(c.String("reserved-route-ports"))
+	}
+
 	cmd.ui.Say(T("Updating quota {{.QuotaName}} as {{.Username}}...", map[string]interface{}{
 		"QuotaName": terminal.EntityNameColor(oldQuotaName),
 		"Username":  terminal.EntityNameColor(cmd.config.Username()),
@@ -126,7 +163,8 @@ func (cmd *updateQuota) Execute(c flags.FlagContext) {
 
 	err = cmd.quotaRepo.Update(quota)
 	if err != nil {
-		cmd.ui.Failed(err.Error())
+		return err
 	}
 	cmd.ui.Ok()
+	return nil
 }

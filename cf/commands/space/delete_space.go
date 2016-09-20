@@ -3,65 +3,68 @@ package space
 import (
 	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/api/spaces"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
-	"github.com/cloudfoundry/cli/flags/flag"
 )
 
 type DeleteSpace struct {
 	ui        terminal.UI
-	config    core_config.ReadWriter
+	config    coreconfig.ReadWriter
 	spaceRepo spaces.SpaceRepository
 	spaceReq  requirements.SpaceRequirement
 }
 
 func init() {
-	command_registry.Register(&DeleteSpace{})
+	commandregistry.Register(&DeleteSpace{})
 }
 
-func (cmd *DeleteSpace) MetaData() command_registry.CommandMetadata {
+func (cmd *DeleteSpace) MetaData() commandregistry.CommandMetadata {
 	fs := make(map[string]flags.FlagSet)
-	fs["f"] = &cliFlags.BoolFlag{Name: "f", Usage: T("Force deletion without confirmation")}
+	fs["f"] = &flags.BoolFlag{ShortName: "f", Usage: T("Force deletion without confirmation")}
 
-	return command_registry.CommandMetadata{
+	return commandregistry.CommandMetadata{
 		Name:        "delete-space",
 		Description: T("Delete a space"),
-		Usage:       T("CF_NAME delete-space SPACE [-f]"),
-		Flags:       fs,
+		Usage: []string{
+			T("CF_NAME delete-space SPACE [-f]"),
+		},
+		Flags: fs,
 	}
 }
 
-func (cmd *DeleteSpace) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+func (cmd *DeleteSpace) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
 	if len(fc.Args()) != 1 {
-		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + command_registry.Commands.CommandUsage("delete-space"))
+		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + commandregistry.Commands.CommandUsage("delete-space"))
 	}
 
 	cmd.spaceReq = requirementsFactory.NewSpaceRequirement(fc.Args()[0])
-	reqs = []requirements.Requirement{
+
+	reqs := []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 		requirementsFactory.NewTargetedOrgRequirement(),
 		cmd.spaceReq,
 	}
-	return
+
+	return reqs
 }
 
-func (cmd *DeleteSpace) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *DeleteSpace) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.spaceRepo = deps.RepoLocator.GetSpaceRepository()
 	return cmd
 }
-func (cmd *DeleteSpace) Execute(c flags.FlagContext) {
+func (cmd *DeleteSpace) Execute(c flags.FlagContext) error {
 	spaceName := c.Args()[0]
 
 	if !c.Bool("f") {
 		if !cmd.ui.ConfirmDelete(T("space"), spaceName) {
-			return
+			return nil
 		}
 	}
 
@@ -74,19 +77,18 @@ func (cmd *DeleteSpace) Execute(c flags.FlagContext) {
 
 	space := cmd.spaceReq.GetSpace()
 
-	apiErr := cmd.spaceRepo.Delete(space.Guid)
-	if apiErr != nil {
-		cmd.ui.Failed(apiErr.Error())
-		return
+	err := cmd.spaceRepo.Delete(space.GUID)
+	if err != nil {
+		return err
 	}
 
 	cmd.ui.Ok()
 
-	if cmd.config.SpaceFields().Guid == space.Guid {
+	if cmd.config.SpaceFields().GUID == space.GUID {
 		cmd.config.SetSpaceFields(models.SpaceFields{})
 		cmd.ui.Say(T("TIP: No space targeted, use '{{.CfTargetCommand}}' to target a space",
-			map[string]interface{}{"CfTargetCommand": cf.Name() + " target -s"}))
+			map[string]interface{}{"CfTargetCommand": cf.Name + " target -s"}))
 	}
 
-	return
+	return nil
 }

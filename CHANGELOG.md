@@ -1,3 +1,1022 @@
+## 6.21.1
+* Bump version to 6.21.1
+* update diego resources to come from cloudfoundry, not incubator
+* Add CONTRIBUTING guide and cleanup README
+* configure dies' bosh-lite doppler to port 443
+* create bosh lite cf manifest can take an extra stub
+* chmod windows binaries before combining
+* shortened line with links to help
+* added slack url
+* changed bugs to issues
+* simplified login instructions by using login's -a option
+* merged Getting Help section into top
+* added known issue with cygwin
+* added links to docs, command ref guide
+* add i18n resources
+* update error message
+* move binary to the right output
+* fix pipeline config
+* adding task to sign windows binary
+* modify error message for files command
+* create and validate local builpack zip file before api calls
+* print standard log out without color
+* curl command now requires api endpoint set
+* Expose CF_DIAL_TIMEOUT to help text
+* fix error when uploading buildpack using url
+* no more invisible log text in windows terminals
+* Remove dummy pipeline from master. Move to remote.
+* Fix up some inputs and outputs for dummy 6.19.0
+* create tmp pipeline that makes 6.19.0 win64 installer
+* package correct binary in windows installers
+
+## 6.21.0
+* Bump version to 6.21.0
+* add validation for --no-hostname
+* Revert "move validation after CLI parameter merging"
+* move validation after CLI parameter merging
+* support -d private-domain with new manifest routes
+* fixing translation
+* add -d to replace shared domain
+* removed unnecessary periods from translation files
+* Ensure cf api default url scheme defaults to https
+* update i18n
+* Change routes to map slice
+* hyphenate to indicate single value input in German
+* Fix translation regression in Chinese Simplified
+* create_app_manifest will print routes instead of hosts and domains
+* Skip route lookup when tcp route has a random port
+* add route-path flag to app manifest push
+* add usage of random route flag to push help text
+* enable cf push --random-route for app manifest
+* remove -b and --build
+* Check hostname for private routes on app manifest push
+* delete old pipeline
+* use team email instead of Ted's
+* does not set host when pushing manifest with tcp routes and -n flag
+* no pipes please
+* specify running instance
+* forgot to update path in windows tasks again
+* forgot to update path in windows task
+* enable -n flag to change manifest route
+* forgot jobs key in pipeline.yml
+* reorganize ci directory
+* Remove unused translations and clean untranslated list
+* Merge branch 'simonleung8-master'
+* Update language files
+* update cli-plugin-repo
+* update kr/pty
+* update gorilla/websocket
+* udpate go-querystring
+* update sonde-go/events and other dependencies
+* update bmizerany/pat
+* update blang/semver
+* update cloudfoundry/gofileutils
+* update go-i18n [#126537363]
+* Update docker and other dependencies
+* switching branch of github.com/tedsuo/rata
+* updating github.com/nu7hatch/gouuid
+* updating vendor/golang.org/x/sys/unix
+* updating golang.org/x/net/websocket
+* update golang.org/x/crypto/ssh
+* use 'Consistently()' with 'ShouldNot()'
+* update yaml package
+* update loggregatorlib/logmessage
+* routes and no-hostname should not co-exist in the app manifest
+* update lager
+* remove dependency on diego-ssh/cf-plugin/terminal
+* update ginkgo and gomega
+* flags -> cf/flags
+* json -> utils/json
+* Increase timeout on cmd suite
+* glob -> utils/glob
+* generic -> utils/generic
+* downloader/ -> utils/downloader/
+* commandsloader -> cf/commandsloader
+* more hidden cf directories
+* new bosh-lite pipeline
+* validate manifest before merging with flag context
+* validation for http/tcp routes with port/path
+* make cats-diego blocking
+* move cmd from TL to cf, and spellcheck into utils
+* update the tests to reflect the changes in error messages
+* stack name displays correctly on cf push
+* clearer error messages for manifest validation
+* move words -> utils/words
+* Revert "Added a self signed cert to the acceptance cf deployment"
+* we do in fact use that input for the tasks
+* for some reason the file is now mysetup.exe
+* support application manifest with routes field that has ports
+* Added a self signed cert to the acceptance cf deployment
+* Configure the acceptance pipeline to associate an
+* Configure the acceptance bosh-lite deployment to
+* Adds task to associate elastic ip with an aws instance
+* Revert "switching to 7z as well, sourceforge still broke"
+* Revert "swap GnuWin32 with 7zip, cuz sourceforge is broke"
+* go back top using tar and zip from gnuwin32
+* Change domain to system_domain
+* update windows create-installer to use 7zip
+* remove unneeded godeps, add some debugging
+* Break up the deploy-bosh-lite job for faster freedback cycle
+* app manifest accepts routes attribute with paths
+* MapManifestRoute test wasn't testing anything
+* Deploy the bosh-lite to its own subnet
+* app manifest parsing should fail with empty domains and routes set
+* capitalize error messages
+* Bubbles up the correct error msg from the API
+* add close connection to http header
+* indent ensure & on_failure to act on task level
+* Add functionality to create and bind routes from a manifest.
+* use max api version variables in commands
+* use min api version variables in commands
+* parallelize all the things again
+* main -> cmd, run cli as a library
+* refactor route actor to be injected into push
+* use default foreground color instead of white
+* Use Normal White instead of Bright White
+* Add slack-alert resource
+* Use Eventually().Should(Exit()) instead of Expect(Exit()).To(Equal())
+* update-brew-formula task calculates the correct sha256 hash
+* fix update brew formula script
+
+## 6.20.0
+* Bump version to 6.20.0
+* Use dial timeout for UAA and Routing APIs also
+* properly handle '.*' in .cfignore
+* Make bind-security-group help text clearer
+* Set the timeout in the correct place
+* return cli execution panics as errors for plugins
+* Make polling throttle configurable
+* Prevent negative waitgroup counter with the noaa logs repo
+* stop ignoring plugin dir during linting
+* Fix path on windows worker for ginkgo.
+* backing out of these changes temporarily
+* Update concourse to 1.3.1
+* true=keep going, and remove unnecessary newlines
+* validate manifest yaml on push
+* roll back remove panic from app command
+* Remove some panics from requirements checks
+* 'routes' can be parsed by manifest
+* clarify copy source help message text
+* bind security groups to all spaces in org
+* Remove panics
+* Remove RunCLICommand from push_test.go
+* Replace old spacefakes with current fakes
+* add route path to unbind-route-service
+* Add --path to bind-route-service
+* Fix errors created in 6a5be90
+* Remove testhelpers/terminal from cf/net
+* Explain where the Writer is assigned
+* introduce constructor to panicprinter and remove testhelpers
+* Always output panic error exceptions
+* use common cats linux task for diego tests
+* remove time from testhelpers
+* improve formatting of log messages
+* run CATs services along side the rest of CATs
+* missed the last comma
+* add a way to ignore the default tests
+* Remove testhelpers/cloudcontrollergateway
+* Explicit returns
+* remove testhelpers/assert
+* Remove race from ./plugin_examples
+* Fix race condition in ./plugin
+* Remove the FakeReqFactory.
+* Use counterfeiter fakes in cf/commands/user
+* Use counterfeiter fakes in cf/commands/space
+* switch service key to counterfeiter
+* Use counterfeiter fakes in cf/commands/servicebroker
+* switch serviceauthtoken to use counterfeiter
+* switch service access to use counterfeiter
+* Use counterfeiter fakes in cf/commands/service
+* Use counterfeiter fake in cf/commands
+* Fix data races in RPC/Plugin code
+* switch security group to use counterfeiter
+* switch security group to use counterfeiter
+* switch routes to use counterfeiter
+* switch quota to use counterfeiter
+* Adds a concourse task to update the homebrew tap
+* Actually fix data races in cf/commands/application
+* Update to new version of go-ccapi with LICENSE
+* remove unnecessary test, fix other one
+* switch plugin and pluginrepo to use counterfeiter
+* switch organization package to use Counterfeiter
+* switch feature flag to use counterfeiter
+* Fix data races in cf/api/logs
+* Fix data races in cf/commands/application tests
+* Add locks to FakeUI, ProgressReader
+* switch environment variable group to use counterfeiter fakes
+* switch domains package to use counterfeiter
+
+## 6.19.0
+* Bump version to 6.19.0
+* Use proper coloring
+* move -race into units only, also randomizeAllSpecs
+* update commands to use counterfeiter fakes
+* update buildpacks to use counterfeiter fakes
+* Upgrade noaa library
+* Suggest commands for mispelled plugin commands
+* set ssl-validation to true
+* moved around variables, use http for CATs tests
+* set user/password for cats tests
+* use release-integration's run cats test task
+* fix disable-service-access, stop displaying additional help text
+* Race detected tests by default
+* Upgrade loggregator_consumer
+* Use master for routing-release
+* Add command auto-suggester
+* Rename acceptance pool in dies-lite
+* Add dies-lite pipeline
+* Remove vetshadow lintdebt
+* Make bosh-lites-pipeline accurate
+* Remove lintdebt from plugin_examples
+* bosh-lites-dea pool is actually on master
+* Switch dea pool to cli-pools
+* Switch diego cats back to 'bosh-lite-lock'
+* Switch bosh-lites pipeline to use cli-pools
+* Remove named return values
+* Properly unit test set-space-quota
+* Use counterfeiter fakes spacequota package
+* Use counterfeiter fake in application package
+* Adds missing error handling
+* Add errcheck slow linter
+* Add space requirement test and remove imports
+* Refactor organization command tests to not use runCLICommand
+* Refactor space tests to not use runCLICommand
+* Configure the lint deadlines
+* Add slow linter: unconvert
+* Add deadcode linter
+* Add vetshadow
+* Add gocyclo linter
+* Add gofmt linter
+* Add vet linter
+* Add NewNumberArguments to Factory
+* Introduce NumberArguments requirement
+* Remove two more Execute() panics
+* Remove one more Execute() panic
+* Provision dies lite
+* Fix UnlimitedDisplay constant
+* Does not display route ports when not provided by API
+* Does not display route ports if API does not provide it
+* Display route ports for space quota in cf space
+* Shift the indentation
+* Show reserved route ports in org quota in cf org
+* Change indentation of test
+* Skip if exists
+* Update routing release acceptance test name
+* Adding in goconst linter
+* Switch to gometalinter
+* Make casing consistent
+* Use all these magic flags to build static binaries
+* Handle language codes zh-TW and zh-HK
+* Panic -> DoesPanic
+* Add color for space quota
+* Eliminate stutter debt
+* Use CC error for invalid reserved-route-ports limit
+* Remove last of the debt
+* Remove more debt
+* Remove more debt
+* Remove more lintdebt
+* Remove more debt
+* Remove lint debt
+* Remove more debt
+* Remove some debt
+* Remove unused test helpers
+* Add codeclimate to travis
+* Enable codeclimate analysis
+* Manually revert ad587e7e91121c307e7d08fb935a42648b684c59
+* Revert "Remove inline-relations-depth from cf organizations"
+* Use git-hooks style for hooks
+* Don't release lock if stopped trying to connect
+* Improve tip for set-env command
+* Add route ports to space quotas command
+* Refactor space quotas to use FormattedServicesLimit
+* Add reserved route ports limit to space quota
+* Move services limit formatting to model
+* Initialize structs better
+* Release wait group after printing to not risk interweaving output.
+* Remove named return
+* Remove shadowed variable
+* Command.Execute() returns an error
+* Update total_reserved_route_ports on quotas
+* Update ginkgo and gomega
+* Remove more potentially offensive words.
+* go format
+* Remove potentially inappropriate words
+* Configure max TCP routes on create space quota
+* Remove RunCliCommand from create-space-quota
+* Remove unused dependency
+
+## 6.18.1
+* Bump version to 6.18.1
+* Ignore errors from printing/syscalls in cf/terminal package
+* Explicitly ignore errors in cf/ssh package
+* Handle errors in cf/net package
+* Handle errors and remove named return values
+* Explicitly ignore failed Flush
+* Remove named return values
+* Explicitly handle errors
+* Display 'unlimited' instead of -1 for org quotas
+* Remove multi-byte colons
+* Use actor when actor_name is empty in `cf events`
+* Remove RunCliCommand in application/events_test.go
+* Parse actor from events fields
+* Translate APP_NAME
+* Display flags in marketplace help text
+* Merge branch 'master' of https://github.com/simonleung8/cli into simonleung8-master
+* Display bound apps for user provided services
+* Do not hardcode ':' for some languages to be translated correctly
+* Add back translations that were deleted
+* 64bit windows installer now installs in correct directory
+* Running cf service service-name now displays 'Bound apps: '
+* Remove RunCliCommand from service_test
+* Remove naked returns
+* Merge branch 'master' of https://github.com/simonleung8/cli into wip/#119616001-ibmtranslations
+* Remove shadow
+* Skip chmod for windows because it is not supported
+* I TAKE FULL RESPONSIBILITY FOR MY ACTIONS
+* Order these tests to prevent test conflits
+* Fix gometalinter issues in cf/commands
+* Handle writer.Close errors in cf/api
+* Remove named return from performMultiPartUpload
+* Fix gometalinter issues in cf/actors
+* Update i18n languages
+* List service instance bindings by instance guid
+* Remove named returns and use ghttp in tests
+* Simplify lookup for all of service's plans
+* Formatting
+* Simplify service plan lookup
+* Remove inline-relations-depth from cf organizations
+* BackwardsCompatibility flags do not require args
+* Missed a spot
+* Use cli-ci to run tests in windows gats
+* Randomizes the GATS test suites
+* Diego tests now run as part of the pipeline
+* Remove dependence on org returned from space api calls
+* Remove Comments
+* Fix Path
+* Backwards compatible `cf bind-route-service -f`
+* Request spaces to be ordered alphabeticaly
+* Rename cc_fake to old_cc_fake
+* Remove inline-relations-depth query from cf spaces
+* ignore the actual work for now and lets see if the basics work
+* Remove duplicate ginkgo install
+* Switch diego tests to use cli-pool resource
+* bosh-lite pipeline now uses bosh-deployment resource
+* Use the cli-pools resource for realz
+* Revert "Use the cli-pools resource"
+* Use the cli-pools resource
+* Use docker image with bosh cli
+* Use only what we need from the generate-deployment-manifest
+* Display only plugin filename upon install of remote plugin
+* Handle extra spaces in download file headers
+* Deploy diego task uses cli-pools
+* Removes diego deploy dependency on cf-release repo
+* Generate stub file after git clean
+* Make bosh commands non-interactive
+* Add sleep since the network might not be up
+* bish bosh borsh
+* Fix heredoc in provision-cf-lite task
+* Changes the provision task to generate a bosh-lite manifest
+* Get organizations alphabetically
+* Refactor org tests to no longer use old handlers
+* Bosh-lite 4 now uses new diego pool
+* Add default to diego bosh-lite script
+* Remove -f flag from binding route service
+* Merge pull request #839 from fujitsu-cf/update-ja_jp-files
+* Japanized Bind cancelled, Creating route, Creating service broker and some incorrect usage mesages.
+* Merge pull request #838 from MarkKropf/master
+* Update bump-version script
+* reduce the promiscuity of our random words
+
+## 6.18.0
+* Bump version to 6.18.0
+* Aggregate gats-linux + gats-windows into gats
+* Run GATS in parallel
+* Default windows to use colors
+* Add cats-windows-diego job
+* once, only once
+* Run new cats-linux-diego job
+* stop lying about the help
+* Readme documents plugins not being passed the -p/-h flags
+* Parallelize gats and cats
+* Remove default from -a help in `cf update-space-quota`
+* Shorten header names of `cf space-quotas`
+* Hide ReservedRoutePorts for quota if not in API call
+* run with two nodes, so half the time?
+* Shorten header names for `cf quota`
+* Make plugin uninstall description more prominent
+* Ratcheting is somehow failing on CI
+* Fix some lintdebt
+* Update lintdebt
+* Check for gofmt in pre-commit hook
+* Add ratcheting to our pre-commit hook
+* Update ratchet command output
+* Automate ratcheting during bin/test
+* Add bootstrap script and generic pre-commit hook
+* Update lint ratchet
+* Remove defaults for flags on update quota
+* Add route ports column to quotas table
+* Oops, it was complaining about not being a pointer
+* Fix linter error
+* Fix flaky test
+* Eliminate RunCliCommand in help_test
+* Limit OS specific Writers to main
+* Inject OS specific writer
+* Support reserved route ports flag on cf quota
+* small things are better
+* Add minor support for a team custom linter
+* updated link to http://docs.cloudfoundry.org/cf-cli/use-cli-plugins.html
+* add reserved route ports line to cf quota table
+* Implement reserved route ports flag on route quota
+* Add requirement for the new flag.
+* Move flag and function tests to when user is logged in
+* Add reserved-route-ports flag help messages to update quota
+* export UpdateQuota to backfill help message tests
+* Add required arg for --reserved-route-ports help message
+* Update interface to use new type
+* Convert role const to Role type
+* Fill in --reserved-route-ports functionality for create-quota
+* Add minimum API requirement for --reserved-route-ports
+* Backfill requirements tests to CreateQuota
+* Add flag & help text for --reserved-route-ports
+* Backfill command help text tests
+* adding verbose version for windows too
+* Adding a verbose-debugging pipeline for gats
+* Use official routing release instead of building ourselves
+* Force all jobs to occur on non-check-worker.
+* Return to Loggregator team's NOAA library
+* Simplify color logic
+* Fix display of tcp routes in delete-orphaned-routes
+* Use https to fetch from final-cli repo instead
+* Fetch tags for publish-final-release
+* Login first, it helps!
+
+## 6.17.1
+* Bump version to 6.17.1
+* Set the deployment prior to running smoketest
+* Run smoke tests after deploy-boshlite
+* Backfill CHANGELOG.md for v6.17.0
+* generate-changelog writes to CHANGELOG.md
+* suggestions made by 'gofmt -s'
+* Use InnoSetup to sign the generated windows exe installer
+* All the nodes (except only 2) and for CATS
+* No nodes for gats linux
+* Pump up the jam, pump it up/ While your feet are stompin'
+* Add cflinuxfs2-rootfs-release to deploy-diego
+* Can you C what I did here? :grin:
+* Formatting
+* Fix capturing terminal output on windows
+* WHAT AMI!? I CAN'T EVEN?!
+* Run tests in parallel
+* Up the size of bosh lite
+* Fix err variable shadowing govet error
+* Staticly link Linux binaries
+* rename edge installer to match version installers
+* Taste the rainbow (bring colors to windows)
+* Check for existence of CF_HOME
+* Update README
+* Revert "Windows x64 installer puts things in correct directory"
+* Remove data races from NOAA log repo
+* Windows x64 installer puts things in correct directory
+* added request to check the latest version
+* Merge pull request #821 from andreas-kupries/ticket-ref-117404629
+* Adding back in noaa library
+* Removing noaa, so hopefully submodule doesn't show
+* Using gvt to Recreate vendor directory
+* Fix collateral damage
+* Important to flush (message queues, that is)
+* Remove tests from noaa package
+* Merge noaa to master
+* Merge master into wip/104053574-switch-to-noaa
+* Change error message to specify command instead of RoutingAPIRequirement
+* Update noaa to challiwill fork
+* Ui -> UI
+* Api -> API
+* Cli -> CLI
+* Do not break plugins
+* Url -> URL
+* Uri -> URI
+* Guid -> GUID
+* Update acronyms
+* Only display insecure warning for insecure api's
+* Ref ticket 117404629. Reviewed transforms done on a cell value. Had to trim value before transformation in all places (*). Moved application of the transform into printCellValue, to keep things nearer to each other and make comparison of printing and width calculation easier.
+* Copy old translations and update them to 'https'
+* Use new noaa consumer library
+* Update noaa library and some others
+* Linter won't complain
+* Make returned vars explicit
+* Add back properties in stub
+* Fix routing api property
+* Remove RunCliCommand
+* Enforce https connections to plugins.cloudfoundry.org
+* Use https:// in plugin help text
+* Put property-override where it won't get deleated
+* Make consistent with deploy-routing-release
+* Set appropriate tabbing
+* Make formatting correct
+* Use https for plugin-repos
+* Add LITE_HOSTNAME back
+* Add property-override stub back
+* for concourse to pick up previous commit
+* Update provision cf script and remove unnecessary envs
+* Update final-cli resource path
+* Noaa Log repository added
+* Changed LogsRepository interface
+* Moved FakeLoggregatorConsumer
+* Introduce generic interface for LogsRepository
+* Adding noaa library to deps
+
+## 6.17.0
+* Bump version to 6.17.0
+* Update TcpRoutingMinAPIVersion to 2.53.0
+* Add reconfigure script for cli, bosh-lites, concourse-redeploy
+* Remove outdated update to credentials.yml
+* Remove extraneous MinAPIVersionRequirement from routergroups
+* Hide "app ports" column
+* Add minimum version requirement to router-groups
+* Trim columns when figuring out padding length
+* Update french translations
+* Move router-groups into DOMAINS section of cf help
+* Fix RoutingApiRequirementTest
+* Update RoutingApiRequirement
+* Create Requirements slice
+* Remove app-ports from tests
+* Hide app-ports features
+* Add hidden setting to flags
+* Merge branch 'refresh_config_after_requirement_failure'
+* Refresh API version before failing due to version
+* Output go version in build jobs
+* Don't install go vet, build in after 1.5
+* Map routes will take in a random-port flag when passed
+* Map routes will take in a port flag when passed
+* Merge branch 'remove_underscores_from_packages'
+* github.com/cloudfoundry/cli/cf/actors/plugin_installer
+* github.com/cloudfoundry/cli/cf/actors/plugin_repo
+* github.com/cloudfoundry/cli/cf/actors/service_builder
+* github.com/cloudfoundry/cli/cf/api/app_events
+* github.com/cloudfoundry/cli/cf/api/app_instances
+* github.com/cloudfoundry/cli/cf/api/application_bits
+* github.com/cloudfoundry/cli/cf/api/copy_application_source
+* github.com/cloudfoundry/cli/cf/api/environment_variable_groups
+* github.com/cloudfoundry/cli/cf/api/feature_flags
+* github.com/cloudfoundry/cli/cf/api/security_groups
+* github.com/cloudfoundry/cli/cf/api/space_quotas
+* app_files -> appfiles
+* github.com/cloudfoundry/cli/cf/command_registry
+* github.com/cloudfoundry/cli/cf/configuration/core_config
+* github.com/cloudfoundry/cli/cf/configuration/config_helpers
+* github.com/cloudfoundry/cli/cf/commands/plugin_repo
+* github.com/cloudfoundry/cli/testhelpers/rpc_server
+* github.com/cloudfoundry/cli/cf/configuration/plugin_config
+* github.com/cloudfoundry/cli/testhelpers/plugin_builder
+* Update bin/test
+* github.com/cloudfoundry/cli/testhelpers/cloud_controller_gateway
+* github.com/cloudfoundry/cli/commands_loader
+* github.com/cloudfoundry/cli/cf/ui_helpers
+* github.com/cloudfoundry/cli/cf/panic_printer
+* github.com/cloudfoundry/cli/cf/command_registry/fake_command
+* github.com/cloudfoundry/cli/plugin/rpc/fake_command
+* Remove parallel from bin/test for speedup
+* Rename all fakes
+* github.com/cloudfoundry/cli/cf/actors/plan_builder
+* github.com/cloudfoundry/cli/cf/actors/plan_builder/plan_builderfakes
+* github.com/cloudfoundry/cli/cf/actors/broker_builder
+* broker_builderfakes
+* Use port flag when unmap-route
+* Deny specifying both port and hostname/path for route unmap
+* Specify min API version when unmapping route
+* Update usage/help text for unmap-route with TCP routes
+* Regenerate binary only once per sweet suite
+* Show path/port in route summary for `cf app`
+* Create new CreateRandomTCPRoute actor function
+* Return name first in app manifest
+* plugin rpc package uses new counterfeiter fakes
+* requirements package uses new counterfeiter fakes
+* trace package uses new counterfeiter fakes
+* words generator package uses new counterfeiter fakes
+* testhelpers rpc_server package uses new counterfeiter fakes
+* v3 repository package uses new counterfeiter fakes
+* ssh package uses new counterfeiter fakes
+* utils package uses new counterfeiter fakes
+* Net package uses new counterfeiter fakes
+* manifest package uses new counterfeiter fakes
+* plugin_config package uses new counterfeiter fakes
+* Configuration package uses new counterfeiter fakes
+* commands and route package uses new counterfeiter fakes
+* applications package uses new counterfeiter fakes
+* CommandRegistry package uses new couterfeiter fakes
+* Appfiles package uses new couterfeiter fakes
+* API package uses new couterfeiter fakes
+* SecurityGroups/... uses latest counterfeiter fakes
+* Replace old counterfeiter packages from most of api
+* Remove the commented blue.
+* Update translations for `cf push`
+* Update Domains to singular router_group_type
+* Forgot to update translation files
+* Make this test pass in a tty session
+* Shouldn't need to manually install go vet anymore
+* Actors now use latest counterfeiter fakes.
+* Update path option help text
+* Colocate Printer interface with UI
+* Do not leak *[]string abstraction into TeePrinter
+* Move interfaces/fakes to call site
+* Extract UITable from Table
+* Allow TCP random port when cf push with --random-route
+* Merge pull request #811 from andreas-kupries/hcf-466-cli-extended-table
+* Update the translation files
+* Show port when create/deleting routes
+* Use the passed in port when finding a route to delete
+* Gate port deletion behind min CCAPI version
+* Fail if we provide a port and hostname/path
+* Update delete-route help text for TCP routes
+* [HCF-466] Extended cf/terminal/table: Multi-line cells. Suppress header row. Custom per-column transformations. Extended testsuite.
+* Do not wrap env vars in quotes
+* Use response from /v2/shared_domains for route types
+* Update fakes.
+* Do not use global rpc.DefaultServer in testhelpers
+* No need for a makefile
+* Remove unused and outdated scripts/docs
+* Fix LICENSE
+* Update bosh-lite-locks to cli-private
+* cli-ci -> cli-private rename concourse-redeploy
+* cli-ci -> cli-private for bosh-lite pipeline
+* Rename cli-ci repo to cli-private
+* Routing team renamed release_candidate to release-candidate
+* Use CATS's own test script
+* Do not default to diego backend
+* Set deploy-routing-release to run after diego
+* Remove workarounds in deploy-routing
+* Test routing release after deploy
+* Use tar correctly
+* Fix tgz & output directory
+* Correct input directory for combine-binaries
+* Don't cross compile OSX binary
+* Use the correct names
+* OSX binaries are built on OSX machine
+* Pipelines no longer cause deprecation warnings
+* Display unlimited instead of -1
+* Show app instance limit on spaces, space-quota(s)
+* Get space quota returns app instance limit
+* Add `-a` flag for {create,update}-space-quota
+* Quota update should not reset app instance limit
+* Renamed AppInstanceLimitMinimumApiVersion -> OrgAppInstanceLimitMinimumApiVersion
+* Use the unlimited instances constant
+* Fix "invalid input" error when calling curl -d with an empty string
+* should have run the tests
+* add paramater translations in create-route
+* display port on `cf create-route --random-port`
+* Return app-ports in manifest only when they exist
+* Add app instances usage in {create,update}-quota
+* Update translations for update-quota
+* Split usage translations for create-quota
+* Display app instance limit in `cf org`
+* Display app instance limit in `cf quota`
+* Return app instance limit quota in `cf quotas`
+* Trigger deploy diego after deploy cf
+* User can set total number of app instances on quota
+* use idiomatic checking of flags
+* Rename misnamed create/delete space quota files
+* cf curl -d with empty body makes a POST request
+* add concourse-redeploy pipeline
+* Give create-service-broker command alias "csb"
+* Remove other No Arguments with usage
+* include app-ports in generated manifest
+* Fix regression where CF_TRACE/config.trace prevents terminal output
+* We are better than this
+* Introduce UsageRequirement for "No argument" usages
+* Remove 'Incorrect Usage. No argument required.'
+* Reverse polarity of UsageRequirement predicate
+* Remove 'Incorrect Usage.\n\n'
+* Remove 'Incorrect Usage\n\n'
+* Extract a UsageRequirement
+* Update interface of Requirements() in README
+* Remove error from Command.Requirements interface
+* Remove naked returns from Command.Requirements()
+* Extract minimum API version from push with --route-path
+* Deliver stories with concourse
+* Eliminate double printing FAILED in verbose modes
+* Fix test messages
+* Remove reqFactory dependency on terminal.Ui
+* Change Requirement.Execute() interface to return error
+* user should be able to bind/unbind all routes
+* Can update app-ports from manifest on existing app
+* Use newest cats-windows.bat file
+* Old cf-acceptance-tests uses Godeps/_workspace
+* Use cf-release-repo as our GOPATH
+* Only run cf-acceptance-tests bundled with cf-release
+* Attempt to fix go vet issue
+* Merge branch 'master' into wip/114265763-verbose
+* remove unnecessary usage text
+* Extract trace.Printer dependency to main
+* make bosh-lites-pipeline more like a pipeline
+* Run provision script from context with vagrantfile
+* Don't fail bosh-lite deploy if there are no instances
+* handle -h wherever it may appear
+* Boyscout rule for query params package
+* Move generate_port from req body to query params
+* Update godeps to v57 && go1.6
+* move trace logger a couple levels up out of ui
+* push logger to top level of AuthenticationRepository
+* push logger to top level of http client
+* Add global -v flag
+* Fix typo in Dependency
+* Replaced Ω with Expect in main_test
+* Update README to reflect changes to CommandMetadata
+* Update Usage for the create-route command
+* Fix test that generates manifest files
+* Rename CommandMetadata.Example to Examples
+* Extract examples from create-service-key command
+* Extract examples for update-service command
+* Extract examples for create-user-provided-service
+* Add example text for create-service
+* Extract examples from bind-route-service
+* Update bind-service examples
+* Merge branch 'master' into wip/114821419-extract-examples
+* Add deploy-routing to bosh-lites pipeline
+* Use existing CF deployment when setting diego/routing on
+* Cannot use spiff for sslCert/Key in UAA
+* Create UAA SSL workaround for routing
+* Create comments to delete override cruft
+* Fix worker-overrides filename
+* Attempt to reduce compilation workers to 2
+* Override domain again in cf manifest
+* Fix EOF location
+* Deploy routing release
+* Enable diego release deploy
+* Run non-interactive commands
+* Enable diego_docker feature flag
+* Also include cf-release for diego scripts
+* Push into diego-repo not release
+* Fix
+* Skip uploads if already exists
+* Deploy diego with manifest
+* Add authentication to bosh
+* Add task to deploy diego onto a bosh-lite
+* remove unused resource
+* extract bosh-lite jobs to separate pipeline
+* Push create-app-manifest io to cmd.Execute
+* Refactor generic.Map code
+* Fix error on curl -d with empty string
+* Update gitignore for VS Code
+* Clean up AppParams merging
+* Clean up cloud controller error codes
+* Update windows ui to respect new interface
+* Fix gats-linux
+* Don't interpret '%' in ui output as printing verb
+* Remove Godeps/_workspace from GOPATH
+* Destroy bosh-lites before rebuilding
+* Forgot the s3 in the command
+* Update publish archive tasks to use awscli
+* Remove the check to see if signed properly
+* Sign the OSX installer in create-installers
+* Remove all references to CodeGangsta
+* Extract min version in all commands that use IsMinVersion
+* go fmt language resources
+* Use different test for changed i18n files
+* Fix copy-source -h help text
+* Look up space quota in specified org during `cf create-space`
+* Run generate-language-resources less often
+* Fix go fmt on push
+* Hide --app-ports in cf push
+* Speed up start command tests
+* Fix usage text for cf push command (add --app-ports)
+* Remove invalid default quota comment from create-space
+* Update update-user-provided-service
+* Improved routes test
+* Display appropriate error when TCP route cannot be created
+* Update delete-service-key
+* Update unbind-route-service
+* Update service-keys
+* Update service-key
+* Update unmap-route
+* Update map-route
+* Update delete-route
+* Update create-route
+* Update check-route
+* Update remove-plugin-repo
+* Update add-plugin-repo
+* Update commands examples
+* Update curl command
+* don't empty tmp dir
+* Update auth, login, repo-plugins examples
+* Extract EXAMPLE from Usage
+* Change Usage to a slice of usage strings
+* Speed up main test [#114808063]
+* Extracted TcpRoutingMinimumApiVersion from create-route
+* Fix inputs on pipeline
+* Empty windows tmp dir after successful installer
+* Update USAGE for create-route
+* Added `version` command
+* Turned cf.Name into a variable
+* Add 'app ports' to app output
+* Add 'app ports' column to apps table
+* Remove --build from help
+* push supports --app-ports flag
+* Rewrite ApplicationRepository.Create tests
+* Update unbind-route-service description
+* Update bind-route-service description
+* Merge branch '6.16.1'
+* create-route accepts --random-port flag
+* Third time's the charm
+* Try again with fixing the paths/include paths
+* Separate resources for cli/ci and cli
+* Add 'port' and 'type' to routes output
+* Add 'type' to domains
+* Fix deploy-boshlite tasks
+* Remove unused installers/windows files
+* Revive windows-installer.iss
+* Fix RouteCreator interface
+* create-route supports TCP routes via --port
+* RouteRepository.CreateInSpace supports port field
+* routes.CreateInSpace doesn't send empty path
+* Update cats/gats bat files
+* Improve performance of `cf logs` command
+* Add ci/pipeline and provision-lite tasks
+* Update Concourse tasks to use correct path
+* Remove old CI files; replace with new ones
+* Revert "Hide --router-group option to create-shared-domain"
+* Revert "Hide router-groups command"
+
+## 6.16.1
+* Bump version to 6.16.1
+* ssh-code returns an SSH code instead of auth token
+
+## 6.16.0
+* Bump version to 6.16.0
+* Remove 'type' column from domains output
+* Hide router-groups command
+* Hide --router-group option to create-shared-domain
+* Fix typo in pt-BR translation
+* Replaced confusing url in `cf install-plugin` help
+* Fix fr translation with extra space at end
+* Hide .cf directory on Windows
+* bin/generate-language-resources
+* create-app-manifest stores stack
+* Update travis to run on go1.6
+* Don't translate role names
+* Update translation files post-PR merge
+* Move Dockerfile & Makefile to cli-ci repository
+* Promote cliFlags package to flags
+* Run goimports
+* Remove unused code
+* Sort command flags
+* bin/generate-language-resources
+* Merge branch 'update-ja-jp-messages-route-services' of https://github.com/fujitsu-cf/cli into fujitsu-cf-update-ja-jp-messages-route-services
+* cf-Apps -> CF-Apps
+* Wrap 'CLEAR', 'port', and 'none' in translations
+* translate the messages to Japanese.
+* Don't set GO15VENDOREXPERIMENT=1
+* Simplify i18n/locale
+* Fixed incorrect usage of e.g. in delete-orphaned-routes
+* Add translation to invalid locale error message
+* Fail when config is given an invalid locale
+* Replace cf with CF when referring to Cloud Foundry
+* Remove 'app' local var
+* Add disk quota to create-app-manifest manifest
+* Remove named return args from create_app_manifest
+* Surround option values with single quotes
+* Fix `list-plugin-repos` typo in help
+* Added GitHub issue template
+* Don't send empty path when searching routes
+* Start command doesn't use appRepo.Read
+* Remove unused arg from setup func
+* Update French translation for plugins cmd description
+* Switch non-English key back to English
+* bin/generate-language-resources
+* Update ja-jp untranslated json
+* Merge branch 'update-ja_jp-files' of https://github.com/fujitsu-cf/cli into fujitsu-cf-update-ja_jp-files
+* Update ja-JP files
+* Update Dockerfile for latest Concourse builds
+* Capitalize non-english descriptions of commands
+* Remove trailing period from command option descriptions
+* Remove trailing period from command descriptions
+* Capitalized command option descriptions
+* Capitalized command descriptions
+* Produce manifest with no-hostname attribute
+* Support generating manifest with no-hostname
+* Replace Ω with Expect, ToNot with NotTo
+* Rename Omega to Expect
+* Update skip_ssl_validation flag description
+* Standardizes on hyphenated locale names
+* Make space_quotas test work in Go 1.6
+* Make quotas_test test work in Go 1.6
+* Make env_var_groups test work in Go 1.6
+* Make service_keys_test work in Go 1.6
+* Fix bind-route-service min API failure message
+* Update create-service-broker creation message
+* Remove long name 'force' from delete-route flag
+* Update formatting of help text for some commands
+* unbind-route-service requires CC >=2.51
+* bind-route-service requires CC >=2.51
+* update-user-provided-service -r requires CC >=2.51
+* Rewrite update_user_provided_service_test
+* create-user-provided-service -r requires CC >=2.51
+* Remove named return args from cups
+* Rewrite create_user_provided_service_test
+* Merge pull request #755 from emirozer/master
+* Increase StartupTimeout in start test
+* RouteServiceBindingRepository includes 'parameters'
+* uups does not accept files prefixed with @
+* cups does not accept files prefixed with @
+* Update help text for curl command
+* Remove default method from cf curl -X StringFlag
+* fix wrong link in Plugin API doc
+* Update curl help text
+* curl defaults to POST when body is given
+* Update install-plugin help text
+* Update remove-plugin-repo help text
+* Update untranslated files
+* Improve help text of add-plugin-repo
+* Remove InputsChan from FakeUI
+* Improve help text of repo-plugins
+* Improve help text of install-plugin
+* Correctly define flags for delete/delete-space
+* oauth-token only prints the token
+* Remove mapValuesFromPrompt from cups command
+* Update tests for update-user-provided-service
+* curl -d flag accepts @file
+* Add compilers=2 back to .travis.yml
+* Extract JSON loader into util package
+* bind-route-service takes -c parameters
+* Remove unused RouteServiceBinder interface
+* Set nodes=4 in travis.yml
+* Remove -nodes=4 from bin/test
+* Updating a service plan only updates 'public'
+* Service auth token commands require API <=2.46
+* migrate-service-instances requires api <=2.46
+* Add API version req to create-service-broker
+* purge-service-offering only takes -p for <=2.46
+* Add MaxAPIVersionRequirement
+* Remove unused JSON in tests
+* update-user-provided-service -p flag accepts @file
+* create-user-provided-service -p flag accepts @file
+* Remove trailing space from EXAMPLE in usage
+* bin/generate-language-resources
+* Merge branch 'help2' of https://github.com/fujitsu-cf/cli into fujitsu-cf-help2
+* Add space-scoped flag to create-service-broker
+* Rewrite create_service_broker_test
+* Generate FakeServiceBrokerRepo with counterfeiter
+* Make add-plugin-repo test not take 15 seconds
+* Fix typo in create-shared-domain usage text again
+* replace double-byte colons in main Chinese help text
+* Fix typo in create-shared-domain usage text
+* bin/generate-language-resources
+* Merge branch 'generated-help' of https://github.com/fujitsu-cf/cli into fujitsu-cf-generated-help
+* Merge branch 'fix_ja' of https://github.com/tnaoto/cli into tnaoto-fix_ja
+* Update README/README-i18n
+* Refactor push command a bit
+* Add explanatory comment to ProcessPath
+* godep save ./... (again)
+* godep save ./...
+* Bring in missing go-ccapi dependency
+* Add V3Apps
+* Move passingRequirement definition to suites
+* Fix translations to only update the modified messages
+* Cleanup test cases for list shared domains
+* Add the routing field to 'cf domains' command. Rewrite test cases for domains command
+* Enable creating a shared domain with a router group
+* fix typo
+* Modify Japanese transration
+* Push returns an error when given an invalid path
+* CheckIfExists ensures path has prefixed slash
+* i18n-checkup installs goi18n
+* Bind/UnbindRouteService allow --hostname flag
+* AuthRepo.Authorize() sets Proxy from environment
+* Refactor ssh_code Get() implementation
+* Update i18n-checkup
+* Regenerate FakeAuthenticationRepository
+* Regenerate FakeEndpointRepository
+* Revert "WIP merging create route with port"
+* Fixing example for unbind-route-services in translation files
+* Improving example from usage of the unbind-route-service
+* Add -u back to go get of i18n4go
+* Login retrieves a max of 50 orgs
+* bin/generate-language-resources
+* Fix translations
+* Add untranslated files
+* Print standardized locales when given bad locale
+* Fall back to en-us by default
+* Rename translation files to what go-i18n expects
+* Remove non-translation translations
+* Update routes command
+* Update unbind_route_service
+* Rewrite bind_route_service_test
+* Update bind_route_service
+* Remove named return args from service_offerings
+* Add "repository" to route_service_binding
+* Display route services in cf routes command
+* Add bind-route-service and unbind-route-service commands
+* Add route_service_url flag to update-user-provided-service command.
+* Add route_service_url support for create user provided service command.
+* HTTP_PROXY -> https_proxy in help template
+* cf service includes service tags
+* Display X-Cf-Warnings after running commands
+* Switch add plugin repo test to use example.com
+* On connection refusal include tip to set http proxy
+* CopyFiles uses absolute paths
+* Update Push actor's handling of paths
+* Handle paths that exceed MAX_PATH elsewhere
+* WalkAppFiles handles paths that exceed MAX_PATH
+
 ## 6.15.0
 * Bump version to 6.15.0
 * Fix regression in table printer

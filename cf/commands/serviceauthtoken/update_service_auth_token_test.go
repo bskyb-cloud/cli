@@ -1,13 +1,14 @@
 package serviceauthtoken_test
 
 import (
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -18,49 +19,57 @@ import (
 var _ = Describe("update-service-auth-token command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		configRepo          core_config.Repository
-		authTokenRepo       *testapi.FakeAuthTokenRepo
-		requirementsFactory *testreq.FakeReqFactory
-		deps                command_registry.Dependency
+		configRepo          coreconfig.Repository
+		authTokenRepo       *apifakes.OldFakeAuthTokenRepo
+		requirementsFactory *requirementsfakes.FakeFactory
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.RepoLocator = deps.RepoLocator.SetServiceAuthTokenRepository(authTokenRepo)
 		deps.Config = configRepo
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("update-service-auth-token").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("update-service-auth-token").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{Inputs: []string{"y"}}
-		authTokenRepo = &testapi.FakeAuthTokenRepo{}
+		authTokenRepo = new(apifakes.OldFakeAuthTokenRepo)
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		requirementsFactory = &testreq.FakeReqFactory{}
+		requirementsFactory = new(requirementsfakes.FakeFactory)
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("update-service-auth-token", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("update-service-auth-token", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Describe("requirements", func() {
 		It("fails with usage when not provided exactly three args", func() {
-			requirementsFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
 			runCommand("some-token-label", "a-provider")
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Incorrect Usage", "Requires", "arguments"},
 			))
 		})
 
 		It("fails when not logged in", func() {
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 			Expect(runCommand("label", "provider", "token")).To(BeFalse())
+		})
+
+		It("requires CC API version 2.47 or lower", func() {
+			requirementsFactory.NewMaxAPIVersionRequirementReturns(requirements.Failing{Message: "max api 2.47"})
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			Expect(runCommand("one", "two", "three")).To(BeFalse())
 		})
 	})
 
 	Context("when logged in and the service auth token exists", func() {
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewMaxAPIVersionRequirementReturns(requirements.Passing{})
 			foundAuthToken := models.ServiceAuthTokenFields{}
-			foundAuthToken.Guid = "found-auth-token-guid"
+			foundAuthToken.GUID = "found-auth-token-guid"
 			foundAuthToken.Label = "found label"
 			foundAuthToken.Provider = "found provider"
 			authTokenRepo.FindByLabelAndProviderServiceAuthTokenFields = foundAuthToken
@@ -70,12 +79,12 @@ var _ = Describe("update-service-auth-token command", func() {
 			runCommand("a label", "a provider", "a value")
 
 			expectedAuthToken := models.ServiceAuthTokenFields{}
-			expectedAuthToken.Guid = "found-auth-token-guid"
+			expectedAuthToken.GUID = "found-auth-token-guid"
 			expectedAuthToken.Label = "found label"
 			expectedAuthToken.Provider = "found provider"
 			expectedAuthToken.Token = "a value"
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Updating service auth token as", "my-user"},
 				[]string{"OK"},
 			))

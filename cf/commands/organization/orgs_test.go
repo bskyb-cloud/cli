@@ -1,62 +1,84 @@
 package organization_test
 
 import (
-	test_org "github.com/cloudfoundry/cli/cf/api/organizations/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"os"
+
+	"github.com/cloudfoundry/cli/cf/api/organizations/organizationsfakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
+	"github.com/cloudfoundry/cli/cf/trace/tracefakes"
 	"github.com/cloudfoundry/cli/plugin/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
+	"github.com/cloudfoundry/cli/cf/commands/organization"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 )
 
-var _ = Describe("org command", func() {
+var _ = Describe("orgs command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		orgRepo             *test_org.FakeOrganizationRepository
-		configRepo          core_config.Repository
-		requirementsFactory *testreq.FakeReqFactory
-		deps                command_registry.Dependency
+		orgRepo             *organizationsfakes.FakeOrganizationRepository
+		configRepo          coreconfig.Repository
+		requirementsFactory *requirementsfakes.FakeFactory
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.Config = configRepo
 		deps.RepoLocator = deps.RepoLocator.SetOrganizationRepository(orgRepo)
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("orgs").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("orgs").SetDependency(deps, pluginCall))
 	}
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("orgs", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("orgs", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		orgRepo = &test_org.FakeOrganizationRepository{}
-		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true}
+		orgRepo = new(organizationsfakes.FakeOrganizationRepository)
+		requirementsFactory = new(requirementsfakes.FakeFactory)
+		requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
 
-		deps = command_registry.NewDependency()
+		deps = commandregistry.NewDependency(os.Stdout, new(tracefakes.FakePrinter), "")
 	})
 
 	Describe("requirements", func() {
 		It("fails when not logged in", func() {
-			requirementsFactory.LoginSuccess = false
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 
 			Expect(runCommand()).To(BeFalse())
 		})
-		It("should fail with usage when provided any arguments", func() {
-			requirementsFactory.LoginSuccess = true
-			Expect(runCommand("blahblah")).To(BeFalse())
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Incorrect Usage", "No argument required"},
-			))
+
+		Context("when arguments are provided", func() {
+			var cmd commandregistry.Command
+			var flagContext flags.FlagContext
+
+			BeforeEach(func() {
+				cmd = &organization.ListOrgs{}
+				cmd.SetDependency(deps, false)
+				flagContext = flags.NewFlagContext(cmd.MetaData().Flags)
+			})
+
+			It("should fail with usage", func() {
+				flagContext.Parse("blahblah")
+
+				reqs := cmd.Requirements(requirementsFactory, flagContext)
+
+				err := testcmd.RunRequirements(reqs)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("Incorrect Usage"))
+				Expect(err.Error()).To(ContainSubstring("No argument required"))
+			})
 		})
 	})
 
@@ -68,7 +90,7 @@ var _ = Describe("org command", func() {
 		BeforeEach(func() {
 			org1 := models.Organization{}
 			org1.Name = "Organization-1"
-			org1.Guid = "org-1-guid"
+			org1.GUID = "org-1-guid"
 
 			org2 := models.Organization{}
 			org2.Name = "Organization-2"
@@ -83,11 +105,11 @@ var _ = Describe("org command", func() {
 		})
 
 		It("populates the plugin models upon execution", func() {
-			testcmd.RunCliCommand("orgs", []string{}, requirementsFactory, updateCommandDependency, true)
-			Ω(pluginOrgsModel[0].Name).To(Equal("Organization-1"))
-			Ω(pluginOrgsModel[0].Guid).To(Equal("org-1-guid"))
-			Ω(pluginOrgsModel[1].Name).To(Equal("Organization-2"))
-			Ω(pluginOrgsModel[2].Name).To(Equal("Organization-3"))
+			testcmd.RunCLICommand("orgs", []string{}, requirementsFactory, updateCommandDependency, true, ui)
+			Expect(pluginOrgsModel[0].Name).To(Equal("Organization-1"))
+			Expect(pluginOrgsModel[0].Guid).To(Equal("org-1-guid"))
+			Expect(pluginOrgsModel[1].Name).To(Equal("Organization-2"))
+			Expect(pluginOrgsModel[2].Name).To(Equal("Organization-3"))
 		})
 	})
 
@@ -105,10 +127,16 @@ var _ = Describe("org command", func() {
 			orgRepo.ListOrgsReturns([]models.Organization{org1, org2, org3}, nil)
 		})
 
+		It("tries to get the organizations", func() {
+			runCommand()
+			Expect(orgRepo.ListOrgsCallCount()).To(Equal(1))
+			Expect(orgRepo.ListOrgsArgsForCall(0)).To(Equal(0))
+		})
+
 		It("lists orgs", func() {
 			runCommand()
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Getting orgs as my-user"},
 				[]string{"Organization-1"},
 				[]string{"Organization-2"},
@@ -121,7 +149,7 @@ var _ = Describe("org command", func() {
 		orgRepo.ListOrgsReturns([]models.Organization{}, nil)
 		runCommand()
 
-		Expect(ui.Outputs).To(ContainSubstrings(
+		Expect(ui.Outputs()).To(ContainSubstrings(
 			[]string{"Getting orgs as my-user"},
 			[]string{"No orgs found"},
 		))

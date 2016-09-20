@@ -1,76 +1,80 @@
 package application
 
 import (
+	"errors"
+
 	"github.com/cloudfoundry/cli/cf/api/applications"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	"github.com/cloudfoundry/cli/cf/formatters"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
-	"github.com/cloudfoundry/cli/flags/flag"
 )
 
 type Scale struct {
 	ui        terminal.UI
-	config    core_config.Reader
-	restarter ApplicationRestarter
+	config    coreconfig.Reader
+	restarter Restarter
 	appReq    requirements.ApplicationRequirement
-	appRepo   applications.ApplicationRepository
+	appRepo   applications.Repository
 }
 
 func init() {
-	command_registry.Register(&Scale{})
+	commandregistry.Register(&Scale{})
 }
 
-func (cmd *Scale) MetaData() command_registry.CommandMetadata {
+func (cmd *Scale) MetaData() commandregistry.CommandMetadata {
 	fs := make(map[string]flags.FlagSet)
-	fs["i"] = &cliFlags.IntFlag{ShortName: "i", Usage: T("Number of instances")}
-	fs["k"] = &cliFlags.StringFlag{ShortName: "k", Usage: T("Disk limit (e.g. 256M, 1024M, 1G)")}
-	fs["m"] = &cliFlags.StringFlag{ShortName: "m", Usage: T("Memory limit (e.g. 256M, 1024M, 1G)")}
-	fs["f"] = &cliFlags.BoolFlag{ShortName: "f", Usage: T("Force restart of app without prompt")}
+	fs["i"] = &flags.IntFlag{ShortName: "i", Usage: T("Number of instances")}
+	fs["k"] = &flags.StringFlag{ShortName: "k", Usage: T("Disk limit (e.g. 256M, 1024M, 1G)")}
+	fs["m"] = &flags.StringFlag{ShortName: "m", Usage: T("Memory limit (e.g. 256M, 1024M, 1G)")}
+	fs["f"] = &flags.BoolFlag{ShortName: "f", Usage: T("Force restart of app without prompt")}
 
-	return command_registry.CommandMetadata{
+	return commandregistry.CommandMetadata{
 		Name:        "scale",
 		Description: T("Change or view the instance count, disk space limit, and memory limit for an app"),
-		Usage:       T("CF_NAME scale APP_NAME [-i INSTANCES] [-k DISK] [-m MEMORY] [-f]"),
-		Flags:       fs,
+		Usage: []string{
+			T("CF_NAME scale APP_NAME [-i INSTANCES] [-k DISK] [-m MEMORY] [-f]"),
+		},
+		Flags: fs,
 	}
 }
 
-func (cmd *Scale) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+func (cmd *Scale) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
 	if len(fc.Args()) != 1 {
-		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + command_registry.Commands.CommandUsage("scale"))
+		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + commandregistry.Commands.CommandUsage("scale"))
 	}
 
 	cmd.appReq = requirementsFactory.NewApplicationRequirement(fc.Args()[0])
 
-	reqs = []requirements.Requirement{
+	reqs := []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 		requirementsFactory.NewTargetedSpaceRequirement(),
 		cmd.appReq,
 	}
-	return
+
+	return reqs
 }
 
-func (cmd *Scale) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *Scale) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.appRepo = deps.RepoLocator.GetApplicationRepository()
 
 	//get command from registry for dependency
-	commandDep := command_registry.Commands.FindCommand("restart")
+	commandDep := commandregistry.Commands.FindCommand("restart")
 	commandDep = commandDep.SetDependency(deps, false)
-	cmd.restarter = commandDep.(ApplicationRestarter)
+	cmd.restarter = commandDep.(Restarter)
 
 	return cmd
 }
 
 var bytesInAMegabyte int64 = 1024 * 1024
 
-func (cmd *Scale) Execute(c flags.FlagContext) {
+func (cmd *Scale) Execute(c flags.FlagContext) error {
 	currentApp := cmd.appReq.GetApplication()
 	if !anyFlagsSet(c) {
 		cmd.ui.Say(T("Showing current scale of app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
@@ -87,7 +91,7 @@ func (cmd *Scale) Execute(c flags.FlagContext) {
 		cmd.ui.Say("%s %s", terminal.HeaderColor(T("disk:")), formatters.ByteSize(currentApp.DiskQuota*bytesInAMegabyte))
 		cmd.ui.Say("%s %d", terminal.HeaderColor(T("instances:")), currentApp.InstanceCount)
 
-		return
+		return nil
 	}
 
 	params := models.AppParams{}
@@ -96,7 +100,7 @@ func (cmd *Scale) Execute(c flags.FlagContext) {
 	if c.String("m") != "" {
 		memory, err := formatters.ToMegabytes(c.String("m"))
 		if err != nil {
-			cmd.ui.Failed(T("Invalid memory limit: {{.Memory}}\n{{.ErrorDescription}}",
+			return errors.New(T("Invalid memory limit: {{.Memory}}\n{{.ErrorDescription}}",
 				map[string]interface{}{
 					"Memory":           c.String("m"),
 					"ErrorDescription": err,
@@ -109,7 +113,7 @@ func (cmd *Scale) Execute(c flags.FlagContext) {
 	if c.String("k") != "" {
 		diskQuota, err := formatters.ToMegabytes(c.String("k"))
 		if err != nil {
-			cmd.ui.Failed(T("Invalid disk quota: {{.DiskQuota}}\n{{.ErrorDescription}}",
+			return errors.New(T("Invalid disk quota: {{.DiskQuota}}\n{{.ErrorDescription}}",
 				map[string]interface{}{
 					"DiskQuota":        c.String("k"),
 					"ErrorDescription": err,
@@ -125,7 +129,7 @@ func (cmd *Scale) Execute(c flags.FlagContext) {
 	}
 
 	if shouldRestart && !cmd.confirmRestart(c, currentApp.Name) {
-		return
+		return nil
 	}
 
 	cmd.ui.Say(T("Scaling app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
@@ -136,17 +140,20 @@ func (cmd *Scale) Execute(c flags.FlagContext) {
 			"CurrentUser": terminal.EntityNameColor(cmd.config.Username()),
 		}))
 
-	updatedApp, apiErr := cmd.appRepo.Update(currentApp.Guid, params)
-	if apiErr != nil {
-		cmd.ui.Failed(apiErr.Error())
-		return
+	updatedApp, err := cmd.appRepo.Update(currentApp.GUID, params)
+	if err != nil {
+		return err
 	}
 
 	cmd.ui.Ok()
 
 	if shouldRestart {
-		cmd.restarter.ApplicationRestart(updatedApp, cmd.config.OrganizationFields().Name, cmd.config.SpaceFields().Name)
+		err = cmd.restarter.ApplicationRestart(updatedApp, cmd.config.OrganizationFields().Name, cmd.config.SpaceFields().Name)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func (cmd *Scale) confirmRestart(context flags.FlagContext, appName string) bool {

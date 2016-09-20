@@ -7,55 +7,98 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/cloudfoundry/cli/cf/api/application_bits"
+	"github.com/cloudfoundry/cli/cf/api/applicationbits"
 	"github.com/cloudfoundry/cli/cf/api/resources"
-	"github.com/cloudfoundry/cli/cf/app_files"
+	"github.com/cloudfoundry/cli/cf/appfiles"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/gofileutils/fileutils"
 )
 
-//go:generate counterfeiter -o fakes/fake_push_actor.go . PushActor
+const windowsPathPrefix = `\\?\`
+
+//go:generate counterfeiter . PushActor
+
 type PushActor interface {
-	UploadApp(appGuid string, zipFile *os.File, presentFiles []resources.AppFileResource) error
-	ProcessPath(dirOrZipFile string, f func(string)) error
+	UploadApp(appGUID string, zipFile *os.File, presentFiles []resources.AppFileResource) error
+	ProcessPath(dirOrZipFile string, f func(string) error) error
 	GatherFiles(localFiles []models.AppFileFields, appDir string, uploadDir string) ([]resources.AppFileResource, bool, error)
+	ValidateAppParams(apps []models.AppParams) []error
+	MapManifestRoute(routeName string, app models.Application, appParamsFromContext models.AppParams) error
 }
 
 type PushActorImpl struct {
-	appBitsRepo application_bits.ApplicationBitsRepository
-	appfiles    app_files.AppFiles
-	zipper      app_files.Zipper
+	appBitsRepo applicationbits.Repository
+	appfiles    appfiles.AppFiles
+	zipper      appfiles.Zipper
+	routeActor  RouteActor
 }
 
-func NewPushActor(appBitsRepo application_bits.ApplicationBitsRepository, zipper app_files.Zipper, appfiles app_files.AppFiles) PushActor {
+func NewPushActor(appBitsRepo applicationbits.Repository, zipper appfiles.Zipper, appfiles appfiles.AppFiles, routeActor RouteActor) PushActor {
 	return PushActorImpl{
 		appBitsRepo: appBitsRepo,
 		appfiles:    appfiles,
 		zipper:      zipper,
+		routeActor:  routeActor,
 	}
 }
 
-func (actor PushActorImpl) ProcessPath(dirOrZipFile string, f func(string)) error {
+// ProcessPath takes in a director of app files or a zip file which contains
+// the app files. If given a zip file, it will extract the zip to a temporary
+// location, call the provided callback with that location, and then clean up
+// the location after the callback has been executed.
+//
+// This was done so that the caller of ProcessPath wouldn't need to know if it
+// was a zip file or an app dir that it was given, and the caller would not be
+// responsible for cleaning up the temporary directory ProcessPath creates when
+// given a zip.
+func (actor PushActorImpl) ProcessPath(dirOrZipFile string, f func(string) error) error {
 	if !actor.zipper.IsZipFile(dirOrZipFile) {
 		appDir, err := filepath.EvalSymlinks(dirOrZipFile)
-		if err == nil {
-			f(appDir)
+		if err != nil {
+			return err
 		}
-		return err
+
+		if filepath.IsAbs(appDir) {
+			err = f(appDir)
+			if err != nil {
+				return err
+			}
+		} else {
+			var absPath string
+			absPath, err = filepath.Abs(appDir)
+			if err != nil {
+				return err
+			}
+
+			err = f(absPath)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
 	}
 
 	tempDir, err := ioutil.TempDir("", "unzipped-app")
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tempDir)
 
 	err = actor.zipper.Unzip(dirOrZipFile, tempDir)
 	if err != nil {
 		return err
 	}
 
-	f(tempDir)
+	err = f(tempDir)
+	if err != nil {
+		return err
+	}
+
+	err = os.RemoveAll(tempDir)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -100,7 +143,15 @@ func (actor PushActorImpl) GatherFiles(localFiles []models.AppFileFields, appDir
 	}
 
 	for i := range remoteFiles {
-		fileInfo, err := os.Lstat(filepath.Join(appDir, remoteFiles[i].Path))
+		fullPath, err := filepath.Abs(filepath.Join(appDir, remoteFiles[i].Path))
+		if err != nil {
+			return []resources.AppFileResource{}, false, err
+		}
+
+		if runtime.GOOS == "windows" {
+			fullPath = windowsPathPrefix + fullPath
+		}
+		fileInfo, err := os.Lstat(fullPath)
 		if err != nil {
 			return []resources.AppFileResource{}, false, err
 		}
@@ -116,6 +167,38 @@ func (actor PushActorImpl) GatherFiles(localFiles []models.AppFileFields, appDir
 	return remoteFiles, len(filesToUpload) > 0, nil
 }
 
-func (actor PushActorImpl) UploadApp(appGuid string, zipFile *os.File, presentFiles []resources.AppFileResource) error {
-	return actor.appBitsRepo.UploadBits(appGuid, zipFile, presentFiles)
+func (actor PushActorImpl) UploadApp(appGUID string, zipFile *os.File, presentFiles []resources.AppFileResource) error {
+	return actor.appBitsRepo.UploadBits(appGUID, zipFile, presentFiles)
+}
+
+func (actor PushActorImpl) ValidateAppParams(apps []models.AppParams) []error {
+	errs := []error{}
+
+	for _, app := range apps {
+		appName := app.Name
+
+		if app.Routes != nil {
+			if app.Hosts != nil {
+				errs = append(errs, fmt.Errorf(T("Application {{.AppName}} must not be configured with both 'routes' and 'host'/'hosts'", map[string]interface{}{"AppName": appName})))
+			}
+
+			if app.Domains != nil {
+				errs = append(errs, fmt.Errorf(T("Application {{.AppName}} must not be configured with both 'routes' and 'domain'/'domains'", map[string]interface{}{"AppName": appName})))
+			}
+
+			if app.NoHostname != nil {
+				errs = append(errs, fmt.Errorf(T("Application {{.AppName}} must not be configured with both 'routes' and 'no-hostname'", map[string]interface{}{"AppName": appName})))
+			}
+		}
+	}
+
+	if len(errs) > 0 {
+		return errs
+	}
+
+	return nil
+}
+
+func (actor PushActorImpl) MapManifestRoute(routeName string, app models.Application, appParamsFromContext models.AppParams) error {
+	return actor.routeActor.FindAndBindRoute(routeName, app, appParamsFromContext)
 }

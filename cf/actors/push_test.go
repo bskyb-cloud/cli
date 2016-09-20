@@ -9,10 +9,11 @@ import (
 	"runtime"
 
 	"github.com/cloudfoundry/cli/cf/actors"
-	fakeBits "github.com/cloudfoundry/cli/cf/api/application_bits/fakes"
+	"github.com/cloudfoundry/cli/cf/actors/actorsfakes"
+	"github.com/cloudfoundry/cli/cf/api/applicationbits/applicationbitsfakes"
 	"github.com/cloudfoundry/cli/cf/api/resources"
-	"github.com/cloudfoundry/cli/cf/app_files"
-	"github.com/cloudfoundry/cli/cf/app_files/fakes"
+	"github.com/cloudfoundry/cli/cf/appfiles"
+	"github.com/cloudfoundry/cli/cf/appfiles/appfilesfakes"
 	"github.com/cloudfoundry/cli/cf/models"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -20,9 +21,10 @@ import (
 
 var _ = Describe("Push Actor", func() {
 	var (
-		appBitsRepo  *fakeBits.FakeApplicationBitsRepository
-		appFiles     *fakes.FakeAppFiles
-		fakezipper   *fakes.FakeZipper
+		appBitsRepo  *applicationbitsfakes.FakeApplicationBitsRepository
+		appFiles     *appfilesfakes.FakeAppFiles
+		fakezipper   *appfilesfakes.FakeZipper
+		routeActor   *actorsfakes.FakeRouteActor
 		actor        actors.PushActor
 		fixturesDir  string
 		appDir       string
@@ -31,19 +33,20 @@ var _ = Describe("Push Actor", func() {
 	)
 
 	BeforeEach(func() {
-		appBitsRepo = &fakeBits.FakeApplicationBitsRepository{}
-		appFiles = &fakes.FakeAppFiles{}
-		fakezipper = &fakes.FakeZipper{}
-		actor = actors.NewPushActor(appBitsRepo, fakezipper, appFiles)
+		appBitsRepo = new(applicationbitsfakes.FakeApplicationBitsRepository)
+		appFiles = new(appfilesfakes.FakeAppFiles)
+		fakezipper = new(appfilesfakes.FakeZipper)
+		routeActor = new(actorsfakes.FakeRouteActor)
+		actor = actors.NewPushActor(appBitsRepo, fakezipper, appFiles, routeActor)
 		fixturesDir = filepath.Join("..", "..", "fixtures", "applications")
 		allFiles = []models.AppFileFields{
-			models.AppFileFields{Path: "example-app/.cfignore"},
-			models.AppFileFields{Path: "example-app/app.rb"},
-			models.AppFileFields{Path: "example-app/config.ru"},
-			models.AppFileFields{Path: "example-app/Gemfile"},
-			models.AppFileFields{Path: "example-app/Gemfile.lock"},
-			models.AppFileFields{Path: "example-app/ignore-me"},
-			models.AppFileFields{Path: "example-app/manifest.yml"},
+			{Path: "example-app/.cfignore"},
+			{Path: "example-app/app.rb"},
+			{Path: "example-app/config.ru"},
+			{Path: "example-app/Gemfile"},
+			{Path: "example-app/Gemfile.lock"},
+			{Path: "example-app/ignore-me"},
+			{Path: "example-app/manifest.yml"},
 		}
 	})
 
@@ -52,7 +55,7 @@ var _ = Describe("Push Actor", func() {
 
 		BeforeEach(func() {
 			presentFiles = []resources.AppFileResource{
-				resources.AppFileResource{Path: "example-app/ignore-me"},
+				{Path: "example-app/ignore-me"},
 			}
 
 			appDir = filepath.Join(fixturesDir, "example-app.zip")
@@ -126,7 +129,7 @@ var _ = Describe("Push Actor", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			expectedFiles := []resources.AppFileResource{
-				resources.AppFileResource{
+				{
 					Path: "example-app/ignore-me",
 					Mode: expectedFileMode,
 				},
@@ -183,10 +186,10 @@ var _ = Describe("Push Actor", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(appFiles.CopyFilesCallCount()).To(Equal(1))
-				filesToUpload, appDir, uploadDir := appFiles.CopyFilesArgsForCall(0)
+				filesToUpload, fromDir, toDir := appFiles.CopyFilesArgsForCall(0)
 				Expect(filesToUpload).To(Equal(expectedFiles))
-				Expect(appDir).To(Equal(fixturesDir))
-				Expect(uploadDir).To(Equal(tmpDir))
+				Expect(fromDir).To(Equal(fixturesDir))
+				Expect(toDir).To(Equal(tmpDir))
 			})
 		})
 
@@ -195,7 +198,7 @@ var _ = Describe("Push Actor", func() {
 
 			BeforeEach(func() {
 				remoteFiles = []resources.AppFileResource{
-					resources.AppFileResource{Path: "example-app/manifest.yml"},
+					{Path: "example-app/manifest.yml"},
 				}
 
 				appBitsRepo.GetApplicationFilesReturns(remoteFiles, nil)
@@ -220,10 +223,10 @@ var _ = Describe("Push Actor", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(appFiles.CopyFilesCallCount()).To(Equal(1))
-				filesToUpload, appDir, uploadDir := appFiles.CopyFilesArgsForCall(0)
+				filesToUpload, fromDir, toDir := appFiles.CopyFilesArgsForCall(0)
 				Expect(filesToUpload).To(Equal(expectedFiles))
-				Expect(appDir).To(Equal(fixturesDir))
-				Expect(uploadDir).To(Equal(tmpDir))
+				Expect(fromDir).To(Equal(fixturesDir))
+				Expect(toDir).To(Equal(tmpDir))
 			})
 		})
 
@@ -253,15 +256,15 @@ var _ = Describe("Push Actor", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(appFiles.CopyFilesCallCount()).To(Equal(1))
-				filesToUpload, appDir, uploadDir := appFiles.CopyFilesArgsForCall(0)
+				filesToUpload, fromDir, toDir := appFiles.CopyFilesArgsForCall(0)
 				Expect(filesToUpload).To(BeEmpty())
-				Expect(appDir).To(Equal(fixturesDir))
-				Expect(uploadDir).To(Equal(tmpDir))
+				Expect(fromDir).To(Equal(fixturesDir))
+				Expect(toDir).To(Equal(tmpDir))
 			})
 		})
 	})
 
-	Describe(".UploadApp", func() {
+	Describe("UploadApp", func() {
 		It("Simply delegates to the UploadApp function on the app bits repo, which is not worth testing", func() {})
 	})
 
@@ -272,8 +275,8 @@ var _ = Describe("Push Actor", func() {
 		)
 
 		BeforeEach(func() {
-			zipper := &app_files.ApplicationZipper{}
-			actor = actors.NewPushActor(appBitsRepo, zipper, appFiles)
+			zipper := &appfiles.ApplicationZipper{}
+			actor = actors.NewPushActor(appBitsRepo, zipper, appFiles, routeActor)
 		})
 
 		Context("when given a zip file", func() {
@@ -284,21 +287,23 @@ var _ = Describe("Push Actor", func() {
 			})
 
 			It("extracts the zip when given a zip file", func() {
-				f := func(tempDir string) {
+				f := func(tempDir string) error {
 					for _, file := range allFiles {
 						actualFilePath := filepath.Join(tempDir, file.Path)
 						_, err := os.Stat(actualFilePath)
 						Expect(err).NotTo(HaveOccurred())
 					}
+					return nil
 				}
 				err := actor.ProcessPath(zipFile, f)
 				Expect(err).NotTo(HaveOccurred())
 			})
 
 			It("calls the provided function with the directory that it extracted to", func() {
-				f := func(tempDir string) {
+				f := func(tempDir string) error {
 					wasCalled = true
 					wasCalledWith = tempDir
+					return nil
 				}
 				err := actor.ProcessPath(zipFile, f)
 				Expect(err).NotTo(HaveOccurred())
@@ -308,8 +313,9 @@ var _ = Describe("Push Actor", func() {
 
 			It("cleans up the directory that it extracted to", func() {
 				var tempDirWas string
-				f := func(tempDir string) {
+				f := func(tempDir string) error {
 					tempDirWas = tempDir
+					return nil
 				}
 				err := actor.ProcessPath(zipFile, f)
 				Expect(err).NotTo(HaveOccurred())
@@ -321,9 +327,11 @@ var _ = Describe("Push Actor", func() {
 				e := errors.New("some-error")
 				fakezipper.UnzipReturns(e)
 				fakezipper.IsZipFileReturns(true)
-				actor = actors.NewPushActor(appBitsRepo, fakezipper, appFiles)
+				actor = actors.NewPushActor(appBitsRepo, fakezipper, appFiles, routeActor)
 
-				f := func(tempDir string) {}
+				f := func(_ string) error {
+					return nil
+				}
 				err := actor.ProcessPath(zipFile, f)
 				Expect(err).To(HaveOccurred())
 			})
@@ -331,14 +339,17 @@ var _ = Describe("Push Actor", func() {
 
 		It("calls the provided function with the provided directory", func() {
 			appDir = filepath.Join(fixturesDir, "example-app")
-			f := func(tempDir string) {
+			f := func(tempDir string) error {
 				wasCalled = true
 				wasCalledWith = tempDir
+				return nil
 			}
 			err := actor.ProcessPath(appDir, f)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(wasCalled).To(BeTrue())
-			Expect(wasCalledWith).To(Equal(appDir))
+			path, err := filepath.Abs(appDir)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(wasCalledWith).To(Equal(path))
 		})
 
 		It("dereferences the symlink when given a symlink to an app dir", func() {
@@ -348,15 +359,125 @@ var _ = Describe("Push Actor", func() {
 
 			symlink := filepath.Join(fixturesDir, "example-app-symlink")
 			expectedDir := filepath.Join(fixturesDir, "example-app") // example-app-symlink -> example-app
-			f := func(dir string) {
+			f := func(dir string) error {
 				wasCalled = true
 				wasCalledWith = dir
+				return nil
 			}
 
 			err := actor.ProcessPath(symlink, f)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(wasCalled).To(BeTrue())
-			Expect(wasCalledWith).To(Equal(expectedDir))
+			path, err := filepath.Abs(expectedDir)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(wasCalledWith).To(Equal(path))
+		})
+
+		It("calls the provided function with the provided absolute directory", func() {
+			appDir = filepath.Join(fixturesDir, "example-app")
+			absolutePath, err := filepath.Abs(appDir)
+			Expect(err).NotTo(HaveOccurred())
+			f := func(tempDir string) error {
+				wasCalled = true
+				wasCalledWith = tempDir
+				return nil
+			}
+			err = actor.ProcessPath(absolutePath, f)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(wasCalled).To(BeTrue())
+			Expect(wasCalledWith).To(Equal(absolutePath))
+		})
+	})
+
+	Describe("ValidateAppParams", func() {
+		var apps []models.AppParams
+
+		Context("when 'routes' is provided", func() {
+			BeforeEach(func() {
+				appName := "my-app"
+				apps = []models.AppParams{
+					models.AppParams{
+						Name: &appName,
+						Routes: []models.ManifestRoute{
+							models.ManifestRoute{
+								Route: "route-name.example.com",
+							},
+							models.ManifestRoute{
+								Route: "other-route-name.example.com",
+							},
+						},
+					},
+				}
+			})
+
+			Context("and 'hosts' is provided", func() {
+				BeforeEach(func() {
+					apps[0].Hosts = []string{"host-name"}
+				})
+
+				It("returns an error", func() {
+					errs := actor.ValidateAppParams(apps)
+					Expect(errs).To(HaveLen(1))
+					Expect(errs[0].Error()).To(Equal("Application my-app must not be configured with both 'routes' and 'host'/'hosts'"))
+				})
+			})
+
+			Context("and 'domains' is provided", func() {
+				BeforeEach(func() {
+					apps[0].Domains = []string{"domain-name"}
+				})
+
+				It("returns an error", func() {
+					errs := actor.ValidateAppParams(apps)
+					Expect(errs).To(HaveLen(1))
+					Expect(errs[0].Error()).To(Equal("Application my-app must not be configured with both 'routes' and 'domain'/'domains'"))
+				})
+			})
+
+			Context("and 'no-hostname' is provided", func() {
+				BeforeEach(func() {
+					noHostBool := true
+					apps[0].NoHostname = &noHostBool
+				})
+
+				It("returns an error", func() {
+					errs := actor.ValidateAppParams(apps)
+					Expect(errs).To(HaveLen(1))
+					Expect(errs[0].Error()).To(Equal("Application my-app must not be configured with both 'routes' and 'no-hostname'"))
+				})
+			})
+
+			Context("and 'no-hostname' is not provided", func() {
+				BeforeEach(func() {
+					apps[0].NoHostname = nil
+				})
+
+				It("returns an error", func() {
+					errs := actor.ValidateAppParams(apps)
+					Expect(errs).To(HaveLen(0))
+				})
+			})
+		})
+	})
+
+	Describe("MapManifestRoute", func() {
+		It("passes arguments to route actor", func() {
+			appName := "app-name"
+			app := models.Application{
+				ApplicationFields: models.ApplicationFields{
+					Name: appName,
+					GUID: "app-guid",
+				},
+			}
+			appParamsFromContext := models.AppParams{
+				Name: &appName,
+			}
+
+			_ = actor.MapManifestRoute("route-name.example.com/testPath", app, appParamsFromContext)
+			actualRoute, actualApp, actualAppParams := routeActor.FindAndBindRouteArgsForCall(0)
+			Expect(actualRoute).To(Equal("route-name.example.com/testPath"))
+			Expect(actualApp).To(Equal(app))
+			Expect(actualAppParams).To(Equal(appParamsFromContext))
 		})
 	})
 })

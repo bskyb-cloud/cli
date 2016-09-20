@@ -1,12 +1,13 @@
 package application_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -17,45 +18,46 @@ import (
 var _ = Describe("disable-ssh command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		requirementsFactory *testreq.FakeReqFactory
-		configRepo          core_config.Repository
-		deps                command_registry.Dependency
+		requirementsFactory *requirementsfakes.FakeFactory
+		configRepo          coreconfig.Repository
+		deps                commandregistry.Dependency
 	)
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		requirementsFactory = &testreq.FakeReqFactory{}
+		requirementsFactory = new(requirementsfakes.FakeFactory)
 	})
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.Config = configRepo
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("ssh-enabled").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("ssh-enabled").SetDependency(deps, pluginCall))
 	}
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("ssh-enabled", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("ssh-enabled", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Describe("requirements", func() {
 		It("fails with usage when called without enough arguments", func() {
-			requirementsFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
 
 			runCommand()
-			Ω(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Incorrect Usage", "Requires", "argument"},
 			))
+
 		})
 
 		It("fails requirements when not logged in", func() {
-			Ω(runCommand("my-app", "none")).To(BeFalse())
+			Expect(runCommand("my-app", "none")).To(BeFalse())
 		})
 
 		It("fails if a space is not targeted", func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedSpaceSuccess = false
-			Ω(runCommand("my-app", "none")).To(BeFalse())
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Failing{Message: "not targeting space"})
+			Expect(runCommand("my-app", "none")).To(BeFalse())
 		})
 	})
 
@@ -65,37 +67,41 @@ var _ = Describe("disable-ssh command", func() {
 		)
 
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedSpaceSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Passing{})
 
 			app = models.Application{}
 			app.Name = "my-app"
-			app.Guid = "my-app-guid"
+			app.GUID = "my-app-guid"
 		})
 
 		Context("when enable_ssh is set to the true", func() {
 			BeforeEach(func() {
-				app.EnableSsh = true
-				requirementsFactory.Application = app
+				app.EnableSSH = true
+				applicationReq := new(requirementsfakes.FakeApplicationRequirement)
+				applicationReq.GetApplicationReturns(app)
+				requirementsFactory.NewApplicationRequirementReturns(applicationReq)
 			})
 
 			It("notifies the user", func() {
 				runCommand("my-app")
 
-				Ω(ui.Outputs).To(ContainSubstrings([]string{"ssh support is enabled for 'my-app'"}))
+				Expect(ui.Outputs()).To(ContainSubstrings([]string{"ssh support is enabled for 'my-app'"}))
 			})
 		})
 
 		Context("when enable_ssh is set to the false", func() {
 			BeforeEach(func() {
-				app.EnableSsh = false
-				requirementsFactory.Application = app
+				app.EnableSSH = false
+				applicationReq := new(requirementsfakes.FakeApplicationRequirement)
+				applicationReq.GetApplicationReturns(app)
+				requirementsFactory.NewApplicationRequirementReturns(applicationReq)
 			})
 
 			It("notifies the user", func() {
 				runCommand("my-app")
 
-				Ω(ui.Outputs).To(ContainSubstrings([]string{"ssh support is disabled for 'my-app'"}))
+				Expect(ui.Outputs()).To(ContainSubstrings([]string{"ssh support is disabled for 'my-app'"}))
 			})
 		})
 

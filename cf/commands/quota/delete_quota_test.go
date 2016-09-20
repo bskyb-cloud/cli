@@ -1,16 +1,17 @@
 package quota_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/api/quotas/fakes"
+	"github.com/cloudfoundry/cli/cf/api/quotas/quotasfakes"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -19,33 +20,33 @@ import (
 var _ = Describe("delete-quota command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		quotaRepo           *fakes.FakeQuotaRepository
-		requirementsFactory *testreq.FakeReqFactory
-		configRepo          core_config.Repository
-		deps                command_registry.Dependency
+		quotaRepo           *quotasfakes.FakeQuotaRepository
+		requirementsFactory *requirementsfakes.FakeFactory
+		configRepo          coreconfig.Repository
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.Config = configRepo
 		deps.RepoLocator = deps.RepoLocator.SetQuotaRepository(quotaRepo)
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("delete-quota").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("delete-quota").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		quotaRepo = &fakes.FakeQuotaRepository{}
-		requirementsFactory = &testreq.FakeReqFactory{}
+		quotaRepo = new(quotasfakes.FakeQuotaRepository)
+		requirementsFactory = new(requirementsfakes.FakeFactory)
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("delete-quota", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("delete-quota", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Context("when the user is not logged in", func() {
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = false
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 		})
 
 		It("fails requirements", func() {
@@ -55,12 +56,12 @@ var _ = Describe("delete-quota command", func() {
 
 	Context("when the user is logged in", func() {
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
 		})
 
 		It("fails requirements when called without a quota name", func() {
 			runCommand()
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Incorrect Usage", "Requires an argument"},
 			))
 		})
@@ -69,7 +70,7 @@ var _ = Describe("delete-quota command", func() {
 			BeforeEach(func() {
 				quota := models.QuotaFields{}
 				quota.Name = "my-quota"
-				quota.Guid = "my-quota-guid"
+				quota.GUID = "my-quota-guid"
 
 				quotaRepo.FindByNameReturns(quota, nil)
 			})
@@ -84,7 +85,7 @@ var _ = Describe("delete-quota command", func() {
 					[]string{"Really delete the quota", "my-quota"},
 				))
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Deleting quota", "my-quota", "my-user"},
 					[]string{"OK"},
 				))
@@ -103,7 +104,7 @@ var _ = Describe("delete-quota command", func() {
 
 				runCommand("-f", "my-quota")
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Deleting", "my-quota"},
 					[]string{"FAILED"},
 				))
@@ -119,7 +120,7 @@ var _ = Describe("delete-quota command", func() {
 				It("warns the user when that the quota does not exist", func() {
 					runCommand("-f", "non-existent-quota")
 
-					Expect(ui.Outputs).To(ContainSubstrings(
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"Deleting", "non-existent-quota"},
 						[]string{"OK"},
 					))
@@ -142,7 +143,7 @@ var _ = Describe("delete-quota command", func() {
 						[]string{"my-quota", "does not exist"},
 					))
 
-					Expect(ui.Outputs).To(ContainSubstrings(
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"FAILED"},
 					))
 

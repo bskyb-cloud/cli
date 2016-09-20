@@ -1,27 +1,27 @@
 package rpc
 
 import (
-	"errors"
+	"fmt"
 
-	"github.com/cloudfoundry/cli/cf/command_registry"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/flags"
 	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/flags"
 )
 
-type NonCodegangstaRunner interface {
-	Command([]string, command_registry.Dependency, bool) error
+//go:generate counterfeiter . CommandRunner
+
+type CommandRunner interface {
+	Command([]string, commandregistry.Dependency, bool) error
 }
 
-type nonCodegangstaRunner struct{}
+type commandRunner struct{}
 
-func NewNonCodegangstaRunner() NonCodegangstaRunner {
-	return &nonCodegangstaRunner{}
+func NewCommandRunner() CommandRunner {
+	return &commandRunner{}
 }
 
-func (c *nonCodegangstaRunner) Command(args []string, deps command_registry.Dependency, pluginApiCall bool) error {
-	var err error
-
-	cmdRegistry := command_registry.Commands
+func (c *commandRunner) Command(args []string, deps commandregistry.Dependency, pluginApiCall bool) (err error) {
+	cmdRegistry := commandregistry.Commands
 
 	if cmdRegistry.CommandExists(args[0]) {
 		fc := flags.NewFlagContext(cmdRegistry.FindCommand(args[0]).MetaData().Flags)
@@ -33,18 +33,21 @@ func (c *nonCodegangstaRunner) Command(args []string, deps command_registry.Depe
 		cfCmd := cmdRegistry.FindCommand(args[0])
 		cfCmd = cfCmd.SetDependency(deps, pluginApiCall)
 
-		reqs, err := cfCmd.Requirements(requirements.NewFactory(deps.Ui, deps.Config, deps.RepoLocator), fc)
-		if err != nil {
-			return err
-		}
+		reqs := cfCmd.Requirements(requirements.NewFactory(deps.Config, deps.RepoLocator), fc)
 
 		for _, r := range reqs {
-			if !r.Execute() {
-				return errors.New("Error in requirement")
+			if err = r.Execute(); err != nil {
+				return err
 			}
 		}
 
-		cfCmd.Execute(fc)
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("command panic: %v", r)
+			}
+		}()
+
+		return cfCmd.Execute(fc)
 	}
 
 	return nil

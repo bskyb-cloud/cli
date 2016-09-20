@@ -1,12 +1,14 @@
 package buildpack
 
 import (
+	"errors"
+
 	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/command_registry"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
 )
 
 type RenameBuildpack struct {
@@ -15,59 +17,58 @@ type RenameBuildpack struct {
 }
 
 func init() {
-	command_registry.Register(&RenameBuildpack{})
+	commandregistry.Register(&RenameBuildpack{})
 }
 
-func (cmd *RenameBuildpack) MetaData() command_registry.CommandMetadata {
-	return command_registry.CommandMetadata{
+func (cmd *RenameBuildpack) MetaData() commandregistry.CommandMetadata {
+	return commandregistry.CommandMetadata{
 		Name:        "rename-buildpack",
 		Description: T("Rename a buildpack"),
-		Usage:       T("CF_NAME rename-buildpack BUILDPACK_NAME NEW_BUILDPACK_NAME"),
+		Usage: []string{
+			T("CF_NAME rename-buildpack BUILDPACK_NAME NEW_BUILDPACK_NAME"),
+		},
 	}
 }
 
-func (cmd *RenameBuildpack) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+func (cmd *RenameBuildpack) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
 	if len(fc.Args()) != 2 {
-		cmd.ui.Failed(T("Incorrect Usage. Requires BUILDPACK_NAME, NEW_BUILDPACK_NAME as arguments\n\n") + command_registry.Commands.CommandUsage("rename-buildpack"))
+		cmd.ui.Failed(T("Incorrect Usage. Requires BUILDPACK_NAME, NEW_BUILDPACK_NAME as arguments\n\n") + commandregistry.Commands.CommandUsage("rename-buildpack"))
 	}
 
-	reqs = []requirements.Requirement{requirementsFactory.NewLoginRequirement()}
-	return
+	reqs := []requirements.Requirement{
+		requirementsFactory.NewLoginRequirement(),
+	}
+
+	return reqs
 }
 
-func (cmd *RenameBuildpack) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *RenameBuildpack) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.buildpackRepo = deps.RepoLocator.GetBuildpackRepository()
 	return cmd
 }
 
-func NewRenameBuildpack(ui terminal.UI, repo api.BuildpackRepository) (cmd *RenameBuildpack) {
-	cmd = new(RenameBuildpack)
-	cmd.ui = ui
-	cmd.buildpackRepo = repo
-	return
-}
-
-func (cmd *RenameBuildpack) Execute(c flags.FlagContext) {
+func (cmd *RenameBuildpack) Execute(c flags.FlagContext) error {
 	buildpackName := c.Args()[0]
 	newBuildpackName := c.Args()[1]
 
 	cmd.ui.Say(T("Renaming buildpack {{.OldBuildpackName}} to {{.NewBuildpackName}}...", map[string]interface{}{"OldBuildpackName": terminal.EntityNameColor(buildpackName), "NewBuildpackName": terminal.EntityNameColor(newBuildpackName)}))
 
-	buildpack, apiErr := cmd.buildpackRepo.FindByName(buildpackName)
+	buildpack, err := cmd.buildpackRepo.FindByName(buildpackName)
 
-	if apiErr != nil {
-		cmd.ui.Failed(apiErr.Error())
+	if err != nil {
+		return err
 	}
 
 	buildpack.Name = newBuildpackName
-	buildpack, apiErr = cmd.buildpackRepo.Update(buildpack)
-	if apiErr != nil {
-		cmd.ui.Failed(T("Error renaming buildpack {{.Name}}\n{{.Error}}", map[string]interface{}{
+	buildpack, err = cmd.buildpackRepo.Update(buildpack)
+	if err != nil {
+		return errors.New(T("Error renaming buildpack {{.Name}}\n{{.Error}}", map[string]interface{}{
 			"Name":  terminal.EntityNameColor(buildpack.Name),
-			"Error": apiErr.Error(),
+			"Error": err.Error(),
 		}))
 	}
 
 	cmd.ui.Ok()
+	return nil
 }

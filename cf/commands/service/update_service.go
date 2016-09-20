@@ -5,32 +5,32 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cloudfoundry/cli/cf/actors/plan_builder"
+	"github.com/cloudfoundry/cli/cf"
+	"github.com/cloudfoundry/cli/cf/actors/planbuilder"
 	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/cf/ui_helpers"
-	"github.com/cloudfoundry/cli/flags"
-	"github.com/cloudfoundry/cli/flags/flag"
-	"github.com/cloudfoundry/cli/json"
+	"github.com/cloudfoundry/cli/cf/uihelpers"
+	"github.com/cloudfoundry/cli/utils/json"
 )
 
 type UpdateService struct {
 	ui          terminal.UI
-	config      core_config.Reader
+	config      coreconfig.Reader
 	serviceRepo api.ServiceRepository
-	planBuilder plan_builder.PlanBuilder
+	planBuilder planbuilder.PlanBuilder
 }
 
 func init() {
-	command_registry.Register(&UpdateService{})
+	commandregistry.Register(&UpdateService{})
 }
 
-func (cmd *UpdateService) MetaData() command_registry.CommandMetadata {
+func (cmd *UpdateService) MetaData() commandregistry.CommandMetadata {
 	baseUsage := T("CF_NAME update-service SERVICE_INSTANCE [-p NEW_PLAN] [-c PARAMETERS_AS_JSON] [-t TAGS]")
 	paramsUsage := T(`   Optionally provide service-specific configuration parameters in a valid JSON object in-line.
    CF_NAME update-service -c '{"name":"value","name":"value"}'
@@ -47,47 +47,58 @@ func (cmd *UpdateService) MetaData() command_registry.CommandMetadata {
       }
    }`)
 	tagsUsage := T(`   Optionally provide a list of comma-delimited tags that will be written to the VCAP_SERVICES environment variable for any bound applications.`)
-	exampleUsage := T(`EXAMPLE:
-   CF_NAME update-service mydb -p gold
-   CF_NAME update-service mydb -c '{"ram_gb":4}'
-   CF_NAME update-service mydb -c ~/workspace/tmp/instance_config.json
-   CF_NAME update-service mydb -t "list,of, tags"`)
 
 	fs := make(map[string]flags.FlagSet)
-	fs["p"] = &cliFlags.StringFlag{ShortName: "p", Usage: T("Change service plan for a service instance")}
-	fs["c"] = &cliFlags.StringFlag{ShortName: "c", Usage: T("Valid JSON object containing service-specific configuration parameters, provided either in-line or in a file. For a list of supported configuration parameters, see documentation for the particular service offering.")}
-	fs["t"] = &cliFlags.StringFlag{ShortName: "t", Usage: T("User provided tags")}
+	fs["p"] = &flags.StringFlag{ShortName: "p", Usage: T("Change service plan for a service instance")}
+	fs["c"] = &flags.StringFlag{ShortName: "c", Usage: T("Valid JSON object containing service-specific configuration parameters, provided either in-line or in a file. For a list of supported configuration parameters, see documentation for the particular service offering.")}
+	fs["t"] = &flags.StringFlag{ShortName: "t", Usage: T("User provided tags")}
 
-	return command_registry.CommandMetadata{
+	return commandregistry.CommandMetadata{
 		Name:        "update-service",
 		Description: T("Update a service instance"),
-		Usage:       T(strings.Join([]string{baseUsage, paramsUsage, tagsUsage, exampleUsage}, "\n\n")),
-		Flags:       fs,
+		Usage: []string{
+			baseUsage,
+			"\n\n",
+			paramsUsage,
+			"\n\n",
+			tagsUsage,
+		},
+		Examples: []string{
+			`CF_NAME update-service mydb -p gold`,
+			`CF_NAME update-service mydb -c '{"ram_gb":4}'`,
+			`CF_NAME update-service mydb -c ~/workspace/tmp/instance_config.json`,
+			`CF_NAME update-service mydb -t "list,of, tags"`,
+		},
+		Flags: fs,
 	}
 }
 
-func (cmd *UpdateService) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+func (cmd *UpdateService) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
 	if len(fc.Args()) != 1 {
-		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + command_registry.Commands.CommandUsage("update-service"))
+		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + commandregistry.Commands.CommandUsage("update-service"))
 	}
 
-	reqs = []requirements.Requirement{
+	reqs := []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 		requirementsFactory.NewTargetedSpaceRequirement(),
 	}
 
-	return
+	if fc.String("p") != "" {
+		reqs = append(reqs, requirementsFactory.NewMinAPIVersionRequirement("Updating a plan", cf.UpdateServicePlanMinimumAPIVersion))
+	}
+
+	return reqs
 }
 
-func (cmd *UpdateService) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *UpdateService) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.serviceRepo = deps.RepoLocator.GetServiceRepository()
 	cmd.planBuilder = deps.PlanBuilder
 	return cmd
 }
 
-func (cmd *UpdateService) Execute(c flags.FlagContext) {
+func (cmd *UpdateService) Execute(c flags.FlagContext) error {
 	planName := c.String("p")
 	params := c.String("c")
 
@@ -97,45 +108,45 @@ func (cmd *UpdateService) Execute(c flags.FlagContext) {
 	if planName == "" && params == "" && tagsSet == false {
 		cmd.ui.Ok()
 		cmd.ui.Say(T("No changes were made"))
-		return
+		return nil
 	}
 
 	serviceInstanceName := c.Args()[0]
 	serviceInstance, err := cmd.serviceRepo.FindInstanceByName(serviceInstanceName)
 	if err != nil {
-		cmd.ui.Failed(err.Error())
+		return err
 	}
 
-	paramsMap, err := json.ParseJsonFromFileOrString(params)
+	paramsMap, err := json.ParseJSONFromFileOrString(params)
 	if err != nil {
-		cmd.ui.Failed(T("Invalid configuration provided for -c flag. Please provide a valid JSON object or path to a file containing a valid JSON object."))
+		return errors.New(T("Invalid configuration provided for -c flag. Please provide a valid JSON object or path to a file containing a valid JSON object."))
 	}
 
-	tags := ui_helpers.ParseTags(tagsList)
+	tags := uihelpers.ParseTags(tagsList)
 
 	var plan models.ServicePlanFields
 	if planName != "" {
-		cmd.checkUpdateServicePlanApiVersion()
 		plan, err = cmd.findPlan(serviceInstance, planName)
 		if err != nil {
-			cmd.ui.Failed(err.Error())
+			return err
 		}
 	}
 
 	cmd.printUpdatingServiceInstanceMessage(serviceInstanceName)
 
-	err = cmd.serviceRepo.UpdateServiceInstance(serviceInstance.Guid, plan.Guid, paramsMap, tags)
+	err = cmd.serviceRepo.UpdateServiceInstance(serviceInstance.GUID, plan.GUID, paramsMap, tags)
 	if err != nil {
-		cmd.ui.Failed(err.Error())
+		return err
 	}
 	err = printSuccessMessageForServiceInstance(serviceInstanceName, cmd.serviceRepo, cmd.ui)
 	if err != nil {
-		cmd.ui.Failed(err.Error())
+		return err
 	}
+	return nil
 }
 
 func (cmd *UpdateService) findPlan(serviceInstance models.ServiceInstance, planName string) (plan models.ServicePlanFields, err error) {
-	plans, err := cmd.planBuilder.GetPlansForServiceForOrg(serviceInstance.ServiceOffering.Guid, cmd.config.OrganizationFields().Name)
+	plans, err := cmd.planBuilder.GetPlansForServiceForOrg(serviceInstance.ServiceOffering.GUID, cmd.config.OrganizationFields().Name)
 	if err != nil {
 		return
 	}
@@ -149,16 +160,6 @@ func (cmd *UpdateService) findPlan(serviceInstance models.ServiceInstance, planN
 	err = errors.New(T("Plan does not exist for the {{.ServiceName}} service",
 		map[string]interface{}{"ServiceName": serviceInstance.ServiceOffering.Label}))
 	return
-}
-
-func (cmd *UpdateService) checkUpdateServicePlanApiVersion() {
-	if !cmd.config.IsMinApiVersion("2.16.0") {
-		cmd.ui.Failed(T("Updating a plan requires API v{{.RequiredCCAPIVersion}} or newer. Your current target is v{{.CurrentCCAPIVersion}}.",
-			map[string]interface{}{
-				"RequiredCCAPIVersion": "2.16.0",
-				"CurrentCCAPIVersion":  cmd.config.ApiVersion(),
-			}))
-	}
 }
 
 func (cmd *UpdateService) printUpdatingServiceInstanceMessage(serviceInstanceName string) {

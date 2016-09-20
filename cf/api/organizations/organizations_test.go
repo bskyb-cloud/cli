@@ -5,85 +5,157 @@ import (
 	"net/http/httptest"
 	"time"
 
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
+	"github.com/cloudfoundry/cli/cf/terminal/terminalfakes"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testnet "github.com/cloudfoundry/cli/testhelpers/net"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/cf/api/organizations"
+	"github.com/cloudfoundry/cli/cf/trace/tracefakes"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/ghttp"
 )
 
 var _ = Describe("Organization Repository", func() {
-	Describe("listing organizations", func() {
-		It("lists the orgs from the the /v2/orgs endpoint", func() {
-			firstPageOrgsRequest := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
-				Method: "GET",
-				Path:   "/v2/organizations",
-				Response: testnet.TestResponse{Status: http.StatusOK, Body: `{
-	"next_url": "/v2/organizations?page=2",
-	"resources": [
-		{
-		  "metadata": { "guid": "org1-guid" },
-		  "entity": { "name": "Org1" }
-		},
-		{
-		  "metadata": { "guid": "org2-guid" },
-		  "entity": { "name": "Org2" }
-		}
-	]}`},
+	Describe("ListOrgs", func() {
+		var (
+			ccServer *ghttp.Server
+			repo     CloudControllerOrganizationRepository
+		)
+
+		Context("when there are orgs", func() {
+			BeforeEach(func() {
+				ccServer = ghttp.NewServer()
+				configRepo := testconfig.NewRepositoryWithDefaults()
+				configRepo.SetAPIEndpoint(ccServer.URL())
+				gateway := net.NewCloudControllerGateway(configRepo, time.Now, new(terminalfakes.FakeUI), new(tracefakes.FakePrinter), "")
+				repo = NewCloudControllerOrganizationRepository(configRepo, gateway)
+				ccServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/organizations", "order-by=name"),
+						ghttp.VerifyHeader(http.Header{
+							"accept": []string{"application/json"},
+						}),
+						ghttp.RespondWith(http.StatusOK, `{
+						"total_results": 3,
+						"total_pages": 2,
+						"prev_url": null,
+						"next_url": "/v2/organizations?order-by=name&page=2",
+						"resources": [
+							{
+								"metadata": { "guid": "org3-guid" },
+								"entity": { "name": "Alpha" }
+							},
+							{
+								"metadata": { "guid": "org2-guid" },
+								"entity": { "name": "Beta" }
+							}
+						]
+					}`),
+					),
+				)
+
+				ccServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/organizations", "order-by=name&page=2"),
+						ghttp.VerifyHeader(http.Header{
+							"accept": []string{"application/json"},
+						}),
+						ghttp.RespondWith(http.StatusOK, `{
+						"total_results": 3,
+						"total_pages": 2,
+						"prev_url": null,
+						"next_url": null,
+						"resources": [
+							{
+								"metadata": { "guid": "org1-guid" },
+								"entity": { "name": "Gamma" }
+							}
+						]
+					}`),
+					),
+				)
 			})
 
-			secondPageOrgsRequest := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
-				Method: "GET",
-				Path:   "/v2/organizations?page=2",
-				Response: testnet.TestResponse{Status: http.StatusOK, Body: `{"resources": [
-		{
-		  "metadata": { "guid": "org3-guid" },
-		  "entity": { "name": "Org3" }
-		}
-	]}`},
+			AfterEach(func() {
+				ccServer.Close()
 			})
 
-			testserver, handler, repo := createOrganizationRepo(firstPageOrgsRequest, secondPageOrgsRequest)
-			defer testserver.Close()
+			Context("when given a non-zero positive limit", func() {
+				It("should return no more than the limit number of organizations", func() {
+					orgs, err := repo.ListOrgs(2)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(len(orgs)).To(Equal(2))
+				})
 
-			orgs := []models.Organization{}
-			orgs, apiErr := repo.ListOrgs()
+				It("should not make more requests than necessary to retrieve the requested number of orgs", func() {
+					_, err := repo.ListOrgs(2)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(ccServer.ReceivedRequests()).Should(HaveLen(1))
+				})
+			})
 
-			Expect(len(orgs)).To(Equal(3))
-			Expect(orgs[0].Guid).To(Equal("org1-guid"))
-			Expect(orgs[1].Guid).To(Equal("org2-guid"))
-			Expect(orgs[2].Guid).To(Equal("org3-guid"))
-			Expect(apiErr).NotTo(HaveOccurred())
-			Expect(handler).To(HaveAllRequestsCalled())
+			Context("when given a zero limit", func() {
+				It("should return all organizations", func() {
+					orgs, err := repo.ListOrgs(0)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(len(orgs)).To(Equal(3))
+				})
+
+				It("lists the orgs from the the /v2/orgs endpoint in alphabetical order", func() {
+					orgs, apiErr := repo.ListOrgs(0)
+
+					Expect(len(orgs)).To(Equal(3))
+					Expect(orgs[0].GUID).To(Equal("org3-guid"))
+					Expect(orgs[1].GUID).To(Equal("org2-guid"))
+					Expect(orgs[2].GUID).To(Equal("org1-guid"))
+
+					Expect(orgs[0].Name).To(Equal("Alpha"))
+					Expect(orgs[1].Name).To(Equal("Beta"))
+					Expect(orgs[2].Name).To(Equal("Gamma"))
+					Expect(apiErr).NotTo(HaveOccurred())
+				})
+			})
 		})
 
-		It("does not call the provided function when there are no orgs found", func() {
-			emptyOrgsRequest := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
-				Method:   "GET",
-				Path:     "/v2/organizations",
-				Response: testnet.TestResponse{Status: http.StatusOK, Body: `{"resources": []}`},
+		Context("when there are no orgs", func() {
+			BeforeEach(func() {
+				ccServer = ghttp.NewServer()
+				configRepo := testconfig.NewRepositoryWithDefaults()
+				configRepo.SetAPIEndpoint(ccServer.URL())
+				gateway := net.NewCloudControllerGateway(configRepo, time.Now, new(terminalfakes.FakeUI), new(tracefakes.FakePrinter), "")
+				repo = NewCloudControllerOrganizationRepository(configRepo, gateway)
+				ccServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/organizations"),
+						ghttp.VerifyHeader(http.Header{
+							"accept": []string{"application/json"},
+						}),
+						ghttp.RespondWith(http.StatusOK, `{"resources": []}`),
+					),
+				)
 			})
 
-			testserver, handler, repo := createOrganizationRepo(emptyOrgsRequest)
-			defer testserver.Close()
+			AfterEach(func() {
+				ccServer.Close()
+			})
 
-			_, apiErr := repo.ListOrgs()
+			It("does not call the provided function", func() {
+				_, apiErr := repo.ListOrgs(0)
 
-			Expect(apiErr).NotTo(HaveOccurred())
-			Expect(handler).To(HaveAllRequestsCalled())
+				Expect(apiErr).NotTo(HaveOccurred())
+			})
 		})
 	})
 
-	Describe(".GetManyOrgsByGuid", func() {
+	Describe(".GetManyOrgsByGUID", func() {
 		It("requests each org", func() {
-			firstOrgRequest := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+			firstOrgRequest := apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method: "GET",
 				Path:   "/v2/organizations/org1-guid",
 				Response: testnet.TestResponse{Status: http.StatusOK, Body: `{
@@ -91,7 +163,7 @@ var _ = Describe("Organization Repository", func() {
 		  "entity": { "name": "Org1" }
 		}`},
 			})
-			secondOrgRequest := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+			secondOrgRequest := apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method: "GET",
 				Path:   "/v2/organizations/org2-guid",
 				Response: testnet.TestResponse{Status: http.StatusOK, Body: `{
@@ -102,20 +174,20 @@ var _ = Describe("Organization Repository", func() {
 			testserver, handler, repo := createOrganizationRepo(firstOrgRequest, secondOrgRequest)
 			defer testserver.Close()
 
-			orgGuids := []string{"org1-guid", "org2-guid"}
-			orgs, err := repo.GetManyOrgsByGuid(orgGuids)
+			orgGUIDs := []string{"org1-guid", "org2-guid"}
+			orgs, err := repo.GetManyOrgsByGUID(orgGUIDs)
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(handler).To(HaveAllRequestsCalled())
 			Expect(len(orgs)).To(Equal(2))
-			Expect(orgs[0].Guid).To(Equal("org1-guid"))
-			Expect(orgs[1].Guid).To(Equal("org2-guid"))
+			Expect(orgs[0].GUID).To(Equal("org1-guid"))
+			Expect(orgs[1].GUID).To(Equal("org2-guid"))
 		})
 	})
 
 	Describe("finding organizations by name", func() {
 		It("returns the org with that name", func() {
-			req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+			req := apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method: "GET",
 				Path:   "/v2/organizations?q=name%3Aorg1&inline-relations-depth=1",
 				Response: testnet.TestResponse{Status: http.StatusOK, Body: `{"resources": [{
@@ -147,7 +219,7 @@ var _ = Describe("Organization Repository", func() {
 			testserver, handler, repo := createOrganizationRepo(req)
 			defer testserver.Close()
 			existingOrg := models.Organization{}
-			existingOrg.Guid = "org1-guid"
+			existingOrg.GUID = "org1-guid"
 			existingOrg.Name = "Org1"
 
 			org, apiErr := repo.FindByName("Org1")
@@ -155,22 +227,22 @@ var _ = Describe("Organization Repository", func() {
 			Expect(apiErr).NotTo(HaveOccurred())
 
 			Expect(org.Name).To(Equal(existingOrg.Name))
-			Expect(org.Guid).To(Equal(existingOrg.Guid))
+			Expect(org.GUID).To(Equal(existingOrg.GUID))
 			Expect(org.QuotaDefinition.Name).To(Equal("not-your-average-quota"))
 			Expect(org.QuotaDefinition.MemoryLimit).To(Equal(int64(128)))
 			Expect(len(org.Spaces)).To(Equal(1))
 			Expect(org.Spaces[0].Name).To(Equal("Space1"))
-			Expect(org.Spaces[0].Guid).To(Equal("space1-guid"))
+			Expect(org.Spaces[0].GUID).To(Equal("space1-guid"))
 			Expect(len(org.Domains)).To(Equal(1))
 			Expect(org.Domains[0].Name).To(Equal("cfapps.io"))
-			Expect(org.Domains[0].Guid).To(Equal("domain1-guid"))
+			Expect(org.Domains[0].GUID).To(Equal("domain1-guid"))
 			Expect(len(org.SpaceQuotas)).To(Equal(1))
 			Expect(org.SpaceQuotas[0].Name).To(Equal("space-quota1"))
-			Expect(org.SpaceQuotas[0].Guid).To(Equal("space-quota1-guid"))
+			Expect(org.SpaceQuotas[0].GUID).To(Equal("space-quota1-guid"))
 		})
 
 		It("returns a ModelNotFoundError when the org cannot be found", func() {
-			req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+			req := apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method:   "GET",
 				Path:     "/v2/organizations?q=name%3Aorg1&inline-relations-depth=1",
 				Response: testnet.TestResponse{Status: http.StatusOK, Body: `{"resources": []}`},
@@ -185,7 +257,7 @@ var _ = Describe("Organization Repository", func() {
 		})
 
 		It("returns an api error when the response is not successful", func() {
-			requestHandler := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+			requestHandler := apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method:   "GET",
 				Path:     "/v2/organizations?q=name%3Aorg1&inline-relations-depth=1",
 				Response: testnet.TestResponse{Status: http.StatusBadGateway, Body: `{"resources": []}`},
@@ -208,7 +280,7 @@ var _ = Describe("Organization Repository", func() {
 					Name: "my-org",
 				}}
 
-			req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+			req := apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method:   "POST",
 				Path:     "/v2/organizations",
 				Matcher:  testnet.RequestBodyMatcher(`{"name":"my-org"}`),
@@ -228,11 +300,11 @@ var _ = Describe("Organization Repository", func() {
 				OrganizationFields: models.OrganizationFields{
 					Name: "my-org",
 					QuotaDefinition: models.QuotaFields{
-						Guid: "my-quota-guid",
+						GUID: "my-quota-guid",
 					},
 				}}
 
-			req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+			req := apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method:   "POST",
 				Path:     "/v2/organizations",
 				Matcher:  testnet.RequestBodyMatcher(`{"name":"my-org", "quota_definition_guid":"my-quota-guid"}`),
@@ -250,7 +322,7 @@ var _ = Describe("Organization Repository", func() {
 
 	Describe("renaming orgs", func() {
 		It("renames the org with the given guid", func() {
-			req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+			req := apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method:   "PUT",
 				Path:     "/v2/organizations/my-org-guid",
 				Matcher:  testnet.RequestBodyMatcher(`{"name":"my-new-org"}`),
@@ -268,7 +340,7 @@ var _ = Describe("Organization Repository", func() {
 
 	Describe("deleting orgs", func() {
 		It("deletes the org with the given guid", func() {
-			req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+			req := apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method:   "DELETE",
 				Path:     "/v2/organizations/my-org-guid?recursive=true",
 				Response: testnet.TestResponse{Status: http.StatusOK},
@@ -285,7 +357,7 @@ var _ = Describe("Organization Repository", func() {
 
 	Describe("SharePrivateDomain", func() {
 		It("shares the private domain with the given org", func() {
-			req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+			req := apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method:   "PUT",
 				Path:     "/v2/organizations/my-org-guid/private_domains/domain-guid",
 				Response: testnet.TestResponse{Status: http.StatusOK},
@@ -302,7 +374,7 @@ var _ = Describe("Organization Repository", func() {
 
 	Describe("UnsharePrivateDomain", func() {
 		It("unshares the private domain with the given org", func() {
-			req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+			req := apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method:   "DELETE",
 				Path:     "/v2/organizations/my-org-guid/private_domains/domain-guid",
 				Response: testnet.TestResponse{Status: http.StatusOK},
@@ -322,8 +394,8 @@ func createOrganizationRepo(reqs ...testnet.TestRequest) (testserver *httptest.S
 	testserver, handler = testnet.NewServer(reqs)
 
 	configRepo := testconfig.NewRepositoryWithDefaults()
-	configRepo.SetApiEndpoint(testserver.URL)
-	gateway := net.NewCloudControllerGateway(configRepo, time.Now, &testterm.FakeUI{})
+	configRepo.SetAPIEndpoint(testserver.URL)
+	gateway := net.NewCloudControllerGateway(configRepo, time.Now, new(terminalfakes.FakeUI), new(tracefakes.FakePrinter), "")
 	repo = NewCloudControllerOrganizationRepository(configRepo, gateway)
 	return
 }

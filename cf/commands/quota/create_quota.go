@@ -1,63 +1,90 @@
 package quota
 
 import (
+	"fmt"
+
+	"encoding/json"
+	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/api/quotas"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/resources"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/flags"
 	"github.com/cloudfoundry/cli/cf/formatters"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
-	"github.com/cloudfoundry/cli/flags/flag"
 )
 
 type CreateQuota struct {
 	ui        terminal.UI
-	config    core_config.Reader
+	config    coreconfig.Reader
 	quotaRepo quotas.QuotaRepository
 }
 
 func init() {
-	command_registry.Register(&CreateQuota{})
+	commandregistry.Register(&CreateQuota{})
 }
 
-func (cmd *CreateQuota) MetaData() command_registry.CommandMetadata {
+func (cmd *CreateQuota) MetaData() commandregistry.CommandMetadata {
 	fs := make(map[string]flags.FlagSet)
-	fs["allow-paid-service-plans"] = &cliFlags.BoolFlag{Name: "allow-paid-service-plans", Usage: T("Can provision instances of paid service plans")}
-	fs["i"] = &cliFlags.StringFlag{ShortName: "i", Usage: T("Maximum amount of memory an application instance can have (e.g. 1024M, 1G, 10G). -1 represents an unlimited amount.")}
-	fs["m"] = &cliFlags.StringFlag{ShortName: "m", Usage: T("Total amount of memory (e.g. 1024M, 1G, 10G)")}
-	fs["r"] = &cliFlags.IntFlag{ShortName: "r", Usage: T("Total number of routes")}
-	fs["s"] = &cliFlags.IntFlag{ShortName: "s", Usage: T("Total number of service instances")}
+	fs["allow-paid-service-plans"] = &flags.BoolFlag{Name: "allow-paid-service-plans", Usage: T("Can provision instances of paid service plans")}
+	fs["i"] = &flags.StringFlag{ShortName: "i", Usage: T("Maximum amount of memory an application instance can have (e.g. 1024M, 1G, 10G). -1 represents an unlimited amount.")}
+	fs["m"] = &flags.StringFlag{ShortName: "m", Usage: T("Total amount of memory (e.g. 1024M, 1G, 10G)")}
+	fs["r"] = &flags.IntFlag{ShortName: "r", Usage: T("Total number of routes")}
+	fs["s"] = &flags.IntFlag{ShortName: "s", Usage: T("Total number of service instances")}
+	fs["a"] = &flags.IntFlag{ShortName: "a", Usage: T("Total number of application instances. -1 represents an unlimited amount. (Default: unlimited)")}
+	fs["reserved-route-ports"] = &flags.StringFlag{Name: "reserved-route-ports", Usage: T("Maximum number of routes that may be created with reserved ports (Default: 0)")}
 
-	return command_registry.CommandMetadata{
+	return commandregistry.CommandMetadata{
 		Name:        "create-quota",
 		Description: T("Define a new resource quota"),
-		Usage:       T("CF_NAME create-quota QUOTA [-m TOTAL_MEMORY] [-i INSTANCE_MEMORY] [-r ROUTES] [-s SERVICE_INSTANCES] [--allow-paid-service-plans]"),
-		Flags:       fs,
+		Usage: []string{
+			"CF_NAME create-quota ",
+			T("QUOTA"),
+			" ",
+			fmt.Sprintf("[-m %s] ", T("TOTAL_MEMORY")),
+			fmt.Sprintf("[-i %s] ", T("INSTANCE_MEMORY")),
+			fmt.Sprintf("[-r %s] ", T("ROUTES")),
+			fmt.Sprintf("[-s %s] ", T("SERVICE_INSTANCES")),
+			fmt.Sprintf("[-a %s] ", T("APP_INSTANCES")),
+			"[--allow-paid-service-plans] ",
+			fmt.Sprintf("[--reserved-route-ports %s] ", T("RESERVED_ROUTE_PORTS")),
+		},
+		Flags: fs,
 	}
 }
 
-func (cmd *CreateQuota) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+func (cmd *CreateQuota) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
 	if len(fc.Args()) != 1 {
-		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + command_registry.Commands.CommandUsage("create-quota"))
+		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + commandregistry.Commands.CommandUsage("create-quota"))
 	}
 
-	return []requirements.Requirement{
+	reqs := []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
-	}, nil
+	}
+
+	if fc.IsSet("a") {
+		reqs = append(reqs, requirementsFactory.NewMinAPIVersionRequirement("Option '-a'", cf.OrgAppInstanceLimitMinimumAPIVersion))
+	}
+
+	if fc.IsSet("reserved-route-ports") {
+		reqs = append(reqs, requirementsFactory.NewMinAPIVersionRequirement("Option '--reserved-route-ports'", cf.ReservedRoutePortsMinimumAPIVersion))
+	}
+
+	return reqs
 }
 
-func (cmd *CreateQuota) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *CreateQuota) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.quotaRepo = deps.RepoLocator.GetQuotaRepository()
 	return cmd
 }
 
-func (cmd *CreateQuota) Execute(context flags.FlagContext) {
+func (cmd *CreateQuota) Execute(context flags.FlagContext) error {
 	name := context.Args()[0]
 
 	cmd.ui.Say(T("Creating quota {{.QuotaName}} as {{.Username}}...", map[string]interface{}{
@@ -73,7 +100,7 @@ func (cmd *CreateQuota) Execute(context flags.FlagContext) {
 	if memoryLimit != "" {
 		parsedMemory, err := formatters.ToMegabytes(memoryLimit)
 		if err != nil {
-			cmd.ui.Failed(T("Invalid memory limit: {{.MemoryLimit}}\n{{.Err}}", map[string]interface{}{"MemoryLimit": memoryLimit, "Err": err}))
+			return errors.New(T("Invalid memory limit: {{.MemoryLimit}}\n{{.Err}}", map[string]interface{}{"MemoryLimit": memoryLimit, "Err": err}))
 		}
 
 		quota.MemoryLimit = parsedMemory
@@ -85,7 +112,7 @@ func (cmd *CreateQuota) Execute(context flags.FlagContext) {
 	} else {
 		parsedMemory, errr := formatters.ToMegabytes(instanceMemoryLimit)
 		if errr != nil {
-			cmd.ui.Failed(T("Invalid instance memory limit: {{.MemoryLimit}}\n{{.Err}}", map[string]interface{}{"MemoryLimit": instanceMemoryLimit, "Err": errr}))
+			return errors.New(T("Invalid instance memory limit: {{.MemoryLimit}}\n{{.Err}}", map[string]interface{}{"MemoryLimit": instanceMemoryLimit, "Err": errr}))
 		}
 		quota.InstanceMemoryLimit = parsedMemory
 	}
@@ -98,22 +125,33 @@ func (cmd *CreateQuota) Execute(context flags.FlagContext) {
 		quota.ServicesLimit = context.Int("s")
 	}
 
+	if context.IsSet("a") {
+		quota.AppInstanceLimit = context.Int("a")
+	} else {
+		quota.AppInstanceLimit = resources.UnlimitedAppInstances
+	}
+
 	if context.IsSet("allow-paid-service-plans") {
 		quota.NonBasicServicesAllowed = true
 	}
 
+	if context.IsSet("reserved-route-ports") {
+		quota.ReservedRoutePorts = json.Number(context.String("reserved-route-ports"))
+	}
+
 	err := cmd.quotaRepo.Create(quota)
 
-	httpErr, ok := err.(errors.HttpError)
-	if ok && httpErr.ErrorCode() == errors.QUOTA_EXISTS {
+	httpErr, ok := err.(errors.HTTPError)
+	if ok && httpErr.ErrorCode() == errors.QuotaDefinitionNameTaken {
 		cmd.ui.Ok()
 		cmd.ui.Warn(T("Quota Definition {{.QuotaName}} already exists", map[string]interface{}{"QuotaName": quota.Name}))
-		return
+		return nil
 	}
 
 	if err != nil {
-		cmd.ui.Failed(err.Error())
+		return err
 	}
 
 	cmd.ui.Ok()
+	return nil
 }

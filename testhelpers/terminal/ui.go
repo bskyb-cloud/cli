@@ -2,24 +2,26 @@ package terminal
 
 import (
 	"fmt"
+	"io"
 	"strings"
 	"sync"
 	"time"
 
+	"os"
+
 	"github.com/cloudfoundry/cli/cf"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	term "github.com/cloudfoundry/cli/cf/terminal"
 )
 
 const QuietPanic = "I should not print anything"
 
 type FakeUI struct {
-	Outputs                    []string
-	UncapturedOutput           []string
+	outputs                    []string
+	uncapturedOutput           []string
 	WarnOutputs                []string
 	Prompts                    []string
 	PasswordPrompts            []string
-	InputsChan                 chan string
 	Inputs                     []string
 	FailedWithUsage            bool
 	FailedWithUsageCommandName string
@@ -27,6 +29,20 @@ type FakeUI struct {
 	ShowConfigurationCalled    bool
 
 	sayMutex sync.Mutex
+}
+
+func (ui *FakeUI) Outputs() []string {
+	ui.sayMutex.Lock()
+	defer ui.sayMutex.Unlock()
+
+	return ui.outputs
+}
+
+func (ui *FakeUI) UncapturedOutput() []string {
+	ui.sayMutex.Lock()
+	defer ui.sayMutex.Unlock()
+
+	return ui.uncapturedOutput
 }
 
 func (ui *FakeUI) PrintPaginator(rows []string, err error) {
@@ -40,12 +56,16 @@ func (ui *FakeUI) PrintPaginator(rows []string, err error) {
 	}
 }
 
+func (ui *FakeUI) Writer() io.Writer {
+	return os.Stdout
+}
+
 func (ui *FakeUI) PrintCapturingNoOutput(message string, args ...interface{}) {
 	ui.sayMutex.Lock()
 	defer ui.sayMutex.Unlock()
 
 	message = fmt.Sprintf(message, args...)
-	ui.UncapturedOutput = append(ui.UncapturedOutput, strings.Split(message, "\n")...)
+	ui.uncapturedOutput = append(ui.uncapturedOutput, strings.Split(message, "\n")...)
 	return
 }
 
@@ -54,7 +74,7 @@ func (ui *FakeUI) Say(message string, args ...interface{}) {
 	defer ui.sayMutex.Unlock()
 
 	message = fmt.Sprintf(message, args...)
-	ui.Outputs = append(ui.Outputs, strings.Split(message, "\n")...)
+	ui.outputs = append(ui.outputs, strings.Split(message, "\n")...)
 	return
 }
 
@@ -65,36 +85,32 @@ func (ui *FakeUI) Warn(message string, args ...interface{}) {
 	return
 }
 
-func (ui *FakeUI) Ask(prompt string, args ...interface{}) string {
-	ui.Prompts = append(ui.Prompts, fmt.Sprintf(prompt, args...))
+func (ui *FakeUI) Ask(prompt string) string {
+	ui.Prompts = append(ui.Prompts, prompt)
 
-	if ui.InputsChan == nil {
-		if len(ui.Inputs) == 0 {
-			panic("No input provided to Fake UI for prompt: " + fmt.Sprintf(prompt, args...))
-		}
-
-		answer := ui.Inputs[0]
-		ui.Inputs = ui.Inputs[1:]
-		return answer
+	if len(ui.Inputs) == 0 {
+		panic("No input provided to Fake UI for prompt: " + prompt)
 	}
 
-	return <-ui.InputsChan
+	answer := ui.Inputs[0]
+	ui.Inputs = ui.Inputs[1:]
+	return answer
 }
 
 func (ui *FakeUI) ConfirmDelete(modelType, modelName string) bool {
-	return ui.Confirm(
+	return ui.Confirm(fmt.Sprintf(
 		"Really delete the %s %s?%s",
 		modelType,
 		term.EntityNameColor(modelName),
-		term.PromptColor(">"))
+		term.PromptColor(">")))
 }
 
 func (ui *FakeUI) ConfirmDeleteWithAssociations(modelType, modelName string) bool {
 	return ui.ConfirmDelete(modelType, modelName)
 }
 
-func (ui *FakeUI) Confirm(prompt string, args ...interface{}) bool {
-	response := ui.Ask(prompt, args...)
+func (ui *FakeUI) Confirm(prompt string) bool {
+	response := ui.Ask(prompt)
 	switch strings.ToLower(response) {
 	case "y", "yes":
 		return true
@@ -102,19 +118,16 @@ func (ui *FakeUI) Confirm(prompt string, args ...interface{}) bool {
 	return false
 }
 
-func (ui *FakeUI) AskForPassword(prompt string, args ...interface{}) string {
-	ui.PasswordPrompts = append(ui.PasswordPrompts, fmt.Sprintf(prompt, args...))
-	if ui.InputsChan == nil {
-		if len(ui.Inputs) == 0 {
-			panic("No input provided to Fake UI for prompt: " + fmt.Sprintf(prompt, args...))
-		}
+func (ui *FakeUI) AskForPassword(prompt string) string {
+	ui.PasswordPrompts = append(ui.PasswordPrompts, prompt)
 
-		answer := ui.Inputs[0]
-		ui.Inputs = ui.Inputs[1:]
-		return answer
+	if len(ui.Inputs) == 0 {
+		panic("No input provided to Fake UI for prompt: " + prompt)
 	}
 
-	return <-ui.InputsChan
+	answer := ui.Inputs[0]
+	ui.Inputs = ui.Inputs[1:]
+	return answer
 }
 
 func (ui *FakeUI) Ok() {
@@ -136,7 +149,7 @@ func (ui *FakeUI) DumpWarnOutputs() string {
 }
 
 func (ui *FakeUI) DumpOutputs() string {
-	return "****************************\n" + strings.Join(ui.Outputs, "\n")
+	return "****************************\n" + strings.Join(ui.Outputs(), "\n")
 }
 
 func (ui *FakeUI) DumpPrompts() string {
@@ -144,10 +157,13 @@ func (ui *FakeUI) DumpPrompts() string {
 }
 
 func (ui *FakeUI) ClearOutputs() {
-	ui.Outputs = []string{}
+	ui.sayMutex.Lock()
+	defer ui.sayMutex.Unlock()
+
+	ui.outputs = []string{}
 }
 
-func (ui *FakeUI) ShowConfiguration(config core_config.Reader) {
+func (ui *FakeUI) ShowConfiguration(config coreconfig.Reader) {
 	ui.ShowConfigurationCalled = true
 }
 
@@ -158,12 +174,15 @@ func (ui *FakeUI) Wait(duration time.Duration) {
 	time.Sleep(duration)
 }
 
-func (ui *FakeUI) Table(headers []string) term.Table {
-	return term.NewTable(ui, headers)
+func (ui *FakeUI) Table(headers []string) *term.UITable {
+	return &term.UITable{
+		UI:    ui,
+		Table: term.NewTable(headers),
+	}
 }
 
-func (ui *FakeUI) NotifyUpdateIfNeeded(config core_config.Reader) {
-	if !config.IsMinCliVersion(cf.Version) {
-		ui.Say("Cloud Foundry API version {{.ApiVer}} requires CLI version " + config.MinCliVersion() + "  You are currently on version {{.CliVer}}. To upgrade your CLI, please visit: https://github.com/cloudfoundry/cli#downloads")
+func (ui *FakeUI) NotifyUpdateIfNeeded(config coreconfig.Reader) {
+	if !config.IsMinCLIVersion(cf.Version) {
+		ui.Say("Cloud Foundry API version {{.APIVer}} requires CLI version " + config.MinCLIVersion() + "  You are currently on version {{.CLIVer}}. To upgrade your CLI, please visit: https://github.com/cloudfoundry/cli#downloads")
 	}
 }

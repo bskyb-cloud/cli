@@ -29,7 +29,8 @@ const (
 	sha1FingerprintLength = 59 // inclusive of space between bytes
 )
 
-//go:generate counterfeiter -o fakes/fake_secure_shell.go . SecureShell
+//go:generate counterfeiter . SecureShell
+
 type SecureShell interface {
 	Connect(opts *options.SSHOptions) error
 	InteractiveSession() error
@@ -38,12 +39,14 @@ type SecureShell interface {
 	Close() error
 }
 
-//go:generate counterfeiter -o fakes/fake_secure_dialer.go . SecureDialer
+//go:generate counterfeiter . SecureDialer
+
 type SecureDialer interface {
 	Dial(network, address string, config *ssh.ClientConfig) (SecureClient, error)
 }
 
-//go:generate counterfeiter -o fakes/fake_secure_client.go . SecureClient
+//go:generate counterfeiter . SecureClient
+
 type SecureClient interface {
 	NewSession() (SecureSession, error)
 	Conn() ssh.Conn
@@ -52,12 +55,14 @@ type SecureClient interface {
 	Close() error
 }
 
-//go:generate counterfeiter -o fakes/fake_listener_factory.go . ListenerFactory
+//go:generate counterfeiter . ListenerFactory
+
 type ListenerFactory interface {
 	Listen(network, address string) (net.Listener, error)
 }
 
-//go:generate counterfeiter -o fakes/fake_secure_session.go . SecureSession
+//go:generate counterfeiter . SecureSession
+
 type SecureSession interface {
 	RequestPty(term string, height, width int, termModes ssh.TerminalModes) error
 	SendRequest(name string, wantReply bool, payload []byte) (bool, error)
@@ -72,7 +77,7 @@ type SecureSession interface {
 
 type secureShell struct {
 	secureDialer           SecureDialer
-	terminalHelper         sshTerminal.TerminalHelper
+	terminalHelper         terminal.TerminalHelper
 	listenerFactory        ListenerFactory
 	keepAliveInterval      time.Duration
 	app                    models.Application
@@ -87,7 +92,7 @@ type secureShell struct {
 
 func NewSecureShell(
 	secureDialer SecureDialer,
-	terminalHelper sshTerminal.TerminalHelper,
+	terminalHelper terminal.TerminalHelper,
 	listenerFactory ListenerFactory,
 	keepAliveInterval time.Duration,
 	app models.Application,
@@ -115,7 +120,7 @@ func (c *secureShell) Connect(opts *options.SSHOptions) error {
 	}
 
 	clientConfig := &ssh.ClientConfig{
-		User: fmt.Sprintf("cf:%s/%d", c.app.Guid, opts.Index),
+		User: fmt.Sprintf("cf:%s/%d", c.app.GUID, opts.Index),
 		Auth: []ssh.AuthMethod{
 			ssh.Password(c.token),
 		},
@@ -134,7 +139,7 @@ func (c *secureShell) Connect(opts *options.SSHOptions) error {
 
 func (c *secureShell) Close() error {
 	for _, listener := range c.localListeners {
-		listener.Close()
+		_ = listener.Close()
 	}
 	return c.secureClient.Close()
 }
@@ -189,15 +194,15 @@ func (c *secureShell) handleForwardConnection(conn net.Conn, targetAddr string) 
 }
 
 func copyAndClose(wg *sync.WaitGroup, dest io.WriteCloser, src io.Reader) {
-	io.Copy(dest, src)
-	dest.Close()
+	_, _ = io.Copy(dest, src)
+	_ = dest.Close()
 	if wg != nil {
 		wg.Done()
 	}
 }
 
 func copyAndDone(wg *sync.WaitGroup, dest io.Writer, src io.Reader) {
-	io.Copy(dest, src)
+	_, _ = io.Copy(dest, src)
 	wg.Done()
 }
 
@@ -282,7 +287,7 @@ func (c *secureShell) InteractiveSession() error {
 			defer ticker.Stop()
 
 			go func() {
-				for _ = range ticker.C {
+				for range ticker.C {
 					resized <- syscall.Signal(-1)
 				}
 				close(resized)
@@ -367,13 +372,13 @@ func fingerprintCallback(opts *options.SSHOptions, expectedFingerprint string) h
 
 func (c *secureShell) shouldAllocateTerminal(opts *options.SSHOptions, stdinIsTerminal bool) bool {
 	switch opts.TerminalRequest {
-	case options.REQUEST_TTY_FORCE:
+	case options.RequestTTYForce:
 		return true
-	case options.REQUEST_TTY_NO:
+	case options.RequestTTYNo:
 		return false
-	case options.REQUEST_TTY_YES:
+	case options.RequestTTYYes:
 		return stdinIsTerminal
-	case options.REQUEST_TTY_AUTO:
+	case options.RequestTTYAuto:
 		return len(opts.Command) == 0 && stdinIsTerminal
 	default:
 		return false
@@ -390,7 +395,7 @@ func (c *secureShell) resize(resized <-chan os.Signal, session SecureSession, te
 
 	var previousWidth, previousHeight int
 
-	for _ = range resized {
+	for range resized {
 		width, height := c.getWindowDimensions(terminalFd)
 
 		if width == previousWidth && height == previousHeight {
@@ -402,7 +407,7 @@ func (c *secureShell) resize(resized <-chan os.Signal, session SecureSession, te
 			Height: uint32(height),
 		}
 
-		session.SendRequest("window-change", false, ssh.Marshal(message))
+		_, _ = session.SendRequest("window-change", false, ssh.Marshal(message))
 
 		previousWidth = width
 		previousHeight = height
@@ -413,7 +418,7 @@ func keepalive(conn ssh.Conn, ticker *time.Ticker, stopCh chan struct{}) {
 	for {
 		select {
 		case <-ticker.C:
-			conn.SendRequest("keepalive@cloudfoundry.org", true, nil)
+			_, _, _ = conn.SendRequest("keepalive@cloudfoundry.org", true, nil)
 		case <-stopCh:
 			ticker.Stop()
 			return

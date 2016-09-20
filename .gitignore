@@ -27,6 +27,7 @@ _testmain.go
 out/
 release/*
 !release/index.html
+CHANGELOG.md.old
 
 *.iml
 *.zpi
@@ -57,3 +58,6 @@ fixtures/plugins/empty_plugin
 fixtures/config/plugin-config/.cf/plugins/test_1
 fixtures/config/plugin-config/.cf/plugins/test_2
 fixtures/config/plugin-config/.cf/plugins/empty_plugin
+
+### VisualStudioCode ###
+.vscode

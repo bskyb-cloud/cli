@@ -124,6 +124,14 @@ func isWhitespace(c byte) bool {
 	return false
 }
 
+func isQuote(c byte) bool {
+	switch c {
+	case '"', '\'':
+		return true
+	}
+	return false
+}
+
 func (p *textParser) skipWhitespace() {
 	i := 0
 	for i < len(p.s) && (isWhitespace(p.s[i]) || p.s[i] == '#') {
@@ -179,7 +187,7 @@ func (p *textParser) advance() {
 		}
 		unq, err := unquoteC(p.s[1:i], rune(p.s[0]))
 		if err != nil {
-			p.errorf("invalid quoted string %v", p.s[0:i+1])
+			p.errorf("invalid quoted string %s: %v", p.s[0:i+1], err)
 			return
 		}
 		p.cur.value, p.s = p.s[0:i+1], p.s[i+1:len(p.s)]
@@ -338,13 +346,13 @@ func (p *textParser) next() *token {
 	p.advance()
 	if p.done {
 		p.cur.value = ""
-	} else if len(p.cur.value) > 0 && p.cur.value[0] == '"' {
+	} else if len(p.cur.value) > 0 && isQuote(p.cur.value[0]) {
 		// Look for multiple quoted strings separated by whitespace,
 		// and concatenate them.
 		cat := p.cur
 		for {
 			p.skipWhitespace()
-			if p.done || p.s[0] != '"' {
+			if p.done || !isQuote(p.s[0]) {
 				break
 			}
 			p.advance()
@@ -358,6 +366,18 @@ func (p *textParser) next() *token {
 		p.cur = cat
 	}
 	return &p.cur
+}
+
+func (p *textParser) consumeToken(s string) error {
+	tok := p.next()
+	if tok.err != nil {
+		return tok.err
+	}
+	if tok.value != s {
+		p.back()
+		return p.errorf("expected %q, found %q", s, tok.value)
+	}
+	return nil
 }
 
 // Return a RequiredNotSetError indicating which required field was not set.
@@ -378,8 +398,7 @@ func (p *textParser) missingRequiredFieldError(sv reflect.Value) *RequiredNotSet
 }
 
 // Returns the index in the struct for the named field, as well as the parsed tag properties.
-func structFieldByName(st reflect.Type, name string) (int, *Properties, bool) {
-	sprops := GetProperties(st)
+func structFieldByName(sprops *StructProperties, name string) (int, *Properties, bool) {
 	i, ok := sprops.decoderOrigNames[name]
 	if ok {
 		return i, sprops.Prop[i], true
@@ -414,6 +433,10 @@ func (p *textParser) checkForColon(props *Properties, typ reflect.Type) *ParseEr
 				if typ.Elem().Kind() != reflect.Ptr {
 					break
 				}
+			} else if typ.Kind() == reflect.String {
+				// The proto3 exception is for a string field,
+				// which requires a colon.
+				break
 			}
 			needColon = false
 		}
@@ -427,7 +450,8 @@ func (p *textParser) checkForColon(props *Properties, typ reflect.Type) *ParseEr
 
 func (p *textParser) readStruct(sv reflect.Value, terminator string) error {
 	st := sv.Type()
-	reqCount := GetProperties(st).reqCount
+	sprops := GetProperties(st)
+	reqCount := sprops.reqCount
 	var reqFieldErr error
 	fieldSet := make(map[string]bool)
 	// A struct is a sequence of "name: value", terminated by one of
@@ -509,51 +533,141 @@ func (p *textParser) readStruct(sv reflect.Value, terminator string) error {
 				sl = reflect.Append(sl, ext)
 				SetExtension(ep, desc, sl.Interface())
 			}
-		} else {
-			// This is a normal, non-extension field.
-			name := tok.value
-			fi, props, ok := structFieldByName(st, name)
-			if !ok {
-				return p.errorf("unknown field name %q in %v", name, st)
+			if err := p.consumeOptionalSeparator(); err != nil {
+				return err
 			}
+			continue
+		}
 
-			dst := sv.Field(fi)
+		// This is a normal, non-extension field.
+		name := tok.value
+		var dst reflect.Value
+		fi, props, ok := structFieldByName(sprops, name)
+		if ok {
+			dst = sv.Field(fi)
+		} else if oop, ok := sprops.OneofTypes[name]; ok {
+			// It is a oneof.
+			props = oop.Prop
+			nv := reflect.New(oop.Type.Elem())
+			dst = nv.Elem().Field(0)
+			sv.Field(oop.Field).Set(nv)
+		}
+		if !dst.IsValid() {
+			return p.errorf("unknown field name %q in %v", name, st)
+		}
 
-			// Check that it's not already set if it's not a repeated field.
-			if !props.Repeated && fieldSet[name] {
-				return p.errorf("non-repeated field %q was repeated", name)
-			}
-
-			if err := p.checkForColon(props, st.Field(fi).Type); err != nil {
+		if dst.Kind() == reflect.Map {
+			// Consume any colon.
+			if err := p.checkForColon(props, dst.Type()); err != nil {
 				return err
 			}
 
-			// Parse into the field.
-			fieldSet[name] = true
-			if err := p.readAny(dst, props); err != nil {
-				if _, ok := err.(*RequiredNotSetError); !ok {
-					return err
-				}
-				reqFieldErr = err
-			} else if props.Required {
-				reqCount--
+			// Construct the map if it doesn't already exist.
+			if dst.IsNil() {
+				dst.Set(reflect.MakeMap(dst.Type()))
 			}
+			key := reflect.New(dst.Type().Key()).Elem()
+			val := reflect.New(dst.Type().Elem()).Elem()
+
+			// The map entry should be this sequence of tokens:
+			//	< key : KEY value : VALUE >
+			// However, implementations may omit key or value, and technically
+			// we should support them in any order.  See b/28924776 for a time
+			// this went wrong.
+
+			tok := p.next()
+			var terminator string
+			switch tok.value {
+			case "<":
+				terminator = ">"
+			case "{":
+				terminator = "}"
+			default:
+				return p.errorf("expected '{' or '<', found %q", tok.value)
+			}
+			for {
+				tok := p.next()
+				if tok.err != nil {
+					return tok.err
+				}
+				if tok.value == terminator {
+					break
+				}
+				switch tok.value {
+				case "key":
+					if err := p.consumeToken(":"); err != nil {
+						return err
+					}
+					if err := p.readAny(key, props.mkeyprop); err != nil {
+						return err
+					}
+					if err := p.consumeOptionalSeparator(); err != nil {
+						return err
+					}
+				case "value":
+					if err := p.checkForColon(props.mvalprop, dst.Type().Elem()); err != nil {
+						return err
+					}
+					if err := p.readAny(val, props.mvalprop); err != nil {
+						return err
+					}
+					if err := p.consumeOptionalSeparator(); err != nil {
+						return err
+					}
+				default:
+					p.back()
+					return p.errorf(`expected "key", "value", or %q, found %q`, terminator, tok.value)
+				}
+			}
+
+			dst.SetMapIndex(key, val)
+			continue
 		}
 
-		// For backward compatibility, permit a semicolon or comma after a field.
-		tok = p.next()
-		if tok.err != nil {
-			return tok.err
+		// Check that it's not already set if it's not a repeated field.
+		if !props.Repeated && fieldSet[name] {
+			return p.errorf("non-repeated field %q was repeated", name)
 		}
-		if tok.value != ";" && tok.value != "," {
-			p.back()
+
+		if err := p.checkForColon(props, dst.Type()); err != nil {
+			return err
 		}
+
+		// Parse into the field.
+		fieldSet[name] = true
+		if err := p.readAny(dst, props); err != nil {
+			if _, ok := err.(*RequiredNotSetError); !ok {
+				return err
+			}
+			reqFieldErr = err
+		}
+		if props.Required {
+			reqCount--
+		}
+
+		if err := p.consumeOptionalSeparator(); err != nil {
+			return err
+		}
+
 	}
 
 	if reqCount > 0 {
 		return p.missingRequiredFieldError(sv)
 	}
 	return reqFieldErr
+}
+
+// consumeOptionalSeparator consumes an optional semicolon or comma.
+// It is used in readStruct to provide backward compatibility.
+func (p *textParser) consumeOptionalSeparator() error {
+	tok := p.next()
+	if tok.err != nil {
+		return tok.err
+	}
+	if tok.value != ";" && tok.value != "," {
+		p.back()
+	}
+	return nil
 }
 
 func (p *textParser) readAny(v reflect.Value, props *Properties) error {
@@ -618,18 +732,32 @@ func (p *textParser) readAny(v reflect.Value, props *Properties) error {
 			fv.Set(reflect.ValueOf(bytes))
 			return nil
 		}
-		// Repeated field. May already exist.
-		flen := fv.Len()
-		if flen == fv.Cap() {
-			nav := reflect.MakeSlice(at, flen, 2*flen+1)
-			reflect.Copy(nav, fv)
-			fv.Set(nav)
+		// Repeated field.
+		if tok.value == "[" {
+			// Repeated field with list notation, like [1,2,3].
+			for {
+				fv.Set(reflect.Append(fv, reflect.New(at.Elem()).Elem()))
+				err := p.readAny(fv.Index(fv.Len()-1), props)
+				if err != nil {
+					return err
+				}
+				ntok := p.next()
+				if ntok.err != nil {
+					return ntok.err
+				}
+				if ntok.value == "]" {
+					break
+				}
+				if ntok.value != "," {
+					return p.errorf("Expected ']' or ',' found %q", ntok.value)
+				}
+			}
+			return nil
 		}
-		fv.SetLen(flen + 1)
-
-		// Read one.
+		// One value of the repeated field.
 		p.back()
-		return p.readAny(fv.Index(flen), props)
+		fv.Set(reflect.Append(fv, reflect.New(at.Elem()).Elem()))
+		return p.readAny(fv.Index(fv.Len()-1), props)
 	case reflect.Bool:
 		// Either "true", "false", 1 or 0.
 		switch tok.value {

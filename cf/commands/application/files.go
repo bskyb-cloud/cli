@@ -1,79 +1,83 @@
 package application
 
 import (
-	"github.com/cloudfoundry/cli/cf/api/app_files"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"errors"
+
+	"github.com/cloudfoundry/cli/cf/api/appfiles"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
-	"github.com/cloudfoundry/cli/flags/flag"
 )
 
 type Files struct {
 	ui           terminal.UI
-	config       core_config.Reader
-	appFilesRepo app_files.AppFilesRepository
+	config       coreconfig.Reader
+	appFilesRepo appfiles.Repository
 	appReq       requirements.DEAApplicationRequirement
 }
 
 func init() {
-	command_registry.Register(&Files{})
+	commandregistry.Register(&Files{})
 }
 
-func (cmd *Files) MetaData() command_registry.CommandMetadata {
+func (cmd *Files) MetaData() commandregistry.CommandMetadata {
 	fs := make(map[string]flags.FlagSet)
-	fs["i"] = &cliFlags.IntFlag{ShortName: "i", Usage: T("Instance")}
+	fs["i"] = &flags.IntFlag{ShortName: "i", Usage: T("Instance")}
 
-	return command_registry.CommandMetadata{
+	return commandregistry.CommandMetadata{
 		Name:        "files",
 		ShortName:   "f",
 		Description: T("Print out a list of files in a directory or the contents of a specific file of an app running on the DEA backend"),
-		Usage: T(`CF_NAME files APP_NAME [PATH] [-i INSTANCE]
+		Usage: []string{
+			T(`CF_NAME files APP_NAME [PATH] [-i INSTANCE]
 			
 TIP:
   To list and inspect files of an app running on the Diego backend, use 'CF_NAME ssh'`),
+		},
 		Flags: fs,
 	}
 }
 
-func (cmd *Files) Requirements(requirementsFactory requirements.Factory, c flags.FlagContext) (reqs []requirements.Requirement, err error) {
+func (cmd *Files) Requirements(requirementsFactory requirements.Factory, c flags.FlagContext) []requirements.Requirement {
 	if len(c.Args()) < 1 || len(c.Args()) > 2 {
-		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + command_registry.Commands.CommandUsage("files"))
+		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + commandregistry.Commands.CommandUsage("files"))
 	}
 
 	cmd.appReq = requirementsFactory.NewDEAApplicationRequirement(c.Args()[0])
 
-	reqs = []requirements.Requirement{
+	reqs := []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 		requirementsFactory.NewTargetedSpaceRequirement(),
 		cmd.appReq,
 	}
-	return
+
+	return reqs
 }
 
-func (cmd *Files) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *Files) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.appFilesRepo = deps.RepoLocator.GetAppFilesRepository()
 	return cmd
 }
 
-func (cmd *Files) Execute(c flags.FlagContext) {
+func (cmd *Files) Execute(c flags.FlagContext) error {
 	app := cmd.appReq.GetApplication()
 
 	var instance int
 	if c.IsSet("i") {
 		instance = c.Int("i")
 		if instance < 0 {
-			cmd.ui.Failed(T("Invalid instance: {{.Instance}}\nInstance must be a positive integer",
+			return errors.New(T("Invalid instance: {{.Instance}}\nInstance must be a positive integer",
 				map[string]interface{}{
 					"Instance": instance,
 				}))
 		}
 		if instance >= app.InstanceCount {
-			cmd.ui.Failed(T("Invalid instance: {{.Instance}}\nInstance must be less than {{.InstanceCount}}",
+			return errors.New(T("Invalid instance: {{.Instance}}\nInstance must be less than {{.InstanceCount}}",
 				map[string]interface{}{
 					"Instance":      instance,
 					"InstanceCount": app.InstanceCount,
@@ -93,18 +97,18 @@ func (cmd *Files) Execute(c flags.FlagContext) {
 		path = c.Args()[1]
 	}
 
-	list, apiErr := cmd.appFilesRepo.ListFiles(app.Guid, instance, path)
-	if apiErr != nil {
-		cmd.ui.Failed(apiErr.Error())
-		return
+	list, err := cmd.appFilesRepo.ListFiles(app.GUID, instance, path)
+	if err != nil {
+		return err
 	}
 
 	cmd.ui.Ok()
 	cmd.ui.Say("")
 
 	if list == "" {
-		cmd.ui.Say("No files found")
+		cmd.ui.Say("Empty file or folder")
 	} else {
 		cmd.ui.Say("%s", list)
 	}
+	return nil
 }

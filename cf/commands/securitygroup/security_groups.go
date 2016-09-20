@@ -3,12 +3,12 @@ package securitygroup
 import (
 	"fmt"
 
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/flags"
 
-	"github.com/cloudfoundry/cli/cf/api/security_groups"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/securitygroups"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
@@ -16,39 +16,47 @@ import (
 
 type SecurityGroups struct {
 	ui                terminal.UI
-	securityGroupRepo security_groups.SecurityGroupRepo
-	configRepo        core_config.Reader
+	securityGroupRepo securitygroups.SecurityGroupRepo
+	configRepo        coreconfig.Reader
 }
 
 func init() {
-	command_registry.Register(&SecurityGroups{})
+	commandregistry.Register(&SecurityGroups{})
 }
 
-func (cmd *SecurityGroups) MetaData() command_registry.CommandMetadata {
-	return command_registry.CommandMetadata{
+func (cmd *SecurityGroups) MetaData() commandregistry.CommandMetadata {
+	return commandregistry.CommandMetadata{
 		Name:        "security-groups",
 		Description: T("List all security groups"),
-		Usage:       "CF_NAME security-groups",
+		Usage: []string{
+			"CF_NAME security-groups",
+		},
 	}
 }
 
-func (cmd *SecurityGroups) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
-	if len(fc.Args()) != 0 {
-		cmd.ui.Failed(T("Incorrect Usage. No argument required\n\n") + command_registry.Commands.CommandUsage("security-groups"))
-	}
+func (cmd *SecurityGroups) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+	usageReq := requirements.NewUsageRequirement(commandregistry.CLICommandUsagePresenter(cmd),
+		T("No argument required"),
+		func() bool {
+			return len(fc.Args()) != 0
+		},
+	)
 
-	requirements := []requirements.Requirement{requirementsFactory.NewLoginRequirement()}
-	return requirements, nil
+	reqs := []requirements.Requirement{
+		usageReq,
+		requirementsFactory.NewLoginRequirement(),
+	}
+	return reqs
 }
 
-func (cmd *SecurityGroups) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *SecurityGroups) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.configRepo = deps.Config
 	cmd.securityGroupRepo = deps.RepoLocator.GetSecurityGroupRepository()
 	return cmd
 }
 
-func (cmd *SecurityGroups) Execute(c flags.FlagContext) {
+func (cmd *SecurityGroups) Execute(c flags.FlagContext) error {
 	cmd.ui.Say(T("Getting security groups as {{.username}}",
 		map[string]interface{}{
 			"username": terminal.EntityNameColor(cmd.configRepo.Username()),
@@ -56,7 +64,7 @@ func (cmd *SecurityGroups) Execute(c flags.FlagContext) {
 
 	securityGroups, err := cmd.securityGroupRepo.FindAll()
 	if err != nil {
-		cmd.ui.Failed(err.Error())
+		return err
 	}
 
 	cmd.ui.Ok()
@@ -64,10 +72,10 @@ func (cmd *SecurityGroups) Execute(c flags.FlagContext) {
 
 	if len(securityGroups) == 0 {
 		cmd.ui.Say(T("No security groups"))
-		return
+		return nil
 	}
 
-	table := terminal.NewTable(cmd.ui, []string{"", T("Name"), T("Organization"), T("Space")})
+	table := cmd.ui.Table([]string{"", T("Name"), T("Organization"), T("Space")})
 
 	for index, securityGroup := range securityGroups {
 		if len(securityGroup.Spaces) > 0 {
@@ -77,15 +85,21 @@ func (cmd *SecurityGroups) Execute(c flags.FlagContext) {
 		}
 	}
 	table.Print()
+	return nil
 }
 
-func (cmd SecurityGroups) printSpaces(table terminal.Table, securityGroup models.SecurityGroup, index int) {
-	outputted_index := false
+type table interface {
+	Add(row ...string)
+	Print()
+}
+
+func (cmd SecurityGroups) printSpaces(table table, securityGroup models.SecurityGroup, index int) {
+	outputtedIndex := false
 
 	for _, space := range securityGroup.Spaces {
-		if !outputted_index {
+		if !outputtedIndex {
 			table.Add(fmt.Sprintf("#%d", index), securityGroup.Name, space.Organization.Name, space.Name)
-			outputted_index = true
+			outputtedIndex = true
 		} else {
 			table.Add("", securityGroup.Name, space.Organization.Name, space.Name)
 		}

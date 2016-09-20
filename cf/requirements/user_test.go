@@ -6,8 +6,7 @@ import (
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 
-	fakeapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -15,20 +14,18 @@ import (
 
 var _ = Describe("UserRequirement", func() {
 	var (
-		ui              *testterm.FakeUI
-		userRepo        *fakeapi.FakeUserRepository
+		userRepo        *apifakes.FakeUserRepository
 		userRequirement requirements.UserRequirement
 	)
 
 	BeforeEach(func() {
-		ui = new(testterm.FakeUI)
-		userRepo = &fakeapi.FakeUserRepository{}
+		userRepo = new(apifakes.FakeUserRepository)
 	})
 
 	Describe("Execute", func() {
-		Context("when wantGuid is true", func() {
+		Context("when wantGUID is true", func() {
 			BeforeEach(func() {
-				userRequirement = requirements.NewUserRequirement("the-username", ui, userRepo, true)
+				userRequirement = requirements.NewUserRequirement("the-username", userRepo, true)
 			})
 
 			It("tries to find the user in CC", func() {
@@ -40,7 +37,7 @@ var _ = Describe("UserRequirement", func() {
 			Context("when the call to find the user succeeds", func() {
 				var user models.UserFields
 				BeforeEach(func() {
-					user = models.UserFields{Username: "the-username", Guid: "the-guid"}
+					user = models.UserFields{Username: "the-username", GUID: "the-guid"}
 					userRepo.FindByUsernameReturns(user, nil)
 				})
 
@@ -49,27 +46,30 @@ var _ = Describe("UserRequirement", func() {
 					Expect(userRequirement.GetUser()).To(Equal(user))
 				})
 
-				It("returns true", func() {
-					ok := userRequirement.Execute()
-					Expect(ok).To(BeTrue())
+				It("does not error", func() {
+					err := userRequirement.Execute()
+					Expect(err).NotTo(HaveOccurred())
 				})
 			})
 
 			Context("when the call to find the user fails", func() {
+				userError := errors.New("some error")
 				BeforeEach(func() {
-					userRepo.FindByUsernameReturns(models.UserFields{}, errors.New("some error"))
+					userRepo.FindByUsernameReturns(models.UserFields{}, userError)
 				})
 
-				It("panics and prints a failure message", func() {
-					Expect(func() { userRequirement.Execute() }).To(Panic())
-					Expect(ui.Outputs).To(ConsistOf([]string{"FAILED", "some error"}))
+				It("errors", func() {
+					err := userRequirement.Execute()
+
+					Expect(err).To(HaveOccurred())
+					Expect(err).To(Equal(userError))
 				})
 			})
 		})
 
-		Context("when wantGuid is false", func() {
+		Context("when wantGUID is false", func() {
 			BeforeEach(func() {
-				userRequirement = requirements.NewUserRequirement("the-username", ui, userRepo, false)
+				userRequirement = requirements.NewUserRequirement("the-username", userRepo, false)
 			})
 
 			It("does not try to find the user in CC", func() {

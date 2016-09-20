@@ -1,19 +1,25 @@
 package service_test
 
 import (
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
+	"os"
+
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/flags"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
+	"github.com/cloudfoundry/cli/cf/trace/tracefakes"
 	"github.com/cloudfoundry/cli/plugin/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/models"
 
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 
+	"github.com/cloudfoundry/cli/cf/commands/service"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -21,41 +27,41 @@ import (
 var _ = Describe("services", func() {
 	var (
 		ui                  *testterm.FakeUI
-		configRepo          core_config.Repository
-		requirementsFactory *testreq.FakeReqFactory
-		serviceSummaryRepo  *testapi.FakeServiceSummaryRepo
-		deps                command_registry.Dependency
+		configRepo          coreconfig.Repository
+		requirementsFactory *requirementsfakes.FakeFactory
+		serviceSummaryRepo  *apifakes.OldFakeServiceSummaryRepo
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.Config = configRepo
 		deps.RepoLocator = deps.RepoLocator.SetServiceSummaryRepository(serviceSummaryRepo)
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("services").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("services").SetDependency(deps, pluginCall))
 	}
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("services", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("services", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		serviceSummaryRepo = &testapi.FakeServiceSummaryRepo{}
-		requirementsFactory = &testreq.FakeReqFactory{
-			LoginSuccess:         true,
-			TargetedSpaceSuccess: true,
-			TargetedOrgSuccess:   true,
-		}
+		serviceSummaryRepo = new(apifakes.OldFakeServiceSummaryRepo)
+		targetedOrgRequirement := new(requirementsfakes.FakeTargetedOrgRequirement)
+		requirementsFactory = new(requirementsfakes.FakeFactory)
+		requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+		requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Passing{})
+		requirementsFactory.NewTargetedOrgRequirementReturns(targetedOrgRequirement)
 
-		deps = command_registry.NewDependency()
+		deps = commandregistry.NewDependency(os.Stdout, new(tracefakes.FakePrinter), "")
 	})
 
 	Describe("services requirements", func() {
 
 		Context("when not logged in", func() {
 			BeforeEach(func() {
-				requirementsFactory.LoginSuccess = false
+				requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 			})
 
 			It("fails requirements", func() {
@@ -65,31 +71,45 @@ var _ = Describe("services", func() {
 
 		Context("when no space is targeted", func() {
 			BeforeEach(func() {
-				requirementsFactory.TargetedSpaceSuccess = false
+				requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Failing{Message: "not targeting space"})
 			})
 
 			It("fails requirements", func() {
 				Expect(runCommand()).To(BeFalse())
 			})
 		})
-		It("should fail with usage when provided any arguments", func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedSpaceSuccess = true
-			Expect(runCommand("blahblah")).To(BeFalse())
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Incorrect Usage", "No argument required"},
-			))
+
+		Context("when arguments are provided", func() {
+			var cmd commandregistry.Command
+			var flagContext flags.FlagContext
+
+			BeforeEach(func() {
+				cmd = &service.ListServices{}
+				cmd.SetDependency(deps, false)
+				flagContext = flags.NewFlagContext(cmd.MetaData().Flags)
+			})
+
+			It("should fail with usage", func() {
+				flagContext.Parse("blahblah")
+
+				reqs := cmd.Requirements(requirementsFactory, flagContext)
+
+				err := testcmd.RunRequirements(reqs)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("Incorrect Usage"))
+				Expect(err.Error()).To(ContainSubstring("No argument required"))
+			})
 		})
 	})
 
 	It("lists available services", func() {
 		plan := models.ServicePlanFields{
-			Guid: "spark-guid",
+			GUID: "spark-guid",
 			Name: "spark",
 		}
 
 		plan2 := models.ServicePlanFields{
-			Guid: "spark-guid-2",
+			GUID: "spark-guid-2",
 			Name: "spark-2",
 		}
 
@@ -121,7 +141,7 @@ var _ = Describe("services", func() {
 		serviceSummaryRepo.GetSummariesInCurrentSpaceInstances = serviceInstances
 
 		runCommand()
-		Expect(ui.Outputs).To(ContainSubstrings(
+		Expect(ui.Outputs()).To(ContainSubstrings(
 			[]string{"Getting services in org", "my-org", "my-space", "my-user"},
 			[]string{"name", "service", "plan", "bound apps", "last operation"},
 			[]string{"OK"},
@@ -137,13 +157,13 @@ var _ = Describe("services", func() {
 
 		runCommand()
 
-		Expect(ui.Outputs).To(ContainSubstrings(
+		Expect(ui.Outputs()).To(ContainSubstrings(
 			[]string{"Getting services in org", "my-org", "my-space", "my-user"},
 			[]string{"OK"},
 			[]string{"No services found"},
 		))
 
-		Expect(ui.Outputs).ToNot(ContainSubstrings(
+		Expect(ui.Outputs()).ToNot(ContainSubstrings(
 			[]string{"name", "service", "plan", "bound apps"},
 		))
 	})
@@ -159,12 +179,12 @@ var _ = Describe("services", func() {
 			pluginModels = []plugin_models.GetServices_Model{}
 			deps.PluginModels.Services = &pluginModels
 			plan := models.ServicePlanFields{
-				Guid: "spark-guid",
+				GUID: "spark-guid",
 				Name: "spark",
 			}
 
 			plan2 := models.ServicePlanFields{
-				Guid: "spark-guid-2",
+				GUID: "spark-guid-2",
 				Name: "spark-2",
 			}
 
@@ -172,7 +192,7 @@ var _ = Describe("services", func() {
 
 			serviceInstance := models.ServiceInstance{}
 			serviceInstance.Name = "my-service-1"
-			serviceInstance.Guid = "123"
+			serviceInstance.GUID = "123"
 			serviceInstance.LastOperation.Type = "create"
 			serviceInstance.LastOperation.State = "in progress"
 			serviceInstance.LastOperation.Description = "fake state description"
@@ -182,7 +202,7 @@ var _ = Describe("services", func() {
 
 			serviceInstance2 := models.ServiceInstance{}
 			serviceInstance2.Name = "my-service-2"
-			serviceInstance2.Guid = "345"
+			serviceInstance2.GUID = "345"
 			serviceInstance2.LastOperation.Type = "create"
 			serviceInstance2.LastOperation.State = ""
 			serviceInstance2.LastOperation.Description = "fake state description"
@@ -192,7 +212,7 @@ var _ = Describe("services", func() {
 
 			userProvidedServiceInstance := models.ServiceInstance{}
 			userProvidedServiceInstance.Name = "my-service-provided-by-user"
-			userProvidedServiceInstance.Guid = "678"
+			userProvidedServiceInstance.GUID = "678"
 
 			serviceInstances := []models.ServiceInstance{serviceInstance, serviceInstance2, userProvidedServiceInstance}
 
@@ -200,38 +220,38 @@ var _ = Describe("services", func() {
 		})
 
 		It("populates the plugin model", func() {
-			testcmd.RunCliCommand("services", []string{}, requirementsFactory, updateCommandDependency, true)
+			testcmd.RunCLICommand("services", []string{}, requirementsFactory, updateCommandDependency, true, ui)
 
-			Ω(len(pluginModels)).To(Equal(3))
-			Ω(pluginModels[0].Name).To(Equal("my-service-1"))
-			Ω(pluginModels[0].Guid).To(Equal("123"))
-			Ω(pluginModels[0].ServicePlan.Name).To(Equal("spark"))
-			Ω(pluginModels[0].ServicePlan.Guid).To(Equal("spark-guid"))
-			Ω(pluginModels[0].Service.Name).To(Equal("cleardb"))
-			Ω(pluginModels[0].ApplicationNames).To(Equal([]string{"cli1", "cli2"}))
-			Ω(pluginModels[0].LastOperation.Type).To(Equal("create"))
-			Ω(pluginModels[0].LastOperation.State).To(Equal("in progress"))
-			Ω(pluginModels[0].IsUserProvided).To(BeFalse())
+			Expect(len(pluginModels)).To(Equal(3))
+			Expect(pluginModels[0].Name).To(Equal("my-service-1"))
+			Expect(pluginModels[0].Guid).To(Equal("123"))
+			Expect(pluginModels[0].ServicePlan.Name).To(Equal("spark"))
+			Expect(pluginModels[0].ServicePlan.Guid).To(Equal("spark-guid"))
+			Expect(pluginModels[0].Service.Name).To(Equal("cleardb"))
+			Expect(pluginModels[0].ApplicationNames).To(Equal([]string{"cli1", "cli2"}))
+			Expect(pluginModels[0].LastOperation.Type).To(Equal("create"))
+			Expect(pluginModels[0].LastOperation.State).To(Equal("in progress"))
+			Expect(pluginModels[0].IsUserProvided).To(BeFalse())
 
-			Ω(pluginModels[1].Name).To(Equal("my-service-2"))
-			Ω(pluginModels[1].Guid).To(Equal("345"))
-			Ω(pluginModels[1].ServicePlan.Name).To(Equal("spark-2"))
-			Ω(pluginModels[1].ServicePlan.Guid).To(Equal("spark-guid-2"))
-			Ω(pluginModels[1].Service.Name).To(Equal("cleardb"))
-			Ω(pluginModels[1].ApplicationNames).To(Equal([]string{"cli1"}))
-			Ω(pluginModels[1].LastOperation.Type).To(Equal("create"))
-			Ω(pluginModels[1].LastOperation.State).To(Equal(""))
-			Ω(pluginModels[1].IsUserProvided).To(BeFalse())
+			Expect(pluginModels[1].Name).To(Equal("my-service-2"))
+			Expect(pluginModels[1].Guid).To(Equal("345"))
+			Expect(pluginModels[1].ServicePlan.Name).To(Equal("spark-2"))
+			Expect(pluginModels[1].ServicePlan.Guid).To(Equal("spark-guid-2"))
+			Expect(pluginModels[1].Service.Name).To(Equal("cleardb"))
+			Expect(pluginModels[1].ApplicationNames).To(Equal([]string{"cli1"}))
+			Expect(pluginModels[1].LastOperation.Type).To(Equal("create"))
+			Expect(pluginModels[1].LastOperation.State).To(Equal(""))
+			Expect(pluginModels[1].IsUserProvided).To(BeFalse())
 
-			Ω(pluginModels[2].Name).To(Equal("my-service-provided-by-user"))
-			Ω(pluginModels[2].Guid).To(Equal("678"))
-			Ω(pluginModels[2].ServicePlan.Name).To(Equal(""))
-			Ω(pluginModels[2].ServicePlan.Guid).To(Equal(""))
-			Ω(pluginModels[2].Service.Name).To(Equal(""))
-			Ω(pluginModels[2].ApplicationNames).To(BeNil())
-			Ω(pluginModels[2].LastOperation.Type).To(Equal(""))
-			Ω(pluginModels[2].LastOperation.State).To(Equal(""))
-			Ω(pluginModels[2].IsUserProvided).To(BeTrue())
+			Expect(pluginModels[2].Name).To(Equal("my-service-provided-by-user"))
+			Expect(pluginModels[2].Guid).To(Equal("678"))
+			Expect(pluginModels[2].ServicePlan.Name).To(Equal(""))
+			Expect(pluginModels[2].ServicePlan.Guid).To(Equal(""))
+			Expect(pluginModels[2].Service.Name).To(Equal(""))
+			Expect(pluginModels[2].ApplicationNames).To(BeNil())
+			Expect(pluginModels[2].LastOperation.Type).To(Equal(""))
+			Expect(pluginModels[2].LastOperation.State).To(Equal(""))
+			Expect(pluginModels[2].IsUserProvided).To(BeTrue())
 
 		})
 

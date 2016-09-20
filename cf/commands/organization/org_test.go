@@ -1,15 +1,17 @@
 package organization_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/flags"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/plugin/models"
-	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
+	"github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/commands/organization"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -17,159 +19,259 @@ import (
 
 var _ = Describe("org command", func() {
 	var (
-		ui                  *testterm.FakeUI
-		configRepo          core_config.Repository
-		requirementsFactory *testreq.FakeReqFactory
-		deps                command_registry.Dependency
+		ui             *testterm.FakeUI
+		getOrgModel    *plugin_models.GetOrg_Model
+		deps           commandregistry.Dependency
+		reqFactory     *requirementsfakes.FakeFactory
+		loginReq       *requirementsfakes.FakeRequirement
+		orgRequirement *requirementsfakes.FakeOrganizationRequirement
+		cmd            organization.ShowOrg
+		flagContext    flags.FlagContext
 	)
 
-	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
-		deps.Config = configRepo
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("org").SetDependency(deps, pluginCall))
-	}
-
 	BeforeEach(func() {
-		ui = &testterm.FakeUI{}
-		requirementsFactory = &testreq.FakeReqFactory{}
-		configRepo = testconfig.NewRepositoryWithDefaults()
+		ui = new(testterm.FakeUI)
+		getOrgModel = new(plugin_models.GetOrg_Model)
 
-		deps = command_registry.NewDependency()
+		deps = commandregistry.Dependency{
+			UI:          ui,
+			Config:      testconfig.NewRepositoryWithDefaults(),
+			RepoLocator: api.RepositoryLocator{},
+			PluginModels: &commandregistry.PluginModels{
+				Organization: getOrgModel,
+			},
+		}
+
+		reqFactory = new(requirementsfakes.FakeFactory)
+
+		loginReq = new(requirementsfakes.FakeRequirement)
+		loginReq.ExecuteReturns(nil)
+		reqFactory.NewLoginRequirementReturns(loginReq)
+
+		orgRequirement = new(requirementsfakes.FakeOrganizationRequirement)
+		orgRequirement.ExecuteReturns(nil)
+		reqFactory.NewOrganizationRequirementReturns(orgRequirement)
+
+		cmd = organization.ShowOrg{}
+		flagContext = flags.NewFlagContext(cmd.MetaData().Flags)
+		cmd.SetDependency(deps, false)
 	})
 
-	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("org", args, requirementsFactory, updateCommandDependency, false)
-	}
+	Describe("Requirements", func() {
+		Context("when the wrong number of args are provided", func() {
+			BeforeEach(func() {
+				err := flagContext.Parse()
+				Expect(err).NotTo(HaveOccurred())
+			})
 
-	Describe("requirements", func() {
-		It("fails when not logged in", func() {
-			Expect(runCommand("whoops")).To(BeFalse())
+			It("fails with no args", func() {
+				Expect(func() { cmd.Requirements(reqFactory, flagContext) }).To(Panic())
+				Expect(ui.Outputs()).To(ContainSubstrings(
+					[]string{"FAILED"},
+					[]string{"Incorrect Usage. Requires an argument"},
+				))
+			})
 		})
 
-		It("fails with usage when not provided exactly one arg", func() {
-			requirementsFactory.LoginSuccess = true
-			runCommand("too", "much")
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Incorrect Usage", "Requires an argument"},
-			))
+		Context("when provided exactly one arg", func() {
+			var actualRequirements []requirements.Requirement
+
+			BeforeEach(func() {
+				err := flagContext.Parse("my-org")
+				Expect(err).NotTo(HaveOccurred())
+				actualRequirements = cmd.Requirements(reqFactory, flagContext)
+			})
+
+			Context("when no flags are provided", func() {
+				It("returns a login requirement", func() {
+					Expect(reqFactory.NewLoginRequirementCallCount()).To(Equal(1))
+					Expect(actualRequirements).To(ContainElement(loginReq))
+				})
+
+				It("returns an organization requirement", func() {
+					Expect(reqFactory.NewOrganizationRequirementCallCount()).To(Equal(1))
+					Expect(actualRequirements).To(ContainElement(orgRequirement))
+				})
+			})
 		})
 	})
 
-	Context("when logged in, and provided the name of an org", func() {
+	Describe("Execute", func() {
+		var (
+			org        models.Organization
+			executeErr error
+		)
+
 		BeforeEach(func() {
-			developmentSpaceFields := models.SpaceFields{}
-			developmentSpaceFields.Name = "development"
-			developmentSpaceFields.Guid = "dev-space-guid-1"
-			stagingSpaceFields := models.SpaceFields{}
-			stagingSpaceFields.Name = "staging"
-			stagingSpaceFields.Guid = "staging-space-guid-1"
-			domainFields := models.DomainFields{}
-			domainFields.Name = "cfapps.io"
-			domainFields.Guid = "1111"
-			domainFields.OwningOrganizationGuid = "my-org-guid"
-			domainFields.Shared = true
-			cfAppDomainFields := models.DomainFields{}
-			cfAppDomainFields.Name = "cf-app.com"
-			cfAppDomainFields.Guid = "2222"
-			cfAppDomainFields.OwningOrganizationGuid = "my-org-guid"
-			cfAppDomainFields.Shared = false
-
-			org := models.Organization{}
-			org.Name = "my-org"
-			org.Guid = "my-org-guid"
-			org.QuotaDefinition = models.NewQuotaFields("cantina-quota", 512, 256, 2, 5, true)
-			org.Spaces = []models.SpaceFields{developmentSpaceFields, stagingSpaceFields}
-			org.Domains = []models.DomainFields{domainFields, cfAppDomainFields}
-			org.SpaceQuotas = []models.SpaceQuota{
-				{Name: "space-quota-1", Guid: "space-quota-1-guid", MemoryLimit: 512, InstanceMemoryLimit: -1},
-				{Name: "space-quota-2", Guid: "space-quota-2-guid", MemoryLimit: 256, InstanceMemoryLimit: 128},
+			org = models.Organization{
+				OrganizationFields: models.OrganizationFields{
+					Name: "my-org",
+					GUID: "my-org-guid",
+					QuotaDefinition: models.QuotaFields{
+						Name:                    "cantina-quota",
+						MemoryLimit:             512,
+						InstanceMemoryLimit:     256,
+						RoutesLimit:             2,
+						ServicesLimit:           5,
+						NonBasicServicesAllowed: true,
+						AppInstanceLimit:        7,
+						ReservedRoutePorts:      "7",
+					},
+				},
+				Spaces: []models.SpaceFields{
+					models.SpaceFields{
+						Name: "development",
+						GUID: "dev-space-guid-1",
+					},
+					models.SpaceFields{
+						Name: "staging",
+						GUID: "staging-space-guid-1",
+					},
+				},
+				Domains: []models.DomainFields{
+					models.DomainFields{
+						Name: "cfapps.io",
+						GUID: "1111",
+						OwningOrganizationGUID: "my-org-guid",
+						Shared:                 true,
+					},
+					models.DomainFields{
+						Name: "cf-app.com",
+						GUID: "2222",
+						OwningOrganizationGUID: "my-org-guid",
+						Shared:                 false,
+					},
+				},
+				SpaceQuotas: []models.SpaceQuota{
+					{Name: "space-quota-1", GUID: "space-quota-1-guid", MemoryLimit: 512, InstanceMemoryLimit: -1},
+					{Name: "space-quota-2", GUID: "space-quota-2-guid", MemoryLimit: 256, InstanceMemoryLimit: 128},
+				},
 			}
 
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.Organization = org
+			orgRequirement.GetOrganizationReturns(org)
 		})
 
-		It("shows the org with the given name", func() {
-			runCommand("my-org")
-
-			Expect(requirementsFactory.OrganizationName).To(Equal("my-org"))
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Getting info for org", "my-org", "my-user"},
-				[]string{"OK"},
-				[]string{"my-org"},
-				[]string{"domains:", "cfapps.io", "cf-app.com"},
-				[]string{"quota: ", "cantina-quota", "512M", "256M instance memory limit", "2 routes", "5 services", "paid services allowed"},
-				[]string{"spaces:", "development", "staging"},
-				[]string{"space quotas:", "space-quota-1", "space-quota-2"},
-			))
+		JustBeforeEach(func() {
+			executeErr = cmd.Execute(flagContext)
 		})
 
-		Context("when the guid flag is provided", func() {
-			It("shows only the org guid", func() {
-				runCommand("--guid", "my-org")
-
-				Expect(ui.Outputs).To(ContainSubstrings(
-					[]string{"my-org-guid"},
-				))
-
-				Expect(ui.Outputs).ToNot(ContainSubstrings(
-					[]string{"Getting info for org", "my-org", "my-user"},
-				))
-			})
-		})
-
-		Context("when invoked by a plugin", func() {
-			var (
-				pluginModel plugin_models.GetOrg_Model
-			)
+		Context("when logged in, and provided the name of an org", func() {
 			BeforeEach(func() {
-				pluginModel = plugin_models.GetOrg_Model{}
-				deps.PluginModels.Organization = &pluginModel
+				err := flagContext.Parse("my-org")
+				Expect(err).NotTo(HaveOccurred())
+				cmd.Requirements(reqFactory, flagContext)
 			})
 
-			It("populates the plugin model", func() {
-				testcmd.RunCliCommand("org", []string{"my-org"}, requirementsFactory, updateCommandDependency, true)
+			It("shows the org with the given name", func() {
+				Expect(executeErr).NotTo(HaveOccurred())
 
-				Ω(pluginModel.Name).To(Equal("my-org"))
-				Ω(pluginModel.Guid).To(Equal("my-org-guid"))
-				// quota
-				Ω(pluginModel.QuotaDefinition.Name).To(Equal("cantina-quota"))
-				Ω(pluginModel.QuotaDefinition.MemoryLimit).To(Equal(int64(512)))
-				Ω(pluginModel.QuotaDefinition.InstanceMemoryLimit).To(Equal(int64(256)))
-				Ω(pluginModel.QuotaDefinition.RoutesLimit).To(Equal(2))
-				Ω(pluginModel.QuotaDefinition.ServicesLimit).To(Equal(5))
-				Ω(pluginModel.QuotaDefinition.NonBasicServicesAllowed).To(BeTrue())
-
-				// domains
-				Ω(pluginModel.Domains).To(HaveLen(2))
-				Ω(pluginModel.Domains[0].Name).To(Equal("cfapps.io"))
-				Ω(pluginModel.Domains[0].Guid).To(Equal("1111"))
-				Ω(pluginModel.Domains[0].OwningOrganizationGuid).To(Equal("my-org-guid"))
-				Ω(pluginModel.Domains[0].Shared).To(BeTrue())
-				Ω(pluginModel.Domains[1].Name).To(Equal("cf-app.com"))
-				Ω(pluginModel.Domains[1].Guid).To(Equal("2222"))
-				Ω(pluginModel.Domains[1].OwningOrganizationGuid).To(Equal("my-org-guid"))
-				Ω(pluginModel.Domains[1].Shared).To(BeFalse())
-
-				// spaces
-				Ω(pluginModel.Spaces).To(HaveLen(2))
-				Ω(pluginModel.Spaces[0].Name).To(Equal("development"))
-				Ω(pluginModel.Spaces[0].Guid).To(Equal("dev-space-guid-1"))
-				Ω(pluginModel.Spaces[1].Name).To(Equal("staging"))
-				Ω(pluginModel.Spaces[1].Guid).To(Equal("staging-space-guid-1"))
-
-				// space quotas
-				Ω(pluginModel.SpaceQuotas).To(HaveLen(2))
-				Ω(pluginModel.SpaceQuotas[0].Name).To(Equal("space-quota-1"))
-				Ω(pluginModel.SpaceQuotas[0].Guid).To(Equal("space-quota-1-guid"))
-				Ω(pluginModel.SpaceQuotas[0].MemoryLimit).To(Equal(int64(512)))
-				Ω(pluginModel.SpaceQuotas[0].InstanceMemoryLimit).To(Equal(int64(-1)))
-				Ω(pluginModel.SpaceQuotas[1].Name).To(Equal("space-quota-2"))
-				Ω(pluginModel.SpaceQuotas[1].Guid).To(Equal("space-quota-2-guid"))
-				Ω(pluginModel.SpaceQuotas[1].MemoryLimit).To(Equal(int64(256)))
-				Ω(pluginModel.SpaceQuotas[1].InstanceMemoryLimit).To(Equal(int64(128)))
+				Expect(ui.Outputs()).To(ContainSubstrings(
+					[]string{"Getting info for org", "my-org", "my-user"},
+					[]string{"OK"},
+					[]string{"my-org"},
+					[]string{"domains:", "cfapps.io", "cf-app.com"},
+					[]string{"quota: ", "cantina-quota", "512M", "256M instance memory limit", "2 routes", "5 services", "paid services allowed", "7 app instance limit", "7 route ports"},
+					[]string{"spaces:", "development", "staging"},
+					[]string{"space quotas:", "space-quota-1", "space-quota-2"},
+				))
 			})
 
+			Context("when ReservedRoutePorts is set to -1", func() {
+				BeforeEach(func() {
+					org.QuotaDefinition.ReservedRoutePorts = "-1"
+					orgRequirement.GetOrganizationReturns(org)
+				})
+
+				It("shows unlimited route ports", func() {
+					Expect(executeErr).NotTo(HaveOccurred())
+
+					Expect(ui.Outputs()).To(ContainSubstrings(
+						[]string{"unlimited route ports"},
+					))
+				})
+			})
+
+			Context("when the reserved route ports field is not provided by the CC API", func() {
+				BeforeEach(func() {
+					org.QuotaDefinition.ReservedRoutePorts = ""
+					orgRequirement.GetOrganizationReturns(org)
+				})
+
+				It("should not display route ports", func() {
+					Expect(executeErr).NotTo(HaveOccurred())
+
+					Expect(ui.Outputs()).NotTo(ContainSubstrings(
+						[]string{"route ports"},
+					))
+				})
+			})
+
+			Context("when the guid flag is provided", func() {
+				BeforeEach(func() {
+					err := flagContext.Parse("my-org", "--guid")
+					Expect(err).NotTo(HaveOccurred())
+				})
+
+				It("shows only the org guid", func() {
+					Expect(executeErr).NotTo(HaveOccurred())
+
+					Expect(ui.Outputs()).To(ContainSubstrings(
+						[]string{"my-org-guid"},
+					))
+					Expect(ui.Outputs()).ToNot(ContainSubstrings(
+						[]string{"Getting info for org", "my-org", "my-user"},
+					))
+				})
+			})
+
+			Context("when invoked by a plugin", func() {
+				BeforeEach(func() {
+					cmd.SetDependency(deps, true)
+				})
+
+				It("populates the plugin model", func() {
+					Expect(executeErr).NotTo(HaveOccurred())
+
+					Expect(getOrgModel.Guid).To(Equal("my-org-guid"))
+					Expect(getOrgModel.Name).To(Equal("my-org"))
+					// quota
+					Expect(getOrgModel.QuotaDefinition.Name).To(Equal("cantina-quota"))
+					Expect(getOrgModel.QuotaDefinition.MemoryLimit).To(Equal(int64(512)))
+					Expect(getOrgModel.QuotaDefinition.InstanceMemoryLimit).To(Equal(int64(256)))
+					Expect(getOrgModel.QuotaDefinition.RoutesLimit).To(Equal(2))
+					Expect(getOrgModel.QuotaDefinition.ServicesLimit).To(Equal(5))
+					Expect(getOrgModel.QuotaDefinition.NonBasicServicesAllowed).To(BeTrue())
+
+					// domains
+					Expect(getOrgModel.Domains).To(HaveLen(2))
+					Expect(getOrgModel.Domains[0].Name).To(Equal("cfapps.io"))
+					Expect(getOrgModel.Domains[0].Guid).To(Equal("1111"))
+					Expect(getOrgModel.Domains[0].OwningOrganizationGuid).To(Equal("my-org-guid"))
+					Expect(getOrgModel.Domains[0].Shared).To(BeTrue())
+					Expect(getOrgModel.Domains[1].Name).To(Equal("cf-app.com"))
+					Expect(getOrgModel.Domains[1].Guid).To(Equal("2222"))
+					Expect(getOrgModel.Domains[1].OwningOrganizationGuid).To(Equal("my-org-guid"))
+					Expect(getOrgModel.Domains[1].Shared).To(BeFalse())
+
+					// spaces
+					Expect(getOrgModel.Spaces).To(HaveLen(2))
+					Expect(getOrgModel.Spaces[0].Name).To(Equal("development"))
+					Expect(getOrgModel.Spaces[0].Guid).To(Equal("dev-space-guid-1"))
+					Expect(getOrgModel.Spaces[1].Name).To(Equal("staging"))
+					Expect(getOrgModel.Spaces[1].Guid).To(Equal("staging-space-guid-1"))
+
+					// space quotas
+					Expect(getOrgModel.SpaceQuotas).To(HaveLen(2))
+					Expect(getOrgModel.SpaceQuotas[0].Name).To(Equal("space-quota-1"))
+					Expect(getOrgModel.SpaceQuotas[0].Guid).To(Equal("space-quota-1-guid"))
+					Expect(getOrgModel.SpaceQuotas[0].MemoryLimit).To(Equal(int64(512)))
+					Expect(getOrgModel.SpaceQuotas[0].InstanceMemoryLimit).To(Equal(int64(-1)))
+					Expect(getOrgModel.SpaceQuotas[1].Name).To(Equal("space-quota-2"))
+					Expect(getOrgModel.SpaceQuotas[1].Guid).To(Equal("space-quota-2-guid"))
+					Expect(getOrgModel.SpaceQuotas[1].MemoryLimit).To(Equal(int64(256)))
+					Expect(getOrgModel.SpaceQuotas[1].InstanceMemoryLimit).To(Equal(int64(128)))
+				})
+			})
 		})
 	})
 })

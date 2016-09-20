@@ -1,14 +1,15 @@
 package service_test
 
 import (
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -19,18 +20,18 @@ import (
 var _ = Describe("delete-service command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		requirementsFactory *testreq.FakeReqFactory
-		serviceRepo         *testapi.FakeServiceRepository
+		requirementsFactory *requirementsfakes.FakeFactory
+		serviceRepo         *apifakes.FakeServiceRepository
 		serviceInstance     models.ServiceInstance
-		configRepo          core_config.Repository
-		deps                command_registry.Dependency
+		configRepo          coreconfig.Repository
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.RepoLocator = deps.RepoLocator.SetServiceRepository(serviceRepo)
 		deps.Config = configRepo
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("delete-service").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("delete-service").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
@@ -39,19 +40,18 @@ var _ = Describe("delete-service command", func() {
 		}
 
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		serviceRepo = &testapi.FakeServiceRepository{}
-		requirementsFactory = &testreq.FakeReqFactory{
-			LoginSuccess: true,
-		}
+		serviceRepo = new(apifakes.FakeServiceRepository)
+		requirementsFactory = new(requirementsfakes.FakeFactory)
+		requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("delete-service", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("delete-service", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Context("when not logged in", func() {
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = false
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 		})
 
 		It("does not pass requirements", func() {
@@ -61,12 +61,12 @@ var _ = Describe("delete-service command", func() {
 
 	Context("when logged in", func() {
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
 		})
 
 		It("fails with usage when not provided exactly one arg", func() {
 			runCommand()
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Incorrect Usage", "Requires an argument"},
 			))
 		})
@@ -76,7 +76,7 @@ var _ = Describe("delete-service command", func() {
 				BeforeEach(func() {
 					serviceInstance = models.ServiceInstance{}
 					serviceInstance.Name = "my-service"
-					serviceInstance.Guid = "my-service-guid"
+					serviceInstance.GUID = "my-service-guid"
 					serviceInstance.LastOperation.Type = "delete"
 					serviceInstance.LastOperation.State = "in progress"
 					serviceInstance.LastOperation.Description = "delete"
@@ -89,7 +89,7 @@ var _ = Describe("delete-service command", func() {
 
 						Expect(ui.Prompts).To(ContainSubstrings([]string{"Really delete the service my-service"}))
 
-						Expect(ui.Outputs).To(ContainSubstrings(
+						Expect(ui.Outputs()).To(ContainSubstrings(
 							[]string{"Deleting service", "my-service", "my-org", "my-space", "my-user"},
 							[]string{"OK"},
 							[]string{"Delete in progress. Use 'cf services' or 'cf service my-service' to check operation status."},
@@ -103,7 +103,7 @@ var _ = Describe("delete-service command", func() {
 					runCommand("-f", "foo.com")
 
 					Expect(ui.Prompts).To(BeEmpty())
-					Expect(ui.Outputs).To(ContainSubstrings(
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"Deleting service", "foo.com"},
 						[]string{"OK"},
 						[]string{"Delete in progress. Use 'cf services' or 'cf service foo.com' to check operation status."},
@@ -115,7 +115,7 @@ var _ = Describe("delete-service command", func() {
 				BeforeEach(func() {
 					serviceInstance = models.ServiceInstance{}
 					serviceInstance.Name = "my-service"
-					serviceInstance.Guid = "my-service-guid"
+					serviceInstance.GUID = "my-service-guid"
 					serviceRepo.FindInstanceByNameReturns(serviceInstance, nil)
 				})
 
@@ -125,7 +125,7 @@ var _ = Describe("delete-service command", func() {
 
 						Expect(ui.Prompts).To(ContainSubstrings([]string{"Really delete the service my-service"}))
 
-						Expect(ui.Outputs).To(ContainSubstrings(
+						Expect(ui.Outputs()).To(ContainSubstrings(
 							[]string{"Deleting service", "my-service", "my-org", "my-space", "my-user"},
 							[]string{"OK"},
 						))
@@ -138,7 +138,7 @@ var _ = Describe("delete-service command", func() {
 					runCommand("-f", "foo.com")
 
 					Expect(ui.Prompts).To(BeEmpty())
-					Expect(ui.Outputs).To(ContainSubstrings(
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"Deleting service", "foo.com"},
 						[]string{"OK"},
 					))
@@ -154,7 +154,7 @@ var _ = Describe("delete-service command", func() {
 			It("warns the user the service does not exist", func() {
 				runCommand("-f", "my-service")
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Deleting service", "my-service"},
 					[]string{"OK"},
 				))

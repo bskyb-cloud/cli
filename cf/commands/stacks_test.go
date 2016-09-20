@@ -1,57 +1,74 @@
 package commands_test
 
 import (
-	testapi "github.com/cloudfoundry/cli/cf/api/stacks/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/stacks/stacksfakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
+	"github.com/cloudfoundry/cli/cf/commands"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 )
 
 var _ = Describe("stacks command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		repo                *testapi.FakeStackRepository
-		config              core_config.Repository
-		requirementsFactory *testreq.FakeReqFactory
-		deps                command_registry.Dependency
+		repo                *stacksfakes.FakeStackRepository
+		config              coreconfig.Repository
+		requirementsFactory *requirementsfakes.FakeFactory
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.Config = config
 		deps.RepoLocator = deps.RepoLocator.SetStackRepository(repo)
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("stacks").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("stacks").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		config = testconfig.NewRepositoryWithDefaults()
-		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true}
-		repo = &testapi.FakeStackRepository{}
+		requirementsFactory = new(requirementsfakes.FakeFactory)
+		requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+		repo = new(stacksfakes.FakeStackRepository)
 	})
 
 	Describe("login requirements", func() {
 		It("fails if the user is not logged in", func() {
-			requirementsFactory.LoginSuccess = false
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 
-			Expect(testcmd.RunCliCommand("stacks", []string{}, requirementsFactory, updateCommandDependency, false)).To(BeFalse())
+			Expect(testcmd.RunCLICommand("stacks", []string{}, requirementsFactory, updateCommandDependency, false, ui)).To(BeFalse())
 		})
 
-		It("should fail with usage when provided any arguments", func() {
-			requirementsFactory.LoginSuccess = true
-			Expect(testcmd.RunCliCommand("stacks", []string{"etcetc"}, requirementsFactory, updateCommandDependency, false)).To(BeFalse())
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"FAILED"},
-				[]string{"Incorrect Usage", "No argument required"},
-			))
+		Context("when arguments are provided", func() {
+			var cmd commandregistry.Command
+			var flagContext flags.FlagContext
+
+			BeforeEach(func() {
+				cmd = &commands.ListStacks{}
+				cmd.SetDependency(deps, false)
+				flagContext = flags.NewFlagContext(cmd.MetaData().Flags)
+			})
+
+			It("should fail with usage", func() {
+				flagContext.Parse("blahblah")
+
+				reqs := cmd.Requirements(requirementsFactory, flagContext)
+
+				err := testcmd.RunRequirements(reqs)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("Incorrect Usage"))
+				Expect(err.Error()).To(ContainSubstring("No argument required"))
+			})
 		})
 	})
 
@@ -66,9 +83,9 @@ var _ = Describe("stacks command", func() {
 		}
 
 		repo.FindAllReturns([]models.Stack{stack1, stack2}, nil)
-		testcmd.RunCliCommand("stacks", []string{}, requirementsFactory, updateCommandDependency, false)
+		testcmd.RunCLICommand("stacks", []string{}, requirementsFactory, updateCommandDependency, false, ui)
 
-		Expect(ui.Outputs).To(ContainSubstrings(
+		Expect(ui.Outputs()).To(ContainSubstrings(
 			[]string{"Getting stacks in org", "my-org", "my-space", "my-user"},
 			[]string{"OK"},
 			[]string{"Stack-1", "Stack 1 Description"},

@@ -1,15 +1,16 @@
 package securitygroup_test
 
 import (
-	fakeStagingDefaults "github.com/cloudfoundry/cli/cf/api/security_groups/defaults/staging/fakes"
-	fakeSecurityGroup "github.com/cloudfoundry/cli/cf/api/security_groups/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/securitygroups/defaults/staging/stagingfakes"
+	"github.com/cloudfoundry/cli/cf/api/securitygroups/securitygroupsfakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -20,41 +21,42 @@ import (
 var _ = Describe("unbind-staging-security-group command", func() {
 	var (
 		ui                            *testterm.FakeUI
-		configRepo                    core_config.Repository
-		requirementsFactory           *testreq.FakeReqFactory
-		fakeSecurityGroupRepo         *fakeSecurityGroup.FakeSecurityGroupRepo
-		fakeStagingSecurityGroupsRepo *fakeStagingDefaults.FakeStagingSecurityGroupsRepo
-		deps                          command_registry.Dependency
+		configRepo                    coreconfig.Repository
+		requirementsFactory           *requirementsfakes.FakeFactory
+		fakeSecurityGroupRepo         *securitygroupsfakes.FakeSecurityGroupRepo
+		fakeStagingSecurityGroupsRepo *stagingfakes.FakeSecurityGroupsRepo
+		deps                          commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.RepoLocator = deps.RepoLocator.SetSecurityGroupRepository(fakeSecurityGroupRepo)
 		deps.RepoLocator = deps.RepoLocator.SetStagingSecurityGroupRepository(fakeStagingSecurityGroupsRepo)
 		deps.Config = configRepo
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("unbind-staging-security-group").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("unbind-staging-security-group").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		requirementsFactory = &testreq.FakeReqFactory{}
-		fakeSecurityGroupRepo = &fakeSecurityGroup.FakeSecurityGroupRepo{}
-		fakeStagingSecurityGroupsRepo = &fakeStagingDefaults.FakeStagingSecurityGroupsRepo{}
+		requirementsFactory = new(requirementsfakes.FakeFactory)
+		fakeSecurityGroupRepo = new(securitygroupsfakes.FakeSecurityGroupRepo)
+		fakeStagingSecurityGroupsRepo = new(stagingfakes.FakeSecurityGroupsRepo)
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("unbind-staging-security-group", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("unbind-staging-security-group", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Describe("requirements", func() {
 		It("fails when the user is not logged in", func() {
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 			Expect(runCommand("name")).To(BeFalse())
 		})
 
 		It("fails with usage when a name is not provided", func() {
 			runCommand()
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Incorrect Usage", "Requires", "argument"},
 			))
 		})
@@ -62,13 +64,13 @@ var _ = Describe("unbind-staging-security-group command", func() {
 
 	Context("when the user is logged in and provides the name of a group", func() {
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
 		})
 
 		Context("security group exists", func() {
 			BeforeEach(func() {
 				group := models.SecurityGroup{}
-				group.Guid = "just-pretend-this-is-a-guid"
+				group.GUID = "just-pretend-this-is-a-guid"
 				group.Name = "a-security-group-name"
 				fakeSecurityGroupRepo.ReadReturns(group, nil)
 			})
@@ -78,7 +80,7 @@ var _ = Describe("unbind-staging-security-group command", func() {
 			})
 
 			It("unbinds the group from the default staging group set", func() {
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Unbinding", "security group", "a-security-group-name", "my-user"},
 					[]string{"OK"},
 				))
@@ -99,7 +101,7 @@ var _ = Describe("unbind-staging-security-group command", func() {
 					[]string{"Security group", "anana-qui-parle", "does not exist"},
 				))
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"OK"},
 				))
 			})

@@ -2,70 +2,74 @@ package organization
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/resources"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	"github.com/cloudfoundry/cli/cf/formatters"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
-	"github.com/cloudfoundry/cli/flags/flag"
 	"github.com/cloudfoundry/cli/plugin/models"
 )
 
 type ShowOrg struct {
 	ui          terminal.UI
-	config      core_config.Reader
+	config      coreconfig.Reader
 	orgReq      requirements.OrganizationRequirement
 	pluginModel *plugin_models.GetOrg_Model
 	pluginCall  bool
 }
 
 func init() {
-	command_registry.Register(&ShowOrg{})
+	commandregistry.Register(&ShowOrg{})
 }
 
-func (cmd *ShowOrg) MetaData() command_registry.CommandMetadata {
+func (cmd *ShowOrg) MetaData() commandregistry.CommandMetadata {
 	fs := make(map[string]flags.FlagSet)
-	fs["guid"] = &cliFlags.BoolFlag{Name: "guid", Usage: T("Retrieve and display the given org's guid.  All other output for the org is suppressed.")}
-	return command_registry.CommandMetadata{
+	fs["guid"] = &flags.BoolFlag{Name: "guid", Usage: T("Retrieve and display the given org's guid.  All other output for the org is suppressed.")}
+	return commandregistry.CommandMetadata{
 		Name:        "org",
 		Description: T("Show org info"),
-		Usage:       T("CF_NAME org ORG"),
-		Flags:       fs,
+		Usage: []string{
+			T("CF_NAME org ORG"),
+		},
+		Flags: fs,
 	}
 }
 
-func (cmd *ShowOrg) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+func (cmd *ShowOrg) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
 	if len(fc.Args()) != 1 {
-		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + command_registry.Commands.CommandUsage("org"))
+		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + commandregistry.Commands.CommandUsage("org"))
 	}
 
 	cmd.orgReq = requirementsFactory.NewOrganizationRequirement(fc.Args()[0])
-	reqs = []requirements.Requirement{
+
+	reqs := []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 		cmd.orgReq,
 	}
 
-	return
+	return reqs
 }
 
-func (cmd *ShowOrg) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *ShowOrg) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.pluginCall = pluginCall
 	cmd.pluginModel = deps.PluginModels.Organization
 	return cmd
 }
 
-func (cmd *ShowOrg) Execute(c flags.FlagContext) {
+func (cmd *ShowOrg) Execute(c flags.FlagContext) error {
 	org := cmd.orgReq.GetOrganization()
 
 	if c.Bool("guid") {
-		cmd.ui.Say(org.Guid)
+		cmd.ui.Say(org.GUID)
 	} else {
 		cmd.ui.Say(T("Getting info for org {{.OrgName}} as {{.Username}}...",
 			map[string]interface{}{
@@ -74,7 +78,7 @@ func (cmd *ShowOrg) Execute(c flags.FlagContext) {
 		cmd.ui.Ok()
 		cmd.ui.Say("")
 
-		table := terminal.NewTable(cmd.ui, []string{terminal.EntityNameColor(org.Name) + ":", "", ""})
+		table := cmd.ui.Table([]string{terminal.EntityNameColor(org.Name) + ":", "", ""})
 
 		domains := []string{}
 		for _, domain := range org.Domains {
@@ -92,14 +96,38 @@ func (cmd *ShowOrg) Execute(c flags.FlagContext) {
 		}
 
 		quota := org.QuotaDefinition
-		orgQuota := fmt.Sprintf(T("{{.QuotaName}} ({{.MemoryLimit}}M memory limit, {{.InstanceMemoryLimit}} instance memory limit, {{.RoutesLimit}} routes, {{.ServicesLimit}} services, paid services {{.NonBasicServicesAllowed}})",
-			map[string]interface{}{
-				"QuotaName":               quota.Name,
-				"MemoryLimit":             quota.MemoryLimit,
-				"InstanceMemoryLimit":     formatters.InstanceMemoryLimit(quota.InstanceMemoryLimit),
-				"RoutesLimit":             quota.RoutesLimit,
-				"ServicesLimit":           quota.ServicesLimit,
-				"NonBasicServicesAllowed": formatters.Allowed(quota.NonBasicServicesAllowed)}))
+
+		var reservedPortLimit string
+		switch string(quota.ReservedRoutePorts) {
+		case "":
+			break
+		case resources.UnlimitedReservedRoutePorts:
+			reservedPortLimit = T("unlimited")
+		default:
+			if _, err := quota.ReservedRoutePorts.Int64(); err != nil {
+				return err
+			}
+			reservedPortLimit = string(quota.ReservedRoutePorts)
+		}
+
+		appInstanceLimit := strconv.Itoa(quota.AppInstanceLimit)
+		if quota.AppInstanceLimit == resources.UnlimitedAppInstances {
+			appInstanceLimit = T("unlimited")
+		}
+
+		orgQuotaFields := []string{}
+		orgQuotaFields = append(orgQuotaFields, T("{{.MemoryLimit}}M memory limit", map[string]interface{}{"MemoryLimit": quota.MemoryLimit}))
+		orgQuotaFields = append(orgQuotaFields, T("{{.InstanceMemoryLimit}} instance memory limit", map[string]interface{}{"InstanceMemoryLimit": formatters.InstanceMemoryLimit(quota.InstanceMemoryLimit)}))
+		orgQuotaFields = append(orgQuotaFields, T("{{.RoutesLimit}} routes", map[string]interface{}{"RoutesLimit": quota.RoutesLimit}))
+		orgQuotaFields = append(orgQuotaFields, T("{{.ServicesLimit}} services", map[string]interface{}{"ServicesLimit": quota.ServicesLimit}))
+		orgQuotaFields = append(orgQuotaFields, T("paid services {{.NonBasicServicesAllowed}}", map[string]interface{}{"NonBasicServicesAllowed": formatters.Allowed(quota.NonBasicServicesAllowed)}))
+		orgQuotaFields = append(orgQuotaFields, T("{{.AppInstanceLimit}} app instance limit", map[string]interface{}{"AppInstanceLimit": appInstanceLimit}))
+
+		if reservedPortLimit != "" {
+			orgQuotaFields = append(orgQuotaFields, T("{{.ReservedRoutePorts}} route ports", map[string]interface{}{"ReservedRoutePorts": reservedPortLimit}))
+		}
+
+		orgQuota := fmt.Sprintf("%s (%s)", quota.Name, strings.Join(orgQuotaFields, ", "))
 
 		if cmd.pluginCall {
 			cmd.populatePluginModel(org, quota)
@@ -112,11 +140,12 @@ func (cmd *ShowOrg) Execute(c flags.FlagContext) {
 			table.Print()
 		}
 	}
+	return nil
 }
 
 func (cmd *ShowOrg) populatePluginModel(org models.Organization, quota models.QuotaFields) {
 	cmd.pluginModel.Name = org.Name
-	cmd.pluginModel.Guid = org.Guid
+	cmd.pluginModel.Guid = org.GUID
 	cmd.pluginModel.QuotaDefinition.Name = quota.Name
 	cmd.pluginModel.QuotaDefinition.MemoryLimit = quota.MemoryLimit
 	cmd.pluginModel.QuotaDefinition.InstanceMemoryLimit = quota.InstanceMemoryLimit
@@ -127,8 +156,8 @@ func (cmd *ShowOrg) populatePluginModel(org models.Organization, quota models.Qu
 	for _, domain := range org.Domains {
 		d := plugin_models.GetOrg_Domains{
 			Name: domain.Name,
-			Guid: domain.Guid,
-			OwningOrganizationGuid: domain.OwningOrganizationGuid,
+			Guid: domain.GUID,
+			OwningOrganizationGuid: domain.OwningOrganizationGUID,
 			Shared:                 domain.Shared,
 		}
 		cmd.pluginModel.Domains = append(cmd.pluginModel.Domains, d)
@@ -137,7 +166,7 @@ func (cmd *ShowOrg) populatePluginModel(org models.Organization, quota models.Qu
 	for _, space := range org.Spaces {
 		s := plugin_models.GetOrg_Space{
 			Name: space.Name,
-			Guid: space.Guid,
+			Guid: space.GUID,
 		}
 		cmd.pluginModel.Spaces = append(cmd.pluginModel.Spaces, s)
 	}
@@ -145,7 +174,7 @@ func (cmd *ShowOrg) populatePluginModel(org models.Organization, quota models.Qu
 	for _, spaceQuota := range org.SpaceQuotas {
 		sq := plugin_models.GetOrg_SpaceQuota{
 			Name:                spaceQuota.Name,
-			Guid:                spaceQuota.Guid,
+			Guid:                spaceQuota.GUID,
 			MemoryLimit:         spaceQuota.MemoryLimit,
 			InstanceMemoryLimit: spaceQuota.InstanceMemoryLimit,
 		}

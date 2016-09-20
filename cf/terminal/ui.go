@@ -1,53 +1,77 @@
 package terminal
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"strings"
 
 	. "github.com/cloudfoundry/cli/cf/i18n"
 
+	"bytes"
+
+	"bufio"
+
 	"github.com/cloudfoundry/cli/cf"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/trace"
 )
+
+const QuietPanic = "This shouldn't print anything"
 
 type ColoringFunction func(value string, row int, col int) string
 
 func NotLoggedInText() string {
-	return fmt.Sprintf(T("Not logged in. Use '{{.CFLoginCommand}}' to log in.", map[string]interface{}{"CFLoginCommand": CommandColor(cf.Name() + " " + "login")}))
+	return fmt.Sprintf(T("Not logged in. Use '{{.CFLoginCommand}}' to log in.", map[string]interface{}{"CFLoginCommand": CommandColor(cf.Name + " " + "login")}))
 }
 
+//go:generate counterfeiter . UI
 type UI interface {
 	PrintPaginator(rows []string, err error)
 	Say(message string, args ...interface{})
+
+	// ProgressReader
 	PrintCapturingNoOutput(message string, args ...interface{})
 	Warn(message string, args ...interface{})
-	Ask(prompt string, args ...interface{}) (answer string)
-	AskForPassword(prompt string, args ...interface{}) (answer string)
-	Confirm(message string, args ...interface{}) bool
+	Ask(prompt string) (answer string)
+	AskForPassword(prompt string) (answer string)
+	Confirm(message string) bool
 	ConfirmDelete(modelType, modelName string) bool
 	ConfirmDeleteWithAssociations(modelType, modelName string) bool
 	Ok()
 	Failed(message string, args ...interface{})
 	PanicQuietly()
-	ShowConfiguration(core_config.Reader)
+	ShowConfiguration(coreconfig.Reader)
 	LoadingIndication()
-	Table(headers []string) Table
-	NotifyUpdateIfNeeded(core_config.Reader)
+	Table(headers []string) *UITable
+	NotifyUpdateIfNeeded(coreconfig.Reader)
+
+	Writer() io.Writer
+}
+
+type Printer interface {
+	Print(a ...interface{}) (n int, err error)
+	Printf(format string, a ...interface{}) (n int, err error)
+	Println(a ...interface{}) (n int, err error)
 }
 
 type terminalUI struct {
 	stdin   io.Reader
+	stdout  io.Writer
 	printer Printer
+	logger  trace.Printer
 }
 
-func NewUI(r io.Reader, printer Printer) UI {
+func NewUI(r io.Reader, w io.Writer, printer Printer, logger trace.Printer) UI {
 	return &terminalUI{
 		stdin:   r,
+		stdout:  w,
 		printer: printer,
+		logger:  logger,
 	}
+}
+
+func (ui terminalUI) Writer() io.Writer {
+	return ui.stdout
 }
 
 func (ui *terminalUI) PrintPaginator(rows []string, err error) {
@@ -63,17 +87,17 @@ func (ui *terminalUI) PrintPaginator(rows []string, err error) {
 
 func (ui *terminalUI) PrintCapturingNoOutput(message string, args ...interface{}) {
 	if len(args) == 0 {
-		fmt.Printf("%s", message)
+		fmt.Fprintf(ui.stdout, "%s", message)
 	} else {
-		fmt.Printf(message, args...)
+		fmt.Fprintf(ui.stdout, message, args...)
 	}
 }
 
 func (ui *terminalUI) Say(message string, args ...interface{}) {
 	if len(args) == 0 {
-		ui.printer.Printf("%s\n", message)
+		_, _ = ui.printer.Printf("%s\n", message)
 	} else {
-		ui.printer.Printf(message+"\n", args...)
+		_, _ = ui.printer.Printf(message+"\n", args...)
 	}
 }
 
@@ -81,6 +105,17 @@ func (ui *terminalUI) Warn(message string, args ...interface{}) {
 	message = fmt.Sprintf(message, args...)
 	ui.Say(WarningColor(message))
 	return
+}
+
+func (ui *terminalUI) Ask(prompt string) string {
+	fmt.Fprintf(ui.stdout, "\n%s%s ", prompt, PromptColor(">"))
+
+	rd := bufio.NewReader(ui.stdin)
+	line, err := rd.ReadString('\n')
+	if err == nil {
+		return strings.TrimSpace(line)
+	}
+	return ""
 }
 
 func (ui *terminalUI) ConfirmDeleteWithAssociations(modelType, modelName string) bool {
@@ -109,8 +144,8 @@ func (ui *terminalUI) confirmDelete(message string) bool {
 	return result
 }
 
-func (ui *terminalUI) Confirm(message string, args ...interface{}) bool {
-	response := ui.Ask(message, args...)
+func (ui *terminalUI) Confirm(message string) bool {
+	response := ui.Ask(message)
 	switch strings.ToLower(response) {
 	case "y", "yes", T("yes"):
 		return true
@@ -118,58 +153,43 @@ func (ui *terminalUI) Confirm(message string, args ...interface{}) bool {
 	return false
 }
 
-func (ui *terminalUI) Ask(prompt string, args ...interface{}) (answer string) {
-	fmt.Println("")
-	fmt.Printf(prompt+PromptColor(">")+" ", args...)
-
-	rd := bufio.NewReader(ui.stdin)
-	line, err := rd.ReadString('\n')
-	if err == nil {
-		return strings.TrimSpace(line)
-	}
-	return ""
-}
-
 func (ui *terminalUI) Ok() {
 	ui.Say(SuccessColor(T("OK")))
 }
 
-const QuietPanic = "This shouldn't print anything"
-
 func (ui *terminalUI) Failed(message string, args ...interface{}) {
 	message = fmt.Sprintf(message, args...)
 
-	if T == nil {
-		ui.Say(FailureColor("FAILED"))
-		ui.Say(message)
-
-		trace.Logger.Print("FAILED")
-		trace.Logger.Print(message)
-		ui.PanicQuietly()
-	} else {
-		ui.Say(FailureColor(T("FAILED")))
-		ui.Say(message)
-
-		trace.Logger.Print(T("FAILED"))
-		trace.Logger.Print(message)
-		ui.PanicQuietly()
+	failed := "FAILED"
+	if T != nil {
+		failed = T("FAILED")
 	}
+
+	ui.logger.Print(failed)
+	ui.logger.Print(message)
+
+	if !ui.logger.WritesToConsole() {
+		ui.Say(FailureColor(failed))
+		ui.Say(message)
+	}
+
+	ui.PanicQuietly()
 }
 
 func (ui *terminalUI) PanicQuietly() {
 	panic(QuietPanic)
 }
 
-func (ui *terminalUI) ShowConfiguration(config core_config.Reader) {
-	table := NewTable(ui, []string{"", ""})
+func (ui *terminalUI) ShowConfiguration(config coreconfig.Reader) {
+	table := ui.Table([]string{"", ""})
 
 	if config.HasAPIEndpoint() {
 		table.Add(
 			T("API endpoint:"),
-			T("{{.ApiEndpoint}} (API version: {{.ApiVersionString}})",
+			T("{{.APIEndpoint}} (API version: {{.APIVersionString}})",
 				map[string]interface{}{
-					"ApiEndpoint":      EntityNameColor(config.ApiEndpoint()),
-					"ApiVersionString": EntityNameColor(config.ApiVersion()),
+					"APIEndpoint":      EntityNameColor(config.APIEndpoint()),
+					"APIVersionString": EntityNameColor(config.APIVersion()),
 				}),
 		)
 	}
@@ -184,7 +204,7 @@ func (ui *terminalUI) ShowConfiguration(config core_config.Reader) {
 
 	if !config.HasOrganization() && !config.HasSpace() {
 		table.Print()
-		command := fmt.Sprintf("%s target -o ORG -s SPACE", cf.Name())
+		command := fmt.Sprintf("%s target -o ORG -s SPACE", cf.Name)
 		ui.Say(T("No org or space targeted, use '{{.CFTargetCommand}}'",
 			map[string]interface{}{
 				"CFTargetCommand": CommandColor(command),
@@ -198,7 +218,7 @@ func (ui *terminalUI) ShowConfiguration(config core_config.Reader) {
 			EntityNameColor(config.OrganizationFields().Name),
 		)
 	} else {
-		command := fmt.Sprintf("%s target -o Org", cf.Name())
+		command := fmt.Sprintf("%s target -o Org", cf.Name)
 		table.Add(
 			T("Org:"),
 			T("No org targeted, use '{{.CFTargetCommand}}'",
@@ -214,7 +234,7 @@ func (ui *terminalUI) ShowConfiguration(config core_config.Reader) {
 			EntityNameColor(config.SpaceFields().Name),
 		)
 	} else {
-		command := fmt.Sprintf("%s target -s SPACE", cf.Name())
+		command := fmt.Sprintf("%s target -s SPACE", cf.Name)
 		table.Add(
 			T("Space:"),
 			T("No space targeted, use '{{.CFTargetCommand}}'", map[string]interface{}{"CFTargetCommand": CommandColor(command)}),
@@ -225,21 +245,62 @@ func (ui *terminalUI) ShowConfiguration(config core_config.Reader) {
 }
 
 func (ui *terminalUI) LoadingIndication() {
-	ui.printer.Print(".")
+	_, _ = ui.printer.Print(".")
 }
 
-func (ui *terminalUI) Table(headers []string) Table {
-	return NewTable(ui, headers)
+func (ui *terminalUI) Table(headers []string) *UITable {
+	return &UITable{
+		UI:    ui,
+		Table: NewTable(headers),
+	}
 }
 
-func (ui *terminalUI) NotifyUpdateIfNeeded(config core_config.Reader) {
-	if !config.IsMinCliVersion(cf.Version) {
+type UITable struct {
+	UI    UI
+	Table *Table
+}
+
+func (u *UITable) Add(row ...string) {
+	u.Table.Add(row...)
+}
+
+// Print formats the table and then prints it to the UI specified at
+// the time of the construction. Afterwards the table is cleared,
+// becoming ready for another round of rows and printing.
+func (u *UITable) Print() {
+	result := &bytes.Buffer{}
+	t := u.Table
+
+	t.PrintTo(result)
+
+	// DevNote. With the change to printing into a buffer all
+	// lines now come with a terminating \n. The t.ui.Say() below
+	// will then add another \n to that. To avoid this additional
+	// line we chop off the last \n from the output (if there is
+	// any). Operating on the slice avoids string copying.
+	//
+	// WIBNI if the terminal API had a variant of Say not assuming
+	// that each output is a single line.
+
+	r := result.Bytes()
+	if len(r) > 0 {
+		r = r[0 : len(r)-1]
+	}
+
+	// Only generate output for a non-empty table.
+	if len(r) > 0 {
+		u.UI.Say("%s", string(r))
+	}
+}
+
+func (ui *terminalUI) NotifyUpdateIfNeeded(config coreconfig.Reader) {
+	if !config.IsMinCLIVersion(cf.Version) {
 		ui.Say("")
-		ui.Say(T("Cloud Foundry API version {{.ApiVer}} requires CLI version {{.CliMin}}.  You are currently on version {{.CliVer}}. To upgrade your CLI, please visit: https://github.com/cloudfoundry/cli#downloads",
+		ui.Say(T("Cloud Foundry API version {{.APIVer}} requires CLI version {{.CLIMin}}.  You are currently on version {{.CLIVer}}. To upgrade your CLI, please visit: https://github.com/cloudfoundry/cli#downloads",
 			map[string]interface{}{
-				"ApiVer": config.ApiVersion(),
-				"CliMin": config.MinCliVersion(),
-				"CliVer": cf.Version,
+				"APIVer": config.APIVersion(),
+				"CLIMin": config.MinCLIVersion(),
+				"CLIVer": cf.Version,
 			}))
 	}
 }

@@ -1,65 +1,107 @@
 package domain
 
 import (
+	"errors"
+
+	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
+	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
 )
 
 type CreateSharedDomain struct {
-	ui         terminal.UI
-	config     core_config.Reader
-	domainRepo api.DomainRepository
-	orgReq     requirements.OrganizationRequirement
+	ui             terminal.UI
+	config         coreconfig.Reader
+	domainRepo     api.DomainRepository
+	routingAPIRepo api.RoutingAPIRepository
 }
 
 func init() {
-	command_registry.Register(&CreateSharedDomain{})
+	commandregistry.Register(&CreateSharedDomain{})
 }
 
-func (cmd *CreateSharedDomain) MetaData() command_registry.CommandMetadata {
-	return command_registry.CommandMetadata{
+func (cmd *CreateSharedDomain) MetaData() commandregistry.CommandMetadata {
+	fs := make(map[string]flags.FlagSet)
+	fs["router-group"] = &flags.StringFlag{Name: "router-group", Usage: T("Routes for this domain will be configured only on the specified router group")}
+	return commandregistry.CommandMetadata{
 		Name:        "create-shared-domain",
 		Description: T("Create a domain that can be used by all orgs (admin-only)"),
-		Usage:       T("CF_NAME create-shared-domain DOMAIN"),
+		Usage: []string{
+			T("CF_NAME create-shared-domain DOMAIN [--router-group ROUTER_GROUP]"),
+		},
+		Flags: fs,
 	}
 }
 
-func (cmd *CreateSharedDomain) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+func (cmd *CreateSharedDomain) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
 	if len(fc.Args()) != 1 {
-		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + command_registry.Commands.CommandUsage("create-shared-domain"))
+		cmd.ui.Failed(T("Incorrect Usage. Requires DOMAIN as an argument\n\n") + commandregistry.Commands.CommandUsage("create-shared-domain"))
 	}
 
-	reqs = []requirements.Requirement{
+	reqs := []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 	}
-	return
+
+	if fc.String("router-group") != "" {
+		reqs = append(reqs, []requirements.Requirement{
+			requirementsFactory.NewMinAPIVersionRequirement("Option '--router-group'", cf.RoutePathMinimumAPIVersion),
+			requirementsFactory.NewRoutingAPIRequirement(),
+		}...)
+	}
+
+	return reqs
 }
 
-func (cmd *CreateSharedDomain) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *CreateSharedDomain) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.domainRepo = deps.RepoLocator.GetDomainRepository()
+	cmd.routingAPIRepo = deps.RepoLocator.GetRoutingAPIRepository()
 	return cmd
 }
 
-func (cmd *CreateSharedDomain) Execute(c flags.FlagContext) {
+func (cmd *CreateSharedDomain) Execute(c flags.FlagContext) error {
+	var routerGroup models.RouterGroup
 	domainName := c.Args()[0]
+	routerGroupName := c.String("router-group")
+
+	if routerGroupName != "" {
+		var routerGroupFound bool
+		err := cmd.routingAPIRepo.ListRouterGroups(func(group models.RouterGroup) bool {
+			if group.Name == routerGroupName {
+				routerGroup = group
+				routerGroupFound = true
+				return false
+			}
+
+			return true
+		})
+
+		if err != nil {
+			return err
+		}
+		if !routerGroupFound {
+			return errors.New(T("Router group {{.RouterGroup}} not found", map[string]interface{}{
+				"RouterGroup": routerGroupName,
+			}))
+		}
+	}
 
 	cmd.ui.Say(T("Creating shared domain {{.DomainName}} as {{.Username}}...",
 		map[string]interface{}{
 			"DomainName": terminal.EntityNameColor(domainName),
 			"Username":   terminal.EntityNameColor(cmd.config.Username())}))
 
-	apiErr := cmd.domainRepo.CreateSharedDomain(domainName)
-	if apiErr != nil {
-		cmd.ui.Failed(apiErr.Error())
-		return
+	err := cmd.domainRepo.CreateSharedDomain(domainName, routerGroup.GUID)
+	if err != nil {
+		return err
 	}
 
 	cmd.ui.Ok()
+	return nil
 }

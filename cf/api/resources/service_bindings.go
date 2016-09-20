@@ -8,12 +8,13 @@ type ServiceBindingResource struct {
 }
 
 type ServiceBindingEntity struct {
-	AppGuid string `json:"app_guid"`
+	AppGUID string `json:"app_guid"`
 }
 
-func (resource ServiceBindingResource) ToFields() (fields models.ServiceBindingFields) {
-	fields.Url = resource.Metadata.Url
-	fields.Guid = resource.Metadata.Guid
-	fields.AppGuid = resource.Entity.AppGuid
-	return
+func (resource ServiceBindingResource) ToFields() models.ServiceBindingFields {
+	return models.ServiceBindingFields{
+		URL:     resource.Metadata.URL,
+		GUID:    resource.Metadata.GUID,
+		AppGUID: resource.Entity.AppGUID,
+	}
 }

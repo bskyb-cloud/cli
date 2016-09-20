@@ -1,13 +1,14 @@
 package service_test
 
 import (
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -18,68 +19,71 @@ import (
 var _ = Describe("rename-service command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		config              core_config.Repository
-		serviceRepo         *testapi.FakeServiceRepository
-		requirementsFactory *testreq.FakeReqFactory
-		deps                command_registry.Dependency
+		config              coreconfig.Repository
+		serviceRepo         *apifakes.FakeServiceRepository
+		requirementsFactory *requirementsfakes.FakeFactory
+		deps                commandregistry.Dependency
+
+		serviceInstance models.ServiceInstance
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.RepoLocator = deps.RepoLocator.SetServiceRepository(serviceRepo)
 		deps.Config = config
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("rename-service").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("rename-service").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		config = testconfig.NewRepositoryWithDefaults()
-		serviceRepo = &testapi.FakeServiceRepository{}
-		requirementsFactory = &testreq.FakeReqFactory{}
+		serviceRepo = new(apifakes.FakeServiceRepository)
+		requirementsFactory = new(requirementsfakes.FakeFactory)
+
+		serviceInstance = models.ServiceInstance{}
+		serviceInstance.Name = "different-name"
+		serviceInstance.GUID = "different-name-guid"
+		serviceReq := new(requirementsfakes.FakeServiceInstanceRequirement)
+		serviceReq.GetServiceInstanceReturns(serviceInstance)
+		requirementsFactory.NewServiceInstanceRequirementReturns(serviceReq)
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("rename-service", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("rename-service", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Describe("requirements", func() {
 		It("Fails with usage when exactly two parameters not passed", func() {
 			runCommand("whatever")
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Incorrect Usage", "Requires", "arguments"},
 			))
 		})
 
 		It("fails when not logged in", func() {
-			requirementsFactory.TargetedSpaceSuccess = true
-
+			requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 			Expect(runCommand("banana", "fppants")).To(BeFalse())
 		})
 
 		It("fails when a space is not targeted", func() {
-			requirementsFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Failing{Message: "not targeting space"})
 
 			Expect(runCommand("banana", "faaaaasdf")).To(BeFalse())
 		})
 	})
 
 	Context("when logged in and a space is targeted", func() {
-		var serviceInstance models.ServiceInstance
-
 		BeforeEach(func() {
-			serviceInstance = models.ServiceInstance{}
-			serviceInstance.Name = "different-name"
-			serviceInstance.Guid = "different-name-guid"
-
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedSpaceSuccess = true
-			requirementsFactory.ServiceInstance = serviceInstance
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Passing{})
 		})
 
 		It("renames the service, obviously", func() {
 			runCommand("my-service", "new-name")
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Renaming service", "different-name", "new-name", "my-org", "my-space", "my-user"},
 				[]string{"OK"},
 			))

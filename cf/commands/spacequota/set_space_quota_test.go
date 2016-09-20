@@ -1,17 +1,18 @@
 package spacequota_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/api/fakes"
-	quotafakes "github.com/cloudfoundry/cli/cf/api/space_quotas/fakes"
+	"github.com/cloudfoundry/cli/cf/api/spacequotas/spacequotasfakes"
+	"github.com/cloudfoundry/cli/cf/api/spaces/spacesfakes"
+	"github.com/cloudfoundry/cli/cf/commands/spacequota"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig/coreconfigfakes"
 	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/flags"
 	"github.com/cloudfoundry/cli/cf/models"
-	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -20,59 +21,82 @@ import (
 var _ = Describe("set-space-quota command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		spaceRepo           *fakes.FakeSpaceRepository
-		quotaRepo           *quotafakes.FakeSpaceQuotaRepository
-		requirementsFactory *testreq.FakeReqFactory
-		configRepo          core_config.Repository
-		deps                command_registry.Dependency
+		spaceRepo           *spacesfakes.FakeSpaceRepository
+		quotaRepo           *spacequotasfakes.FakeSpaceQuotaRepository
+		requirementsFactory *requirementsfakes.FakeFactory
+		configRepo          *coreconfigfakes.FakeRepository
+		deps                commandregistry.Dependency
+		cmd                 spacequota.SetSpaceQuota
+		flagContext         flags.FlagContext
+		loginReq            requirements.Requirement
+		orgReq              *requirementsfakes.FakeTargetedOrgRequirement
 	)
 
-	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
-		deps.Config = configRepo
-		deps.RepoLocator = deps.RepoLocator.SetSpaceQuotaRepository(quotaRepo)
-		deps.RepoLocator = deps.RepoLocator.SetSpaceRepository(spaceRepo)
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("set-space-quota").SetDependency(deps, pluginCall))
-	}
-
 	BeforeEach(func() {
-		ui = &testterm.FakeUI{}
-		configRepo = testconfig.NewRepositoryWithDefaults()
-		spaceRepo = &fakes.FakeSpaceRepository{}
-		quotaRepo = &quotafakes.FakeSpaceQuotaRepository{}
-		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true}
+		requirementsFactory = new(requirementsfakes.FakeFactory)
+
+		loginReq = requirements.Passing{Type: "login"}
+		requirementsFactory.NewLoginRequirementReturns(loginReq)
+		orgReq = new(requirementsfakes.FakeTargetedOrgRequirement)
+		requirementsFactory.NewTargetedOrgRequirementReturns(orgReq)
+
+		ui = new(testterm.FakeUI)
+		configRepo = new(coreconfigfakes.FakeRepository)
+		deps = commandregistry.Dependency{
+			UI:     ui,
+			Config: configRepo,
+		}
+		quotaRepo = new(spacequotasfakes.FakeSpaceQuotaRepository)
+		deps.RepoLocator = deps.RepoLocator.SetSpaceQuotaRepository(quotaRepo)
+		spaceRepo = new(spacesfakes.FakeSpaceRepository)
+		deps.RepoLocator = deps.RepoLocator.SetSpaceRepository(spaceRepo)
+
+		flagContext = flags.NewFlagContext(cmd.MetaData().Flags)
+
+		cmd = spacequota.SetSpaceQuota{}
+		cmd.SetDependency(deps, false)
+
+		configRepo.UsernameReturns("my-user")
 	})
 
-	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("set-space-quota", args, requirementsFactory, updateCommandDependency, false)
-	}
+	Describe("Requirements", func() {
+		Context("when provided a quota and space", func() {
+			var reqs []requirements.Requirement
 
-	Describe("requirements", func() {
-		It("requires the user to be logged in", func() {
-			requirementsFactory.LoginSuccess = false
-			Expect(runCommand("space", "space-quota")).ToNot(HavePassedRequirements())
+			BeforeEach(func() {
+				flagContext.Parse("space", "space-quota")
+				reqs = cmd.Requirements(requirementsFactory, flagContext)
+			})
+
+			It("returns a LoginRequirement", func() {
+				Expect(reqs).To(ContainElement(loginReq))
+			})
+
+			It("requires the user to target an org", func() {
+				Expect(reqs).To(ContainElement(orgReq))
+			})
 		})
 
-		It("requires the user to target an org", func() {
-			requirementsFactory.TargetedOrgSuccess = false
-			Expect(runCommand("space", "space-quota")).ToNot(HavePassedRequirements())
-		})
+		Context("when not provided a quota and space", func() {
+			BeforeEach(func() {
+				flagContext.Parse("")
+			})
 
-		It("fails with usage if the user does not provide a quota and space", func() {
-			requirementsFactory.TargetedOrgSuccess = true
-			requirementsFactory.LoginSuccess = true
-			runCommand()
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Incorrect Usage", "Requires", "arguments"},
-			))
+			It("fails with usage", func() {
+				Expect(func() { cmd.Requirements(requirementsFactory, flagContext) }).To(Panic())
+				Expect(ui.Outputs()).To(ContainSubstrings(
+					[]string{"Incorrect Usage. Requires", "as arguments"},
+				))
+			})
 		})
 	})
 
-	Context("when logged in", func() {
+	Describe("Execute", func() {
+		var executeErr error
+
 		JustBeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedOrgSuccess = true
-			Expect(runCommand("my-space", "quota-name")).To(HavePassedRequirements())
+			flagContext.Parse("my-space", "quota-name")
+			executeErr = cmd.Execute(flagContext)
 		})
 
 		Context("when the space and quota both exist", func() {
@@ -80,32 +104,33 @@ var _ = Describe("set-space-quota command", func() {
 				quotaRepo.FindByNameReturns(
 					models.SpaceQuota{
 						Name:                    "quota-name",
-						Guid:                    "quota-guid",
+						GUID:                    "quota-guid",
 						MemoryLimit:             1024,
 						InstanceMemoryLimit:     512,
 						RoutesLimit:             111,
 						ServicesLimit:           222,
 						NonBasicServicesAllowed: true,
-						OrgGuid:                 "my-org-guid",
+						OrgGUID:                 "my-org-guid",
 					}, nil)
 
 				spaceRepo.FindByNameReturns(
 					models.Space{
 						SpaceFields: models.SpaceFields{
 							Name: "my-space",
-							Guid: "my-space-guid",
+							GUID: "my-space-guid",
 						},
-						SpaceQuotaGuid: "",
+						SpaceQuotaGUID: "",
 					}, nil)
 			})
 
 			Context("when the space quota was not previously assigned to a space", func() {
 				It("associates the provided space with the provided space quota", func() {
-					spaceGuid, quotaGuid := quotaRepo.AssociateSpaceWithQuotaArgsForCall(0)
+					Expect(executeErr).NotTo(HaveOccurred())
+					spaceGUID, quotaGUID := quotaRepo.AssociateSpaceWithQuotaArgsForCall(0)
 
-					Expect(spaceGuid).To(Equal("my-space-guid"))
-					Expect(quotaGuid).To(Equal("quota-guid"))
-					Expect(ui.Outputs).To(ContainSubstrings(
+					Expect(spaceGUID).To(Equal("my-space-guid"))
+					Expect(quotaGUID).To(Equal("quota-guid"))
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"Assigning space quota", "to space", "my-user"},
 						[]string{"OK"},
 					))
@@ -118,57 +143,61 @@ var _ = Describe("set-space-quota command", func() {
 						models.Space{
 							SpaceFields: models.SpaceFields{
 								Name: "my-space",
-								Guid: "my-space-guid",
+								GUID: "my-space-guid",
 							},
-							SpaceQuotaGuid: "another-quota",
+							SpaceQuotaGUID: "another-quota",
 						}, nil)
 				})
 
 				It("warns the user that the operation was not performed", func() {
 					Expect(quotaRepo.UpdateCallCount()).To(Equal(0))
-					Expect(ui.Outputs).To(ContainSubstrings(
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"Assigning space quota", "to space", "my-user"},
-						[]string{"FAILED"},
-						[]string{"This space already has an assigned space quota."},
 					))
+					Expect(executeErr).To(HaveOccurred())
+					Expect(executeErr.Error()).To(Equal("This space already has an assigned space quota."))
 				})
 			})
 		})
 
 		Context("when an error occurs fetching the space", func() {
+			var spaceError error
+
 			BeforeEach(func() {
-				spaceRepo.FindByNameReturns(models.Space{}, errors.New("space-repo-err"))
+				spaceError = errors.New("space-repo-err")
+				spaceRepo.FindByNameReturns(models.Space{}, spaceError)
 			})
 
 			It("prints an error", func() {
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Assigning space quota", "to space", "my-user"},
-					[]string{"FAILED"},
-					[]string{"space-repo-err"},
 				))
+				Expect(executeErr).To(Equal(spaceError))
 			})
 		})
 
 		Context("when an error occurs fetching the quota", func() {
+			var quotaErr error
+
 			BeforeEach(func() {
 				spaceRepo.FindByNameReturns(
 					models.Space{
 						SpaceFields: models.SpaceFields{
 							Name: "my-space",
-							Guid: "my-space-guid",
+							GUID: "my-space-guid",
 						},
-						SpaceQuotaGuid: "",
+						SpaceQuotaGUID: "",
 					}, nil)
 
-				quotaRepo.FindByNameReturns(models.SpaceQuota{}, errors.New("I can't find my quota name!"))
+				quotaErr = errors.New("I can't find my quota name!")
+				quotaRepo.FindByNameReturns(models.SpaceQuota{}, quotaErr)
 			})
 
 			It("prints an error", func() {
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Assigning space quota", "to space", "my-user"},
-					[]string{"FAILED"},
-					[]string{"I can't find my quota name!"},
 				))
+				Expect(executeErr).To(Equal(quotaErr))
 			})
 		})
 	})

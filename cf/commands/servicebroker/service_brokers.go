@@ -4,18 +4,18 @@ import (
 	"sort"
 
 	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
 )
 
 type ListServiceBrokers struct {
 	ui     terminal.UI
-	config core_config.Reader
+	config coreconfig.Reader
 	repo   api.ServiceBrokerRepository
 }
 
@@ -27,34 +27,43 @@ type serviceBrokerRow struct {
 }
 
 func init() {
-	command_registry.Register(&ListServiceBrokers{})
+	commandregistry.Register(&ListServiceBrokers{})
 }
 
-func (cmd *ListServiceBrokers) MetaData() command_registry.CommandMetadata {
-	return command_registry.CommandMetadata{
+func (cmd *ListServiceBrokers) MetaData() commandregistry.CommandMetadata {
+	return commandregistry.CommandMetadata{
 		Name:        "service-brokers",
 		Description: T("List service brokers"),
-		Usage:       "CF_NAME service-brokers",
+		Usage: []string{
+			"CF_NAME service-brokers",
+		},
 	}
 }
 
-func (cmd *ListServiceBrokers) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
-	if len(fc.Args()) != 0 {
-		cmd.ui.Failed(T("Incorrect Usage. No argument required\n\n") + command_registry.Commands.CommandUsage("service-brokers"))
+func (cmd *ListServiceBrokers) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+	usageReq := requirements.NewUsageRequirement(commandregistry.CLICommandUsagePresenter(cmd),
+		T("No argument required"),
+		func() bool {
+			return len(fc.Args()) != 0
+		},
+	)
+
+	reqs := []requirements.Requirement{
+		usageReq,
+		requirementsFactory.NewLoginRequirement(),
 	}
 
-	reqs = append(reqs, requirementsFactory.NewLoginRequirement())
-	return
+	return reqs
 }
 
-func (cmd *ListServiceBrokers) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *ListServiceBrokers) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.repo = deps.RepoLocator.GetServiceBrokerRepository()
 	return cmd
 }
 
-func (cmd *ListServiceBrokers) Execute(c flags.FlagContext) {
+func (cmd *ListServiceBrokers) Execute(c flags.FlagContext) error {
 	sbTable := serviceBrokerTable{}
 
 	cmd.ui.Say(T("Getting service brokers as {{.Username}}...\n",
@@ -64,10 +73,10 @@ func (cmd *ListServiceBrokers) Execute(c flags.FlagContext) {
 
 	table := cmd.ui.Table([]string{T("name"), T("url")})
 	foundBrokers := false
-	apiErr := cmd.repo.ListServiceBrokers(func(serviceBroker models.ServiceBroker) bool {
+	err := cmd.repo.ListServiceBrokers(func(serviceBroker models.ServiceBroker) bool {
 		sbTable = append(sbTable, serviceBrokerRow{
 			name: serviceBroker.Name,
-			url:  serviceBroker.Url,
+			url:  serviceBroker.URL,
 		})
 		foundBrokers = true
 		return true
@@ -81,14 +90,14 @@ func (cmd *ListServiceBrokers) Execute(c flags.FlagContext) {
 
 	table.Print()
 
-	if apiErr != nil {
-		cmd.ui.Failed(apiErr.Error())
-		return
+	if err != nil {
+		return err
 	}
 
 	if !foundBrokers {
 		cmd.ui.Say(T("No service brokers found"))
 	}
+	return nil
 }
 
 func (a serviceBrokerTable) Len() int           { return len(a) }

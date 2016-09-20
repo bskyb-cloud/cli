@@ -15,21 +15,21 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cloudfoundry-incubator/diego-ssh/cf-plugin/terminal"
-	"github.com/cloudfoundry-incubator/diego-ssh/server"
-	fake_server "github.com/cloudfoundry-incubator/diego-ssh/server/fakes"
-	"github.com/cloudfoundry-incubator/diego-ssh/test_helpers"
-	"github.com/cloudfoundry-incubator/diego-ssh/test_helpers/fake_io"
-	"github.com/cloudfoundry-incubator/diego-ssh/test_helpers/fake_net"
-	"github.com/cloudfoundry-incubator/diego-ssh/test_helpers/fake_ssh"
+	"code.cloudfoundry.org/diego-ssh/server"
+	fake_server "code.cloudfoundry.org/diego-ssh/server/fakes"
+	"code.cloudfoundry.org/diego-ssh/test_helpers"
+	"code.cloudfoundry.org/diego-ssh/test_helpers/fake_io"
+	"code.cloudfoundry.org/diego-ssh/test_helpers/fake_net"
+	"code.cloudfoundry.org/diego-ssh/test_helpers/fake_ssh"
+	"code.cloudfoundry.org/lager/lagertest"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/ssh"
-	"github.com/cloudfoundry/cli/cf/ssh/fakes"
 	"github.com/cloudfoundry/cli/cf/ssh/options"
-	"github.com/cloudfoundry/cli/cf/ssh/terminal/terminal_helper_fakes"
+	"github.com/cloudfoundry/cli/cf/ssh/sshfakes"
+	"github.com/cloudfoundry/cli/cf/ssh/terminal"
+	"github.com/cloudfoundry/cli/cf/ssh/terminal/terminalfakes"
 	"github.com/docker/docker/pkg/term"
 	"github.com/kr/pty"
-	"github.com/pivotal-golang/lager/lagertest"
 	"golang.org/x/crypto/ssh"
 
 	. "github.com/onsi/ginkgo"
@@ -38,13 +38,13 @@ import (
 
 var _ = Describe("SSH", func() {
 	var (
-		fakeTerminalHelper  *terminal_helper_fakes.FakeTerminalHelper
-		fakeListenerFactory *fakes.FakeListenerFactory
+		fakeTerminalHelper  *terminalfakes.FakeTerminalHelper
+		fakeListenerFactory *sshfakes.FakeListenerFactory
 
 		fakeConnection    *fake_ssh.FakeConn
-		fakeSecureClient  *fakes.FakeSecureClient
-		fakeSecureDialer  *fakes.FakeSecureDialer
-		fakeSecureSession *fakes.FakeSecureSession
+		fakeSecureClient  *sshfakes.FakeSecureClient
+		fakeSecureDialer  *sshfakes.FakeSecureDialer
+		fakeSecureSession *sshfakes.FakeSecureSession
 
 		terminalHelper    terminal.TerminalHelper
 		keepAliveDuration time.Duration
@@ -59,10 +59,10 @@ var _ = Describe("SSH", func() {
 	)
 
 	BeforeEach(func() {
-		fakeTerminalHelper = &terminal_helper_fakes.FakeTerminalHelper{}
+		fakeTerminalHelper = new(terminalfakes.FakeTerminalHelper)
 		terminalHelper = terminal.DefaultHelper()
 
-		fakeListenerFactory = &fakes.FakeListenerFactory{}
+		fakeListenerFactory = new(sshfakes.FakeListenerFactory)
 		fakeListenerFactory.ListenStub = net.Listen
 
 		keepAliveDuration = 30 * time.Second
@@ -72,10 +72,10 @@ var _ = Describe("SSH", func() {
 		sshEndpointFingerprint = ""
 		token = ""
 
-		fakeConnection = &fake_ssh.FakeConn{}
-		fakeSecureClient = &fakes.FakeSecureClient{}
-		fakeSecureDialer = &fakes.FakeSecureDialer{}
-		fakeSecureSession = &fakes.FakeSecureSession{}
+		fakeConnection = new(fake_ssh.FakeConn)
+		fakeSecureClient = new(sshfakes.FakeSecureClient)
+		fakeSecureDialer = new(sshfakes.FakeSecureDialer)
+		fakeSecureSession = new(sshfakes.FakeSecureSession)
 
 		fakeSecureDialer.DialReturns(fakeSecureClient, nil)
 		fakeSecureClient.NewSessionReturns(fakeSecureSession, nil)
@@ -187,7 +187,7 @@ var _ = Describe("SSH", func() {
 
 			currentApp.State = "STARTED"
 			currentApp.Diego = true
-			currentApp.Guid = "app-guid"
+			currentApp.GUID = "app-guid"
 			token = "bearer token"
 
 			interactiveSessionInvoker = func(secureShell sshCmd.SecureShell) {
@@ -467,7 +467,7 @@ var _ = Describe("SSH", func() {
 
 				Context("when a terminal is requested", func() {
 					BeforeEach(func() {
-						opts.TerminalRequest = options.REQUEST_TTY_YES
+						opts.TerminalRequest = options.RequestTTYYes
 					})
 
 					It("requests a pty", func() {
@@ -507,7 +507,7 @@ var _ = Describe("SSH", func() {
 
 			Context("when a terminal is requested", func() {
 				BeforeEach(func() {
-					opts.TerminalRequest = options.REQUEST_TTY_YES
+					opts.TerminalRequest = options.RequestTTYYes
 				})
 
 				It("does not request a pty", func() {
@@ -518,7 +518,7 @@ var _ = Describe("SSH", func() {
 
 		Context("when a terminal is forced", func() {
 			BeforeEach(func() {
-				opts.TerminalRequest = options.REQUEST_TTY_FORCE
+				opts.TerminalRequest = options.RequestTTYForce
 			})
 
 			It("requests a pty", func() {
@@ -528,7 +528,7 @@ var _ = Describe("SSH", func() {
 
 		Context("when a terminal is disabled", func() {
 			BeforeEach(func() {
-				opts.TerminalRequest = options.REQUEST_TTY_NO
+				opts.TerminalRequest = options.RequestTTYNo
 			})
 
 			It("does not request a pty", func() {

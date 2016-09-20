@@ -1,14 +1,17 @@
 package spacequota_test
 
 import (
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/api/space_quotas/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"errors"
+
+	"github.com/cloudfoundry/cli/cf/api/spacequotas/spacequotasfakes"
+	"github.com/cloudfoundry/cli/cf/api/spaces/spacesfakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -19,54 +22,57 @@ import (
 var _ = Describe("unset-space-quota command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		quotaRepo           *fakes.FakeSpaceQuotaRepository
-		spaceRepo           *testapi.FakeSpaceRepository
-		requirementsFactory *testreq.FakeReqFactory
-		configRepo          core_config.Repository
-		deps                command_registry.Dependency
+		quotaRepo           *spacequotasfakes.FakeSpaceQuotaRepository
+		spaceRepo           *spacesfakes.FakeSpaceRepository
+		requirementsFactory *requirementsfakes.FakeFactory
+		configRepo          coreconfig.Repository
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.Config = configRepo
 		deps.RepoLocator = deps.RepoLocator.SetSpaceQuotaRepository(quotaRepo)
 		deps.RepoLocator = deps.RepoLocator.SetSpaceRepository(spaceRepo)
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("unset-space-quota").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("unset-space-quota").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		quotaRepo = &fakes.FakeSpaceQuotaRepository{}
-		spaceRepo = &testapi.FakeSpaceRepository{}
-		requirementsFactory = &testreq.FakeReqFactory{}
+		quotaRepo = new(spacequotasfakes.FakeSpaceQuotaRepository)
+		spaceRepo = new(spacesfakes.FakeSpaceRepository)
+		requirementsFactory = new(requirementsfakes.FakeFactory)
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("unset-space-quota", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("unset-space-quota", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	It("fails with usage when provided too many or two few args", func() {
 		runCommand("space")
-		Expect(ui.Outputs).To(ContainSubstrings(
+		Expect(ui.Outputs()).To(ContainSubstrings(
 			[]string{"Incorrect Usage", "Requires", "arguments"},
 		))
 
 		runCommand("space", "quota", "extra-stuff")
-		Expect(ui.Outputs).To(ContainSubstrings(
+		Expect(ui.Outputs()).To(ContainSubstrings(
 			[]string{"Incorrect Usage", "Requires", "arguments"},
 		))
 	})
 
 	Describe("requirements", func() {
 		It("requires the user to be logged in", func() {
-			requirementsFactory.LoginSuccess = false
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 
 			Expect(runCommand("space", "quota")).To(BeFalse())
 		})
 
 		It("requires the user to target an org", func() {
-			requirementsFactory.TargetedOrgSuccess = false
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			orgReq := new(requirementsfakes.FakeTargetedOrgRequirement)
+			orgReq.ExecuteReturns(errors.New("not targeting org"))
+			requirementsFactory.NewTargetedOrgRequirementReturns(orgReq)
 
 			Expect(runCommand("space", "quota")).To(BeFalse())
 		})
@@ -74,34 +80,34 @@ var _ = Describe("unset-space-quota command", func() {
 
 	Context("when requirements are met", func() {
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedOrgSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewTargetedOrgRequirementReturns(new(requirementsfakes.FakeTargetedOrgRequirement))
 		})
 
 		It("unassigns a quota from a space", func() {
 			space := models.Space{
 				SpaceFields: models.SpaceFields{
 					Name: "my-space",
-					Guid: "my-space-guid",
+					GUID: "my-space-guid",
 				},
 			}
 
-			quota := models.SpaceQuota{Name: "my-quota", Guid: "my-quota-guid"}
+			quota := models.SpaceQuota{Name: "my-quota", GUID: "my-quota-guid"}
 
 			quotaRepo.FindByNameReturns(quota, nil)
 			spaceRepo.FindByNameReturns(space, nil)
 
 			runCommand("my-space", "my-quota")
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Unassigning space quota", "my-quota", "my-space", "my-user"},
 				[]string{"OK"},
 			))
 
 			Expect(quotaRepo.FindByNameArgsForCall(0)).To(Equal("my-quota"))
-			spaceGuid, quotaGuid := quotaRepo.UnassignQuotaFromSpaceArgsForCall(0)
-			Expect(spaceGuid).To(Equal("my-space-guid"))
-			Expect(quotaGuid).To(Equal("my-quota-guid"))
+			spaceGUID, quotaGUID := quotaRepo.UnassignQuotaFromSpaceArgsForCall(0)
+			Expect(spaceGUID).To(Equal("my-space-guid"))
+			Expect(quotaGUID).To(Equal("my-quota-guid"))
 		})
 	})
 })

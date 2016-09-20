@@ -1,78 +1,197 @@
 package servicebroker_test
 
 import (
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
-	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
+	"errors"
+
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/commands/servicebroker"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
+
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
-	"github.com/cloudfoundry/cli/cf/command_registry"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("create-service-broker command", func() {
+var _ = Describe("CreateServiceBroker", func() {
 	var (
-		ui                  *testterm.FakeUI
-		requirementsFactory *testreq.FakeReqFactory
-		configRepo          core_config.Repository
-		serviceBrokerRepo   *testapi.FakeServiceBrokerRepo
-		deps                command_registry.Dependency
+		ui                *testterm.FakeUI
+		configRepo        coreconfig.Repository
+		serviceBrokerRepo *apifakes.FakeServiceBrokerRepository
+
+		cmd         commandregistry.Command
+		deps        commandregistry.Dependency
+		factory     *requirementsfakes.FakeFactory
+		flagContext flags.FlagContext
+
+		loginRequirement         requirements.Requirement
+		targetedSpaceRequirement requirements.Requirement
+		minAPIVersionRequirement requirements.Requirement
 	)
 
-	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
-		deps.RepoLocator = deps.RepoLocator.SetServiceBrokerRepository(serviceBrokerRepo)
-		deps.Config = configRepo
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("create-service-broker").SetDependency(deps, pluginCall))
-	}
-
 	BeforeEach(func() {
-		configRepo = testconfig.NewRepositoryWithDefaults()
-
 		ui = &testterm.FakeUI{}
-		requirementsFactory = &testreq.FakeReqFactory{}
-		serviceBrokerRepo = &testapi.FakeServiceBrokerRepo{}
+		configRepo = testconfig.NewRepositoryWithDefaults()
+		serviceBrokerRepo = new(apifakes.FakeServiceBrokerRepository)
+		repoLocator := deps.RepoLocator.SetServiceBrokerRepository(serviceBrokerRepo)
+
+		deps = commandregistry.Dependency{
+			UI:          ui,
+			Config:      configRepo,
+			RepoLocator: repoLocator,
+		}
+
+		cmd = &servicebroker.CreateServiceBroker{}
+		cmd.SetDependency(deps, false)
+
+		flagContext = flags.NewFlagContext(cmd.MetaData().Flags)
+		factory = new(requirementsfakes.FakeFactory)
+
+		loginRequirement = &passingRequirement{Name: "login-requirement"}
+		factory.NewLoginRequirementReturns(loginRequirement)
+
+		targetedSpaceRequirement = &passingRequirement{Name: "targeted-space-requirement"}
+		factory.NewTargetedSpaceRequirementReturns(targetedSpaceRequirement)
+
+		minAPIVersionRequirement = &passingRequirement{Name: "min-api-version-requirement"}
+		factory.NewMinAPIVersionRequirementReturns(minAPIVersionRequirement)
 	})
 
-	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("create-service-broker", args, requirementsFactory, updateCommandDependency, false)
-	}
+	It("has an alias of `csb`", func() {
+		cmd := &servicebroker.CreateServiceBroker{}
 
-	Describe("requirements", func() {
-		It("fails with usage when called without exactly four args", func() {
-			requirementsFactory.LoginSuccess = true
-			runCommand("whoops", "not-enough", "args")
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Incorrect Usage", "Requires", "arguments"},
-			))
+		Expect(cmd.MetaData().ShortName).To(Equal("csb"))
+	})
+
+	Describe("Requirements", func() {
+		Context("when not provided exactly four args", func() {
+			BeforeEach(func() {
+				flagContext.Parse("service-broker")
+			})
+
+			It("fails with usage", func() {
+				Expect(func() { cmd.Requirements(factory, flagContext) }).To(Panic())
+				Expect(ui.Outputs()).To(ContainSubstrings(
+					[]string{"FAILED"},
+					[]string{"Incorrect Usage. Requires SERVICE_BROKER, USERNAME, PASSWORD, URL as arguments"},
+				))
+			})
 		})
 
-		It("fails when not logged in", func() {
-			Expect(runCommand("Just", "Enough", "Args", "Provided")).To(BeFalse())
+		Context("when provided exactly four args", func() {
+			BeforeEach(func() {
+				flagContext.Parse("service-broker", "username", "password", "url")
+			})
+
+			It("returns a LoginRequirement", func() {
+				actualRequirements := cmd.Requirements(factory, flagContext)
+				Expect(factory.NewLoginRequirementCallCount()).To(Equal(1))
+				Expect(actualRequirements).To(ContainElement(loginRequirement))
+			})
+		})
+
+		Context("when the --space-scoped flag is provided", func() {
+			BeforeEach(func() {
+				flagContext.Parse("service-broker", "username", "password", "url", "--space-scoped")
+			})
+
+			It("returns a TargetedSpaceRequirement", func() {
+				actualRequirements := cmd.Requirements(factory, flagContext)
+				Expect(factory.NewTargetedSpaceRequirementCallCount()).To(Equal(1))
+				Expect(actualRequirements).To(ContainElement(targetedSpaceRequirement))
+			})
+
+			It("returns a MinAPIVersionRequirement", func() {
+				actualRequirements := cmd.Requirements(factory, flagContext)
+				Expect(actualRequirements).To(ContainElement(minAPIVersionRequirement))
+			})
 		})
 	})
 
-	Context("when logged in", func() {
+	Describe("Execute", func() {
+		var runCLIErr error
+
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
+			err := flagContext.Parse("service-broker", "username", "password", "url")
+			Expect(err).NotTo(HaveOccurred())
+			cmd.Requirements(factory, flagContext)
 		})
 
-		It("creates a service broker, obviously", func() {
-			runCommand("my-broker", "my-username", "my-password", "http://example.com")
+		JustBeforeEach(func() {
+			runCLIErr = cmd.Execute(flagContext)
+		})
 
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Creating service broker", "my-broker", "my-user"},
+		It("tells the user it is creating the service broker", func() {
+			Expect(runCLIErr).NotTo(HaveOccurred())
+			Expect(ui.Outputs()).To(ContainSubstrings(
+				[]string{"Creating service broker", "service-broker", "my-user"},
 				[]string{"OK"},
 			))
+		})
 
-			Expect(serviceBrokerRepo.CreateName).To(Equal("my-broker"))
-			Expect(serviceBrokerRepo.CreateUrl).To(Equal("http://example.com"))
-			Expect(serviceBrokerRepo.CreateUsername).To(Equal("my-username"))
-			Expect(serviceBrokerRepo.CreatePassword).To(Equal("my-password"))
+		It("tries to create the service broker", func() {
+			Expect(runCLIErr).NotTo(HaveOccurred())
+			Expect(serviceBrokerRepo.CreateCallCount()).To(Equal(1))
+			name, url, username, password, spaceGUID := serviceBrokerRepo.CreateArgsForCall(0)
+			Expect(name).To(Equal("service-broker"))
+			Expect(url).To(Equal("url"))
+			Expect(username).To(Equal("username"))
+			Expect(password).To(Equal("password"))
+			Expect(spaceGUID).To(Equal(""))
+		})
+
+		Context("when the --space-scoped flag is passed", func() {
+			BeforeEach(func() {
+				err := flagContext.Parse("service-broker", "username", "password", "url", "--space-scoped")
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			It("tries to create the service broker with the targeted space guid", func() {
+				Expect(runCLIErr).NotTo(HaveOccurred())
+				Expect(serviceBrokerRepo.CreateCallCount()).To(Equal(1))
+				name, url, username, password, spaceGUID := serviceBrokerRepo.CreateArgsForCall(0)
+				Expect(name).To(Equal("service-broker"))
+				Expect(url).To(Equal("url"))
+				Expect(username).To(Equal("username"))
+				Expect(password).To(Equal("password"))
+				Expect(spaceGUID).To(Equal("my-space-guid"))
+			})
+
+			It("tells the user it is creating the service broker in the targeted org and space", func() {
+				Expect(runCLIErr).NotTo(HaveOccurred())
+				Expect(ui.Outputs()).To(ContainSubstrings(
+					[]string{"Creating service broker service-broker in org my-org / space my-space as my-user"},
+					[]string{"OK"},
+				))
+			})
+		})
+
+		Context("when creating the service broker succeeds", func() {
+			BeforeEach(func() {
+				serviceBrokerRepo.CreateReturns(nil)
+			})
+
+			It("says OK", func() {
+				Expect(runCLIErr).NotTo(HaveOccurred())
+				Expect(ui.Outputs()).To(ContainSubstrings([]string{"OK"}))
+			})
+		})
+
+		Context("when creating the service broker fails", func() {
+			BeforeEach(func() {
+				serviceBrokerRepo.CreateReturns(errors.New("create-err"))
+			})
+
+			It("returns an error", func() {
+				Expect(runCLIErr).To(HaveOccurred())
+				Expect(runCLIErr.Error()).To(Equal("create-err"))
+			})
 		})
 	})
 })

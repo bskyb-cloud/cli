@@ -9,10 +9,10 @@ import (
 )
 
 var _ = Describe("ManifestDiskRepository", func() {
-	var repo ManifestRepository
+	var repo Repository
 
 	BeforeEach(func() {
-		repo = NewManifestDiskRepository()
+		repo = NewDiskRepository()
 	})
 
 	Describe("given a directory containing a file called 'manifest.yml'", func() {
@@ -139,7 +139,7 @@ var _ = Describe("ManifestDiskRepository", func() {
 		applications, err := m.Applications()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(*applications[0].Name).To(Equal("base-app"))
-		Expect(*applications[0].ServicesToBind).To(Equal([]string{"base-service"}))
+		Expect(applications[0].ServicesToBind).To(Equal([]string{"base-service"}))
 		Expect(*applications[0].EnvironmentVars).To(Equal(map[string]interface{}{
 			"foo":                "bar",
 			"will-be-overridden": "my-value",
@@ -151,7 +151,7 @@ var _ = Describe("ManifestDiskRepository", func() {
 		Expect(env["will-be-overridden"]).To(Equal("my-value"))
 		Expect(env["foo"]).To(Equal("bar"))
 
-		services := *applications[1].ServicesToBind
+		services := applications[1].ServicesToBind
 		Expect(services).To(Equal([]string{"base-service", "foo-service"}))
 	})
 

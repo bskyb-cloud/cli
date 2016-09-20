@@ -1,300 +1,446 @@
 package commands_test
 
 import (
-	"time"
+	"errors"
 
-	testAppInstanaces "github.com/cloudfoundry/cli/cf/api/app_instances/fakes"
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
-	"github.com/cloudfoundry/cli/cf/formatters"
-	testManifest "github.com/cloudfoundry/cli/cf/manifest/fakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/commands"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
+	"github.com/cloudfoundry/cli/cf/manifest/manifestfakes"
 	"github.com/cloudfoundry/cli/cf/models"
-	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
+
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
+	"github.com/cloudfoundry/cli/cf/api/stacks/stacksfakes"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
-	testtime "github.com/cloudfoundry/cli/testhelpers/time"
+
+	"os"
 
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("create-app-manifest Command", func() {
+var _ = Describe("CreateAppManifest", func() {
 	var (
-		ui                  *testterm.FakeUI
-		configRepo          core_config.Repository
-		appSummaryRepo      *testapi.FakeAppSummaryRepo
-		appInstancesRepo    *testAppInstanaces.FakeAppInstancesRepository
-		requirementsFactory *testreq.FakeReqFactory
-		fakeManifest        *testManifest.FakeAppManifest
-		deps                command_registry.Dependency
+		ui             *testterm.FakeUI
+		configRepo     coreconfig.Repository
+		appSummaryRepo *apifakes.FakeAppSummaryRepository
+		stackRepo      *stacksfakes.FakeStackRepository
+
+		cmd         commandregistry.Command
+		deps        commandregistry.Dependency
+		factory     *requirementsfakes.FakeFactory
+		flagContext flags.FlagContext
+
+		loginRequirement         requirements.Requirement
+		targetedSpaceRequirement requirements.Requirement
+		applicationRequirement   *requirementsfakes.FakeApplicationRequirement
+
+		fakeManifest *manifestfakes.FakeApp
 	)
 
-	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
-		deps.RepoLocator = deps.RepoLocator.SetAppSummaryRepository(appSummaryRepo)
-		deps.RepoLocator = deps.RepoLocator.SetAppInstancesRepository(appInstancesRepo)
-		deps.Config = configRepo
-		deps.AppManifest = fakeManifest
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("create-app-manifest").SetDependency(deps, pluginCall))
-	}
-
 	BeforeEach(func() {
-		fakeManifest = &testManifest.FakeAppManifest{}
 		ui = &testterm.FakeUI{}
-		appSummaryRepo = &testapi.FakeAppSummaryRepo{}
-		appInstancesRepo = &testAppInstanaces.FakeAppInstancesRepository{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		requirementsFactory = &testreq.FakeReqFactory{
-			LoginSuccess:         true,
-			TargetedSpaceSuccess: true,
+		appSummaryRepo = new(apifakes.FakeAppSummaryRepository)
+		repoLocator := deps.RepoLocator.SetAppSummaryRepository(appSummaryRepo)
+		stackRepo = new(stacksfakes.FakeStackRepository)
+		repoLocator = repoLocator.SetStackRepository(stackRepo)
+
+		fakeManifest = new(manifestfakes.FakeApp)
+
+		deps = commandregistry.Dependency{
+			UI:          ui,
+			Config:      configRepo,
+			RepoLocator: repoLocator,
+			AppManifest: fakeManifest,
 		}
+
+		cmd = &commands.CreateAppManifest{}
+		cmd.SetDependency(deps, false)
+
+		flagContext = flags.NewFlagContext(cmd.MetaData().Flags)
+		factory = new(requirementsfakes.FakeFactory)
+
+		loginRequirement = &passingRequirement{Name: "login-requirement"}
+		factory.NewLoginRequirementReturns(loginRequirement)
+
+		targetedSpaceRequirement = &passingRequirement{Name: "targeted-space-requirement"}
+		factory.NewTargetedSpaceRequirementReturns(targetedSpaceRequirement)
+
+		applicationRequirement = new(requirementsfakes.FakeApplicationRequirement)
+		application := models.Application{}
+		application.GUID = "app-guid"
+		applicationRequirement.GetApplicationReturns(application)
+		factory.NewApplicationRequirementReturns(applicationRequirement)
 	})
 
-	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("create-app-manifest", args, requirementsFactory, updateCommandDependency, false)
-	}
+	Describe("Requirements", func() {
+		Context("when not provided exactly one arg", func() {
+			BeforeEach(func() {
+				flagContext.Parse("app-name", "extra-arg")
+			})
 
-	Describe("requirements", func() {
-		It("fails if not logged in", func() {
-			requirementsFactory.LoginSuccess = false
-			Expect(runCommand("cf-plays-dwarf-fortress")).To(BeFalse())
+			It("fails with usage", func() {
+				Expect(func() { cmd.Requirements(factory, flagContext) }).To(Panic())
+				Expect(ui.Outputs()).To(ContainSubstrings(
+					[]string{"FAILED"},
+					[]string{"Incorrect Usage. Requires APP_NAME as argument"},
+				))
+			})
 		})
 
-		It("fails if a space is not targeted", func() {
-			requirementsFactory.TargetedSpaceSuccess = false
-			Expect(runCommand("cf-plays-dwarf-fortress")).To(BeFalse())
-		})
+		Context("when provided exactly one arg", func() {
+			BeforeEach(func() {
+				flagContext.Parse("app-name")
+			})
 
-		It("fails with usage when not provided exactly one arg", func() {
-			passed := runCommand()
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"create-app-manifest", "APP_NAME"},
-				[]string{"Incorrect Usage", "Requires", "argument"},
-			))
-			Expect(passed).To(BeFalse())
-		})
+			It("returns a LoginRequirement", func() {
+				actualRequirements := cmd.Requirements(factory, flagContext)
+				Expect(actualRequirements).To(ContainElement(loginRequirement))
+			})
 
+			It("returns an ApplicationRequirement", func() {
+				actualRequirements := cmd.Requirements(factory, flagContext)
+				Expect(actualRequirements).To(ContainElement(applicationRequirement))
+			})
+
+			It("returns a TargetedSpaceRequirement", func() {
+				actualRequirements := cmd.Requirements(factory, flagContext)
+				Expect(actualRequirements).To(ContainElement(targetedSpaceRequirement))
+			})
+		})
 	})
 
-	Describe("creating app manifest", func() {
+	Describe("Execute", func() {
 		var (
-			appInstance  models.AppInstanceFields
-			appInstance2 models.AppInstanceFields
-			instances    []models.AppInstanceFields
+			application models.Application
+			runCLIErr   error
 		)
 
 		BeforeEach(func() {
-			appInstance = models.AppInstanceFields{
-				State:     models.InstanceRunning,
-				Since:     testtime.MustParse("Mon Jan 2 15:04:05 -0700 MST 2006", "Mon Jan 2 15:04:05 -0700 MST 2012"),
-				CpuUsage:  1.0,
-				DiskQuota: 1 * formatters.GIGABYTE,
-				DiskUsage: 32 * formatters.MEGABYTE,
-				MemQuota:  64 * formatters.MEGABYTE,
-				MemUsage:  13 * formatters.BYTE,
-			}
+			err := flagContext.Parse("app-name")
+			Expect(err).NotTo(HaveOccurred())
+			cmd.Requirements(factory, flagContext)
 
-			appInstance2 = models.AppInstanceFields{
-				State: models.InstanceDown,
-				Since: testtime.MustParse("Mon Jan 2 15:04:05 -0700 MST 2006", "Mon Apr 1 15:04:05 -0700 MST 2012"),
-			}
-
-			instances = []models.AppInstanceFields{appInstance, appInstance2}
-			appInstancesRepo.GetInstancesReturns(instances, nil)
+			application = models.Application{}
+			application.Name = "app-name"
 		})
 
-		Context("app with Services, Routes, Environment Vars", func() {
+		JustBeforeEach(func() {
+			runCLIErr = cmd.Execute(flagContext)
+		})
+
+		AfterEach(func() {
+			os.Remove("app-name_manifest.yml")
+		})
+
+		Context("when there is an app summary", func() {
 			BeforeEach(func() {
-				app := makeAppWithOptions("my-app")
-				appSummaryRepo.GetSummarySummary = app
-				requirementsFactory.Application = app
+				appSummaryRepo.GetSummaryReturns(application, nil)
 			})
 
-			It("creates a manifest with services, routes and environment vars", func() {
-				runCommand("my-app")
-				Ω(fakeManifest.MemoryCallCount()).To(Equal(1))
-				Ω(fakeManifest.EnvironmentVarsCallCount()).To(Equal(1))
-				Ω(fakeManifest.HealthCheckTimeoutCallCount()).To(Equal(1))
-				Ω(fakeManifest.InstancesCallCount()).To(Equal(1))
-				Ω(fakeManifest.DomainCallCount()).To(Equal(2))
-				Ω(fakeManifest.ServiceCallCount()).To(Equal(1))
-				Ω(fakeManifest.StartCommandCallCount()).To(Equal(1))
+			It("tries to get the app summary", func() {
+				Expect(runCLIErr).NotTo(HaveOccurred())
+				Expect(appSummaryRepo.GetSummaryCallCount()).To(Equal(1))
 			})
 		})
 
-		Context("app with buildpack", func() {
+		Context("when there is an error getting the app summary", func() {
 			BeforeEach(func() {
-				app := makeAppWithOptions("my-app")
-				appSummaryRepo.GetSummarySummary = app
-				requirementsFactory.Application = app
+				appSummaryRepo.GetSummaryReturns(models.Application{}, errors.New("get-summary-err"))
 			})
 
-			It("creates a manifest with a buildpack", func() {
-				runCommand("my-app")
-				Ω(fakeManifest.BuildpackUrlCallCount()).To(Equal(1))
+			It("prints an error", func() {
+				Expect(runCLIErr).To(HaveOccurred())
+				Expect(runCLIErr.Error()).To(Equal("Error getting application summary: get-summary-err"))
 			})
 		})
 
-		Context("Env Vars will be written in aplhabetical order", func() {
+		Context("when getting the app summary succeeds", func() {
 			BeforeEach(func() {
-				app := makeAppWithMultipleEnvVars("my-app")
-				appSummaryRepo.GetSummarySummary = app
-				requirementsFactory.Application = app
+				application.Memory = 1024
+				application.InstanceCount = 2
+				application.StackGUID = "the-stack-guid"
+				appSummaryRepo.GetSummaryReturns(application, nil)
 			})
 
-			It("calls manifest EnvironmentVars() aphlhabetically", func() {
-				runCommand("my-app")
-				Ω(fakeManifest.EnvironmentVarsCallCount()).To(Equal(4))
-				_, k, _ := fakeManifest.EnvironmentVarsArgsForCall(0)
-				Ω(k).To(Equal("abc"))
-				_, k, _ = fakeManifest.EnvironmentVarsArgsForCall(1)
-				Ω(k).To(Equal("bar"))
-				_, k, _ = fakeManifest.EnvironmentVarsArgsForCall(2)
-				Ω(k).To(Equal("foo"))
-				_, k, _ = fakeManifest.EnvironmentVarsArgsForCall(3)
-				Ω(k).To(Equal("xyz"))
+			It("sets memory", func() {
+				Expect(runCLIErr).NotTo(HaveOccurred())
+				Expect(fakeManifest.MemoryCallCount()).To(Equal(1))
+				name, memory := fakeManifest.MemoryArgsForCall(0)
+				Expect(name).To(Equal("app-name"))
+				Expect(memory).To(Equal(int64(1024)))
+			})
+
+			It("sets instances", func() {
+				Expect(runCLIErr).NotTo(HaveOccurred())
+				Expect(fakeManifest.InstancesCallCount()).To(Equal(1))
+				name, instances := fakeManifest.InstancesArgsForCall(0)
+				Expect(name).To(Equal("app-name"))
+				Expect(instances).To(Equal(2))
+			})
+
+			Context("when there are app ports specified", func() {
+				BeforeEach(func() {
+					application.AppPorts = []int{1111, 2222}
+					appSummaryRepo.GetSummaryReturns(application, nil)
+				})
+
+				It("sets app ports", func() {
+					Expect(runCLIErr).NotTo(HaveOccurred())
+					Expect(fakeManifest.AppPortsCallCount()).To(Equal(1))
+					name, appPorts := fakeManifest.AppPortsArgsForCall(0)
+					Expect(name).To(Equal("app-name"))
+					Expect(appPorts).To(Equal([]int{1111, 2222}))
+				})
+			})
+
+			Context("when app ports are not specified", func() {
+				It("does not set app ports", func() {
+					Expect(runCLIErr).NotTo(HaveOccurred())
+					Expect(fakeManifest.AppPortsCallCount()).To(Equal(0))
+				})
+			})
+
+			It("tries to get stacks", func() {
+				Expect(runCLIErr).NotTo(HaveOccurred())
+				Expect(stackRepo.FindByGUIDCallCount()).To(Equal(1))
+				Expect(stackRepo.FindByGUIDArgsForCall(0)).To(Equal("the-stack-guid"))
+			})
+
+			Context("when getting stacks succeeds", func() {
+				BeforeEach(func() {
+					stackRepo.FindByGUIDReturns(models.Stack{
+						GUID: "the-stack-guid",
+						Name: "the-stack-name",
+					}, nil)
+				})
+
+				It("sets the stacks", func() {
+					Expect(runCLIErr).NotTo(HaveOccurred())
+					Expect(fakeManifest.StackCallCount()).To(Equal(1))
+					name, stackName := fakeManifest.StackArgsForCall(0)
+					Expect(name).To(Equal("app-name"))
+					Expect(stackName).To(Equal("the-stack-name"))
+				})
+			})
+
+			Context("when getting stacks fails", func() {
+				BeforeEach(func() {
+					stackRepo.FindByGUIDReturns(models.Stack{}, errors.New("find-by-guid-err"))
+				})
+
+				It("fails with error", func() {
+					Expect(runCLIErr).To(HaveOccurred())
+					Expect(runCLIErr.Error()).To(Equal("Error retrieving stack: find-by-guid-err"))
+				})
+			})
+
+			It("tries to save the manifest", func() {
+				Expect(runCLIErr).NotTo(HaveOccurred())
+				Expect(fakeManifest.SaveCallCount()).To(Equal(1))
+			})
+
+			Context("when saving the manifest succeeds", func() {
+				BeforeEach(func() {
+					fakeManifest.SaveReturns(nil)
+				})
+
+				It("says OK", func() {
+					Expect(runCLIErr).NotTo(HaveOccurred())
+					Expect(ui.Outputs()).To(ContainSubstrings(
+						[]string{"OK"},
+						[]string{"Manifest file created successfully at ./app-name_manifest.yml"},
+					))
+				})
+			})
+
+			Context("when saving the manifest fails", func() {
+				BeforeEach(func() {
+					fakeManifest.SaveReturns(errors.New("save-err"))
+				})
+
+				It("fails with error", func() {
+					Expect(runCLIErr).To(HaveOccurred())
+					Expect(runCLIErr.Error()).To(Equal("Error creating manifest file: save-err"))
+				})
+			})
+
+			Context("when the app has a command", func() {
+				BeforeEach(func() {
+					application.Command = "app-command"
+					appSummaryRepo.GetSummaryReturns(application, nil)
+				})
+
+				It("sets the start command", func() {
+					Expect(runCLIErr).NotTo(HaveOccurred())
+					Expect(fakeManifest.StartCommandCallCount()).To(Equal(1))
+					name, command := fakeManifest.StartCommandArgsForCall(0)
+					Expect(name).To(Equal("app-name"))
+					Expect(command).To(Equal("app-command"))
+				})
+			})
+
+			Context("when the app has a buildpack", func() {
+				BeforeEach(func() {
+					application.BuildpackURL = "buildpack"
+					appSummaryRepo.GetSummaryReturns(application, nil)
+				})
+
+				It("sets the buildpack", func() {
+					Expect(runCLIErr).NotTo(HaveOccurred())
+					Expect(fakeManifest.BuildpackURLCallCount()).To(Equal(1))
+					name, buildpack := fakeManifest.BuildpackURLArgsForCall(0)
+					Expect(name).To(Equal("app-name"))
+					Expect(buildpack).To(Equal("buildpack"))
+				})
+			})
+
+			Context("when the app has services", func() {
+				BeforeEach(func() {
+					application.Services = []models.ServicePlanSummary{
+						{
+							Name: "sp1-name",
+						},
+						{
+							Name: "sp2-name",
+						},
+					}
+					appSummaryRepo.GetSummaryReturns(application, nil)
+				})
+
+				It("sets the services", func() {
+					Expect(runCLIErr).NotTo(HaveOccurred())
+					Expect(fakeManifest.ServiceCallCount()).To(Equal(2))
+
+					name, service := fakeManifest.ServiceArgsForCall(0)
+					Expect(name).To(Equal("app-name"))
+					Expect(service).To(Equal("sp1-name"))
+
+					name, service = fakeManifest.ServiceArgsForCall(1)
+					Expect(name).To(Equal("app-name"))
+					Expect(service).To(Equal("sp2-name"))
+				})
+			})
+
+			Context("when the app has a health check timeout", func() {
+				BeforeEach(func() {
+					application.HealthCheckTimeout = 5
+					appSummaryRepo.GetSummaryReturns(application, nil)
+				})
+
+				It("sets the health check timeout", func() {
+					Expect(runCLIErr).NotTo(HaveOccurred())
+					Expect(fakeManifest.HealthCheckTimeoutCallCount()).To(Equal(1))
+					name, timeout := fakeManifest.HealthCheckTimeoutArgsForCall(0)
+					Expect(name).To(Equal("app-name"))
+					Expect(timeout).To(Equal(5))
+				})
+			})
+
+			Context("when the app has environment vars", func() {
+				BeforeEach(func() {
+					application.EnvironmentVars = map[string]interface{}{
+						"float64-key": float64(5),
+						"bool-key":    true,
+						"string-key":  "string",
+					}
+					appSummaryRepo.GetSummaryReturns(application, nil)
+				})
+
+				It("sets the env vars", func() {
+					Expect(runCLIErr).NotTo(HaveOccurred())
+					Expect(fakeManifest.EnvironmentVarsCallCount()).To(Equal(3))
+					actuals := map[string]interface{}{}
+
+					for i := 0; i < 3; i++ {
+						name, k, v := fakeManifest.EnvironmentVarsArgsForCall(i)
+						Expect(name).To(Equal("app-name"))
+						actuals[k] = v
+					}
+
+					Expect(actuals["float64-key"]).To(Equal("5"))
+					Expect(actuals["bool-key"]).To(Equal("true"))
+					Expect(actuals["string-key"]).To(Equal("string"))
+				})
+			})
+
+			Context("when the app has an environment var of an unsupported type", func() {
+				BeforeEach(func() {
+					application.EnvironmentVars = map[string]interface{}{
+						"key": int(1),
+					}
+					appSummaryRepo.GetSummaryReturns(application, nil)
+				})
+
+				It("fails with error", func() {
+					Expect(runCLIErr).To(HaveOccurred())
+					Expect(runCLIErr.Error()).To(Equal("Failed to create manifest, unable to parse environment variable: key"))
+				})
+			})
+
+			Context("when the app has routes", func() {
+				BeforeEach(func() {
+					application.Routes = []models.RouteSummary{
+						{
+							Host: "route-1-host",
+							Domain: models.DomainFields{
+								Name: "http-domain",
+							},
+							Path: "path",
+							Port: 0,
+						},
+						{
+							Host: "",
+							Domain: models.DomainFields{
+								Name: "tcp-domain",
+							},
+							Path: "",
+							Port: 123,
+						},
+					}
+					appSummaryRepo.GetSummaryReturns(application, nil)
+				})
+
+				It("sets the domains", func() {
+					Expect(runCLIErr).NotTo(HaveOccurred())
+					Expect(fakeManifest.RouteCallCount()).To(Equal(2))
+
+					name, host, domainName, path, port := fakeManifest.RouteArgsForCall(0)
+					Expect(name).To(Equal("app-name"))
+					Expect(host).To(Equal("route-1-host"))
+					Expect(domainName).To(Equal("http-domain"))
+					Expect(path).To(Equal("path"))
+					Expect(port).To(Equal(0))
+
+					name, host, domainName, path, port = fakeManifest.RouteArgsForCall(1)
+					Expect(name).To(Equal("app-name"))
+					Expect(host).To(Equal(""))
+					Expect(domainName).To(Equal("tcp-domain"))
+					Expect(path).To(Equal(""))
+					Expect(port).To(Equal(123))
+				})
+			})
+
+			Context("when the app has a disk quota", func() {
+				BeforeEach(func() {
+					application.DiskQuota = 1024
+					appSummaryRepo.GetSummaryReturns(application, nil)
+				})
+
+				It("sets the disk quota", func() {
+					Expect(runCLIErr).NotTo(HaveOccurred())
+					Expect(fakeManifest.DiskQuotaCallCount()).To(Equal(1))
+					name, quota := fakeManifest.DiskQuotaArgsForCall(0)
+					Expect(name).To(Equal("app-name"))
+					Expect(quota).To(Equal(int64(1024)))
+				})
 			})
 		})
-
-		Context("Env Vars can be in different types (string, float64, bool)", func() {
-			BeforeEach(func() {
-				app := makeAppWithMultipleEnvVars("my-app")
-				appSummaryRepo.GetSummarySummary = app
-				requirementsFactory.Application = app
-			})
-
-			It("calls manifest EnvironmentVars() aphlhabetically", func() {
-				runCommand("my-app")
-				Ω(fakeManifest.EnvironmentVarsCallCount()).To(Equal(4))
-				_, _, v := fakeManifest.EnvironmentVarsArgsForCall(0)
-				Ω(v).To(Equal("\"abc\""))
-				_, _, v = fakeManifest.EnvironmentVarsArgsForCall(1)
-				Ω(v).To(Equal("10"))
-				_, _, v = fakeManifest.EnvironmentVarsArgsForCall(2)
-				Ω(v).To(Equal("true"))
-				_, _, v = fakeManifest.EnvironmentVarsArgsForCall(3)
-				Ω(v).To(Equal("false"))
-			})
-		})
-
-		Context("app without Services, Routes, Environment Vars", func() {
-			BeforeEach(func() {
-				app := makeAppWithoutOptions("my-app")
-				appSummaryRepo.GetSummarySummary = app
-				requirementsFactory.Application = app
-			})
-
-			It("creates a manifest with services, routes and environment vars", func() {
-				runCommand("my-app")
-				Ω(fakeManifest.MemoryCallCount()).To(Equal(1))
-				Ω(fakeManifest.EnvironmentVarsCallCount()).To(Equal(0))
-				Ω(fakeManifest.HealthCheckTimeoutCallCount()).To(Equal(0))
-				Ω(fakeManifest.InstancesCallCount()).To(Equal(1))
-				Ω(fakeManifest.DomainCallCount()).To(Equal(0))
-				Ω(fakeManifest.ServiceCallCount()).To(Equal(0))
-			})
-		})
-
-		Context("when the flag -p is supplied", func() {
-			BeforeEach(func() {
-				app := makeAppWithoutOptions("my-app")
-				appSummaryRepo.GetSummarySummary = app
-				requirementsFactory.Application = app
-			})
-
-			It("creates a manifest with services, routes and environment vars", func() {
-				filePath := "another/location/manifest.yml"
-				runCommand("-p", filePath, "my-app")
-				Ω(fakeManifest.FileSavePathArgsForCall(0)).To(Equal(filePath))
-			})
-		})
-
-		Context("when no -p flag is supplied", func() {
-			BeforeEach(func() {
-				app := makeAppWithoutOptions("my-app2")
-				appSummaryRepo.GetSummarySummary = app
-				requirementsFactory.Application = app
-			})
-
-			It("creates a manifest named <app-name>_manifest.yml", func() {
-				runCommand("my-app2")
-				Ω(fakeManifest.FileSavePathArgsForCall(0)).To(Equal("./my-app2_manifest.yml"))
-			})
-		})
-
 	})
 })
-
-func makeAppWithOptions(appName string) models.Application {
-	application := models.Application{}
-	application.Name = appName
-	application.Guid = "app-guid"
-	application.Command = "run main.go"
-	application.BuildpackUrl = "go-buildpack"
-
-	domain := models.DomainFields{}
-	domain.Name = "example.com"
-
-	route := models.RouteSummary{Host: "foo", Domain: domain}
-	secondRoute := models.RouteSummary{Host: appName, Domain: domain}
-	packgeUpdatedAt, _ := time.Parse("2006-01-02T15:04:05Z07:00", "2012-10-24T19:54:00Z")
-
-	application.State = "started"
-	application.InstanceCount = 2
-	application.RunningInstances = 2
-	application.Memory = 256
-	application.HealthCheckTimeout = 100
-	application.Routes = []models.RouteSummary{route, secondRoute}
-	application.PackageUpdatedAt = &packgeUpdatedAt
-
-	envMap := make(map[string]interface{})
-	envMap["foo"] = "bar"
-	application.EnvironmentVars = envMap
-
-	application.Services = append(application.Services, models.ServicePlanSummary{
-		Guid: "",
-		Name: "server1",
-	})
-
-	return application
-}
-
-func makeAppWithoutOptions(appName string) models.Application {
-	application := models.Application{}
-	application.Name = appName
-	application.Guid = "app-guid"
-	packgeUpdatedAt, _ := time.Parse("2006-01-02T15:04:05Z07:00", "2012-10-24T19:54:00Z")
-
-	application.State = "started"
-	application.InstanceCount = 2
-	application.RunningInstances = 2
-	application.Memory = 256
-	application.PackageUpdatedAt = &packgeUpdatedAt
-
-	return application
-}
-
-func makeAppWithMultipleEnvVars(appName string) models.Application {
-	application := models.Application{}
-	application.Name = appName
-	application.Guid = "app-guid"
-	packgeUpdatedAt, _ := time.Parse("2006-01-02T15:04:05Z07:00", "2012-10-24T19:54:00Z")
-
-	application.State = "started"
-	application.InstanceCount = 2
-	application.RunningInstances = 2
-	application.Memory = 256
-	application.PackageUpdatedAt = &packgeUpdatedAt
-
-	envMap := make(map[string]interface{})
-	envMap["foo"] = bool(true)
-	envMap["abc"] = "abc"
-	envMap["xyz"] = bool(false)
-	envMap["bar"] = float64(10)
-	application.EnvironmentVars = envMap
-
-	return application
-}

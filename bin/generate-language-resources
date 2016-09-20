@@ -3,6 +3,7 @@
 set -e
 
 go get github.com/jteeuwen/go-bindata/...
-
-echo " Generating i18n Resource file"
-go-bindata -pkg resources -ignore ".go" -o cf/resources/i18n_resources.go cf/i18n/resources/...
+go-bindata -pkg resources -ignore ".go" -o cf/resources/i18n_resources.go cf/i18n/resources/*.all.json
+pushd cf/resources
+  go fmt ./...
+popd

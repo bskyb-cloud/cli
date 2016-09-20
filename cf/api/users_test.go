@@ -7,13 +7,14 @@ import (
 	"time"
 
 	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
+	"github.com/cloudfoundry/cli/cf/trace/tracefakes"
 
+	"github.com/cloudfoundry/cli/cf/terminal/terminalfakes"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -24,7 +25,7 @@ var _ = Describe("UserRepository", func() {
 	var (
 		client api.UserRepository
 
-		config     core_config.ReadWriter
+		config     coreconfig.ReadWriter
 		ccServer   *ghttp.Server
 		uaaServer  *ghttp.Server
 		ccGateway  net.Gateway
@@ -36,10 +37,10 @@ var _ = Describe("UserRepository", func() {
 		uaaServer = ghttp.NewServer()
 
 		config = testconfig.NewRepositoryWithDefaults()
-		config.SetApiEndpoint(ccServer.URL())
+		config.SetAPIEndpoint(ccServer.URL())
 		config.SetUaaEndpoint(uaaServer.URL())
-		ccGateway = net.NewCloudControllerGateway(config, time.Now, &testterm.FakeUI{})
-		uaaGateway = net.NewUAAGateway(config, &testterm.FakeUI{})
+		ccGateway = net.NewCloudControllerGateway(config, time.Now, new(terminalfakes.FakeUI), new(tracefakes.FakePrinter), "")
+		uaaGateway = net.NewUAAGateway(config, new(terminalfakes.FakeUI), new(tracefakes.FakePrinter), "")
 		client = api.NewCloudControllerUserRepository(config, uaaGateway, ccGateway)
 	})
 
@@ -67,13 +68,13 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes a request to CC", func() {
-				_, err := client.ListUsersInOrgForRole("org-guid", models.ORG_MANAGER)
+				_, err := client.ListUsersInOrgForRole("org-guid", models.RoleOrgManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
 			})
 
 			It("returns no users", func() {
-				users, err := client.ListUsersInOrgForRole("org-guid", models.ORG_MANAGER)
+				users, err := client.ListUsersInOrgForRole("org-guid", models.RoleOrgManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(len(users)).To(Equal(0))
 			})
@@ -96,7 +97,7 @@ var _ = Describe("UserRepository", func() {
 
 				uaaServer.AppendHandlers(
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/Users", fmt.Sprintf("attributes=id,userName&filter=%s", url.QueryEscape(`Id eq "user-1-guid"`))),
+						ghttp.VerifyRequest("GET", "/Users", fmt.Sprintf("attributes=id,userName&filter=%s", url.QueryEscape(`ID eq "user-1-guid"`))),
 						ghttp.VerifyHeader(http.Header{
 							"accept": []string{"application/json"},
 						}),
@@ -109,23 +110,23 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes a request to CC", func() {
-				_, err := client.ListUsersInOrgForRole("org-guid", models.ORG_MANAGER)
+				_, err := client.ListUsersInOrgForRole("org-guid", models.RoleOrgManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
 			})
 
 			It("makes a request to UAA", func() {
-				_, err := client.ListUsersInOrgForRole("org-guid", models.ORG_MANAGER)
+				_, err := client.ListUsersInOrgForRole("org-guid", models.RoleOrgManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(uaaServer.ReceivedRequests()).To(HaveLen(1))
 			})
 
 			It("returns the users", func() {
-				users, err := client.ListUsersInOrgForRole("org-guid", models.ORG_MANAGER)
+				users, err := client.ListUsersInOrgForRole("org-guid", models.RoleOrgManager)
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(len(users)).To(Equal(1))
-				Expect(users[0].Guid).To(Equal("user-1-guid"))
+				Expect(users[0].GUID).To(Equal("user-1-guid"))
 				Expect(users[0].Username).To(Equal("Super user 1"))
 			})
 		})
@@ -159,7 +160,7 @@ var _ = Describe("UserRepository", func() {
 
 				uaaServer.AppendHandlers(
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/Users", fmt.Sprintf("attributes=id,userName&filter=%s", url.QueryEscape(`Id eq "user-1-guid" or Id eq "user-2-guid" or Id eq "user-3-guid"`))),
+						ghttp.VerifyRequest("GET", "/Users", fmt.Sprintf("attributes=id,userName&filter=%s", url.QueryEscape(`ID eq "user-1-guid" or ID eq "user-2-guid" or ID eq "user-3-guid"`))),
 						ghttp.VerifyHeader(http.Header{
 							"accept": []string{"application/json"},
 						}),
@@ -175,27 +176,27 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes a request to CC for each page of results", func() {
-				_, err := client.ListUsersInOrgForRole("org-guid", models.ORG_MANAGER)
+				_, err := client.ListUsersInOrgForRole("org-guid", models.RoleOrgManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(2))
 			})
 
 			It("makes a request to UAA", func() {
-				_, err := client.ListUsersInOrgForRole("org-guid", models.ORG_MANAGER)
+				_, err := client.ListUsersInOrgForRole("org-guid", models.RoleOrgManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(uaaServer.ReceivedRequests()).To(HaveLen(1))
 			})
 
 			It("returns all paginated users", func() {
-				users, err := client.ListUsersInOrgForRole("org-guid", models.ORG_MANAGER)
+				users, err := client.ListUsersInOrgForRole("org-guid", models.RoleOrgManager)
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(len(users)).To(Equal(3))
-				Expect(users[0].Guid).To(Equal("user-1-guid"))
+				Expect(users[0].GUID).To(Equal("user-1-guid"))
 				Expect(users[0].Username).To(Equal("Super user 1"))
-				Expect(users[1].Guid).To(Equal("user-2-guid"))
+				Expect(users[1].GUID).To(Equal("user-2-guid"))
 				Expect(users[1].Username).To(Equal("Super user 2"))
-				Expect(users[2].Guid).To(Equal("user-3-guid"))
+				Expect(users[2].GUID).To(Equal("user-3-guid"))
 				Expect(users[2].Username).To(Equal("Super user 3"))
 			})
 		})
@@ -214,13 +215,13 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("does not make a request to UAA", func() {
-				client.ListUsersInOrgForRole("org-guid", models.ORG_MANAGER)
+				client.ListUsersInOrgForRole("org-guid", models.RoleOrgManager)
 				Expect(uaaServer.ReceivedRequests()).To(BeZero())
 			})
 
 			It("returns an error", func() {
-				_, err := client.ListUsersInOrgForRole("org-guid", models.ORG_MANAGER)
-				httpErr, ok := err.(errors.HttpError)
+				_, err := client.ListUsersInOrgForRole("org-guid", models.RoleOrgManager)
+				httpErr, ok := err.(errors.HTTPError)
 				Expect(ok).To(BeTrue())
 				Expect(httpErr.StatusCode()).To(Equal(http.StatusGatewayTimeout))
 			})
@@ -244,7 +245,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("returns an error", func() {
-				_, err := client.ListUsersInOrgForRole("org-guid", models.ORG_MANAGER)
+				_, err := client.ListUsersInOrgForRole("org-guid", models.RoleOrgManager)
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -268,23 +269,23 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes a request to CC", func() {
-				_, err := client.ListUsersInOrgForRoleWithNoUAA("org-guid", models.ORG_MANAGER)
+				_, err := client.ListUsersInOrgForRoleWithNoUAA("org-guid", models.RoleOrgManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
 			})
 
 			It("does not make a request to UAA", func() {
-				_, err := client.ListUsersInOrgForRoleWithNoUAA("org-guid", models.ORG_MANAGER)
+				_, err := client.ListUsersInOrgForRoleWithNoUAA("org-guid", models.RoleOrgManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(uaaServer.ReceivedRequests()).To(BeZero())
 			})
 
 			It("returns the users", func() {
-				users, err := client.ListUsersInOrgForRoleWithNoUAA("org-guid", models.ORG_MANAGER)
+				users, err := client.ListUsersInOrgForRoleWithNoUAA("org-guid", models.RoleOrgManager)
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(len(users)).To(Equal(1))
-				Expect(users[0].Guid).To(Equal("user-1-guid"))
+				Expect(users[0].GUID).To(Equal("user-1-guid"))
 				Expect(users[0].Username).To(BeEmpty())
 			})
 		})
@@ -318,27 +319,27 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes a request to CC for each page of results", func() {
-				_, err := client.ListUsersInOrgForRoleWithNoUAA("org-guid", models.ORG_MANAGER)
+				_, err := client.ListUsersInOrgForRoleWithNoUAA("org-guid", models.RoleOrgManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(2))
 			})
 
 			It("does not make a request to UAA", func() {
-				_, err := client.ListUsersInOrgForRoleWithNoUAA("org-guid", models.ORG_MANAGER)
+				_, err := client.ListUsersInOrgForRoleWithNoUAA("org-guid", models.RoleOrgManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(uaaServer.ReceivedRequests()).To(BeZero())
 			})
 
 			It("returns all paginated users", func() {
-				users, err := client.ListUsersInOrgForRoleWithNoUAA("org-guid", models.ORG_MANAGER)
+				users, err := client.ListUsersInOrgForRoleWithNoUAA("org-guid", models.RoleOrgManager)
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(len(users)).To(Equal(3))
-				Expect(users[0].Guid).To(Equal("user-1-guid"))
+				Expect(users[0].GUID).To(Equal("user-1-guid"))
 				Expect(users[0].Username).To(BeEmpty())
-				Expect(users[1].Guid).To(Equal("user-2-guid"))
+				Expect(users[1].GUID).To(Equal("user-2-guid"))
 				Expect(users[1].Username).To(Equal("user 2 from cc"))
-				Expect(users[2].Guid).To(Equal("user-3-guid"))
+				Expect(users[2].GUID).To(Equal("user-3-guid"))
 				Expect(users[2].Username).To(Equal("user 3 from cc"))
 			})
 		})
@@ -357,19 +358,19 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes a request to CC", func() {
-				_, err := client.ListUsersInOrgForRoleWithNoUAA("org-guid", models.ORG_MANAGER)
+				_, err := client.ListUsersInOrgForRoleWithNoUAA("org-guid", models.RoleOrgManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
 			})
 
 			It("does not make a request to UAA", func() {
-				_, err := client.ListUsersInOrgForRoleWithNoUAA("org-guid", models.ORG_MANAGER)
+				_, err := client.ListUsersInOrgForRoleWithNoUAA("org-guid", models.RoleOrgManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(uaaServer.ReceivedRequests()).To(BeZero())
 			})
 
 			It("returns no users", func() {
-				users, err := client.ListUsersInOrgForRoleWithNoUAA("org-guid", models.ORG_MANAGER)
+				users, err := client.ListUsersInOrgForRoleWithNoUAA("org-guid", models.RoleOrgManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(len(users)).To(Equal(0))
 			})
@@ -389,13 +390,13 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("does not make a request to UAA", func() {
-				client.ListUsersInOrgForRoleWithNoUAA("org-guid", models.ORG_MANAGER)
+				client.ListUsersInOrgForRoleWithNoUAA("org-guid", models.RoleOrgManager)
 				Expect(uaaServer.ReceivedRequests()).To(BeZero())
 			})
 
 			It("returns an error", func() {
-				_, err := client.ListUsersInOrgForRoleWithNoUAA("org-guid", models.ORG_MANAGER)
-				httpErr, ok := err.(errors.HttpError)
+				_, err := client.ListUsersInOrgForRoleWithNoUAA("org-guid", models.RoleOrgManager)
+				httpErr, ok := err.(errors.HTTPError)
 				Expect(ok).To(BeTrue())
 				Expect(httpErr.StatusCode()).To(Equal(http.StatusGatewayTimeout))
 			})
@@ -422,7 +423,7 @@ var _ = Describe("UserRepository", func() {
 				config.SetUaaEndpoint(uaaServer.URL())
 				uaaServer.AppendHandlers(
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/Users", fmt.Sprintf("attributes=id,userName&filter=%s", url.QueryEscape(`Id eq "user-1-guid"`))),
+						ghttp.VerifyRequest("GET", "/Users", fmt.Sprintf("attributes=id,userName&filter=%s", url.QueryEscape(`ID eq "user-1-guid"`))),
 						ghttp.VerifyHeader(http.Header{
 							"accept": []string{"application/json"},
 						}),
@@ -436,23 +437,23 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes a request to CC", func() {
-				_, err := client.ListUsersInSpaceForRole("space-guid", models.SPACE_MANAGER)
+				_, err := client.ListUsersInSpaceForRole("space-guid", models.RoleSpaceManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
 			})
 
 			It("makes a request to UAA", func() {
-				_, err := client.ListUsersInSpaceForRole("space-guid", models.SPACE_MANAGER)
+				_, err := client.ListUsersInSpaceForRole("space-guid", models.RoleSpaceManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(uaaServer.ReceivedRequests()).To(HaveLen(1))
 			})
 
 			It("returns the users", func() {
-				users, err := client.ListUsersInSpaceForRole("space-guid", models.SPACE_MANAGER)
+				users, err := client.ListUsersInSpaceForRole("space-guid", models.RoleSpaceManager)
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(len(users)).To(Equal(1))
-				Expect(users[0].Guid).To(Equal("user-1-guid"))
+				Expect(users[0].GUID).To(Equal("user-1-guid"))
 				Expect(users[0].Username).To(Equal("Super user 1"))
 			})
 		})
@@ -471,13 +472,13 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes a request to CC", func() {
-				_, err := client.ListUsersInSpaceForRole("space-guid", models.SPACE_MANAGER)
+				_, err := client.ListUsersInSpaceForRole("space-guid", models.RoleSpaceManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
 			})
 
 			It("returns no users", func() {
-				users, err := client.ListUsersInSpaceForRole("space-guid", models.SPACE_MANAGER)
+				users, err := client.ListUsersInSpaceForRole("space-guid", models.RoleSpaceManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(len(users)).To(Equal(0))
 			})
@@ -502,23 +503,23 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes a request to CC", func() {
-				_, err := client.ListUsersInSpaceForRoleWithNoUAA("space-guid", models.SPACE_MANAGER)
+				_, err := client.ListUsersInSpaceForRoleWithNoUAA("space-guid", models.RoleSpaceManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
 			})
 
 			It("does not make a request to UAA", func() {
-				_, err := client.ListUsersInSpaceForRoleWithNoUAA("space-guid", models.SPACE_MANAGER)
+				_, err := client.ListUsersInSpaceForRoleWithNoUAA("space-guid", models.RoleSpaceManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(uaaServer.ReceivedRequests()).To(BeZero())
 			})
 
 			It("returns the users", func() {
-				users, err := client.ListUsersInSpaceForRoleWithNoUAA("space-guid", models.SPACE_MANAGER)
+				users, err := client.ListUsersInSpaceForRoleWithNoUAA("space-guid", models.RoleSpaceManager)
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(len(users)).To(Equal(1))
-				Expect(users[0].Guid).To(Equal("user-1-guid"))
+				Expect(users[0].GUID).To(Equal("user-1-guid"))
 				Expect(users[0].Username).To(BeEmpty())
 			})
 		})
@@ -552,27 +553,27 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes a request to CC for each page of results", func() {
-				_, err := client.ListUsersInSpaceForRoleWithNoUAA("space-guid", models.SPACE_MANAGER)
+				_, err := client.ListUsersInSpaceForRoleWithNoUAA("space-guid", models.RoleSpaceManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(2))
 			})
 
 			It("does not make a request to UAA", func() {
-				_, err := client.ListUsersInSpaceForRoleWithNoUAA("space-guid", models.SPACE_MANAGER)
+				_, err := client.ListUsersInSpaceForRoleWithNoUAA("space-guid", models.RoleSpaceManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(uaaServer.ReceivedRequests()).To(BeZero())
 			})
 
 			It("returns all paginated users", func() {
-				users, err := client.ListUsersInSpaceForRoleWithNoUAA("space-guid", models.SPACE_MANAGER)
+				users, err := client.ListUsersInSpaceForRoleWithNoUAA("space-guid", models.RoleSpaceManager)
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(len(users)).To(Equal(3))
-				Expect(users[0].Guid).To(Equal("user-1-guid"))
+				Expect(users[0].GUID).To(Equal("user-1-guid"))
 				Expect(users[0].Username).To(BeEmpty())
-				Expect(users[1].Guid).To(Equal("user-2-guid"))
+				Expect(users[1].GUID).To(Equal("user-2-guid"))
 				Expect(users[1].Username).To(Equal("user 2 from cc"))
-				Expect(users[2].Guid).To(Equal("user-3-guid"))
+				Expect(users[2].GUID).To(Equal("user-3-guid"))
 				Expect(users[2].Username).To(Equal("user 3 from cc"))
 			})
 		})
@@ -591,19 +592,19 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes a request to CC", func() {
-				_, err := client.ListUsersInSpaceForRoleWithNoUAA("space-guid", models.SPACE_MANAGER)
+				_, err := client.ListUsersInSpaceForRoleWithNoUAA("space-guid", models.RoleSpaceManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
 			})
 
 			It("does not make a request to UAA", func() {
-				_, err := client.ListUsersInSpaceForRoleWithNoUAA("space-guid", models.SPACE_MANAGER)
+				_, err := client.ListUsersInSpaceForRoleWithNoUAA("space-guid", models.RoleSpaceManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(uaaServer.ReceivedRequests()).To(BeZero())
 			})
 
 			It("returns no users", func() {
-				users, err := client.ListUsersInSpaceForRoleWithNoUAA("space-guid", models.SPACE_MANAGER)
+				users, err := client.ListUsersInSpaceForRoleWithNoUAA("space-guid", models.RoleSpaceManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(len(users)).To(Equal(0))
 			})
@@ -623,13 +624,13 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("does not make a request to UAA", func() {
-				client.ListUsersInSpaceForRoleWithNoUAA("space-guid", models.SPACE_MANAGER)
+				client.ListUsersInSpaceForRoleWithNoUAA("space-guid", models.RoleSpaceManager)
 				Expect(uaaServer.ReceivedRequests()).To(BeZero())
 			})
 
 			It("returns an error", func() {
-				_, err := client.ListUsersInSpaceForRoleWithNoUAA("space-guid", models.SPACE_MANAGER)
-				httpErr, ok := err.(errors.HttpError)
+				_, err := client.ListUsersInSpaceForRoleWithNoUAA("space-guid", models.RoleSpaceManager)
+				httpErr, ok := err.(errors.HTTPError)
 				Expect(ok).To(BeTrue())
 				Expect(httpErr.StatusCode()).To(Equal(http.StatusGatewayTimeout))
 			})
@@ -664,7 +665,7 @@ var _ = Describe("UserRepository", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(user).To(Equal(models.UserFields{
 					Username: "my-full-username",
-					Guid:     "my-guid",
+					GUID:     "my-guid",
 				}))
 			})
 		})
@@ -932,7 +933,7 @@ var _ = Describe("UserRepository", func() {
 		})
 	})
 
-	Describe("SetOrgRoleByGuid", func() {
+	Describe("SetOrgRoleByGUID", func() {
 		Context("when given the OrgManager role", func() {
 			BeforeEach(func() {
 				ccServer.AppendHandlers(
@@ -948,7 +949,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes two requests to CC", func() {
-				err := client.SetOrgRoleByGuid("user-guid", "org-guid", models.ORG_MANAGER)
+				err := client.SetOrgRoleByGUID("user-guid", "org-guid", models.RoleOrgManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(2))
 			})
@@ -969,7 +970,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes two requests to CC", func() {
-				err := client.SetOrgRoleByGuid("user-guid", "org-guid", models.BILLING_MANAGER)
+				err := client.SetOrgRoleByGUID("user-guid", "org-guid", models.RoleBillingManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(2))
 			})
@@ -990,7 +991,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes two requests to CC", func() {
-				err := client.SetOrgRoleByGuid("user-guid", "org-guid", models.ORG_AUDITOR)
+				err := client.SetOrgRoleByGUID("user-guid", "org-guid", models.RoleOrgAuditor)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(2))
 			})
@@ -998,18 +999,18 @@ var _ = Describe("UserRepository", func() {
 
 		Context("when given an invalid role", func() {
 			It("does not make a request to CC", func() {
-				client.SetOrgRoleByGuid("user-guid", "org-guid", "Wibble")
+				client.SetOrgRoleByGUID("user-guid", "org-guid", 666)
 				Expect(ccServer.ReceivedRequests()).To(BeZero())
 			})
 
 			It("returns an error", func() {
-				err := client.SetOrgRoleByGuid("user-guid", "org-guid", "Wibble")
+				err := client.SetOrgRoleByGUID("user-guid", "org-guid", 666)
 				Expect(err).To(HaveOccurred())
 			})
 		})
 	})
 
-	Describe("UnsetOrgRoleByGuid", func() {
+	Describe("UnsetOrgRoleByGUID", func() {
 		Context("when given the OrgManager role", func() {
 			BeforeEach(func() {
 				ccServer.AppendHandlers(
@@ -1021,7 +1022,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes a request to CC", func() {
-				err := client.UnsetOrgRoleByGuid("user-guid", "org-guid", models.ORG_MANAGER)
+				err := client.UnsetOrgRoleByGUID("user-guid", "org-guid", models.RoleOrgManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
 			})
@@ -1038,7 +1039,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes a request to CC", func() {
-				err := client.UnsetOrgRoleByGuid("user-guid", "org-guid", models.BILLING_MANAGER)
+				err := client.UnsetOrgRoleByGUID("user-guid", "org-guid", models.RoleBillingManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
 			})
@@ -1055,7 +1056,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes a request to CC", func() {
-				err := client.UnsetOrgRoleByGuid("user-guid", "org-guid", models.ORG_AUDITOR)
+				err := client.UnsetOrgRoleByGUID("user-guid", "org-guid", models.RoleOrgAuditor)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
 			})
@@ -1063,12 +1064,12 @@ var _ = Describe("UserRepository", func() {
 
 		Context("when given an invalid role", func() {
 			It("does not make a request to CC", func() {
-				client.UnsetOrgRoleByGuid("user-guid", "org-guid", "Wibble")
+				client.UnsetOrgRoleByGUID("user-guid", "org-guid", 666)
 				Expect(ccServer.ReceivedRequests()).To(BeZero())
 			})
 
 			It("returns an error", func() {
-				err := client.UnsetOrgRoleByGuid("user-guid", "org-guid", "Wibble")
+				err := client.UnsetOrgRoleByGUID("user-guid", "org-guid", 666)
 				Expect(err).To(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(BeZero())
 			})
@@ -1088,7 +1089,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes a request to CC", func() {
-				err := client.UnsetOrgRoleByUsername("the-user-name", "org-guid", models.ORG_MANAGER)
+				err := client.UnsetOrgRoleByUsername("the-user-name", "org-guid", models.RoleOrgManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
 			})
@@ -1106,7 +1107,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes a request to CC", func() {
-				err := client.UnsetOrgRoleByUsername("the-user-name", "org-guid", models.BILLING_MANAGER)
+				err := client.UnsetOrgRoleByUsername("the-user-name", "org-guid", models.RoleBillingManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
 			})
@@ -1124,7 +1125,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes a request to CC", func() {
-				err := client.UnsetOrgRoleByUsername("the-user-name", "org-guid", models.ORG_AUDITOR)
+				err := client.UnsetOrgRoleByUsername("the-user-name", "org-guid", models.RoleOrgAuditor)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
 			})
@@ -1132,12 +1133,12 @@ var _ = Describe("UserRepository", func() {
 
 		Context("when given an invalid role", func() {
 			It("does not make a request to CC", func() {
-				client.UnsetOrgRoleByUsername("user-guid", "org-guid", "Wibble")
+				client.UnsetOrgRoleByUsername("user-guid", "org-guid", 666)
 				Expect(ccServer.ReceivedRequests()).To(BeZero())
 			})
 
 			It("returns an error", func() {
-				err := client.UnsetOrgRoleByUsername("user-guid", "org-guid", "Wibble")
+				err := client.UnsetOrgRoleByUsername("user-guid", "org-guid", 666)
 				Expect(err).To(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(BeZero())
 			})
@@ -1161,7 +1162,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes two requests to CC", func() {
-				err := client.SetOrgRoleByUsername("user@example.com", "org-guid", models.ORG_MANAGER)
+				err := client.SetOrgRoleByUsername("user@example.com", "org-guid", models.RoleOrgManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(2))
 			})
@@ -1183,7 +1184,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes two requests to CC", func() {
-				err := client.SetOrgRoleByUsername("user@example.com", "org-guid", models.BILLING_MANAGER)
+				err := client.SetOrgRoleByUsername("user@example.com", "org-guid", models.RoleBillingManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(2))
 			})
@@ -1205,7 +1206,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes two requests to CC", func() {
-				err := client.SetOrgRoleByUsername("user@example.com", "org-guid", models.ORG_AUDITOR)
+				err := client.SetOrgRoleByUsername("user@example.com", "org-guid", models.RoleOrgAuditor)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(2))
 			})
@@ -1213,7 +1214,7 @@ var _ = Describe("UserRepository", func() {
 
 		Context("when given an invalid role", func() {
 			It("returns an error", func() {
-				err := client.SetOrgRoleByUsername("user@example.com", "org-guid", "Wibble")
+				err := client.SetOrgRoleByUsername("user@example.com", "org-guid", 666)
 				Expect(err).To(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(BeZero())
 			})
@@ -1231,7 +1232,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("returns an error", func() {
-				err := client.SetOrgRoleByUsername("user@example.com", "org-guid", models.ORG_AUDITOR)
+				err := client.SetOrgRoleByUsername("user@example.com", "org-guid", models.RoleOrgAuditor)
 				Expect(err).To(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
 				Expect(err.Error()).To(ContainSubstring("status code: 500"))
@@ -1255,7 +1256,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("returns an error", func() {
-				err := client.SetOrgRoleByUsername("user@example.com", "org-guid", models.ORG_AUDITOR)
+				err := client.SetOrgRoleByUsername("user@example.com", "org-guid", models.RoleOrgAuditor)
 				Expect(err).To(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(2))
 				Expect(err.Error()).To(ContainSubstring("status code: 500"))
@@ -1286,7 +1287,7 @@ var _ = Describe("UserRepository", func() {
 				})
 
 				It("sets space role and ignores the '10003' error for adding user to parent org", func() {
-					err := client.SetSpaceRoleByUsername("user@example.com", "space-guid", "org-guid", models.SPACE_MANAGER)
+					err := client.SetSpaceRoleByUsername("user@example.com", "space-guid", "org-guid", models.RoleSpaceManager)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(ccServer.ReceivedRequests()).To(HaveLen(2))
 				})
@@ -1299,7 +1300,7 @@ var _ = Describe("UserRepository", func() {
 							ghttp.RespondWith(http.StatusBadRequest, `{"code":1002, "description":"invalid relation"}`),
 						))
 
-						err := client.SetSpaceRoleByUsername("user@example.com", "space-guid", "org-guid", models.SPACE_MANAGER)
+						err := client.SetSpaceRoleByUsername("user@example.com", "space-guid", "org-guid", models.RoleSpaceManager)
 						Expect(err).To(HaveOccurred())
 						Expect(err.Error()).To(ContainSubstring("1002"))
 						Expect(err.Error()).To(ContainSubstring("cannot set space role because user is not part of the org"))
@@ -1314,7 +1315,7 @@ var _ = Describe("UserRepository", func() {
 							ghttp.RespondWith(http.StatusBadRequest, `{"code":1001, "description":"some error"}`),
 						))
 
-						err := client.SetSpaceRoleByUsername("user@example.com", "space-guid", "org-guid", models.SPACE_MANAGER)
+						err := client.SetSpaceRoleByUsername("user@example.com", "space-guid", "org-guid", models.RoleSpaceManager)
 						Expect(err).To(HaveOccurred())
 						Expect(err.Error()).To(ContainSubstring("1001"))
 						Expect(err.Error()).To(ContainSubstring("some error"))
@@ -1342,7 +1343,7 @@ var _ = Describe("UserRepository", func() {
 				})
 
 				It("makes two requests to CC", func() {
-					err := client.SetSpaceRoleByUsername("user@example.com", "space-guid", "org-guid", models.SPACE_MANAGER)
+					err := client.SetSpaceRoleByUsername("user@example.com", "space-guid", "org-guid", models.RoleSpaceManager)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(ccServer.ReceivedRequests()).To(HaveLen(2))
 				})
@@ -1365,7 +1366,7 @@ var _ = Describe("UserRepository", func() {
 				})
 
 				It("makes two requests to CC", func() {
-					err := client.SetSpaceRoleByUsername("user@example.com", "space-guid", "org-guid", models.SPACE_DEVELOPER)
+					err := client.SetSpaceRoleByUsername("user@example.com", "space-guid", "org-guid", models.RoleSpaceDeveloper)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(ccServer.ReceivedRequests()).To(HaveLen(2))
 				})
@@ -1388,7 +1389,7 @@ var _ = Describe("UserRepository", func() {
 				})
 
 				It("makes two requests to CC", func() {
-					err := client.SetSpaceRoleByUsername("user@example.com", "space-guid", "org-guid", models.SPACE_AUDITOR)
+					err := client.SetSpaceRoleByUsername("user@example.com", "space-guid", "org-guid", models.RoleSpaceAuditor)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(ccServer.ReceivedRequests()).To(HaveLen(2))
 				})
@@ -1396,7 +1397,7 @@ var _ = Describe("UserRepository", func() {
 
 			Context("when given an invalid role", func() {
 				It("returns an error", func() {
-					err := client.SetSpaceRoleByUsername("user@example.com", "space-guid", "org-guid", "Wibble")
+					err := client.SetSpaceRoleByUsername("user@example.com", "space-guid", "org-guid", 666)
 					Expect(err).To(HaveOccurred())
 					Expect(ccServer.ReceivedRequests()).To(BeZero())
 				})
@@ -1414,7 +1415,7 @@ var _ = Describe("UserRepository", func() {
 				})
 
 				It("returns an error", func() {
-					err := client.SetSpaceRoleByUsername("user@example.com", "space-guid", "org-guid", models.SPACE_AUDITOR)
+					err := client.SetSpaceRoleByUsername("user@example.com", "space-guid", "org-guid", models.RoleSpaceAuditor)
 					Expect(err).To(HaveOccurred())
 					Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
 					Expect(err.Error()).To(ContainSubstring("status code: 500"))
@@ -1438,7 +1439,7 @@ var _ = Describe("UserRepository", func() {
 				})
 
 				It("returns an error", func() {
-					err := client.SetSpaceRoleByUsername("user@example.com", "space-guid", "org-guid", models.SPACE_AUDITOR)
+					err := client.SetSpaceRoleByUsername("user@example.com", "space-guid", "org-guid", models.RoleSpaceAuditor)
 					Expect(err).To(HaveOccurred())
 					Expect(ccServer.ReceivedRequests()).To(HaveLen(2))
 					Expect(err.Error()).To(ContainSubstring("status code: 500"))
@@ -1447,7 +1448,7 @@ var _ = Describe("UserRepository", func() {
 		})
 	})
 
-	Describe("SetSpaceRoleByGuid", func() {
+	Describe("SetSpaceRoleByGUID", func() {
 		Context("when given the SpaceManager role", func() {
 			BeforeEach(func() {
 				ccServer.AppendHandlers(
@@ -1463,7 +1464,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes two requests to CC", func() {
-				err := client.SetSpaceRoleByGuid("user-guid", "space-guid", "org-guid", models.SPACE_MANAGER)
+				err := client.SetSpaceRoleByGUID("user-guid", "space-guid", "org-guid", models.RoleSpaceManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(2))
 			})
@@ -1484,7 +1485,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes two requests to CC", func() {
-				err := client.SetSpaceRoleByGuid("user-guid", "space-guid", "org-guid", models.SPACE_DEVELOPER)
+				err := client.SetSpaceRoleByGUID("user-guid", "space-guid", "org-guid", models.RoleSpaceDeveloper)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(2))
 			})
@@ -1505,7 +1506,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes two requests to CC", func() {
-				err := client.SetSpaceRoleByGuid("user-guid", "space-guid", "org-guid", models.SPACE_AUDITOR)
+				err := client.SetSpaceRoleByGUID("user-guid", "space-guid", "org-guid", models.RoleSpaceAuditor)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(2))
 			})
@@ -1513,7 +1514,7 @@ var _ = Describe("UserRepository", func() {
 
 		Context("when given an invalid role", func() {
 			It("returns an error", func() {
-				err := client.SetSpaceRoleByGuid("user-guid", "space-guid", "org-guid", "Wibble")
+				err := client.SetSpaceRoleByGUID("user-guid", "space-guid", "org-guid", 666)
 				Expect(err).To(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(BeZero())
 			})
@@ -1530,7 +1531,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("returns an error", func() {
-				err := client.SetSpaceRoleByGuid("user-guid", "space-guid", "org-guid", models.SPACE_AUDITOR)
+				err := client.SetSpaceRoleByGUID("user-guid", "space-guid", "org-guid", models.RoleSpaceAuditor)
 				Expect(err).To(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
 				Expect(err.Error()).To(ContainSubstring("status code: 500"))
@@ -1552,7 +1553,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("returns an error", func() {
-				err := client.SetSpaceRoleByGuid("user-guid", "space-guid", "org-guid", models.SPACE_AUDITOR)
+				err := client.SetSpaceRoleByGUID("user-guid", "space-guid", "org-guid", models.RoleSpaceAuditor)
 				Expect(err).To(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(2))
 				Expect(err.Error()).To(ContainSubstring("status code: 500"))
@@ -1573,7 +1574,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes one request to CC", func() {
-				err := client.UnsetSpaceRoleByUsername("user@example.com", "space-guid", models.SPACE_MANAGER)
+				err := client.UnsetSpaceRoleByUsername("user@example.com", "space-guid", models.RoleSpaceManager)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
 			})
@@ -1591,7 +1592,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes one request to CC", func() {
-				err := client.UnsetSpaceRoleByUsername("user@example.com", "space-guid", models.SPACE_DEVELOPER)
+				err := client.UnsetSpaceRoleByUsername("user@example.com", "space-guid", models.RoleSpaceDeveloper)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
 			})
@@ -1608,7 +1609,7 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes one requests to CC", func() {
-				err := client.UnsetSpaceRoleByUsername("user@example.com", "space-guid", models.SPACE_AUDITOR)
+				err := client.UnsetSpaceRoleByUsername("user@example.com", "space-guid", models.RoleSpaceAuditor)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
 			})
@@ -1633,7 +1634,7 @@ var _ = Describe("UserRepository", func() {
 
 				uaaServer.AppendHandlers(
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/Users", fmt.Sprintf("attributes=id,userName&filter=%s", url.QueryEscape(`Id eq "user-1-guid"`))),
+						ghttp.VerifyRequest("GET", "/Users", fmt.Sprintf("attributes=id,userName&filter=%s", url.QueryEscape(`ID eq "user-1-guid"`))),
 						ghttp.VerifyHeader(http.Header{
 							"accept": []string{"application/json"},
 						}),
@@ -1647,23 +1648,23 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes a call to CC", func() {
-				_, err := client.ListUsersInOrgForRole("org-guid", models.ORG_USER)
+				_, err := client.ListUsersInOrgForRole("org-guid", models.RoleOrgUser)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
 			})
 
 			It("makes a call to UAA", func() {
-				_, err := client.ListUsersInOrgForRole("org-guid", models.ORG_USER)
+				_, err := client.ListUsersInOrgForRole("org-guid", models.RoleOrgUser)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(uaaServer.ReceivedRequests()).To(HaveLen(1))
 			})
 
 			It("returns all users in the given org for the given role", func() {
-				users, err := client.ListUsersInOrgForRole("org-guid", models.ORG_USER)
+				users, err := client.ListUsersInOrgForRole("org-guid", models.RoleOrgUser)
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(len(users)).To(Equal(1))
-				Expect(users[0].Guid).To(Equal("user-1-guid"))
+				Expect(users[0].GUID).To(Equal("user-1-guid"))
 				Expect(users[0].Username).To(Equal("Super user 1"))
 			})
 		})
@@ -1697,7 +1698,7 @@ var _ = Describe("UserRepository", func() {
 
 				uaaServer.AppendHandlers(
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/Users", fmt.Sprintf("attributes=id,userName&filter=%s", url.QueryEscape(`Id eq "user-1-guid" or Id eq "user-2-guid" or Id eq "user-3-guid"`))),
+						ghttp.VerifyRequest("GET", "/Users", fmt.Sprintf("attributes=id,userName&filter=%s", url.QueryEscape(`ID eq "user-1-guid" or ID eq "user-2-guid" or ID eq "user-3-guid"`))),
 						ghttp.VerifyHeader(http.Header{
 							"accept": []string{"application/json"},
 						}),
@@ -1713,27 +1714,27 @@ var _ = Describe("UserRepository", func() {
 			})
 
 			It("makes a request to CC for each page of results", func() {
-				_, err := client.ListUsersInOrgForRole("org-guid", models.ORG_USER)
+				_, err := client.ListUsersInOrgForRole("org-guid", models.RoleOrgUser)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ccServer.ReceivedRequests()).To(HaveLen(2))
 			})
 
 			It("makes a request to UAA", func() {
-				_, err := client.ListUsersInOrgForRole("org-guid", models.ORG_USER)
+				_, err := client.ListUsersInOrgForRole("org-guid", models.RoleOrgUser)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(uaaServer.ReceivedRequests()).To(HaveLen(1))
 			})
 
 			It("returns all paginated users", func() {
-				users, err := client.ListUsersInOrgForRole("org-guid", models.ORG_USER)
+				users, err := client.ListUsersInOrgForRole("org-guid", models.RoleOrgUser)
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(len(users)).To(Equal(3))
-				Expect(users[0].Guid).To(Equal("user-1-guid"))
+				Expect(users[0].GUID).To(Equal("user-1-guid"))
 				Expect(users[0].Username).To(Equal("Super user 1"))
-				Expect(users[1].Guid).To(Equal("user-2-guid"))
+				Expect(users[1].GUID).To(Equal("user-2-guid"))
 				Expect(users[1].Username).To(Equal("Super user 2"))
-				Expect(users[2].Guid).To(Equal("user-3-guid"))
+				Expect(users[2].GUID).To(Equal("user-3-guid"))
 				Expect(users[2].Username).To(Equal("Super user 3"))
 			})
 		})

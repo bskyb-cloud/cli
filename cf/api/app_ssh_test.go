@@ -3,8 +3,8 @@ package api_test
 import (
 	. "github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/net"
-	//testapi "github.com/cloudfoundry/cli/testhelpers/api"
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	testapi "github.com/cloudfoundry/cli/testhelpers/api"
+	//testapi "github.com/cloudfoundry/cli/cf/api/fakes"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 

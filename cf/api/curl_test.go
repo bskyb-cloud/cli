@@ -2,20 +2,22 @@ package api_test
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/net"
-	testassert "github.com/cloudfoundry/cli/testhelpers/assert"
+	"github.com/cloudfoundry/cli/cf/terminal/terminalfakes"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testnet "github.com/cloudfoundry/cli/testhelpers/net"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/trace/tracefakes"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/ghttp"
 )
 
 var _ = Describe("CloudControllerCurlRepository ", func() {
@@ -27,7 +29,7 @@ var _ = Describe("CloudControllerCurlRepository ", func() {
 
 	Describe("GET requests", func() {
 		BeforeEach(func() {
-			req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+			req := apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method: "GET",
 				Path:   "/v2/endpoint",
 				Response: testnet.TestResponse{
@@ -38,7 +40,7 @@ var _ = Describe("CloudControllerCurlRepository ", func() {
 			defer ts.Close()
 
 			deps := newCurlDependencies()
-			deps.config.SetApiEndpoint(ts.URL)
+			deps.config.SetAPIEndpoint(ts.URL)
 
 			repo := NewCloudControllerCurlRepository(deps.config, deps.gateway)
 			headers, body, apiErr = repo.Request("GET", "/v2/endpoint", "", "")
@@ -57,13 +59,13 @@ var _ = Describe("CloudControllerCurlRepository ", func() {
 		})
 
 		It("returns the body as a JSON-encoded string", func() {
-			testassert.JSONStringEquals(body, expectedJSONResponse)
+			Expect(removeWhitespace(body)).To(Equal(removeWhitespace(expectedJSONResponse)))
 		})
 	})
 
 	Describe("POST requests", func() {
 		BeforeEach(func() {
-			req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+			req := apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method:  "POST",
 				Path:    "/v2/endpoint",
 				Matcher: testnet.RequestBodyMatcher(`{"key":"val"}`),
@@ -76,7 +78,7 @@ var _ = Describe("CloudControllerCurlRepository ", func() {
 			defer ts.Close()
 
 			deps := newCurlDependencies()
-			deps.config.SetApiEndpoint(ts.URL)
+			deps.config.SetAPIEndpoint(ts.URL)
 
 			repo := NewCloudControllerCurlRepository(deps.config, deps.gateway)
 			headers, body, apiErr = repo.Request("POST", "/v2/endpoint", "", `{"key":"val"}`)
@@ -89,7 +91,7 @@ var _ = Describe("CloudControllerCurlRepository ", func() {
 
 		Context("when the server returns a 400 Bad Request header", func() {
 			BeforeEach(func() {
-				req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+				req := apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 					Method:  "POST",
 					Path:    "/v2/endpoint",
 					Matcher: testnet.RequestBodyMatcher(`{"key":"val"}`),
@@ -102,7 +104,7 @@ var _ = Describe("CloudControllerCurlRepository ", func() {
 				defer ts.Close()
 
 				deps := newCurlDependencies()
-				deps.config.SetApiEndpoint(ts.URL)
+				deps.config.SetAPIEndpoint(ts.URL)
 
 				repo := NewCloudControllerCurlRepository(deps.config, deps.gateway)
 				_, body, apiErr = repo.Request("POST", "/v2/endpoint", "", `{"key":"val"}`)
@@ -110,7 +112,7 @@ var _ = Describe("CloudControllerCurlRepository ", func() {
 			})
 
 			It("returns the response body", func() {
-				testassert.JSONStringEquals(body, expectedJSONResponse)
+				Expect(removeWhitespace(body)).To(Equal(removeWhitespace(expectedJSONResponse)))
 			})
 
 			It("does not return an error", func() {
@@ -130,7 +132,7 @@ var _ = Describe("CloudControllerCurlRepository ", func() {
 
 		Context("when provided with valid headers", func() {
 			It("sends them along with the POST body", func() {
-				req := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+				req := apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 					Method: "POST",
 					Path:   "/v2/endpoint",
 					Matcher: func(req *http.Request) {
@@ -145,7 +147,7 @@ var _ = Describe("CloudControllerCurlRepository ", func() {
 				defer ts.Close()
 
 				deps := newCurlDependencies()
-				deps.config.SetApiEndpoint(ts.URL)
+				deps.config.SetAPIEndpoint(ts.URL)
 
 				headers := "content-type: ascii/cats\nx-something-else:5"
 				repo := NewCloudControllerCurlRepository(deps.config, deps.gateway)
@@ -154,6 +156,38 @@ var _ = Describe("CloudControllerCurlRepository ", func() {
 				Expect(apiErr).NotTo(HaveOccurred())
 			})
 		})
+	})
+
+	It("uses POST as the default method when a body is provided", func() {
+		ccServer := ghttp.NewServer()
+		ccServer.AppendHandlers(
+			ghttp.VerifyRequest("POST", "/v2/endpoint"),
+		)
+
+		deps := newCurlDependencies()
+		deps.config.SetAPIEndpoint(ccServer.URL())
+
+		repo := NewCloudControllerCurlRepository(deps.config, deps.gateway)
+		_, _, err := repo.Request("", "/v2/endpoint", "", "body")
+		Expect(err).NotTo(HaveOccurred())
+
+		Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
+	})
+
+	It("uses GET as the default method when a body is not provided", func() {
+		ccServer := ghttp.NewServer()
+		ccServer.AppendHandlers(
+			ghttp.VerifyRequest("GET", "/v2/endpoint"),
+		)
+
+		deps := newCurlDependencies()
+		deps.config.SetAPIEndpoint(ccServer.URL())
+
+		repo := NewCloudControllerCurlRepository(deps.config, deps.gateway)
+		_, _, err := repo.Request("", "/v2/endpoint", "", "")
+		Expect(err).NotTo(HaveOccurred())
+
+		Expect(ccServer.ReceivedRequests()).To(HaveLen(1))
 	})
 })
 
@@ -167,13 +201,21 @@ const expectedJSONResponse = `
 `
 
 type curlDependencies struct {
-	config  core_config.ReadWriter
+	config  coreconfig.ReadWriter
 	gateway net.Gateway
 }
 
 func newCurlDependencies() (deps curlDependencies) {
 	deps.config = testconfig.NewRepository()
 	deps.config.SetAccessToken("BEARER my_access_token")
-	deps.gateway = net.NewCloudControllerGateway(deps.config, time.Now, &testterm.FakeUI{})
+	deps.gateway = net.NewCloudControllerGateway(deps.config, time.Now, new(terminalfakes.FakeUI), new(tracefakes.FakePrinter), "")
 	return
+}
+
+func removeWhitespace(body string) string {
+	body = strings.Replace(body, " ", "", -1)
+	body = strings.Replace(body, "\n", "", -1)
+	body = strings.Replace(body, "\r", "", -1)
+	body = strings.Replace(body, "\t", "", -1)
+	return body
 }

@@ -4,50 +4,56 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/flags"
 
-	"github.com/cloudfoundry/cli/cf/api/security_groups"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/securitygroups"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
 )
 
 type ShowSecurityGroup struct {
 	ui                terminal.UI
-	securityGroupRepo security_groups.SecurityGroupRepo
-	configRepo        core_config.Reader
+	securityGroupRepo securitygroups.SecurityGroupRepo
+	configRepo        coreconfig.Reader
 }
 
 func init() {
-	command_registry.Register(&ShowSecurityGroup{})
+	commandregistry.Register(&ShowSecurityGroup{})
 }
 
-func (cmd *ShowSecurityGroup) MetaData() command_registry.CommandMetadata {
-	return command_registry.CommandMetadata{
+func (cmd *ShowSecurityGroup) MetaData() commandregistry.CommandMetadata {
+	return commandregistry.CommandMetadata{
 		Name:        "security-group",
 		Description: T("Show a single security group"),
-		Usage:       T("CF_NAME security-group SECURITY_GROUP"),
+		Usage: []string{
+			T("CF_NAME security-group SECURITY_GROUP"),
+		},
 	}
 }
 
-func (cmd *ShowSecurityGroup) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+func (cmd *ShowSecurityGroup) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
 	if len(fc.Args()) != 1 {
-		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + command_registry.Commands.CommandUsage("security-group"))
+		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + commandregistry.Commands.CommandUsage("security-group"))
 	}
 
-	return []requirements.Requirement{requirementsFactory.NewLoginRequirement()}, nil
+	reqs := []requirements.Requirement{
+		requirementsFactory.NewLoginRequirement(),
+	}
+
+	return reqs
 }
 
-func (cmd *ShowSecurityGroup) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *ShowSecurityGroup) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.configRepo = deps.Config
 	cmd.securityGroupRepo = deps.RepoLocator.GetSecurityGroupRepository()
 	return cmd
 }
 
-func (cmd *ShowSecurityGroup) Execute(c flags.FlagContext) {
+func (cmd *ShowSecurityGroup) Execute(c flags.FlagContext) error {
 	name := c.Args()[0]
 
 	cmd.ui.Say(T("Getting info for security group {{.security_group}} as {{.username}}",
@@ -58,16 +64,16 @@ func (cmd *ShowSecurityGroup) Execute(c flags.FlagContext) {
 
 	securityGroup, err := cmd.securityGroupRepo.Read(name)
 	if err != nil {
-		cmd.ui.Failed(err.Error())
+		return err
 	}
 
-	jsonEncodedBytes, encodingErr := json.MarshalIndent(securityGroup.Rules, "\t", "\t")
-	if encodingErr != nil {
-		cmd.ui.Failed(encodingErr.Error())
+	jsonEncodedBytes, err := json.MarshalIndent(securityGroup.Rules, "\t", "\t")
+	if err != nil {
+		return err
 	}
 
 	cmd.ui.Ok()
-	table := terminal.NewTable(cmd.ui, []string{"", ""})
+	table := cmd.ui.Table([]string{"", ""})
 	table.Add(T("Name"), securityGroup.Name)
 	table.Add(T("Rules"), "")
 	table.Print()
@@ -76,7 +82,7 @@ func (cmd *ShowSecurityGroup) Execute(c flags.FlagContext) {
 	cmd.ui.Say("")
 
 	if len(securityGroup.Spaces) > 0 {
-		table = terminal.NewTable(cmd.ui, []string{"", T("Organization"), T("Space")})
+		table = cmd.ui.Table([]string{"", T("Organization"), T("Space")})
 
 		for index, space := range securityGroup.Spaces {
 			table.Add(fmt.Sprintf("#%d", index), space.Organization.Name, space.Name)
@@ -85,4 +91,5 @@ func (cmd *ShowSecurityGroup) Execute(c flags.FlagContext) {
 	} else {
 		cmd.ui.Say(T("No spaces assigned"))
 	}
+	return nil
 }

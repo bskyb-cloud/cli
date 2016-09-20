@@ -3,16 +3,17 @@ package user_test
 import (
 	"errors"
 
-	"github.com/cloudfoundry/cli/cf/command_registry"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
 	"github.com/cloudfoundry/cli/cf/commands/user"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/flags"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	fakefeatureflagsapi "github.com/cloudfoundry/cli/cf/api/feature_flags/fakes"
-	fakerequirements "github.com/cloudfoundry/cli/cf/requirements/fakes"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
+	"github.com/cloudfoundry/cli/cf/api/featureflags/featureflagsfakes"
+	"github.com/cloudfoundry/cli/cf/api/spaces/spacesfakes"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
@@ -24,33 +25,33 @@ import (
 var _ = Describe("SetSpaceRole", func() {
 	var (
 		ui         *testterm.FakeUI
-		configRepo core_config.Repository
-		userRepo   *testapi.FakeUserRepository
-		spaceRepo  *testapi.FakeSpaceRepository
-		flagRepo   *fakefeatureflagsapi.FakeFeatureFlagRepository
+		configRepo coreconfig.Repository
+		userRepo   *apifakes.FakeUserRepository
+		spaceRepo  *spacesfakes.FakeSpaceRepository
+		flagRepo   *featureflagsfakes.FakeFeatureFlagRepository
 
-		cmd         command_registry.Command
-		deps        command_registry.Dependency
-		factory     *fakerequirements.FakeFactory
+		cmd         commandregistry.Command
+		deps        commandregistry.Dependency
+		factory     *requirementsfakes.FakeFactory
 		flagContext flags.FlagContext
 
 		loginRequirement        requirements.Requirement
-		userRequirement         *fakerequirements.FakeUserRequirement
-		organizationRequirement *fakerequirements.FakeOrganizationRequirement
+		userRequirement         *requirementsfakes.FakeUserRequirement
+		organizationRequirement *requirementsfakes.FakeOrganizationRequirement
 	)
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		userRepo = &testapi.FakeUserRepository{}
+		userRepo = new(apifakes.FakeUserRepository)
 		repoLocator := deps.RepoLocator.SetUserRepository(userRepo)
-		spaceRepo = &testapi.FakeSpaceRepository{}
+		spaceRepo = new(spacesfakes.FakeSpaceRepository)
 		repoLocator = repoLocator.SetSpaceRepository(spaceRepo)
-		flagRepo = &fakefeatureflagsapi.FakeFeatureFlagRepository{}
+		flagRepo = new(featureflagsfakes.FakeFeatureFlagRepository)
 		repoLocator = repoLocator.SetFeatureFlagRepository(flagRepo)
 
-		deps = command_registry.Dependency{
-			Ui:          ui,
+		deps = commandregistry.Dependency{
+			UI:          ui,
 			Config:      configRepo,
 			RepoLocator: repoLocator,
 		}
@@ -60,17 +61,17 @@ var _ = Describe("SetSpaceRole", func() {
 
 		flagContext = flags.NewFlagContext(map[string]flags.FlagSet{})
 
-		factory = &fakerequirements.FakeFactory{}
+		factory = new(requirementsfakes.FakeFactory)
 
 		loginRequirement = &passingRequirement{}
 		factory.NewLoginRequirementReturns(loginRequirement)
 
-		userRequirement = &fakerequirements.FakeUserRequirement{}
-		userRequirement.ExecuteReturns(true)
+		userRequirement = new(requirementsfakes.FakeUserRequirement)
+		userRequirement.ExecuteReturns(nil)
 		factory.NewUserRequirementReturns(userRequirement)
 
-		organizationRequirement = &fakerequirements.FakeOrganizationRequirement{}
-		organizationRequirement.ExecuteReturns(true)
+		organizationRequirement = new(requirementsfakes.FakeOrganizationRequirement)
+		organizationRequirement.ExecuteReturns(nil)
 		factory.NewOrganizationRequirementReturns(organizationRequirement)
 	})
 
@@ -82,7 +83,7 @@ var _ = Describe("SetSpaceRole", func() {
 
 			It("fails with usage", func() {
 				Expect(func() { cmd.Requirements(factory, flagContext) }).To(Panic())
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Incorrect Usage. Requires USERNAME, ORG, SPACE, ROLE as arguments"},
 					[]string{"NAME"},
 					[]string{"USAGE"},
@@ -96,16 +97,14 @@ var _ = Describe("SetSpaceRole", func() {
 			})
 
 			It("returns a LoginRequirement", func() {
-				actualRequirements, err := cmd.Requirements(factory, flagContext)
-				Expect(err).NotTo(HaveOccurred())
+				actualRequirements := cmd.Requirements(factory, flagContext)
 				Expect(factory.NewLoginRequirementCallCount()).To(Equal(1))
 
 				Expect(actualRequirements).To(ContainElement(loginRequirement))
 			})
 
 			It("returns an OrgRequirement", func() {
-				actualRequirements, err := cmd.Requirements(factory, flagContext)
-				Expect(err).NotTo(HaveOccurred())
+				actualRequirements := cmd.Requirements(factory, flagContext)
 				Expect(factory.NewOrganizationRequirementCallCount()).To(Equal(1))
 				Expect(factory.NewOrganizationRequirementArgsForCall(0)).To(Equal("the-org-name"))
 
@@ -114,7 +113,7 @@ var _ = Describe("SetSpaceRole", func() {
 
 			Context("when the config version is >=2.37.0", func() {
 				BeforeEach(func() {
-					configRepo.SetApiVersion("2.37.0")
+					configRepo.SetAPIVersion("2.37.0")
 				})
 
 				It("requests the set_roles_by_username flag", func() {
@@ -129,12 +128,11 @@ var _ = Describe("SetSpaceRole", func() {
 					})
 
 					It("returns a UserRequirement", func() {
-						actualRequirements, err := cmd.Requirements(factory, flagContext)
-						Expect(err).NotTo(HaveOccurred())
+						actualRequirements := cmd.Requirements(factory, flagContext)
 						Expect(factory.NewUserRequirementCallCount()).To(Equal(1))
-						actualUsername, actualWantGuid := factory.NewUserRequirementArgsForCall(0)
+						actualUsername, actualWantGUID := factory.NewUserRequirementArgsForCall(0)
 						Expect(actualUsername).To(Equal("the-user-name"))
-						Expect(actualWantGuid).To(BeFalse())
+						Expect(actualWantGUID).To(BeFalse())
 
 						Expect(actualRequirements).To(ContainElement(userRequirement))
 					})
@@ -146,12 +144,11 @@ var _ = Describe("SetSpaceRole", func() {
 					})
 
 					It("returns a UserRequirement", func() {
-						actualRequirements, err := cmd.Requirements(factory, flagContext)
-						Expect(err).NotTo(HaveOccurred())
+						actualRequirements := cmd.Requirements(factory, flagContext)
 						Expect(factory.NewUserRequirementCallCount()).To(Equal(1))
-						actualUsername, actualWantGuid := factory.NewUserRequirementArgsForCall(0)
+						actualUsername, actualWantGUID := factory.NewUserRequirementArgsForCall(0)
 						Expect(actualUsername).To(Equal("the-user-name"))
-						Expect(actualWantGuid).To(BeTrue())
+						Expect(actualWantGUID).To(BeTrue())
 
 						Expect(actualRequirements).To(ContainElement(userRequirement))
 					})
@@ -163,12 +160,11 @@ var _ = Describe("SetSpaceRole", func() {
 					})
 
 					It("returns a UserRequirement", func() {
-						actualRequirements, err := cmd.Requirements(factory, flagContext)
-						Expect(err).NotTo(HaveOccurred())
+						actualRequirements := cmd.Requirements(factory, flagContext)
 						Expect(factory.NewUserRequirementCallCount()).To(Equal(1))
-						actualUsername, actualWantGuid := factory.NewUserRequirementArgsForCall(0)
+						actualUsername, actualWantGUID := factory.NewUserRequirementArgsForCall(0)
 						Expect(actualUsername).To(Equal("the-user-name"))
-						Expect(actualWantGuid).To(BeTrue())
+						Expect(actualWantGUID).To(BeTrue())
 
 						Expect(actualRequirements).To(ContainElement(userRequirement))
 					})
@@ -177,16 +173,15 @@ var _ = Describe("SetSpaceRole", func() {
 
 			Context("when the config version is <2.37.0", func() {
 				BeforeEach(func() {
-					configRepo.SetApiVersion("2.36.0")
+					configRepo.SetAPIVersion("2.36.0")
 				})
 
 				It("returns a UserRequirement", func() {
-					actualRequirements, err := cmd.Requirements(factory, flagContext)
-					Expect(err).NotTo(HaveOccurred())
+					actualRequirements := cmd.Requirements(factory, flagContext)
 					Expect(factory.NewUserRequirementCallCount()).To(Equal(1))
-					actualUsername, actualWantGuid := factory.NewUserRequirementArgsForCall(0)
+					actualUsername, actualWantGUID := factory.NewUserRequirementArgsForCall(0)
 					Expect(actualUsername).To(Equal("the-user-name"))
-					Expect(actualWantGuid).To(BeTrue())
+					Expect(actualWantGUID).To(BeTrue())
 
 					Expect(actualRequirements).To(ContainElement(userRequirement))
 				})
@@ -195,17 +190,23 @@ var _ = Describe("SetSpaceRole", func() {
 	})
 
 	Describe("Execute", func() {
-		var org models.Organization
+		var (
+			org models.Organization
+			err error
+		)
 
 		BeforeEach(func() {
 			flagContext.Parse("the-user-name", "the-org-name", "the-space-name", "SpaceManager")
-			_, err := cmd.Requirements(factory, flagContext)
-			Expect(err).NotTo(HaveOccurred())
+			cmd.Requirements(factory, flagContext)
 
 			org = models.Organization{}
-			org.Guid = "the-org-guid"
+			org.GUID = "the-org-guid"
 			org.Name = "the-org-name"
 			organizationRequirement.GetOrganizationReturns(org)
+		})
+
+		JustBeforeEach(func() {
+			err = cmd.Execute(flagContext)
 		})
 
 		Context("when the space is not found", func() {
@@ -214,63 +215,56 @@ var _ = Describe("SetSpaceRole", func() {
 			})
 
 			It("doesn't call CC", func() {
-				Expect(userRepo.SetSpaceRoleByGuidCallCount()).To(BeZero())
+				Expect(userRepo.SetSpaceRoleByGUIDCallCount()).To(BeZero())
 				Expect(userRepo.SetSpaceRoleByUsernameCallCount()).To(BeZero())
 			})
 
-			It("panics and prints a failure message", func() {
-				Expect(func() { cmd.Execute(flagContext) }).To(Panic())
-				Expect(ui.Outputs).To(BeInDisplayOrder(
-					[]string{"FAILED"},
-					[]string{"space-repo-error"},
-				))
+			It("returns an error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal("space-repo-error"))
 			})
 		})
 
 		Context("when the space is found", func() {
 			BeforeEach(func() {
 				space := models.Space{}
-				space.Guid = "the-space-guid"
+				space.GUID = "the-space-guid"
 				space.Name = "the-space-name"
-				space.Organization = org.OrganizationFields
 				spaceRepo.FindByNameInOrgReturns(space, nil)
 			})
 
 			Context("when the UserRequirement returns a user with a GUID", func() {
 				BeforeEach(func() {
-					userFields := models.UserFields{Guid: "the-user-guid", Username: "the-user-name"}
+					userFields := models.UserFields{GUID: "the-user-guid", Username: "the-user-name"}
 					userRequirement.GetUserReturns(userFields)
 				})
 
 				It("tells the user it is assigning the role", func() {
-					cmd.Execute(flagContext)
-					Expect(ui.Outputs).To(ContainSubstrings(
+					Expect(err).NotTo(HaveOccurred())
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"Assigning role", "SpaceManager", "the-user-name", "the-org", "the-user-name"},
 						[]string{"OK"},
 					))
 				})
 
 				It("sets the role using the GUID", func() {
-					cmd.Execute(flagContext)
-					Expect(userRepo.SetSpaceRoleByGuidCallCount()).To(Equal(1))
-					actualUserGUID, actualSpaceGUID, actualOrgGUID, actualRole := userRepo.SetSpaceRoleByGuidArgsForCall(0)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(userRepo.SetSpaceRoleByGUIDCallCount()).To(Equal(1))
+					actualUserGUID, actualSpaceGUID, actualOrgGUID, actualRole := userRepo.SetSpaceRoleByGUIDArgsForCall(0)
 					Expect(actualUserGUID).To(Equal("the-user-guid"))
 					Expect(actualSpaceGUID).To(Equal("the-space-guid"))
 					Expect(actualOrgGUID).To(Equal("the-org-guid"))
-					Expect(actualRole).To(Equal("SpaceManager"))
+					Expect(actualRole).To(Equal(models.RoleSpaceManager))
 				})
 
 				Context("when the call to CC fails", func() {
 					BeforeEach(func() {
-						userRepo.SetSpaceRoleByGuidReturns(errors.New("user-repo-error"))
+						userRepo.SetSpaceRoleByGUIDReturns(errors.New("user-repo-error"))
 					})
 
-					It("panics and prints a failure message", func() {
-						Expect(func() { cmd.Execute(flagContext) }).To(Panic())
-						Expect(ui.Outputs).To(BeInDisplayOrder(
-							[]string{"FAILED"},
-							[]string{"user-repo-error"},
-						))
+					It("returns an error", func() {
+						Expect(err).To(HaveOccurred())
+						Expect(err.Error()).To(Equal("user-repo-error"))
 					})
 				})
 			})
@@ -281,17 +275,17 @@ var _ = Describe("SetSpaceRole", func() {
 				})
 
 				It("sets the role using the given username", func() {
-					cmd.Execute(flagContext)
+					Expect(err).NotTo(HaveOccurred())
 					username, spaceGUID, orgGUID, role := userRepo.SetSpaceRoleByUsernameArgsForCall(0)
 					Expect(username).To(Equal("the-user-name"))
 					Expect(spaceGUID).To(Equal("the-space-guid"))
 					Expect(orgGUID).To(Equal("the-org-guid"))
-					Expect(role).To(Equal("SpaceManager"))
+					Expect(role).To(Equal(models.RoleSpaceManager))
 				})
 
 				It("tells the user it assigned the role", func() {
-					cmd.Execute(flagContext)
-					Expect(ui.Outputs).To(ContainSubstrings(
+					Expect(err).NotTo(HaveOccurred())
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"Assigning role", "SpaceManager", "the-user-name", "the-org", "the-user-name"},
 						[]string{"OK"},
 					))
@@ -302,12 +296,9 @@ var _ = Describe("SetSpaceRole", func() {
 						userRepo.SetSpaceRoleByUsernameReturns(errors.New("user-repo-error"))
 					})
 
-					It("panics and prints a failure message", func() {
-						Expect(func() { cmd.Execute(flagContext) }).To(Panic())
-						Expect(ui.Outputs).To(BeInDisplayOrder(
-							[]string{"FAILED"},
-							[]string{"user-repo-error"},
-						))
+					It("returns an error", func() {
+						Expect(err).To(HaveOccurred())
+						Expect(err.Error()).To(Equal("user-repo-error"))
 					})
 				})
 			})

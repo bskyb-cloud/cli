@@ -1,15 +1,16 @@
 package application_test
 
 import (
-	testApplication "github.com/cloudfoundry/cli/cf/api/applications/fakes"
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
+	"github.com/cloudfoundry/cli/cf/api/applications/applicationsfakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -21,59 +22,61 @@ var _ = Describe("delete app command", func() {
 	var (
 		ui                  *testterm.FakeUI
 		app                 models.Application
-		configRepo          core_config.Repository
-		appRepo             *testApplication.FakeApplicationRepository
-		routeRepo           *testapi.FakeRouteRepository
-		requirementsFactory *testreq.FakeReqFactory
-		deps                command_registry.Dependency
+		configRepo          coreconfig.Repository
+		appRepo             *applicationsfakes.FakeRepository
+		routeRepo           *apifakes.FakeRouteRepository
+		requirementsFactory *requirementsfakes.FakeFactory
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.Config = configRepo
 		deps.RepoLocator = deps.RepoLocator.SetApplicationRepository(appRepo)
 		deps.RepoLocator = deps.RepoLocator.SetRouteRepository(routeRepo)
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("delete").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("delete").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
 		app = models.Application{}
 		app.Name = "app-to-delete"
-		app.Guid = "app-to-delete-guid"
+		app.GUID = "app-to-delete-guid"
 
 		ui = &testterm.FakeUI{}
-		appRepo = &testApplication.FakeApplicationRepository{}
-		routeRepo = &testapi.FakeRouteRepository{}
-		requirementsFactory = &testreq.FakeReqFactory{}
+		appRepo = new(applicationsfakes.FakeRepository)
+		routeRepo = new(apifakes.FakeRouteRepository)
+		requirementsFactory = new(requirementsfakes.FakeFactory)
 
 		configRepo = testconfig.NewRepositoryWithDefaults()
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("delete", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("delete", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	It("fails requirements when not logged in", func() {
-		requirementsFactory.LoginSuccess = false
+		requirementsFactory.NewUsageRequirementReturns(requirements.Passing{})
+		requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 		Expect(runCommand("-f", "delete-this-app-plz")).To(BeFalse())
 	})
+
 	It("fails if a space is not targeted", func() {
-		requirementsFactory.LoginSuccess = true
-		requirementsFactory.TargetedSpaceSuccess = false
+		requirementsFactory.NewUsageRequirementReturns(requirements.Passing{})
+		requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+		requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Failing{Message: "not targeting space"})
 		Expect(runCommand("-f", "delete-this-app-plz")).To(BeFalse())
 	})
 
-	Context("when logged in", func() {
-		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedSpaceSuccess = true
-		})
+	It("fails with usage when not provided exactly one arg", func() {
+		requirementsFactory.NewUsageRequirementReturns(requirements.Failing{})
+		Expect(runCommand()).To(BeFalse())
+	})
 
-		It("fails with usage when not provided exactly one arg", func() {
-			runCommand()
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Incorrect Usage", "Requires", "argument"},
-			))
+	Context("when passing requirements", func() {
+		BeforeEach(func() {
+			requirementsFactory.NewUsageRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Passing{})
 		})
 
 		Context("When provided an app that exists", func() {
@@ -91,7 +94,7 @@ var _ = Describe("delete app command", func() {
 
 				Expect(ui.Prompts).To(ContainSubstrings([]string{"Really delete the app app-to-delete"}))
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Deleting", "app-to-delete", "my-org", "my-space", "my-user"},
 					[]string{"OK"},
 				))
@@ -104,7 +107,7 @@ var _ = Describe("delete app command", func() {
 				Expect(appRepo.DeleteArgsForCall(0)).To(Equal("app-to-delete-guid"))
 				Expect(ui.Prompts).To(BeEmpty())
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Deleting", "app-to-delete"},
 					[]string{"OK"},
 				))
@@ -113,11 +116,11 @@ var _ = Describe("delete app command", func() {
 			Describe("mapped routes", func() {
 				BeforeEach(func() {
 					route1 := models.RouteSummary{}
-					route1.Guid = "the-first-route-guid"
+					route1.GUID = "the-first-route-guid"
 					route1.Host = "my-app-is-good.com"
 
 					route2 := models.RouteSummary{}
-					route2.Guid = "the-second-route-guid"
+					route2.GUID = "the-second-route-guid"
 					route2.Host = "my-app-is-bad.com"
 
 					appRepo.ReadReturns(models.Application{
@@ -144,7 +147,7 @@ var _ = Describe("delete app command", func() {
 						It("fails with the api error message", func() {
 							runCommand("-f", "-r", "app-to-delete")
 
-							Expect(ui.Outputs).To(ContainSubstrings(
+							Expect(ui.Outputs()).To(ContainSubstrings(
 								[]string{"Deleting", "app-to-delete"},
 								[]string{"FAILED"},
 							))
@@ -172,7 +175,7 @@ var _ = Describe("delete app command", func() {
 				Expect(appRepo.ReadArgsForCall(0)).To(Equal("app-to-delete"))
 				Expect(appRepo.DeleteCallCount()).To(BeZero())
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Deleting", "app-to-delete"},
 					[]string{"OK"},
 				))

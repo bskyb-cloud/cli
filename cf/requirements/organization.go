@@ -3,47 +3,44 @@ package requirements
 import (
 	"github.com/cloudfoundry/cli/cf/api/organizations"
 	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/terminal"
 )
 
-//go:generate counterfeiter -o fakes/fake_organization_requirement.go . OrganizationRequirement
+//go:generate counterfeiter . OrganizationRequirement
+
 type OrganizationRequirement interface {
 	Requirement
 	SetOrganizationName(string)
 	GetOrganization() models.Organization
 }
 
-type organizationApiRequirement struct {
+type organizationAPIRequirement struct {
 	name    string
-	ui      terminal.UI
 	orgRepo organizations.OrganizationRepository
 	org     models.Organization
 }
 
-func NewOrganizationRequirement(name string, ui terminal.UI, sR organizations.OrganizationRepository) *organizationApiRequirement {
-	req := &organizationApiRequirement{}
+func NewOrganizationRequirement(name string, sR organizations.OrganizationRepository) *organizationAPIRequirement {
+	req := &organizationAPIRequirement{}
 	req.name = name
-	req.ui = ui
 	req.orgRepo = sR
 	return req
 }
 
-func (req *organizationApiRequirement) Execute() (success bool) {
+func (req *organizationAPIRequirement) Execute() error {
 	var apiErr error
 	req.org, apiErr = req.orgRepo.FindByName(req.name)
 
 	if apiErr != nil {
-		req.ui.Failed(apiErr.Error())
-		return false
+		return apiErr
 	}
 
-	return true
+	return nil
 }
 
-func (req *organizationApiRequirement) SetOrganizationName(name string) {
+func (req *organizationAPIRequirement) SetOrganizationName(name string) {
 	req.name = name
 }
 
-func (req *organizationApiRequirement) GetOrganization() models.Organization {
+func (req *organizationAPIRequirement) GetOrganization() models.Organization {
 	return req.org
 }

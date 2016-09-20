@@ -5,14 +5,14 @@ import (
 	"net/http/httptest"
 	"time"
 
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/net"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testnet "github.com/cloudfoundry/cli/testhelpers/net"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
-
 	. "github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
+	"github.com/cloudfoundry/cli/cf/net"
+	"github.com/cloudfoundry/cli/cf/terminal/terminalfakes"
+	"github.com/cloudfoundry/cli/cf/trace/tracefakes"
+	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	testnet "github.com/cloudfoundry/cli/testhelpers/net"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -26,7 +26,7 @@ var _ = Describe("AppSummaryRepository", func() {
 
 	Describe("GetSummariesInCurrentSpace()", func() {
 		BeforeEach(func() {
-			getAppSummariesRequest := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+			getAppSummariesRequest := apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method: "GET",
 				Path:   "/v2/spaces/my-space-guid/summary",
 				Response: testnet.TestResponse{
@@ -37,8 +37,8 @@ var _ = Describe("AppSummaryRepository", func() {
 
 			testServer, handler = testnet.NewServer([]testnet.TestRequest{getAppSummariesRequest})
 			configRepo := testconfig.NewRepositoryWithDefaults()
-			configRepo.SetApiEndpoint(testServer.URL)
-			gateway := net.NewCloudControllerGateway(configRepo, time.Now, &testterm.FakeUI{})
+			configRepo.SetAPIEndpoint(testServer.URL)
+			gateway := net.NewCloudControllerGateway(configRepo, time.Now, new(terminalfakes.FakeUI), new(tracefakes.FakePrinter), "")
 			repo = NewCloudControllerAppSummaryRepository(configRepo, gateway)
 		})
 
@@ -55,8 +55,8 @@ var _ = Describe("AppSummaryRepository", func() {
 
 			app1 := apps[0]
 			Expect(app1.Name).To(Equal("app1"))
-			Expect(app1.Guid).To(Equal("app-1-guid"))
-			Expect(app1.BuildpackUrl).To(Equal("go_buildpack"))
+			Expect(app1.GUID).To(Equal("app-1-guid"))
+			Expect(app1.BuildpackURL).To(Equal("go_buildpack"))
 			Expect(len(app1.Routes)).To(Equal(1))
 			Expect(app1.Routes[0].URL()).To(Equal("app1.cfapps.io"))
 
@@ -66,14 +66,16 @@ var _ = Describe("AppSummaryRepository", func() {
 			Expect(app1.RunningInstances).To(Equal(1))
 			Expect(app1.Memory).To(Equal(int64(128)))
 			Expect(app1.PackageUpdatedAt.Format("2006-01-02T15:04:05Z07:00")).To(Equal("2014-10-24T19:54:00Z"))
+			Expect(app1.AppPorts).To(Equal([]int{8080, 9090}))
 
 			app2 := apps[1]
 			Expect(app2.Name).To(Equal("app2"))
 			Expect(app2.Command).To(Equal(""))
-			Expect(app2.Guid).To(Equal("app-2-guid"))
+			Expect(app2.GUID).To(Equal("app-2-guid"))
 			Expect(len(app2.Routes)).To(Equal(2))
 			Expect(app2.Routes[0].URL()).To(Equal("app2.cfapps.io"))
 			Expect(app2.Routes[1].URL()).To(Equal("foo.cfapps.io"))
+			Expect(app2.AppPorts).To(HaveLen(0))
 
 			Expect(app2.State).To(Equal("started"))
 			Expect(app2.InstanceCount).To(Equal(3))
@@ -88,7 +90,7 @@ var _ = Describe("AppSummaryRepository", func() {
 
 	Describe("GetSummary()", func() {
 		BeforeEach(func() {
-			getAppSummaryRequest := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+			getAppSummaryRequest := apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method: "GET",
 				Path:   "/v2/apps/app1-guid/summary",
 				Response: testnet.TestResponse{
@@ -99,8 +101,8 @@ var _ = Describe("AppSummaryRepository", func() {
 
 			testServer, handler = testnet.NewServer([]testnet.TestRequest{getAppSummaryRequest})
 			configRepo := testconfig.NewRepositoryWithDefaults()
-			configRepo.SetApiEndpoint(testServer.URL)
-			gateway := net.NewCloudControllerGateway(configRepo, time.Now, &testterm.FakeUI{})
+			configRepo.SetAPIEndpoint(testServer.URL)
+			gateway := net.NewCloudControllerGateway(configRepo, time.Now, new(terminalfakes.FakeUI), new(tracefakes.FakePrinter), "")
 			repo = NewCloudControllerAppSummaryRepository(configRepo, gateway)
 		})
 
@@ -115,8 +117,8 @@ var _ = Describe("AppSummaryRepository", func() {
 			Expect(apiErr).NotTo(HaveOccurred())
 
 			Expect(app.Name).To(Equal("app1"))
-			Expect(app.Guid).To(Equal("app-1-guid"))
-			Expect(app.BuildpackUrl).To(Equal("go_buildpack"))
+			Expect(app.GUID).To(Equal("app-1-guid"))
+			Expect(app.BuildpackURL).To(Equal("go_buildpack"))
 			Expect(len(app.Routes)).To(Equal(1))
 			Expect(app.Routes[0].URL()).To(Equal("app1.cfapps.io"))
 
@@ -126,6 +128,7 @@ var _ = Describe("AppSummaryRepository", func() {
 			Expect(app.RunningInstances).To(Equal(1))
 			Expect(app.Memory).To(Equal(int64(128)))
 			Expect(app.PackageUpdatedAt.Format("2006-01-02T15:04:05Z07:00")).To(Equal("2014-10-24T19:54:00Z"))
+			Expect(app.StackGUID).To(Equal("the-stack-guid"))
 		})
 	})
 
@@ -156,7 +159,11 @@ const getAppSummariesResponseBody string = `
       "service_names":[
       	"my-service-instance"
       ],
-			"package_updated_at":"2014-10-24T19:54:00+00:00"
+			"package_updated_at":"2014-10-24T19:54:00+00:00",
+			"ports":[
+				8080,
+				9090
+			]
     },{
       "guid":"app-2-guid",
       "routes":[
@@ -185,7 +192,8 @@ const getAppSummariesResponseBody string = `
       "service_names":[
       	"my-service-instance"
       ],
-			"package_updated_at":"2012-10-24T19:55:00+00:00"
+			"package_updated_at":"2012-10-24T19:55:00+00:00",
+			"ports":null
     },{
       "guid":"app-with-null-updated-at-guid",
       "routes":[
@@ -206,7 +214,8 @@ const getAppSummariesResponseBody string = `
       "service_names":[
       	"my-service-instance"
       ],
-			"package_updated_at":null
+			"package_updated_at":null,
+			"ports":null
     }
   ]
 }`
@@ -226,6 +235,7 @@ const getAppSummaryResponseBody string = `
 		],
 		"running_instances":1,
 		"name":"app1",
+		"stack_guid":"the-stack-guid",
 		"memory":128,
 		"command": "start_command",
 		"instances":1,

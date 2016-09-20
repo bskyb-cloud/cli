@@ -1,14 +1,15 @@
 package user_test
 
 import (
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -19,27 +20,28 @@ import (
 var _ = Describe("delete-user command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		configRepo          core_config.Repository
-		userRepo            *testapi.FakeUserRepository
-		requirementsFactory *testreq.FakeReqFactory
-		deps                command_registry.Dependency
+		configRepo          coreconfig.Repository
+		userRepo            *apifakes.FakeUserRepository
+		requirementsFactory *requirementsfakes.FakeFactory
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.Config = configRepo
 		deps.RepoLocator = deps.RepoLocator.SetUserRepository(userRepo)
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("delete-user").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("delete-user").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{Inputs: []string{"y"}}
-		userRepo = &testapi.FakeUserRepository{}
-		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true}
+		userRepo = new(apifakes.FakeUserRepository)
+		requirementsFactory = new(requirementsfakes.FakeFactory)
+		requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
 		configRepo = testconfig.NewRepositoryWithDefaults()
 
-		token, err := testconfig.EncodeAccessToken(core_config.TokenInfo{
-			UserGuid: "admin-user-guid",
+		token, err := testconfig.EncodeAccessToken(coreconfig.TokenInfo{
+			UserGUID: "admin-user-guid",
 			Username: "admin-user",
 		})
 		Expect(err).ToNot(HaveOccurred())
@@ -47,19 +49,19 @@ var _ = Describe("delete-user command", func() {
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("delete-user", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("delete-user", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Describe("requirements", func() {
 		It("fails when not logged in", func() {
-			requirementsFactory.LoginSuccess = false
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 
 			Expect(runCommand("my-user")).To(BeFalse())
 		})
 
 		It("fails with usage when no arguments are given", func() {
 			runCommand()
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Incorrect Usage", "Requires an argument"},
 			))
 		})
@@ -69,7 +71,7 @@ var _ = Describe("delete-user command", func() {
 		BeforeEach(func() {
 			userRepo.FindByUsernameReturns(models.UserFields{
 				Username: "user-name",
-				Guid:     "user-guid",
+				GUID:     "user-guid",
 			}, nil)
 		})
 
@@ -78,7 +80,7 @@ var _ = Describe("delete-user command", func() {
 
 			Expect(ui.Prompts).To(ContainSubstrings([]string{"Really delete the user user-name"}))
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Deleting user", "user-name", "admin-user"},
 				[]string{"OK"},
 			))
@@ -100,7 +102,7 @@ var _ = Describe("delete-user command", func() {
 			ui.Inputs = []string{}
 			runCommand("-f", "user-name")
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Deleting user", "user-name"},
 				[]string{"OK"},
 			))
@@ -118,7 +120,7 @@ var _ = Describe("delete-user command", func() {
 		It("prints a warning", func() {
 			runCommand("-f", "user-name")
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Deleting user", "user-name"},
 				[]string{"OK"},
 			))

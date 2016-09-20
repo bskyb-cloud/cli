@@ -1,0 +1,17 @@
+---
+platform: windows
+
+params:
+  SIGNTOOL_CERT_PATH:
+  SIGNTOOL_CERT_PASSWORD:
+
+inputs:
+- name: cf-cli-binaries
+- name: cli
+- name: cli-ci
+
+outputs:
+- name: winstallers
+
+run:
+  path: cli-ci/ci/cli/tasks/create-installers-windows.bat

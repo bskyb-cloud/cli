@@ -5,16 +5,17 @@ import (
 	"net/http/httptest"
 	"time"
 
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
+	"github.com/cloudfoundry/cli/cf/terminal/terminalfakes"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testnet "github.com/cloudfoundry/cli/testhelpers/net"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/trace/tracefakes"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -24,19 +25,19 @@ var _ = Describe("ServiceAuthTokensRepo", func() {
 	var (
 		testServer  *httptest.Server
 		testHandler *testnet.TestHandler
-		configRepo  core_config.ReadWriter
+		configRepo  coreconfig.ReadWriter
 		repo        CloudControllerServiceAuthTokenRepository
 	)
 
 	setupTestServer := func(reqs ...testnet.TestRequest) {
 		testServer, testHandler = testnet.NewServer(reqs)
-		configRepo.SetApiEndpoint(testServer.URL)
+		configRepo.SetAPIEndpoint(testServer.URL)
 	}
 
 	BeforeEach(func() {
 		configRepo = testconfig.NewRepositoryWithDefaults()
 
-		gateway := net.NewCloudControllerGateway(configRepo, time.Now, &testterm.FakeUI{})
+		gateway := net.NewCloudControllerGateway(configRepo, time.Now, new(terminalfakes.FakeUI), new(tracefakes.FakePrinter), "")
 		repo = NewCloudControllerServiceAuthTokenRepository(configRepo, gateway)
 	})
 
@@ -46,7 +47,7 @@ var _ = Describe("ServiceAuthTokensRepo", func() {
 
 	Describe("Create", func() {
 		It("creates a service auth token", func() {
-			setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+			setupTestServer(apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method:   "POST",
 				Path:     "/v2/service_auth_tokens",
 				Matcher:  testnet.RequestBodyMatcher(`{"label":"a label","provider":"a provider","token":"a token"}`),
@@ -65,7 +66,7 @@ var _ = Describe("ServiceAuthTokensRepo", func() {
 	})
 
 	Describe("FindAll", func() {
-		var firstServiceAuthTokenRequest = testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+		var firstServiceAuthTokenRequest = apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 			Method: "GET",
 			Path:   "/v2/service_auth_tokens",
 			Response: testnet.TestResponse{
@@ -88,7 +89,7 @@ var _ = Describe("ServiceAuthTokensRepo", func() {
 			},
 		})
 
-		var secondServiceAuthTokenRequest = testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+		var secondServiceAuthTokenRequest = apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 			Method: "GET",
 			Path:   "/v2/service_auth_tokens",
 			Response: testnet.TestResponse{
@@ -133,18 +134,18 @@ var _ = Describe("ServiceAuthTokensRepo", func() {
 
 			Expect(authTokens[0].Label).To(Equal("mongodb"))
 			Expect(authTokens[0].Provider).To(Equal("mongodb-core"))
-			Expect(authTokens[0].Guid).To(Equal("mongodb-core-guid"))
+			Expect(authTokens[0].GUID).To(Equal("mongodb-core-guid"))
 
 			Expect(authTokens[1].Label).To(Equal("mysql"))
 			Expect(authTokens[1].Provider).To(Equal("mysql-core"))
-			Expect(authTokens[1].Guid).To(Equal("mysql-core-guid"))
+			Expect(authTokens[1].GUID).To(Equal("mysql-core-guid"))
 		})
 	})
 
 	Describe("FindByLabelAndProvider", func() {
 		Context("when the auth token exists", func() {
 			BeforeEach(func() {
-				setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+				setupTestServer(apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 					Method: "GET",
 					Path:   "/v2/service_auth_tokens?q=label%3Aa-label%3Bprovider%3Aa-provider",
 					Response: testnet.TestResponse{
@@ -167,7 +168,7 @@ var _ = Describe("ServiceAuthTokensRepo", func() {
 				Expect(testHandler).To(HaveAllRequestsCalled())
 				Expect(err).NotTo(HaveOccurred())
 				Expect(serviceAuthToken).To(Equal(models.ServiceAuthTokenFields{
-					Guid:     "mysql-core-guid",
+					GUID:     "mysql-core-guid",
 					Label:    "mysql",
 					Provider: "mysql-core",
 				}))
@@ -176,7 +177,7 @@ var _ = Describe("ServiceAuthTokensRepo", func() {
 
 		Context("when the auth token does not exist", func() {
 			BeforeEach(func() {
-				setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+				setupTestServer(apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 					Method: "GET",
 					Path:   "/v2/service_auth_tokens?q=label%3Aa-label%3Bprovider%3Aa-provider",
 					Response: testnet.TestResponse{
@@ -196,7 +197,7 @@ var _ = Describe("ServiceAuthTokensRepo", func() {
 
 	Describe("Update", func() {
 		It("updates the service auth token", func() {
-			setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+			setupTestServer(apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method:   "PUT",
 				Path:     "/v2/service_auth_tokens/mysql-core-guid",
 				Matcher:  testnet.RequestBodyMatcher(`{"token":"a value"}`),
@@ -204,7 +205,7 @@ var _ = Describe("ServiceAuthTokensRepo", func() {
 			}))
 
 			err := repo.Update(models.ServiceAuthTokenFields{
-				Guid:  "mysql-core-guid",
+				GUID:  "mysql-core-guid",
 				Token: "a value",
 			})
 
@@ -216,14 +217,14 @@ var _ = Describe("ServiceAuthTokensRepo", func() {
 	Describe("Delete", func() {
 		It("deletes the service auth token", func() {
 
-			setupTestServer(testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+			setupTestServer(apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 				Method:   "DELETE",
 				Path:     "/v2/service_auth_tokens/mysql-core-guid",
 				Response: testnet.TestResponse{Status: http.StatusOK},
 			}))
 
 			err := repo.Delete(models.ServiceAuthTokenFields{
-				Guid: "mysql-core-guid",
+				GUID: "mysql-core-guid",
 			})
 
 			Expect(testHandler).To(HaveAllRequestsCalled())

@@ -1,16 +1,19 @@
 package securitygroup_test
 
 import (
-	fakeSecurityGroup "github.com/cloudfoundry/cli/cf/api/security_groups/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/securitygroups/securitygroupsfakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/flags"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
+	"github.com/cloudfoundry/cli/cf/commands/securitygroup"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -19,52 +22,67 @@ import (
 var _ = Describe("list-security-groups command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		repo                *fakeSecurityGroup.FakeSecurityGroupRepo
-		requirementsFactory *testreq.FakeReqFactory
-		configRepo          core_config.Repository
-		deps                command_registry.Dependency
+		repo                *securitygroupsfakes.FakeSecurityGroupRepo
+		requirementsFactory *requirementsfakes.FakeFactory
+		configRepo          coreconfig.Repository
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.RepoLocator = deps.RepoLocator.SetSecurityGroupRepository(repo)
 		deps.Config = configRepo
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("security-groups").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("security-groups").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
-		requirementsFactory = &testreq.FakeReqFactory{}
-		repo = &fakeSecurityGroup.FakeSecurityGroupRepo{}
+		requirementsFactory = new(requirementsfakes.FakeFactory)
+		repo = new(securitygroupsfakes.FakeSecurityGroupRepo)
 		configRepo = testconfig.NewRepositoryWithDefaults()
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("security-groups", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("security-groups", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Describe("requirements", func() {
 		It("should fail if not logged in", func() {
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 			Expect(runCommand()).To(BeFalse())
 		})
 
-		It("should fail with usage when provided any arguments", func() {
-			requirementsFactory.LoginSuccess = true
-			runCommand("why am I typing here")
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Incorrect Usage", "No argument"},
-			))
+		Context("when arguments are provided", func() {
+			var cmd commandregistry.Command
+			var flagContext flags.FlagContext
+
+			BeforeEach(func() {
+				cmd = &securitygroup.SecurityGroups{}
+				cmd.SetDependency(deps, false)
+				flagContext = flags.NewFlagContext(cmd.MetaData().Flags)
+			})
+
+			It("should fail with usage", func() {
+				flagContext.Parse("blahblah")
+
+				reqs := cmd.Requirements(requirementsFactory, flagContext)
+
+				err := testcmd.RunRequirements(reqs)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("Incorrect Usage"))
+				Expect(err.Error()).To(ContainSubstring("No argument required"))
+			})
 		})
 	})
 
 	Context("when logged in", func() {
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
 		})
 
 		It("tells the user what it's about to do", func() {
 			runCommand()
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Getting", "security groups", "my-user"},
 			))
 		})
@@ -73,7 +91,7 @@ var _ = Describe("list-security-groups command", func() {
 			repo.FindAllReturns([]models.SecurityGroup{}, errors.New("YO YO YO, ERROR YO"))
 
 			runCommand()
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"FAILED"},
 			))
 		})
@@ -83,7 +101,7 @@ var _ = Describe("list-security-groups command", func() {
 				repo.FindAllReturns([]models.SecurityGroup{}, nil)
 
 				runCommand()
-				Expect(ui.Outputs).To(ContainSubstrings([]string{"No security groups"}))
+				Expect(ui.Outputs()).To(ContainSubstrings([]string{"No security groups"}))
 			})
 		})
 
@@ -91,7 +109,7 @@ var _ = Describe("list-security-groups command", func() {
 			BeforeEach(func() {
 				securityGroup := models.SecurityGroup{}
 				securityGroup.Name = "my-group"
-				securityGroup.Guid = "group-guid"
+				securityGroup.GUID = "group-guid"
 
 				repo.FindAllReturns([]models.SecurityGroup{securityGroup}, nil)
 			})
@@ -102,16 +120,16 @@ var _ = Describe("list-security-groups command", func() {
 						{
 							SecurityGroupFields: models.SecurityGroupFields{
 								Name: "my-group",
-								Guid: "group-guid",
+								GUID: "group-guid",
 							},
 							Spaces: []models.Space{
 								{
-									SpaceFields:  models.SpaceFields{Guid: "my-space-guid-1", Name: "space-1"},
-									Organization: models.OrganizationFields{Guid: "my-org-guid-1", Name: "org-1"},
+									SpaceFields:  models.SpaceFields{GUID: "my-space-guid-1", Name: "space-1"},
+									Organization: models.OrganizationFields{GUID: "my-org-guid-1", Name: "org-1"},
 								},
 								{
-									SpaceFields:  models.SpaceFields{Guid: "my-space-guid", Name: "space-2"},
-									Organization: models.OrganizationFields{Guid: "my-org-guid-2", Name: "org-2"},
+									SpaceFields:  models.SpaceFields{GUID: "my-space-guid", Name: "space-2"},
+									Organization: models.OrganizationFields{GUID: "my-org-guid-2", Name: "org-2"},
 								},
 							},
 						},
@@ -122,7 +140,7 @@ var _ = Describe("list-security-groups command", func() {
 
 				It("lists out the security group's: name, organization and space", func() {
 					runCommand()
-					Expect(ui.Outputs).To(ContainSubstrings(
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"Getting", "security group", "my-user"},
 						[]string{"OK"},
 						[]string{"#0", "my-group", "org-1", "space-1"},
@@ -130,7 +148,7 @@ var _ = Describe("list-security-groups command", func() {
 
 					//If there is a panic in this test, it is likely due to the following
 					//Expectation to be false
-					Expect(ui.Outputs).ToNot(ContainSubstrings(
+					Expect(ui.Outputs()).ToNot(ContainSubstrings(
 						[]string{"#0", "my-group", "org-2", "space-2"},
 					))
 				})
@@ -139,7 +157,7 @@ var _ = Describe("list-security-groups command", func() {
 			Describe("Where there are no spaces assigned", func() {
 				It("lists out the security group's: name", func() {
 					runCommand()
-					Expect(ui.Outputs).To(ContainSubstrings(
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"Getting", "security group", "my-user"},
 						[]string{"OK"},
 						[]string{"#0", "my-group"},

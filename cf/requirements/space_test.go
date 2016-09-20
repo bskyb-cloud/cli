@@ -3,47 +3,44 @@ package requirements_test
 import (
 	"errors"
 
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	"github.com/cloudfoundry/cli/cf/api/spaces/spacesfakes"
 	"github.com/cloudfoundry/cli/cf/models"
 	. "github.com/cloudfoundry/cli/cf/requirements"
-	testassert "github.com/cloudfoundry/cli/testhelpers/assert"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("SpaceRequirement", func() {
-	var (
-		ui *testterm.FakeUI
-	)
-
+	var spaceRepo *spacesfakes.FakeSpaceRepository
 	BeforeEach(func() {
-		ui = new(testterm.FakeUI)
+		spaceRepo = new(spacesfakes.FakeSpaceRepository)
 	})
 
 	Context("when a space with the given name exists", func() {
 		It("succeeds", func() {
 			space := models.Space{}
 			space.Name = "awesome-sauce-space"
-			space.Guid = "my-space-guid"
-			spaceRepo := &testapi.FakeSpaceRepository{}
+			space.GUID = "my-space-guid"
 			spaceRepo.FindByNameReturns(space, nil)
 
-			spaceReq := NewSpaceRequirement("awesome-sauce-space", ui, spaceRepo)
+			spaceReq := NewSpaceRequirement("awesome-sauce-space", spaceRepo)
 
-			Expect(spaceReq.Execute()).To(BeTrue())
+			err := spaceReq.Execute()
+			Expect(err).NotTo(HaveOccurred())
 			Expect(spaceReq.GetSpace()).To(Equal(space))
 			Expect(spaceRepo.FindByNameArgsForCall(0)).To(Equal("awesome-sauce-space"))
 		})
 	})
 
 	Context("when a space with the given name does not exist", func() {
-		It("fails", func() {
-			spaceRepo := &testapi.FakeSpaceRepository{}
-			spaceRepo.FindByNameReturns(models.Space{}, errors.New("space-repo-err"))
-			testassert.AssertPanic(testterm.QuietPanic, func() {
-				NewSpaceRequirement("foo", ui, spaceRepo).Execute()
-			})
+		It("errors", func() {
+			spaceError := errors.New("space-repo-err")
+			spaceRepo.FindByNameReturns(models.Space{}, spaceError)
+
+			err := NewSpaceRequirement("foo", spaceRepo).Execute()
+
+			Expect(err).To(HaveOccurred())
+			Expect(err).To(Equal(spaceError))
 		})
 	})
 })

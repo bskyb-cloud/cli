@@ -1,15 +1,19 @@
 package routergroups_test
 
 import (
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"errors"
+
+	"github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	"github.com/cloudfoundry/cli/cf/models"
-	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
+	"github.com/cloudfoundry/cli/cf/commands/routergroups"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -18,99 +22,134 @@ import (
 var _ = Describe("RouterGroups", func() {
 
 	var (
-		ui                  *testterm.FakeUI
-		routingApiRepo      *testapi.FakeRoutingApiRepository
-		configRepo          core_config.Repository
-		requirementsFactory *testreq.FakeReqFactory
-		deps                command_registry.Dependency
+		ui             *testterm.FakeUI
+		routingAPIRepo *apifakes.FakeRoutingAPIRepository
+		deps           commandregistry.Dependency
+		cmd            *routergroups.RouterGroups
+		flagContext    flags.FlagContext
+		repoLocator    api.RepositoryLocator
+		config         coreconfig.Repository
+
+		requirementsFactory           *requirementsfakes.FakeFactory
+		minAPIVersionRequirement      *requirementsfakes.FakeRequirement
+		loginRequirement              *requirementsfakes.FakeRequirement
+		routingAPIEndpoingRequirement *requirementsfakes.FakeRequirement
 	)
 
-	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
-		deps.RepoLocator = deps.RepoLocator.SetRoutingApiRepository(routingApiRepo)
-		deps.Config = configRepo
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("router-groups").SetDependency(deps, pluginCall))
-	}
-
 	BeforeEach(func() {
-		ui = &testterm.FakeUI{}
-		configRepo = testconfig.NewRepositoryWithDefaults()
-		requirementsFactory = &testreq.FakeReqFactory{
-			LoginSuccess:              true,
-			RoutingAPIEndpointSuccess: true,
+		ui = new(testterm.FakeUI)
+		routingAPIRepo = new(apifakes.FakeRoutingAPIRepository)
+		config = testconfig.NewRepositoryWithDefaults()
+		repoLocator = api.RepositoryLocator{}.SetRoutingAPIRepository(routingAPIRepo)
+		deps = commandregistry.Dependency{
+			UI:          ui,
+			Config:      config,
+			RepoLocator: repoLocator,
 		}
-		routingApiRepo = &testapi.FakeRoutingApiRepository{}
+
+		minAPIVersionRequirement = new(requirementsfakes.FakeRequirement)
+		loginRequirement = new(requirementsfakes.FakeRequirement)
+		routingAPIEndpoingRequirement = new(requirementsfakes.FakeRequirement)
+
+		requirementsFactory = new(requirementsfakes.FakeFactory)
+		requirementsFactory.NewMinAPIVersionRequirementReturns(minAPIVersionRequirement)
+		requirementsFactory.NewLoginRequirementReturns(loginRequirement)
+		requirementsFactory.NewRoutingAPIRequirementReturns(routingAPIEndpoingRequirement)
+
+		cmd = new(routergroups.RouterGroups)
+		cmd = cmd.SetDependency(deps, false).(*routergroups.RouterGroups)
+		flagContext = flags.NewFlagContext(cmd.MetaData().Flags)
 	})
 
-	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("router-groups", args, requirementsFactory, updateCommandDependency, false)
-	}
-
-	Describe("login requirements", func() {
+	Describe("Requirements", func() {
 		It("fails if the user is not logged in", func() {
-			requirementsFactory.LoginSuccess = false
-			Expect(runCommand()).To(BeFalse())
+			cmd.Requirements(requirementsFactory, flagContext)
+
+			Expect(requirementsFactory.NewLoginRequirementCallCount()).To(Equal(1))
 		})
 
 		It("fails when the routing API endpoint is not set", func() {
-			requirementsFactory.RoutingAPIEndpointSuccess = false
-			Expect(runCommand()).To(BeFalse())
+			cmd.Requirements(requirementsFactory, flagContext)
+
+			Expect(requirementsFactory.NewRoutingAPIRequirementCallCount()).To(Equal(1))
 		})
 
-		It("should fail with usage when provided any arguments", func() {
-			Expect(runCommand("notrequired-option")).To(BeFalse())
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Incorrect Usage", "No argument required"},
-			))
+		It("should fail with usage", func() {
+			flagContext.Parse("blahblah")
+			cmd.Requirements(requirementsFactory, flagContext)
+
+			Expect(requirementsFactory.NewUsageRequirementCallCount()).To(Equal(1))
 		})
 	})
 
-	Context("when there are router groups", func() {
+	Describe("Execute", func() {
+		var err error
+
 		BeforeEach(func() {
-			routingApiRepo.RouterGroups = models.RouterGroups{
-				models.RouterGroup{
-					Guid: "guid-0001",
-					Name: "default-router-group",
-					Type: "tcp",
-				},
-			}
+			err := flagContext.Parse()
+			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("lists router groups", func() {
-			runCommand()
+		JustBeforeEach(func() {
+			err = cmd.Execute(flagContext)
+		})
 
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Getting router groups", "my-user"},
-				[]string{"name", "type"},
-				[]string{"default-router-group", "tcp"},
-			))
+		Context("when there are router groups", func() {
+			BeforeEach(func() {
+				routerGroups := models.RouterGroups{
+					models.RouterGroup{
+						GUID: "guid-0001",
+						Name: "default-router-group",
+						Type: "tcp",
+					},
+				}
+				routingAPIRepo.ListRouterGroupsStub = func(cb func(models.RouterGroup) bool) (apiErr error) {
+					for _, r := range routerGroups {
+						if !cb(r) {
+							break
+						}
+					}
+					return nil
+				}
+			})
+
+			It("lists router groups", func() {
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(ui.Outputs()).To(ContainSubstrings(
+					[]string{"Getting router groups", "my-user"},
+					[]string{"name", "type"},
+					[]string{"default-router-group", "tcp"},
+				))
+			})
+		})
+
+		Context("when there are no router groups", func() {
+			It("tells the user when no router groups were found", func() {
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(ui.Outputs()).To(ContainSubstrings(
+					[]string{"Getting router groups"},
+					[]string{"No router groups found"},
+				))
+			})
+		})
+
+		Context("when there is an error listing router groups", func() {
+			BeforeEach(func() {
+				routingAPIRepo.ListRouterGroupsReturns(errors.New("BOOM"))
+			})
+
+			It("returns an error to the user", func() {
+				Expect(ui.Outputs()).To(ContainSubstrings(
+					[]string{"Getting router groups"},
+				))
+
+				Expect(err).To(HaveOccurred())
+				errStr := err.Error()
+				Expect(errStr).To(ContainSubstring("BOOM"))
+				Expect(errStr).To(ContainSubstring("Failed fetching router groups"))
+			})
 		})
 	})
-
-	Context("when there are no router groups", func() {
-		It("tells the user when no router groups were found", func() {
-			runCommand()
-
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Getting router groups"},
-				[]string{"No router groups found"},
-			))
-		})
-	})
-
-	Context("when there is an error listing router groups", func() {
-		BeforeEach(func() {
-			routingApiRepo.ListError = true
-		})
-
-		It("returns an error to the user", func() {
-			runCommand()
-
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Getting router groups"},
-				[]string{"Failed fetching router groups"},
-			))
-		})
-	})
-
 })

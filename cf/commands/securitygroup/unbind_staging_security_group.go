@@ -1,59 +1,62 @@
 package securitygroup
 
 import (
-	"strings"
-
-	"github.com/cloudfoundry/cli/cf/api/security_groups"
-	"github.com/cloudfoundry/cli/cf/api/security_groups/defaults/staging"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/securitygroups"
+	"github.com/cloudfoundry/cli/cf/api/securitygroups/defaults/staging"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
 )
 
 type unbindFromStagingGroup struct {
 	ui                terminal.UI
-	configRepo        core_config.Reader
-	securityGroupRepo security_groups.SecurityGroupRepo
-	stagingGroupRepo  staging.StagingSecurityGroupsRepo
+	configRepo        coreconfig.Reader
+	securityGroupRepo securitygroups.SecurityGroupRepo
+	stagingGroupRepo  staging.SecurityGroupsRepo
 }
 
 func init() {
-	command_registry.Register(&unbindFromStagingGroup{})
+	commandregistry.Register(&unbindFromStagingGroup{})
 }
 
-func (cmd *unbindFromStagingGroup) MetaData() command_registry.CommandMetadata {
+func (cmd *unbindFromStagingGroup) MetaData() commandregistry.CommandMetadata {
 	primaryUsage := T("CF_NAME unbind-staging-security-group SECURITY_GROUP")
 	tipUsage := T("TIP: Changes will not apply to existing running applications until they are restarted.")
-	return command_registry.CommandMetadata{
+	return commandregistry.CommandMetadata{
 		Name:        "unbind-staging-security-group",
 		Description: T("Unbind a security group from the set of security groups for staging applications"),
-		Usage:       strings.Join([]string{primaryUsage, tipUsage}, "\n\n"),
+		Usage: []string{
+			primaryUsage,
+			"\n\n",
+			tipUsage,
+		},
 	}
 }
 
-func (cmd *unbindFromStagingGroup) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
+func (cmd *unbindFromStagingGroup) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
 	if len(fc.Args()) != 1 {
-		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + command_registry.Commands.CommandUsage("unbind-staging-security-group"))
+		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + commandregistry.Commands.CommandUsage("unbind-staging-security-group"))
 	}
 
-	return []requirements.Requirement{
+	reqs := []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
-	}, nil
+	}
+	return reqs
 }
 
-func (cmd *unbindFromStagingGroup) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *unbindFromStagingGroup) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.configRepo = deps.Config
 	cmd.securityGroupRepo = deps.RepoLocator.GetSecurityGroupRepository()
 	cmd.stagingGroupRepo = deps.RepoLocator.GetStagingSecurityGroupsRepository()
 	return cmd
 }
 
-func (cmd *unbindFromStagingGroup) Execute(context flags.FlagContext) {
+func (cmd *unbindFromStagingGroup) Execute(context flags.FlagContext) error {
 	name := context.Args()[0]
 
 	cmd.ui.Say(T("Unbinding security group {{.security_group}} from defaults for staging as {{.username}}",
@@ -72,17 +75,18 @@ func (cmd *unbindFromStagingGroup) Execute(context flags.FlagContext) {
 				"security_group": terminal.EntityNameColor(name),
 				"error_message":  terminal.WarningColor(T("does not exist.")),
 			}))
-		return
+		return nil
 	default:
-		cmd.ui.Failed(err.Error())
+		return err
 	}
 
-	err = cmd.stagingGroupRepo.UnbindFromStagingSet(securityGroup.Guid)
+	err = cmd.stagingGroupRepo.UnbindFromStagingSet(securityGroup.GUID)
 	if err != nil {
-		cmd.ui.Failed(err.Error())
+		return err
 	}
 
 	cmd.ui.Ok()
 	cmd.ui.Say("\n\n")
 	cmd.ui.Say(T("TIP: Changes will not apply to existing running applications until they are restarted."))
+	return nil
 }

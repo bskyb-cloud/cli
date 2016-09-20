@@ -2,11 +2,13 @@ package requirements
 
 import (
 	"github.com/cloudfoundry/cli/cf/api/applications"
+	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/terminal"
 )
 
-//go:generate counterfeiter -o fakes/fake_dea_application_requirement.go . DEAApplicationRequirement
+//go:generate counterfeiter . DEAApplicationRequirement
+
 type DEAApplicationRequirement interface {
 	Requirement
 	GetApplication() models.Application
@@ -15,34 +17,31 @@ type DEAApplicationRequirement interface {
 type deaApplicationRequirement struct {
 	appName string
 	ui      terminal.UI
-	appRepo applications.ApplicationRepository
+	appRepo applications.Repository
 
 	application models.Application
 }
 
-func NewDEAApplicationRequirement(name string, ui terminal.UI, applicationRepo applications.ApplicationRepository) DEAApplicationRequirement {
+func NewDEAApplicationRequirement(name string, applicationRepo applications.Repository) DEAApplicationRequirement {
 	return &deaApplicationRequirement{
 		appName: name,
-		ui:      ui,
 		appRepo: applicationRepo,
 	}
 }
 
-func (req *deaApplicationRequirement) Execute() (success bool) {
+func (req *deaApplicationRequirement) Execute() error {
 	app, err := req.appRepo.Read(req.appName)
 	if err != nil {
-		req.ui.Failed(err.Error())
-		return false
+		return err
 	}
 
 	if app.Diego == true {
-		req.ui.Failed("The app is running on the Diego backend, which does not support this command.")
-		return false
+		return errors.New("The app is running on the Diego backend, which does not support this command.")
 	}
 
 	req.application = app
 
-	return true
+	return nil
 }
 
 func (req *deaApplicationRequirement) GetApplication() models.Application {

@@ -6,19 +6,21 @@ import (
 	"net/http/httptest"
 	"time"
 
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	cmdFakes "github.com/cloudfoundry/cli/cf/commands/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/commands/commandsfakes"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/net"
-	testssh "github.com/cloudfoundry/cli/cf/ssh/fakes"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
+	"github.com/cloudfoundry/cli/cf/ssh/sshfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testnet "github.com/cloudfoundry/cli/testhelpers/net"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
+	"github.com/cloudfoundry/cli/cf/trace/tracefakes"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -28,88 +30,92 @@ var _ = Describe("SSH command", func() {
 	var (
 		ui *testterm.FakeUI
 
-		sshCodeGetter         *cmdFakes.FakeSSHCodeGetter
-		originalSSHCodeGetter command_registry.Command
+		sshCodeGetter         *commandsfakes.FakeSSHCodeGetter
+		originalSSHCodeGetter commandregistry.Command
 
-		requirementsFactory *testreq.FakeReqFactory
-		configRepo          core_config.Repository
-		deps                command_registry.Dependency
+		requirementsFactory *requirementsfakes.FakeFactory
+		configRepo          coreconfig.Repository
+		deps                commandregistry.Dependency
 		ccGateway           net.Gateway
 
-		fakeSecureShell *testssh.FakeSecureShell
+		fakeSecureShell *sshfakes.FakeSecureShell
 	)
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		requirementsFactory = &testreq.FakeReqFactory{}
+		requirementsFactory = new(requirementsfakes.FakeFactory)
 		deps.Gateways = make(map[string]net.Gateway)
 
 		//save original command and restore later
-		originalSSHCodeGetter = command_registry.Commands.FindCommand("ssh-code")
+		originalSSHCodeGetter = commandregistry.Commands.FindCommand("ssh-code")
 
-		sshCodeGetter = &cmdFakes.FakeSSHCodeGetter{}
+		sshCodeGetter = new(commandsfakes.FakeSSHCodeGetter)
 
-		//setup fakes to correctly interact with command_registry
-		sshCodeGetter.SetDependencyStub = func(_ command_registry.Dependency, _ bool) command_registry.Command {
+		//setup fakes to correctly interact with commandregistry
+		sshCodeGetter.SetDependencyStub = func(_ commandregistry.Dependency, _ bool) commandregistry.Command {
 			return sshCodeGetter
 		}
-		sshCodeGetter.MetaDataReturns(command_registry.CommandMetadata{Name: "ssh-code"})
+		sshCodeGetter.MetaDataReturns(commandregistry.CommandMetadata{Name: "ssh-code"})
 	})
 
 	AfterEach(func() {
 		//restore original command
-		command_registry.Register(originalSSHCodeGetter)
+		commandregistry.Register(originalSSHCodeGetter)
 	})
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.Config = configRepo
 
 		//inject fake 'sshCodeGetter' into registry
-		command_registry.Register(sshCodeGetter)
+		commandregistry.Register(sshCodeGetter)
 
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("ssh").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("ssh").SetDependency(deps, pluginCall))
 	}
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("ssh", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("ssh", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Describe("Requirements", func() {
 		It("fails with usage when not provided exactly one arg", func() {
-			requirementsFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
 
 			runCommand()
-			Ω(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Incorrect Usage", "Requires", "argument"},
 			))
+
 		})
 
 		It("fails requirements when not logged in", func() {
-			Ω(runCommand("my-app")).To(BeFalse())
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
+			Expect(runCommand("my-app")).To(BeFalse())
 		})
 
 		It("fails if a space is not targeted", func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedSpaceSuccess = false
-			Ω(runCommand("my-app")).To(BeFalse())
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Failing{Message: "not targeting space"})
+			Expect(runCommand("my-app")).To(BeFalse())
 		})
 
 		It("fails if a application is not found", func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedSpaceSuccess = true
-			requirementsFactory.ApplicationFails = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Passing{})
+			applicationReq := new(requirementsfakes.FakeApplicationRequirement)
+			applicationReq.ExecuteReturns(errors.New("no app"))
+			requirementsFactory.NewApplicationRequirementReturns(applicationReq)
 
-			Ω(runCommand("my-app")).To(BeFalse())
+			Expect(runCommand("my-app")).To(BeFalse())
 		})
 
 		Describe("Flag options", func() {
 			var args []string
 
 			BeforeEach(func() {
-				requirementsFactory.LoginSuccess = true
-				requirementsFactory.TargetedSpaceSuccess = true
+				requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+				requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Passing{})
 			})
 
 			Context("when an -i flag is provided", func() {
@@ -123,10 +129,11 @@ var _ = Describe("SSH command", func() {
 					})
 
 					It("returns an error", func() {
-						Ω(runCommand(args...)).To(BeFalse())
-						Ω(ui.Outputs).To(ContainSubstrings(
+						Expect(runCommand(args...)).To(BeFalse())
+						Expect(ui.Outputs()).To(ContainSubstrings(
 							[]string{"Incorrect Usage", "cannot be negative"},
 						))
+
 					})
 				})
 			})
@@ -135,11 +142,12 @@ var _ = Describe("SSH command", func() {
 		Describe("SSHOptions", func() {
 			Context("when an error is returned during initialization", func() {
 				It("shows error and prints command usage", func() {
-					Ω(runCommand("app_name", "-L", "[9999:localhost...")).To(BeFalse())
-					Ω(ui.Outputs).To(ContainSubstrings(
+					Expect(runCommand("app_name", "-L", "[9999:localhost...")).To(BeFalse())
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"Incorrect Usage"},
 						[]string{"USAGE:"},
 					))
+
 				})
 			})
 		})
@@ -152,16 +160,18 @@ var _ = Describe("SSH command", func() {
 		)
 
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedSpaceSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Passing{})
 			currentApp = models.Application{}
 			currentApp.Name = "my-app"
 			currentApp.State = "started"
-			currentApp.Guid = "my-app-guid"
-			currentApp.EnableSsh = true
+			currentApp.GUID = "my-app-guid"
+			currentApp.EnableSSH = true
 			currentApp.Diego = true
 
-			requirementsFactory.Application = currentApp
+			applicationReq := new(requirementsfakes.FakeApplicationRequirement)
+			applicationReq.GetApplicationReturns(currentApp)
+			requirementsFactory.NewApplicationRequirementReturns(applicationReq)
 		})
 
 		Describe("Error getting required info to run ssh", func() {
@@ -176,7 +186,7 @@ var _ = Describe("SSH command", func() {
 
 			Context("error when getting SSH info from /v2/info", func() {
 				BeforeEach(func() {
-					getRequest := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+					getRequest := apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 						Method: "GET",
 						Path:   "/v2/info",
 						Response: testnet.TestResponse{
@@ -186,8 +196,8 @@ var _ = Describe("SSH command", func() {
 					})
 
 					testServer, handler = testnet.NewServer([]testnet.TestRequest{getRequest})
-					configRepo.SetApiEndpoint(testServer.URL)
-					ccGateway = net.NewCloudControllerGateway(configRepo, time.Now, &testterm.FakeUI{})
+					configRepo.SetAPIEndpoint(testServer.URL)
+					ccGateway = net.NewCloudControllerGateway(configRepo, time.Now, &testterm.FakeUI{}, new(tracefakes.FakePrinter), "")
 					deps.Gateways["cloud-controller"] = ccGateway
 				})
 
@@ -195,9 +205,10 @@ var _ = Describe("SSH command", func() {
 					runCommand("my-app")
 
 					Expect(handler).To(HaveAllRequestsCalled())
-					Ω(ui.Outputs).To(ContainSubstrings(
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"Error getting SSH info", "404"},
 					))
+
 				})
 			})
 
@@ -205,7 +216,7 @@ var _ = Describe("SSH command", func() {
 				BeforeEach(func() {
 					sshCodeGetter.GetReturns("", errors.New("auth api error"))
 
-					getRequest := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+					getRequest := apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 						Method: "GET",
 						Path:   "/v2/info",
 						Response: testnet.TestResponse{
@@ -215,8 +226,8 @@ var _ = Describe("SSH command", func() {
 					})
 
 					testServer, handler = testnet.NewServer([]testnet.TestRequest{getRequest})
-					configRepo.SetApiEndpoint(testServer.URL)
-					ccGateway = net.NewCloudControllerGateway(configRepo, time.Now, &testterm.FakeUI{})
+					configRepo.SetAPIEndpoint(testServer.URL)
+					ccGateway = net.NewCloudControllerGateway(configRepo, time.Now, &testterm.FakeUI{}, new(tracefakes.FakePrinter), "")
 					deps.Gateways["cloud-controller"] = ccGateway
 				})
 
@@ -224,9 +235,10 @@ var _ = Describe("SSH command", func() {
 					runCommand("my-app")
 
 					Expect(handler).To(HaveAllRequestsCalled())
-					Ω(ui.Outputs).To(ContainSubstrings(
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"Error getting one time auth code", "auth api error"},
 					))
+
 				})
 			})
 		})
@@ -239,11 +251,11 @@ var _ = Describe("SSH command", func() {
 			})
 
 			BeforeEach(func() {
-				fakeSecureShell = &testssh.FakeSecureShell{}
+				fakeSecureShell = new(sshfakes.FakeSecureShell)
 
-				deps.WilecardDependency = fakeSecureShell
+				deps.WildcardDependency = fakeSecureShell
 
-				getRequest := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+				getRequest := apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 					Method: "GET",
 					Path:   "/v2/info",
 					Response: testnet.TestResponse{
@@ -253,8 +265,8 @@ var _ = Describe("SSH command", func() {
 				})
 
 				testServer, _ = testnet.NewServer([]testnet.TestRequest{getRequest})
-				configRepo.SetApiEndpoint(testServer.URL)
-				ccGateway = net.NewCloudControllerGateway(configRepo, time.Now, &testterm.FakeUI{})
+				configRepo.SetAPIEndpoint(testServer.URL)
+				ccGateway = net.NewCloudControllerGateway(configRepo, time.Now, &testterm.FakeUI{}, new(tracefakes.FakePrinter), "")
 				deps.Gateways["cloud-controller"] = ccGateway
 			})
 
@@ -264,9 +276,10 @@ var _ = Describe("SSH command", func() {
 
 					runCommand("my-app")
 
-					Ω(ui.Outputs).To(ContainSubstrings(
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"Error opening SSH connection", "dial error"},
 					))
+
 				})
 			})
 
@@ -276,9 +289,10 @@ var _ = Describe("SSH command", func() {
 
 					runCommand("my-app", "-L", "8000:localhost:8000")
 
-					Ω(ui.Outputs).To(ContainSubstrings(
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"Error forwarding port", "listen error"},
 					))
+
 				})
 			})
 
@@ -289,7 +303,7 @@ var _ = Describe("SSH command", func() {
 
 					runCommand("my-app", "-N")
 
-					Ω(fakeSecureShell.WaitCallCount()).To(Equal(1))
+					Expect(fakeSecureShell.WaitCallCount()).To(Equal(1))
 				})
 			})
 
@@ -300,7 +314,7 @@ var _ = Describe("SSH command", func() {
 
 					runCommand("my-app", "-k")
 
-					Ω(fakeSecureShell.InteractiveSessionCallCount()).To(Equal(1))
+					Expect(fakeSecureShell.InteractiveSessionCallCount()).To(Equal(1))
 				})
 			})
 
@@ -313,9 +327,10 @@ var _ = Describe("SSH command", func() {
 					fakeSecureShell.InteractiveSessionReturns(errors.New("ssh exit error"))
 					runCommand("my-app", "-k")
 
-					Ω(ui.Outputs).To(ContainSubstrings(
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"ssh exit error"},
 					))
+
 				})
 			})
 		})

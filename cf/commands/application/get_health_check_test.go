@@ -1,13 +1,16 @@
 package application_test
 
 import (
-	testApplication "github.com/cloudfoundry/cli/cf/api/applications/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"errors"
+
+	"github.com/cloudfoundry/cli/cf/api/applications/applicationsfakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -18,62 +21,65 @@ import (
 var _ = Describe("set-health-check command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		requirementsFactory *testreq.FakeReqFactory
-		appRepo             *testApplication.FakeApplicationRepository
-		configRepo          core_config.Repository
-		deps                command_registry.Dependency
+		requirementsFactory *requirementsfakes.FakeFactory
+		appRepo             *applicationsfakes.FakeRepository
+		configRepo          coreconfig.Repository
+		deps                commandregistry.Dependency
 	)
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		requirementsFactory = &testreq.FakeReqFactory{}
-		appRepo = &testApplication.FakeApplicationRepository{}
+		requirementsFactory = new(requirementsfakes.FakeFactory)
+		appRepo = new(applicationsfakes.FakeRepository)
 	})
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.Config = configRepo
 		deps.RepoLocator = deps.RepoLocator.SetApplicationRepository(appRepo)
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("get-health-check").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("get-health-check").SetDependency(deps, pluginCall))
 	}
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("get-health-check", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("get-health-check", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Describe("requirements", func() {
 		It("fails with usage when called without enough arguments", func() {
-			requirementsFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
 
 			runCommand()
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"get-health-check"},
 				[]string{"Incorrect Usage", "Requires", "argument"},
 			))
 		})
 
 		It("fails requirements when not logged in", func() {
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 			Expect(runCommand("my-app")).To(BeFalse())
 		})
 
 		It("fails if a space is not targeted", func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedSpaceSuccess = false
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Failing{Message: "not targeting space"})
 			Expect(runCommand("my-app")).To(BeFalse())
 		})
 	})
 
 	Describe("getting health_check_type", func() {
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedSpaceSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Passing{})
 		})
 
 		Context("when application is not found", func() {
 			It("Fails", func() {
-				requirementsFactory.ApplicationFails = true
-				Ω(runCommand("non-exist-app")).To(BeFalse())
+				appRequirement := new(requirementsfakes.FakeApplicationRequirement)
+				appRequirement.ExecuteReturns(errors.New("no app"))
+				requirementsFactory.NewApplicationRequirementReturns(appRequirement)
+				Expect(runCommand("non-exist-app")).To(BeFalse())
 			})
 		})
 
@@ -81,17 +87,19 @@ var _ = Describe("set-health-check command", func() {
 			BeforeEach(func() {
 				app := models.Application{}
 				app.Name = "my-app"
-				app.Guid = "my-app-guid"
+				app.GUID = "my-app-guid"
 				app.HealthCheckType = "port"
 
-				requirementsFactory.Application = app
+				applicationReq := new(requirementsfakes.FakeApplicationRequirement)
+				applicationReq.GetApplicationReturns(app)
+				requirementsFactory.NewApplicationRequirementReturns(applicationReq)
 			})
 
 			It("shows the health_check_type", func() {
 				runCommand("my-app")
 
-				Ω(ui.Outputs).To(ContainSubstrings([]string{"Getting", "my-app", "health_check_type"}))
-				Ω(ui.Outputs).To(ContainSubstrings([]string{"port"}))
+				Expect(ui.Outputs()).To(ContainSubstrings([]string{"Getting", "my-app", "health_check_type"}))
+				Expect(ui.Outputs()).To(ContainSubstrings([]string{"port"}))
 			})
 		})
 	})

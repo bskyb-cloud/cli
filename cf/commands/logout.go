@@ -1,44 +1,48 @@
 package commands
 
 import (
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
 )
 
 type Logout struct {
 	ui     terminal.UI
-	config core_config.ReadWriter
+	config coreconfig.ReadWriter
 }
 
 func init() {
-	command_registry.Register(&Logout{})
+	commandregistry.Register(&Logout{})
 }
 
-func (cmd *Logout) MetaData() command_registry.CommandMetadata {
-	return command_registry.CommandMetadata{
+func (cmd *Logout) MetaData() commandregistry.CommandMetadata {
+	return commandregistry.CommandMetadata{
 		Name:        "logout",
 		ShortName:   "lo",
 		Description: T("Log user out"),
-		Usage:       T("CF_NAME logout"),
+		Usage: []string{
+			T("CF_NAME logout"),
+		},
 	}
 }
 
-func (cmd *Logout) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
-	return
+func (cmd *Logout) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+	reqs := []requirements.Requirement{}
+	return reqs
 }
 
-func (cmd *Logout) SetDependency(deps command_registry.Dependency, _ bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *Logout) SetDependency(deps commandregistry.Dependency, _ bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	return cmd
 }
 
-func (cmd *Logout) Execute(c flags.FlagContext) {
+func (cmd *Logout) Execute(c flags.FlagContext) error {
 	cmd.ui.Say(T("Logging out..."))
 	cmd.config.ClearSession()
 	cmd.ui.Ok()
+	return nil
 }

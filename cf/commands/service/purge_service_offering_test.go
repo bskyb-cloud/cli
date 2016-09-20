@@ -1,170 +1,342 @@
 package service_test
 
 import (
-	"errors"
-	"fmt"
-
-	testapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
-	cferrors "github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/commands/service"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/flags"
 	"github.com/cloudfoundry/cli/cf/models"
-	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
+
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	"github.com/cloudfoundry/cli/testhelpers/maker"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("purge-service-offering command", func() {
+var _ = Describe("PurgeServiceOffering", func() {
 	var (
-		requirementsFactory *testreq.FakeReqFactory
-		config              core_config.Repository
-		ui                  *testterm.FakeUI
-		serviceRepo         *testapi.FakeServiceRepository
-		deps                command_registry.Dependency
+		ui          *testterm.FakeUI
+		configRepo  coreconfig.Repository
+		serviceRepo *apifakes.FakeServiceRepository
+
+		cmd         commandregistry.Command
+		deps        commandregistry.Dependency
+		factory     *requirementsfakes.FakeFactory
+		flagContext flags.FlagContext
+
+		loginRequirement         requirements.Requirement
+		maxAPIVersionRequirement requirements.Requirement
 	)
-
-	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
-		deps.RepoLocator = deps.RepoLocator.SetServiceRepository(serviceRepo)
-		deps.Config = config
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("purge-service-offering").SetDependency(deps, pluginCall))
-	}
-
-	runCommand := func(args []string) bool {
-		return testcmd.RunCliCommand("purge-service-offering", args, requirementsFactory, updateCommandDependency, false)
-	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
-		config = testconfig.NewRepositoryWithDefaults()
-		serviceRepo = &testapi.FakeServiceRepository{}
-		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: true}
+		configRepo = testconfig.NewRepositoryWithDefaults()
+		serviceRepo = new(apifakes.FakeServiceRepository)
+		repoLocator := deps.RepoLocator.SetServiceRepository(serviceRepo)
+
+		deps = commandregistry.Dependency{
+			UI:          ui,
+			Config:      configRepo,
+			RepoLocator: repoLocator,
+		}
+
+		cmd = &service.PurgeServiceOffering{}
+		cmd.SetDependency(deps, false)
+
+		flagContext = flags.NewFlagContext(cmd.MetaData().Flags)
+		factory = new(requirementsfakes.FakeFactory)
+
+		loginRequirement = &passingRequirement{Name: "login-requirement"}
+		factory.NewLoginRequirementReturns(loginRequirement)
+
+		maxAPIVersionRequirement = &passingRequirement{Name: "max-api-version-requirement"}
+		factory.NewMaxAPIVersionRequirementReturns(maxAPIVersionRequirement)
 	})
 
-	Describe("requirements", func() {
-		It("fails when not logged in", func() {
-			requirementsFactory.LoginSuccess = false
+	Describe("Requirements", func() {
+		Context("when not provided exactly one arg", func() {
+			BeforeEach(func() {
+				flagContext.Parse("service", "extra-arg")
+			})
 
-			passed := runCommand([]string{"-f", "whatever"})
-
-			Expect(passed).To(BeFalse())
+			It("fails with usage", func() {
+				Expect(func() { cmd.Requirements(factory, flagContext) }).To(Panic())
+				Expect(ui.Outputs()).To(ContainSubstrings(
+					[]string{"FAILED"},
+					[]string{"Incorrect Usage. Requires an argument"},
+				))
+			})
 		})
 
-		It("fails when called without exactly one arg", func() {
-			requirementsFactory.LoginSuccess = true
+		Context("when provided exactly one arg", func() {
+			BeforeEach(func() {
+				flagContext.Parse("service")
+			})
 
-			passed := runCommand([]string{})
+			It("returns a LoginRequirement", func() {
+				actualRequirements := cmd.Requirements(factory, flagContext)
+				Expect(factory.NewLoginRequirementCallCount()).To(Equal(1))
+				Expect(actualRequirements).To(ContainElement(loginRequirement))
+			})
+		})
 
-			Expect(passed).To(BeFalse())
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"Incorrect Usage", "Requires", "argument"},
-			))
+		Context("when the -p flag is passed", func() {
+			BeforeEach(func() {
+				flagContext.Parse("service", "-p", "provider-name")
+			})
+
+			It("returns a MaxAPIVersion requirement", func() {
+				actualRequirements := cmd.Requirements(factory, flagContext)
+				Expect(actualRequirements).To(ContainElement(maxAPIVersionRequirement))
+			})
 		})
 	})
 
-	It("works when given -p and a provider name", func() {
-		offering := maker.NewServiceOffering("the-service-name")
-		serviceRepo.FindServiceOfferingByLabelAndProviderReturns(offering, nil)
+	Describe("Execute", func() {
+		var runCLIErr error
 
-		ui.Inputs = []string{"yes"}
+		BeforeEach(func() {
+			err := flagContext.Parse("service-name")
+			Expect(err).NotTo(HaveOccurred())
+			cmd.Requirements(factory, flagContext)
+			ui.Inputs = []string{"n"}
+			serviceRepo.FindServiceOfferingsByLabelReturns([]models.ServiceOffering{{}}, nil)
+		})
 
-		runCommand([]string{"-p", "the-provider", "the-service-name"})
+		JustBeforeEach(func() {
+			runCLIErr = cmd.Execute(flagContext)
+		})
 
-		name, provider := serviceRepo.FindServiceOfferingByLabelAndProviderArgsForCall(0)
-		Expect(name).To(Equal("the-service-name"))
-		Expect(provider).To(Equal("the-provider"))
+		It("tries to find the service offering by label", func() {
+			Expect(runCLIErr).NotTo(HaveOccurred())
+			Expect(serviceRepo.FindServiceOfferingsByLabelCallCount()).To(Equal(1))
+			name := serviceRepo.FindServiceOfferingsByLabelArgsForCall(0)
+			Expect(name).To(Equal("service-name"))
+		})
 
-		Expect(serviceRepo.PurgeServiceOfferingArgsForCall(0)).To(Equal(offering))
-	})
+		Context("when finding the service offering succeeds", func() {
+			BeforeEach(func() {
+				serviceOffering := models.ServiceOffering{}
+				serviceOffering.GUID = "service-offering-guid"
+				serviceRepo.FindServiceOfferingsByLabelReturns([]models.ServiceOffering{serviceOffering}, nil)
+				ui.Inputs = []string{"n"}
+			})
 
-	It("works when not given a provider", func() {
-		offering := maker.NewServiceOffering("the-service-name")
-		serviceRepo.FindServiceOfferingByLabelAndProviderReturns(offering, nil)
+			It("asks the user to confirm", func() {
+				Expect(runCLIErr).NotTo(HaveOccurred())
+				Expect(ui.Outputs()).To(ContainSubstrings([]string{"WARNING"}))
+				Expect(ui.Prompts).To(ContainSubstrings([]string{"Really purge service offering service-name from Cloud Foundry?"}))
+			})
 
-		ui.Inputs = []string{"yes"}
+			Context("when the user confirms", func() {
+				BeforeEach(func() {
+					ui.Inputs = []string{"y"}
+				})
 
-		runCommand([]string{"the-service-name"})
+				It("tells the user it will purge the service offering", func() {
+					Expect(runCLIErr).NotTo(HaveOccurred())
+					Expect(ui.Outputs()).To(ContainSubstrings([]string{"Purging service service-name..."}))
+				})
 
-		Expect(ui.Outputs).To(ContainSubstrings([]string{"WARNING"}))
-		Expect(ui.Prompts).To(ContainSubstrings([]string{"Really purge service", "the-service-name"}))
-		Expect(ui.Outputs).To(ContainSubstrings([]string{"Purging service the-service-name..."}))
+				It("tries to purge the service offering", func() {
+					Expect(runCLIErr).NotTo(HaveOccurred())
+					Expect(serviceRepo.PurgeServiceOfferingCallCount()).To(Equal(1))
+				})
 
-		name, provider := serviceRepo.FindServiceOfferingByLabelAndProviderArgsForCall(0)
-		Expect(name).To(Equal("the-service-name"))
-		Expect(provider).To(BeEmpty())
-		Expect(serviceRepo.PurgeServiceOfferingArgsForCall(0)).To(Equal(offering))
+				Context("when purging succeeds", func() {
+					BeforeEach(func() {
+						serviceRepo.PurgeServiceOfferingReturns(nil)
+					})
 
-		Expect(ui.Outputs).To(ContainSubstrings([]string{"OK"}))
-	})
+					It("says OK", func() {
+						Expect(runCLIErr).NotTo(HaveOccurred())
+						Expect(ui.Outputs()).To(ContainSubstrings([]string{"OK"}))
+					})
+				})
 
-	It("exits when the user does not acknowledge the confirmation", func() {
-		ui.Inputs = []string{"no"}
+				Context("when purging fails", func() {
+					BeforeEach(func() {
+						serviceRepo.PurgeServiceOfferingReturns(errors.New("purge-err"))
+					})
 
-		runCommand([]string{"the-service-name"})
+					It("fails with error", func() {
+						Expect(runCLIErr).To(HaveOccurred())
+						Expect(runCLIErr.Error()).To(Equal("purge-err"))
+					})
+				})
+			})
 
-		Expect(serviceRepo.FindServiceOfferingByLabelAndProviderCallCount()).To(Equal(1))
-		Expect(serviceRepo.PurgeServiceOfferingCallCount()).To(BeZero())
-	})
+			Context("when the user does not confirm", func() {
+				BeforeEach(func() {
+					ui.Inputs = []string{"n"}
+				})
 
-	It("does not prompt with confirmation when -f is passed", func() {
-		offering := maker.NewServiceOffering("the-service-name")
-		serviceRepo.FindServiceOfferingByLabelAndProviderReturns(offering, nil)
+				It("does not try to purge the service offering", func() {
+					Expect(runCLIErr).NotTo(HaveOccurred())
+					Expect(serviceRepo.PurgeServiceOfferingCallCount()).To(BeZero())
+				})
+			})
+		})
 
-		runCommand(
-			[]string{"-f", "the-service-name"},
-		)
+		Context("when finding the service offering fails with an error other than 404", func() {
+			BeforeEach(func() {
+				serviceRepo.FindServiceOfferingsByLabelReturns([]models.ServiceOffering{}, errors.New("find-err"))
+			})
 
-		Expect(len(ui.Prompts)).To(Equal(0))
-		Expect(serviceRepo.PurgeServiceOfferingCallCount()).To(Equal(1))
-	})
+			It("fails with error", func() {
+				Expect(runCLIErr).To(HaveOccurred())
+				Expect(runCLIErr.Error()).To(Equal("find-err"))
+			})
+		})
 
-	It("fails with an error message when the request fails", func() {
-		serviceRepo.FindServiceOfferingByLabelAndProviderReturns(models.ServiceOffering{}, errors.New("oh no!"))
+		Context("when finding the service offering fails with 404 not found", func() {
+			BeforeEach(func() {
+				serviceRepo.FindServiceOfferingsByLabelReturns(
+					[]models.ServiceOffering{{}},
+					errors.NewModelNotFoundError("model-type", "find-err"),
+				)
+			})
 
-		runCommand(
-			[]string{"-f", "-p", "the-provider", "the-service-name"},
-		)
+			It("warns the user", func() {
+				Expect(runCLIErr).NotTo(HaveOccurred())
+				Expect(ui.Outputs()).To(ContainSubstrings(
+					[]string{"Service offering does not exist"},
+				))
+			})
 
-		Expect(ui.Outputs).To(ContainSubstrings(
-			[]string{"FAILED"},
-			[]string{"oh no!"},
-		))
+			It("does not try to purge the service offering", func() {
+				Expect(runCLIErr).NotTo(HaveOccurred())
+				Expect(serviceRepo.PurgeServiceOfferingCallCount()).To(BeZero())
+			})
+		})
 
-		Expect(serviceRepo.PurgeServiceOfferingCallCount()).To(BeZero())
-	})
+		Context("when the -p flag is passed", func() {
+			var origAPIVersion string
 
-	It("fails with an error message when the purging request fails", func() {
-		serviceRepo.PurgeServiceOfferingReturns(fmt.Errorf("crumpets insufficiently buttered"))
+			BeforeEach(func() {
+				origAPIVersion = configRepo.APIVersion()
+				configRepo.SetAPIVersion("2.46.0")
 
-		runCommand(
-			[]string{"-f", "-p", "the-provider", "the-service-name"},
-		)
+				flagContext = flags.NewFlagContext(cmd.MetaData().Flags)
+				err := flagContext.Parse("service-name", "-p", "provider-name")
+				Expect(err).NotTo(HaveOccurred())
+				cmd.Requirements(factory, flagContext)
+				ui.Inputs = []string{"n"}
+			})
 
-		Expect(ui.Outputs).To(ContainSubstrings(
-			[]string{"FAILED"},
-			[]string{"crumpets insufficiently buttered"},
-		))
-	})
+			AfterEach(func() {
+				configRepo.SetAPIVersion(origAPIVersion)
+			})
 
-	It("indicates when a service doesn't exist", func() {
-		serviceRepo.FindServiceOfferingByLabelAndProviderReturns(models.ServiceOffering{}, cferrors.NewModelNotFoundError("Service Offering", ""))
+			It("tries to find the service offering by label and provider", func() {
+				Expect(runCLIErr).NotTo(HaveOccurred())
+				Expect(serviceRepo.FindServiceOfferingByLabelAndProviderCallCount()).To(Equal(1))
+				name, provider := serviceRepo.FindServiceOfferingByLabelAndProviderArgsForCall(0)
+				Expect(name).To(Equal("service-name"))
+				Expect(provider).To(Equal("provider-name"))
+			})
 
-		ui.Inputs = []string{"yes"}
+			Context("when finding the service offering succeeds", func() {
+				BeforeEach(func() {
+					serviceOffering := models.ServiceOffering{}
+					serviceOffering.GUID = "service-offering-guid"
+					serviceRepo.FindServiceOfferingByLabelAndProviderReturns(serviceOffering, nil)
+					ui.Inputs = []string{"n"}
+				})
 
-		runCommand(
-			[]string{"-p", "the-provider", "the-service-name"},
-		)
+				It("asks the user to confirm", func() {
+					Expect(runCLIErr).NotTo(HaveOccurred())
+					Expect(ui.Outputs()).To(ContainSubstrings([]string{"WARNING"}))
+					Expect(ui.Prompts).To(ContainSubstrings([]string{"Really purge service offering service-name from Cloud Foundry?"}))
+				})
 
-		Expect(ui.Outputs).To(ContainSubstrings([]string{"Service offering", "does not exist"}))
-		Expect(ui.Outputs).ToNot(ContainSubstrings([]string{"WARNING"}))
-		Expect(ui.Outputs).ToNot(ContainSubstrings([]string{"Ok"}))
+				Context("when the user confirms", func() {
+					BeforeEach(func() {
+						ui.Inputs = []string{"y"}
+					})
 
-		Expect(serviceRepo.PurgeServiceOfferingCallCount()).To(BeZero())
+					It("tells the user it will purge the service offering", func() {
+						Expect(runCLIErr).NotTo(HaveOccurred())
+						Expect(ui.Outputs()).To(ContainSubstrings([]string{"Purging service service-name..."}))
+					})
+
+					It("tries to purge the service offering", func() {
+						Expect(runCLIErr).NotTo(HaveOccurred())
+						Expect(serviceRepo.PurgeServiceOfferingCallCount()).To(Equal(1))
+					})
+
+					Context("when purging succeeds", func() {
+						BeforeEach(func() {
+							serviceRepo.PurgeServiceOfferingReturns(nil)
+						})
+
+						It("says OK", func() {
+							Expect(runCLIErr).NotTo(HaveOccurred())
+							Expect(ui.Outputs()).To(ContainSubstrings([]string{"OK"}))
+						})
+					})
+
+					Context("when purging fails", func() {
+						BeforeEach(func() {
+							serviceRepo.PurgeServiceOfferingReturns(errors.New("purge-err"))
+						})
+
+						It("fails with error", func() {
+							Expect(runCLIErr).To(HaveOccurred())
+							Expect(runCLIErr.Error()).To(Equal("purge-err"))
+						})
+					})
+				})
+
+				Context("when the user does not confirm", func() {
+					BeforeEach(func() {
+						ui.Inputs = []string{"n"}
+					})
+
+					It("does not try to purge the service offering", func() {
+						Expect(runCLIErr).NotTo(HaveOccurred())
+						Expect(serviceRepo.PurgeServiceOfferingCallCount()).To(BeZero())
+					})
+				})
+			})
+
+			Context("when finding the service offering fails with an error other than 404", func() {
+				BeforeEach(func() {
+					serviceRepo.FindServiceOfferingByLabelAndProviderReturns(models.ServiceOffering{}, errors.New("find-err"))
+				})
+
+				It("fails with error", func() {
+					Expect(runCLIErr).To(HaveOccurred())
+					Expect(runCLIErr.Error()).To(Equal("find-err"))
+				})
+			})
+
+			Context("when finding the service offering fails with 404 not found", func() {
+				BeforeEach(func() {
+					serviceRepo.FindServiceOfferingByLabelAndProviderReturns(
+						models.ServiceOffering{},
+						errors.NewModelNotFoundError("model-type", "find-err"),
+					)
+				})
+
+				It("warns the user", func() {
+					Expect(runCLIErr).NotTo(HaveOccurred())
+					Expect(ui.Outputs()).To(ContainSubstrings(
+						[]string{"Service offering does not exist"},
+					))
+				})
+
+				It("does not try to purge the service offering", func() {
+					Expect(runCLIErr).NotTo(HaveOccurred())
+					Expect(serviceRepo.PurgeServiceOfferingCallCount()).To(BeZero())
+				})
+			})
+		})
 	})
 })

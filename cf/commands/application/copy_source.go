@@ -1,66 +1,73 @@
 package application
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/cloudfoundry/cli/cf/api/applications"
 	"github.com/cloudfoundry/cli/cf/api/authentication"
-	"github.com/cloudfoundry/cli/cf/api/copy_application_source"
+	"github.com/cloudfoundry/cli/cf/api/copyapplicationsource"
 	"github.com/cloudfoundry/cli/cf/api/organizations"
 	"github.com/cloudfoundry/cli/cf/api/spaces"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
-	"github.com/cloudfoundry/cli/flags/flag"
 )
 
 type CopySource struct {
 	ui                terminal.UI
-	config            core_config.Reader
-	authRepo          authentication.AuthenticationRepository
-	appRepo           applications.ApplicationRepository
+	config            coreconfig.Reader
+	authRepo          authentication.Repository
+	appRepo           applications.Repository
 	orgRepo           organizations.OrganizationRepository
 	spaceRepo         spaces.SpaceRepository
-	copyAppSourceRepo copy_application_source.CopyApplicationSourceRepository
-	appRestart        ApplicationRestarter
+	copyAppSourceRepo copyapplicationsource.Repository
+	appRestart        Restarter
 }
 
 func init() {
-	command_registry.Register(&CopySource{})
+	commandregistry.Register(&CopySource{})
 }
 
-func (cmd *CopySource) MetaData() command_registry.CommandMetadata {
+func (cmd *CopySource) MetaData() commandregistry.CommandMetadata {
 	fs := make(map[string]flags.FlagSet)
-	fs["no-restart"] = &cliFlags.BoolFlag{Name: "no-restart", Usage: T("Override restart of the application in target environment after copy-source completes")}
-	fs["o"] = &cliFlags.StringFlag{ShortName: "o", Usage: T("Org that contains the target application")}
-	fs["s"] = &cliFlags.StringFlag{ShortName: "s", Usage: T("Space that contains the target application")}
+	fs["no-restart"] = &flags.BoolFlag{Name: "no-restart", Usage: T("Override restart of the application in target environment after copy-source completes")}
+	fs["o"] = &flags.StringFlag{ShortName: "o", Usage: T("Org that contains the target application")}
+	fs["s"] = &flags.StringFlag{ShortName: "s", Usage: T("Space that contains the target application")}
 
-	return command_registry.CommandMetadata{
+	return commandregistry.CommandMetadata{
 		Name:        "copy-source",
-		Description: T("Make a copy of app source code from one application to another.  Unless overridden, the copy-source command will restart the application."),
-		Usage:       T("   CF_NAME copy-source SOURCE-APP TARGET-APP [-o TARGET-ORG] [-s TARGET-SPACE] [--no-restart]\n"),
-		Flags:       fs,
+		Description: T("Copies the source code of an application to another existing application (and restarts that application)"),
+		Usage: []string{
+			T("   CF_NAME copy-source SOURCE-APP TARGET-APP [-s TARGET-SPACE [-o TARGET-ORG]] [--no-restart]\n"),
+		},
+		Flags: fs,
 	}
 }
 
-func (cmd *CopySource) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
-	if len(fc.Args()) != 2 {
-		cmd.ui.Failed(T("Incorrect Usage. Requires SOURCE-APP TARGET-APP as arguments\n\n") + command_registry.Commands.CommandUsage("copy-source"))
-	}
+func (cmd *CopySource) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+	usageReq := requirementsFactory.NewUsageRequirement(commandregistry.CLICommandUsagePresenter(cmd),
+		T("Requires SOURCE-APP TARGET-APP as arguments"),
+		func() bool {
+			return len(fc.Args()) != 2
+		},
+	)
 
-	reqs = []requirements.Requirement{
+	reqs := []requirements.Requirement{
+		usageReq,
 		requirementsFactory.NewLoginRequirement(),
 		requirementsFactory.NewTargetedSpaceRequirement(),
 	}
-	return
+
+	return reqs
 }
 
-func (cmd *CopySource) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *CopySource) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.authRepo = deps.RepoLocator.GetAuthenticationRepository()
 	cmd.appRepo = deps.RepoLocator.GetApplicationRepository()
@@ -69,14 +76,14 @@ func (cmd *CopySource) SetDependency(deps command_registry.Dependency, pluginCal
 	cmd.copyAppSourceRepo = deps.RepoLocator.GetCopyApplicationSourceRepository()
 
 	//get command from registry for dependency
-	commandDep := command_registry.Commands.FindCommand("restart")
+	commandDep := commandregistry.Commands.FindCommand("restart")
 	commandDep = commandDep.SetDependency(deps, false)
-	cmd.appRestart = commandDep.(ApplicationRestarter)
+	cmd.appRestart = commandDep.(Restarter)
 
 	return cmd
 }
 
-func (cmd *CopySource) Execute(c flags.FlagContext) {
+func (cmd *CopySource) Execute(c flags.FlagContext) error {
 	sourceAppName := c.Args()[0]
 	targetAppName := c.Args()[1]
 
@@ -84,52 +91,57 @@ func (cmd *CopySource) Execute(c flags.FlagContext) {
 	targetSpace := c.String("s")
 
 	if targetOrg != "" && targetSpace == "" {
-		cmd.ui.Failed(T("Please provide the space within the organization containing the target application"))
+		return errors.New(T("Please provide the space within the organization containing the target application"))
 	}
 
-	_, apiErr := cmd.authRepo.RefreshAuthToken()
-	if apiErr != nil {
-		cmd.ui.Failed(apiErr.Error())
+	_, err := cmd.authRepo.RefreshAuthToken()
+	if err != nil {
+		return err
 	}
 
-	sourceApp, apiErr := cmd.appRepo.Read(sourceAppName)
-	if apiErr != nil {
-		cmd.ui.Failed(apiErr.Error())
+	sourceApp, err := cmd.appRepo.Read(sourceAppName)
+	if err != nil {
+		return err
 	}
 
-	var targetOrgName, targetSpaceName, spaceGuid, copyStr string
+	var targetOrgName, targetSpaceName, spaceGUID, copyStr string
 	if targetOrg != "" && targetSpace != "" {
-		spaceGuid = cmd.findSpaceGuid(targetOrg, targetSpace)
+		spaceGUID, err = cmd.findSpaceGUID(targetOrg, targetSpace)
+		if err != nil {
+			return err
+		}
+
 		targetOrgName = targetOrg
 		targetSpaceName = targetSpace
 	} else if targetSpace != "" {
-		space, err := cmd.spaceRepo.FindByName(targetSpace)
+		var space models.Space
+		space, err = cmd.spaceRepo.FindByName(targetSpace)
 		if err != nil {
-			cmd.ui.Failed(err.Error())
+			return err
 		}
-		spaceGuid = space.Guid
+		spaceGUID = space.GUID
 		targetOrgName = cmd.config.OrganizationFields().Name
 		targetSpaceName = targetSpace
 	} else {
-		spaceGuid = cmd.config.SpaceFields().Guid
+		spaceGUID = cmd.config.SpaceFields().GUID
 		targetOrgName = cmd.config.OrganizationFields().Name
 		targetSpaceName = cmd.config.SpaceFields().Name
 	}
 
 	copyStr = buildCopyString(sourceAppName, targetAppName, targetOrgName, targetSpaceName, cmd.config.Username())
 
-	targetApp, apiErr := cmd.appRepo.ReadFromSpace(targetAppName, spaceGuid)
-	if apiErr != nil {
-		cmd.ui.Failed(apiErr.Error())
+	targetApp, err := cmd.appRepo.ReadFromSpace(targetAppName, spaceGUID)
+	if err != nil {
+		return err
 	}
 
 	cmd.ui.Say(copyStr)
 	cmd.ui.Say(T("Note: this may take some time"))
 	cmd.ui.Say("")
 
-	apiErr = cmd.copyAppSourceRepo.CopyApplication(sourceApp.Guid, targetApp.Guid)
-	if apiErr != nil {
-		cmd.ui.Failed(apiErr.Error())
+	err = cmd.copyAppSourceRepo.CopyApplication(sourceApp.GUID, targetApp.GUID)
+	if err != nil {
+		return err
 	}
 
 	if !c.Bool("no-restart") {
@@ -137,12 +149,13 @@ func (cmd *CopySource) Execute(c flags.FlagContext) {
 	}
 
 	cmd.ui.Ok()
+	return nil
 }
 
-func (cmd *CopySource) findSpaceGuid(targetOrg, targetSpace string) string {
+func (cmd *CopySource) findSpaceGUID(targetOrg, targetSpace string) (string, error) {
 	org, err := cmd.orgRepo.FindByName(targetOrg)
 	if err != nil {
-		cmd.ui.Failed(err.Error())
+		return "", err
 	}
 
 	var space models.SpaceFields
@@ -155,15 +168,15 @@ func (cmd *CopySource) findSpaceGuid(targetOrg, targetSpace string) string {
 	}
 
 	if !foundSpace {
-		cmd.ui.Failed(fmt.Sprintf(T("Could not find space {{.Space}} in organization {{.Org}}",
+		return "", fmt.Errorf(T("Could not find space {{.Space}} in organization {{.Org}}",
 			map[string]interface{}{
 				"Space": terminal.EntityNameColor(targetSpace),
 				"Org":   terminal.EntityNameColor(targetOrg),
 			},
-		)))
+		))
 	}
 
-	return space.Guid
+	return space.GUID, nil
 }
 
 func buildCopyString(sourceAppName, targetAppName, targetOrgName, targetSpaceName, username string) string {

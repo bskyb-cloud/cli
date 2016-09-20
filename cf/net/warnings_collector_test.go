@@ -4,23 +4,21 @@ import (
 	"os"
 
 	"github.com/cloudfoundry/cli/cf/net"
-	testnet "github.com/cloudfoundry/cli/testhelpers/net"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
-
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	"github.com/cloudfoundry/cli/cf/net/netfakes"
+	"github.com/cloudfoundry/cli/cf/terminal/terminalfakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("WarningsCollector", func() {
 	var (
-		ui                 *testterm.FakeUI
+		ui                 *terminalfakes.FakeUI
 		oldRaiseErrorValue string
 		warningsCollector  net.WarningsCollector
 	)
 
 	BeforeEach(func() {
-		ui = new(testterm.FakeUI)
+		ui = new(terminalfakes.FakeUI)
 	})
 
 	Describe("PrintWarnings", func() {
@@ -39,10 +37,9 @@ var _ = Describe("WarningsCollector", func() {
 
 			Context("when there are warnings", func() {
 				BeforeEach(func() {
-					warning_producer_one := testnet.NewWarningProducer([]string{"Hello", "Darling"})
-					warning_producer_two := testnet.NewWarningProducer([]string{"Goodbye", "Sweetie"})
-					warning_producer_three := testnet.NewWarningProducer(nil)
-					warningsCollector = net.NewWarningsCollector(ui, warning_producer_one, warning_producer_two, warning_producer_three)
+					warning_producer_one := new(netfakes.FakeWarningProducer)
+					warning_producer_one.WarningsReturns([]string{"something"})
+					warningsCollector = net.NewWarningsCollector(ui, warning_producer_one)
 				})
 
 				It("panics with an error that contains all the warnings", func() {
@@ -68,24 +65,36 @@ var _ = Describe("WarningsCollector", func() {
 			})
 
 			It("does not panic", func() {
-				warning_producer_one := testnet.NewWarningProducer([]string{"Hello", "Darling"})
-				warning_producer_two := testnet.NewWarningProducer([]string{"Goodbye", "Sweetie"})
-				warning_producer_three := testnet.NewWarningProducer(nil)
-				warningsCollector := net.NewWarningsCollector(ui, warning_producer_one, warning_producer_two, warning_producer_three)
+				warning_producer_one := new(netfakes.FakeWarningProducer)
+				warning_producer_one.WarningsReturns([]string{"Hello", "Darling"})
+				warningsCollector := net.NewWarningsCollector(ui, warning_producer_one)
 
 				Expect(warningsCollector.PrintWarnings).NotTo(Panic())
 			})
 
 			It("does not print out duplicate warnings", func() {
-				warning_producer_one := testnet.NewWarningProducer([]string{"Hello Darling"})
-				warning_producer_two := testnet.NewWarningProducer([]string{"Hello Darling"})
+				warning_producer_one := new(netfakes.FakeWarningProducer)
+				warning_producer_one.WarningsReturns([]string{"Hello Darling"})
+				warning_producer_two := new(netfakes.FakeWarningProducer)
+				warning_producer_two.WarningsReturns([]string{"Hello Darling"})
 				warningsCollector := net.NewWarningsCollector(ui, warning_producer_one, warning_producer_two)
 
 				warningsCollector.PrintWarnings()
-				Expect(len(ui.Outputs)).To(Equal(1))
-				Expect(ui.Outputs).To(ContainSubstrings([]string{"Hello Darling"}))
+				Expect(ui.WarnCallCount()).To(Equal(1))
+				Expect(ui.WarnArgsForCall(0)).To(ContainSubstring("Hello Darling"))
+			})
+
+			It("does not print out Endpoint deprecated warnings", func() {
+				warning_producer_one := new(netfakes.FakeWarningProducer)
+				warning_producer_one.WarningsReturns([]string{"Endpoint deprecated"})
+				warning_producer_two := new(netfakes.FakeWarningProducer)
+				warning_producer_two.WarningsReturns([]string{"A warning"})
+				warningsCollector := net.NewWarningsCollector(ui, warning_producer_one, warning_producer_two)
+
+				warningsCollector.PrintWarnings()
+				Expect(ui.WarnCallCount()).To(Equal(1))
+				Expect(ui.WarnArgsForCall(0)).To(ContainSubstring("A warning"))
 			})
 		})
 	})
-
 })

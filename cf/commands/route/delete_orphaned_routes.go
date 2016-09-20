@@ -1,75 +1,85 @@
 package route
 
 import (
+	"errors"
+
 	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
-	"github.com/cloudfoundry/cli/flags/flag"
 )
 
 type DeleteOrphanedRoutes struct {
 	ui        terminal.UI
 	routeRepo api.RouteRepository
-	config    core_config.Reader
+	config    coreconfig.Reader
 }
 
 func init() {
-	command_registry.Register(&DeleteOrphanedRoutes{})
+	commandregistry.Register(&DeleteOrphanedRoutes{})
 }
 
-func (cmd *DeleteOrphanedRoutes) MetaData() command_registry.CommandMetadata {
+func (cmd *DeleteOrphanedRoutes) MetaData() commandregistry.CommandMetadata {
 	fs := make(map[string]flags.FlagSet)
-	fs["f"] = &cliFlags.BoolFlag{ShortName: "f", Usage: T("Force deletion without confirmation")}
+	fs["f"] = &flags.BoolFlag{ShortName: "f", Usage: T("Force deletion without confirmation")}
 
-	return command_registry.CommandMetadata{
+	return commandregistry.CommandMetadata{
 		Name:        "delete-orphaned-routes",
-		Description: T("Delete all orphaned routes (e.g.: those that are not mapped to an app)"),
-		Usage:       T("CF_NAME delete-orphaned-routes [-f]"),
-		Flags:       fs,
+		Description: T("Delete all orphaned routes (i.e. those that are not mapped to an app)"),
+		Usage: []string{
+			T("CF_NAME delete-orphaned-routes [-f]"),
+		},
+		Flags: fs,
 	}
 }
 
-func (cmd *DeleteOrphanedRoutes) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
-	if len(fc.Args()) != 0 {
-		cmd.ui.Failed(T("Incorrect Usage. No argument required\n\n") + command_registry.Commands.CommandUsage("delete-orphaned-routes"))
+func (cmd *DeleteOrphanedRoutes) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+	usageReq := requirements.NewUsageRequirement(commandregistry.CLICommandUsagePresenter(cmd),
+		T("No argument required"),
+		func() bool {
+			return len(fc.Args()) != 0
+		},
+	)
+
+	reqs := []requirements.Requirement{
+		usageReq,
+		requirementsFactory.NewLoginRequirement(),
 	}
 
-	reqs = append(reqs, requirementsFactory.NewLoginRequirement())
-	return
+	return reqs
 }
 
-func (cmd *DeleteOrphanedRoutes) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *DeleteOrphanedRoutes) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.routeRepo = deps.RepoLocator.GetRouteRepository()
 	return cmd
 }
 
-func (cmd *DeleteOrphanedRoutes) Execute(c flags.FlagContext) {
+func (cmd *DeleteOrphanedRoutes) Execute(c flags.FlagContext) error {
 	force := c.Bool("f")
 	if !force {
 		response := cmd.ui.Confirm(T("Really delete orphaned routes?{{.Prompt}}",
 			map[string]interface{}{"Prompt": terminal.PromptColor(">")}))
 
 		if !response {
-			return
+			return nil
 		}
 	}
 
 	cmd.ui.Say(T("Getting routes as {{.Username}} ...\n",
 		map[string]interface{}{"Username": terminal.EntityNameColor(cmd.config.Username())}))
 
-	apiErr := cmd.routeRepo.ListRoutes(func(route models.Route) bool {
+	err := cmd.routeRepo.ListRoutes(func(route models.Route) bool {
 
 		if len(route.Apps) == 0 {
 			cmd.ui.Say(T("Deleting route {{.Route}}...",
-				map[string]interface{}{"Route": terminal.EntityNameColor(route.Host + "." + route.Domain.Name)}))
-			apiErr := cmd.routeRepo.Delete(route.Guid)
+				map[string]interface{}{"Route": terminal.EntityNameColor(route.URL())}))
+			apiErr := cmd.routeRepo.Delete(route.GUID)
 			if apiErr != nil {
 				cmd.ui.Failed(apiErr.Error())
 				return false
@@ -78,9 +88,9 @@ func (cmd *DeleteOrphanedRoutes) Execute(c flags.FlagContext) {
 		return true
 	})
 
-	if apiErr != nil {
-		cmd.ui.Failed(T("Failed fetching routes.\n{{.Err}}", map[string]interface{}{"Err": apiErr.Error()}))
-		return
+	if err != nil {
+		return errors.New(T("Failed fetching routes.\n{{.Err}}", map[string]interface{}{"Err": err.Error()}))
 	}
 	cmd.ui.Ok()
+	return nil
 }

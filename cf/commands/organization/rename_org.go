@@ -2,54 +2,58 @@ package organization
 
 import (
 	"github.com/cloudfoundry/cli/cf/api/organizations"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
 )
 
 type RenameOrg struct {
 	ui      terminal.UI
-	config  core_config.ReadWriter
+	config  coreconfig.ReadWriter
 	orgRepo organizations.OrganizationRepository
 	orgReq  requirements.OrganizationRequirement
 }
 
 func init() {
-	command_registry.Register(&RenameOrg{})
+	commandregistry.Register(&RenameOrg{})
 }
 
-func (cmd *RenameOrg) MetaData() command_registry.CommandMetadata {
-	return command_registry.CommandMetadata{
+func (cmd *RenameOrg) MetaData() commandregistry.CommandMetadata {
+	return commandregistry.CommandMetadata{
 		Name:        "rename-org",
 		Description: T("Rename an org"),
-		Usage:       T("CF_NAME rename-org ORG NEW_ORG"),
+		Usage: []string{
+			T("CF_NAME rename-org ORG NEW_ORG"),
+		},
 	}
 }
 
-func (cmd *RenameOrg) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+func (cmd *RenameOrg) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
 	if len(fc.Args()) != 2 {
-		cmd.ui.Failed(T("Incorrect Usage. Requires old org name, new org name as arguments\n\n") + command_registry.Commands.CommandUsage("rename-org"))
+		cmd.ui.Failed(T("Incorrect Usage. Requires old org name, new org name as arguments\n\n") + commandregistry.Commands.CommandUsage("rename-org"))
 	}
 
 	cmd.orgReq = requirementsFactory.NewOrganizationRequirement(fc.Args()[0])
-	reqs = []requirements.Requirement{
+
+	reqs := []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 		cmd.orgReq,
 	}
-	return
+
+	return reqs
 }
 
-func (cmd *RenameOrg) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *RenameOrg) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.orgRepo = deps.RepoLocator.GetOrganizationRepository()
 	return cmd
 }
 
-func (cmd *RenameOrg) Execute(c flags.FlagContext) {
+func (cmd *RenameOrg) Execute(c flags.FlagContext) error {
 	org := cmd.orgReq.GetOrganization()
 	newName := c.Args()[1]
 
@@ -59,15 +63,15 @@ func (cmd *RenameOrg) Execute(c flags.FlagContext) {
 			"NewName":  terminal.EntityNameColor(newName),
 			"Username": terminal.EntityNameColor(cmd.config.Username())}))
 
-	apiErr := cmd.orgRepo.Rename(org.Guid, newName)
-	if apiErr != nil {
-		cmd.ui.Failed(apiErr.Error())
-		return
+	err := cmd.orgRepo.Rename(org.GUID, newName)
+	if err != nil {
+		return err
 	}
 	cmd.ui.Ok()
 
-	if org.Guid == cmd.config.OrganizationFields().Guid {
+	if org.GUID == cmd.config.OrganizationFields().GUID {
 		org.Name = newName
 		cmd.config.SetOrganizationFields(org.OrganizationFields)
 	}
+	return nil
 }

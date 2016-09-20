@@ -2,74 +2,76 @@ package organization
 
 import (
 	"github.com/cloudfoundry/cli/cf"
-	"github.com/cloudfoundry/cli/cf/api/feature_flags"
+	"github.com/cloudfoundry/cli/cf/api/featureflags"
 	"github.com/cloudfoundry/cli/cf/api/organizations"
 	"github.com/cloudfoundry/cli/cf/api/quotas"
-	"github.com/cloudfoundry/cli/cf/command_registry"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
 	"github.com/cloudfoundry/cli/cf/commands/user"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
-	"github.com/cloudfoundry/cli/flags/flag"
 )
 
 type CreateOrg struct {
 	ui            terminal.UI
-	config        core_config.Reader
+	config        coreconfig.Reader
 	orgRepo       organizations.OrganizationRepository
 	quotaRepo     quotas.QuotaRepository
 	orgRoleSetter user.OrgRoleSetter
-	flagRepo      feature_flags.FeatureFlagRepository
+	flagRepo      featureflags.FeatureFlagRepository
 }
 
 func init() {
-	command_registry.Register(&CreateOrg{})
+	commandregistry.Register(&CreateOrg{})
 }
 
-func (cmd *CreateOrg) MetaData() command_registry.CommandMetadata {
+func (cmd *CreateOrg) MetaData() commandregistry.CommandMetadata {
 	fs := make(map[string]flags.FlagSet)
-	fs["q"] = &cliFlags.StringFlag{ShortName: "q", Usage: T("Quota to assign to the newly created org (excluding this option results in assignment of default quota)")}
+	fs["q"] = &flags.StringFlag{ShortName: "q", Usage: T("Quota to assign to the newly created org (excluding this option results in assignment of default quota)")}
 
-	return command_registry.CommandMetadata{
+	return commandregistry.CommandMetadata{
 		Name:        "create-org",
 		ShortName:   "co",
 		Description: T("Create an org"),
-		Usage:       T("CF_NAME create-org ORG"),
-		Flags:       fs,
+		Usage: []string{
+			T("CF_NAME create-org ORG"),
+		},
+		Flags: fs,
 	}
 }
 
-func (cmd *CreateOrg) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+func (cmd *CreateOrg) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
 	if len(fc.Args()) != 1 {
-		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + command_registry.Commands.CommandUsage("create-org"))
+		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + commandregistry.Commands.CommandUsage("create-org"))
 	}
 
-	reqs = []requirements.Requirement{
+	reqs := []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 	}
-	return
+
+	return reqs
 }
 
-func (cmd *CreateOrg) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *CreateOrg) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.orgRepo = deps.RepoLocator.GetOrganizationRepository()
 	cmd.quotaRepo = deps.RepoLocator.GetQuotaRepository()
 	cmd.flagRepo = deps.RepoLocator.GetFeatureFlagRepository()
 
 	//get command from registry for dependency
-	commandDep := command_registry.Commands.FindCommand("set-org-role")
+	commandDep := commandregistry.Commands.FindCommand("set-org-role")
 	commandDep = commandDep.SetDependency(deps, false)
 	cmd.orgRoleSetter = commandDep.(user.OrgRoleSetter)
 
 	return cmd
 }
 
-func (cmd *CreateOrg) Execute(c flags.FlagContext) {
+func (cmd *CreateOrg) Execute(c flags.FlagContext) error {
 	name := c.Args()[0]
 	cmd.ui.Say(T("Creating org {{.OrgName}} as {{.Username}}...",
 		map[string]interface{}{
@@ -82,27 +84,27 @@ func (cmd *CreateOrg) Execute(c flags.FlagContext) {
 	if quotaName != "" {
 		quota, err := cmd.quotaRepo.FindByName(quotaName)
 		if err != nil {
-			cmd.ui.Failed(err.Error())
+			return err
 		}
 
-		org.QuotaDefinition.Guid = quota.Guid
+		org.QuotaDefinition.GUID = quota.GUID
 	}
 
 	err := cmd.orgRepo.Create(org)
 	if err != nil {
-		if apiErr, ok := err.(errors.HttpError); ok && apiErr.ErrorCode() == errors.ORG_EXISTS {
+		if apiErr, ok := err.(errors.HTTPError); ok && apiErr.ErrorCode() == errors.OrganizationNameTaken {
 			cmd.ui.Ok()
 			cmd.ui.Warn(T("Org {{.OrgName}} already exists",
 				map[string]interface{}{"OrgName": name}))
-			return
+			return nil
 		}
 
-		cmd.ui.Failed(err.Error())
+		return err
 	}
 
 	cmd.ui.Ok()
 
-	if cmd.config.IsMinApiVersion("2.37.0") {
+	if cmd.config.IsMinAPIVersion(cf.SetRolesByUsernameMinimumAPIVersion) {
 		setRolesByUsernameFlag, err := cmd.flagRepo.FindByName("set_roles_by_username")
 		if err != nil {
 			cmd.ui.Warn(T("Warning: accessing feature flag 'set_roles_by_username'") + " - " + err.Error() + "\n" + T("Skip assigning org role to user"))
@@ -111,7 +113,7 @@ func (cmd *CreateOrg) Execute(c flags.FlagContext) {
 		if setRolesByUsernameFlag.Enabled {
 			org, err := cmd.orgRepo.FindByName(name)
 			if err != nil {
-				cmd.ui.Failed(T("Error accessing org {{.OrgName}} for GUID': ", map[string]interface{}{"Orgname": name}) + err.Error() + "\n" + T("Skip assigning org role to user"))
+				return errors.New(T("Error accessing org {{.OrgName}} for GUID': ", map[string]interface{}{"Orgname": name}) + err.Error() + "\n" + T("Skip assigning org role to user"))
 			}
 
 			cmd.ui.Say("")
@@ -122,9 +124,9 @@ func (cmd *CreateOrg) Execute(c flags.FlagContext) {
 					"TargetOrg":   terminal.EntityNameColor(name),
 				}))
 
-			err = cmd.orgRoleSetter.SetOrgRole(org.Guid, "OrgManager", "", cmd.config.Username())
+			err = cmd.orgRoleSetter.SetOrgRole(org.GUID, models.RoleOrgManager, "", cmd.config.Username())
 			if err != nil {
-				cmd.ui.Failed(T("Failed assigning org role to user: ") + err.Error())
+				return errors.New(T("Failed assigning org role to user: ") + err.Error())
 			}
 
 			cmd.ui.Ok()
@@ -132,5 +134,6 @@ func (cmd *CreateOrg) Execute(c flags.FlagContext) {
 	}
 
 	cmd.ui.Say(T("\nTIP: Use '{{.Command}}' to target new org",
-		map[string]interface{}{"Command": terminal.CommandColor(cf.Name() + " target -o " + name)}))
+		map[string]interface{}{"Command": terminal.CommandColor(cf.Name + " target -o " + name)}))
+	return nil
 }

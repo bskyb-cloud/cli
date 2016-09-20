@@ -1,55 +1,57 @@
 package securitygroup
 
 import (
-	"strings"
-
 	"github.com/cloudfoundry/cli/cf/api/organizations"
-	"github.com/cloudfoundry/cli/cf/api/security_groups"
-	sgbinder "github.com/cloudfoundry/cli/cf/api/security_groups/spaces"
+	"github.com/cloudfoundry/cli/cf/api/securitygroups"
+	sgbinder "github.com/cloudfoundry/cli/cf/api/securitygroups/spaces"
 	"github.com/cloudfoundry/cli/cf/api/spaces"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
 )
 
 type UnbindSecurityGroup struct {
 	ui                terminal.UI
-	configRepo        core_config.Reader
-	securityGroupRepo security_groups.SecurityGroupRepo
+	configRepo        coreconfig.Reader
+	securityGroupRepo securitygroups.SecurityGroupRepo
 	orgRepo           organizations.OrganizationRepository
 	spaceRepo         spaces.SpaceRepository
 	secBinder         sgbinder.SecurityGroupSpaceBinder
 }
 
 func init() {
-	command_registry.Register(&UnbindSecurityGroup{})
+	commandregistry.Register(&UnbindSecurityGroup{})
 }
 
-func (cmd *UnbindSecurityGroup) MetaData() command_registry.CommandMetadata {
+func (cmd *UnbindSecurityGroup) MetaData() commandregistry.CommandMetadata {
 	primaryUsage := T("CF_NAME unbind-security-group SECURITY_GROUP ORG SPACE")
 	tipUsage := T("TIP: Changes will not apply to existing running applications until they are restarted.")
-	return command_registry.CommandMetadata{
+	return commandregistry.CommandMetadata{
 		Name:        "unbind-security-group",
 		Description: T("Unbind a security group from a space"),
-		Usage:       strings.Join([]string{primaryUsage, tipUsage}, "\n\n"),
+		Usage: []string{
+			primaryUsage,
+			"\n\n",
+			tipUsage,
+		},
 	}
 }
 
-func (cmd *UnbindSecurityGroup) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
+func (cmd *UnbindSecurityGroup) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
 	argLength := len(fc.Args())
 	if argLength == 0 || argLength == 2 || argLength >= 4 {
-		cmd.ui.Failed(T("Incorrect Usage. Requires SECURITY_GROUP, ORG and SPACE as arguments\n\n") + command_registry.Commands.CommandUsage("unbind-security-group"))
+		cmd.ui.Failed(T("Incorrect Usage. Requires SECURITY_GROUP, ORG and SPACE as arguments\n\n") + commandregistry.Commands.CommandUsage("unbind-security-group"))
 	}
 
-	requirements := []requirements.Requirement{requirementsFactory.NewLoginRequirement()}
-	return requirements, nil
+	reqs := []requirements.Requirement{requirementsFactory.NewLoginRequirement()}
+	return reqs
 }
 
-func (cmd *UnbindSecurityGroup) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *UnbindSecurityGroup) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.configRepo = deps.Config
 	cmd.securityGroupRepo = deps.RepoLocator.GetSecurityGroupRepository()
 	cmd.spaceRepo = deps.RepoLocator.GetSpaceRepository()
@@ -58,12 +60,14 @@ func (cmd *UnbindSecurityGroup) SetDependency(deps command_registry.Dependency, 
 	return cmd
 }
 
-func (cmd *UnbindSecurityGroup) Execute(context flags.FlagContext) {
-	var spaceGuid string
+func (cmd *UnbindSecurityGroup) Execute(context flags.FlagContext) error {
+	var spaceGUID string
+	var err error
+
 	secName := context.Args()[0]
 
 	if len(context.Args()) == 1 {
-		spaceGuid = cmd.configRepo.SpaceFields().Guid
+		spaceGUID = cmd.configRepo.SpaceFields().GUID
 		spaceName := cmd.configRepo.SpaceFields().Name
 		orgName := cmd.configRepo.OrganizationFields().Name
 
@@ -74,23 +78,27 @@ func (cmd *UnbindSecurityGroup) Execute(context flags.FlagContext) {
 
 		cmd.flavorText(secName, orgName, spaceName)
 
-		spaceGuid = cmd.lookupSpaceGuid(orgName, spaceName)
+		spaceGUID, err = cmd.lookupSpaceGUID(orgName, spaceName)
+		if err != nil {
+			return err
+		}
 	}
 
 	securityGroup, err := cmd.securityGroupRepo.Read(secName)
 	if err != nil {
-		cmd.ui.Failed(err.Error())
+		return err
 	}
 
-	secGuid := securityGroup.Guid
+	secGUID := securityGroup.GUID
 
-	err = cmd.secBinder.UnbindSpace(secGuid, spaceGuid)
+	err = cmd.secBinder.UnbindSpace(secGUID, spaceGUID)
 	if err != nil {
-		cmd.ui.Failed(err.Error())
+		return err
 	}
 	cmd.ui.Ok()
 	cmd.ui.Say("\n\n")
 	cmd.ui.Say(T("TIP: Changes will not apply to existing running applications until they are restarted."))
+	return nil
 }
 
 func (cmd UnbindSecurityGroup) flavorText(secName string, orgName string, spaceName string) {
@@ -103,16 +111,16 @@ func (cmd UnbindSecurityGroup) flavorText(secName string, orgName string, spaceN
 		}))
 }
 
-func (cmd UnbindSecurityGroup) lookupSpaceGuid(orgName string, spaceName string) string {
+func (cmd UnbindSecurityGroup) lookupSpaceGUID(orgName string, spaceName string) (string, error) {
 	organization, err := cmd.orgRepo.FindByName(orgName)
 	if err != nil {
-		cmd.ui.Failed(err.Error())
+		return "", err
 	}
-	orgGuid := organization.Guid
+	orgGUID := organization.GUID
 
-	space, err := cmd.spaceRepo.FindByNameInOrg(spaceName, orgGuid)
+	space, err := cmd.spaceRepo.FindByNameInOrg(spaceName, orgGUID)
 	if err != nil {
-		cmd.ui.Failed(err.Error())
+		return "", err
 	}
-	return space.Guid
+	return space.GUID, nil
 }

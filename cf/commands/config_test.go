@@ -1,11 +1,11 @@
 package commands_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -16,29 +16,29 @@ import (
 var _ = Describe("config command", func() {
 	var (
 		ui                  *testterm.FakeUI
-		configRepo          core_config.Repository
-		requirementsFactory *testreq.FakeReqFactory
-		deps                command_registry.Dependency
+		configRepo          coreconfig.Repository
+		requirementsFactory *requirementsfakes.FakeFactory
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.Config = configRepo
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("config").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("config").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
 		ui = &testterm.FakeUI{}
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		requirementsFactory = &testreq.FakeReqFactory{}
+		requirementsFactory = new(requirementsfakes.FakeFactory)
 	})
 
 	runCommand := func(args ...string) {
-		testcmd.RunCliCommand("config", args, requirementsFactory, updateCommandDependency, false)
+		testcmd.RunCLICommand("config", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 	It("fails requirements when no flags are provided", func() {
 		runCommand()
-		Expect(ui.Outputs).To(ContainSubstrings(
+		Expect(ui.Outputs()).To(ContainSubstrings(
 			[]string{"Incorrect Usage"},
 		))
 	})
@@ -52,14 +52,14 @@ var _ = Describe("config command", func() {
 
 		It("fails with usage when a invalid async timeout value is passed", func() {
 			runCommand("--async-timeout", "-1")
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Incorrect Usage"},
 			))
 		})
 
 		It("fails with usage when a negative timout is passed", func() {
 			runCommand("--async-timeout", "-555")
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Incorrect Usage"},
 			))
 			Expect(configRepo.AsyncTimeout()).To(Equal(uint(0)))
@@ -90,7 +90,7 @@ var _ = Describe("config command", func() {
 
 		It("fails with usage when a non-bool value is provided", func() {
 			runCommand("--color", "plaid")
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Incorrect Usage"},
 			))
 		})
@@ -98,23 +98,25 @@ var _ = Describe("config command", func() {
 
 	Context("--locale flag", func() {
 		It("stores the locale value when --locale [locale] is provided", func() {
-			runCommand("--locale", "zh_Hans")
-			Expect(configRepo.Locale()).Should(Equal("zh_Hans"))
+			runCommand("--locale", "zh-Hans")
+			Expect(configRepo.Locale()).Should(Equal("zh-Hans"))
 		})
 
 		It("informs the user of known locales if an unknown locale is provided", func() {
-			runCommand("--locale", "foo_BAR")
-			Expect(ui.Outputs).To(ContainSubstrings(
-				[]string{"known locales are"},
-				[]string{"en_US"},
-				[]string{"fr_FR"},
+			runCommand("--locale", "foo-BAR")
+			Expect(ui.Outputs()).To(ContainSubstrings(
+				[]string{"FAILED"},
+				[]string{"Could not find locale 'foo-BAR'. The known locales are:"},
+				[]string{"en-US"},
+				[]string{"fr-FR"},
+				[]string{"zh-Hans"},
 			))
 		})
 
 		Context("when the locale is already set", func() {
 			BeforeEach(func() {
-				configRepo.SetLocale("fr_FR")
-				Expect(configRepo.Locale()).Should(Equal("fr_FR"))
+				configRepo.SetLocale("fr-FR")
+				Expect(configRepo.Locale()).Should(Equal("fr-FR"))
 			})
 
 			It("clears the locale when the '--locale clear' flag is provided", func() {

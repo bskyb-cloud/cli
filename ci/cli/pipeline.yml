@@ -1,0 +1,517 @@
+---
+resource_types:
+- name: slack-notification
+  type: docker-image
+  source:
+    repository: cfcommunity/slack-notification-resource
+    tag: latest
+
+resources:
+- name: cli
+  type: git
+  source:
+    uri: git@github.com:cloudfoundry/cli
+    private_key: {{cf-cli-eng-github-private-key}}
+    branch: master
+    ignore_paths:
+    - ci
+
+- name: final-cli
+  type: git
+  source:
+    uri: git@github.com:cloudfoundry/cli
+    private_key: {{cf-cli-eng-github-private-key}}
+    branch: master
+    paths:
+    - VERSION
+
+- name: cli-private
+  type: git
+  source:
+    uri: git@github.com:cloudfoundry/cli-private
+    private_key: {{cf-cli-eng-github-private-key}}
+    branch: master
+
+- name: cli-ci
+  type: git
+  source:
+    uri: git@github.com:cloudfoundry/cli
+    private_key: {{cf-cli-eng-github-private-key}}
+    branch: master
+    paths:
+    - ci
+
+- name: cli-acceptance-tests
+  type: git
+  source:
+    uri: git@github.com:cloudfoundry/cli-acceptance-tests
+    private_key: {{cf-cli-eng-github-private-key}}
+    branch: master
+
+- name: cf-release-repo
+  type: git
+  source:
+    uri: git@github.com:cloudfoundry/cf-release
+    private_key: {{cf-cli-eng-github-private-key}}
+    branch: master
+
+- name: homebrew-tap
+  type: git
+  source:
+    uri: git@github.com:cloudfoundry/homebrew-tap
+    private_key: {{homebrew-tap-github-private-key}}
+    branch: master
+
+- name: cf-cli-binaries
+  type: s3
+  source:
+    bucket: {{staging-bucket-name}}
+    access_key_id: {{staging-bucket-access-key-id}}
+    secret_access_key: {{staging-bucket-secret-access-key}}
+    versioned_file: cf-cli-binaries.tgz
+
+- name: cf-cli-installers
+  type: s3
+  source:
+    bucket: {{staging-bucket-name}}
+    access_key_id: {{staging-bucket-access-key-id}}
+    secret_access_key: {{staging-bucket-secret-access-key}}
+    versioned_file: cf-cli-installers.tgz
+
+- name: cf-cli-installer-win32
+  type: s3
+  source:
+    bucket: {{staging-bucket-name}}
+    access_key_id: {{staging-bucket-access-key-id}}
+    secret_access_key: {{staging-bucket-secret-access-key}}
+    versioned_file: cf-cli-installer_win32.zip
+
+- name: cf-cli-installer-win64
+  type: s3
+  source:
+    bucket: {{staging-bucket-name}}
+    access_key_id: {{staging-bucket-access-key-id}}
+    secret_access_key: {{staging-bucket-secret-access-key}}
+    versioned_file: cf-cli-installer_winx64.zip
+
+- name: bosh-lites-dea-pool
+  type: pool
+  source:
+    uri: git@github.com:cloudfoundry/cli-pools
+    private_key: {{cli-pools-github-private-key}}
+    branch: master
+    pool: bosh-lites-dea
+
+- name: bosh-lites-diego-pool
+  type: pool
+  source:
+    uri: git@github.com:cloudfoundry/cli-pools
+    private_key: {{cli-pools-github-private-key}}
+    branch: master
+    pool: bosh-lites-diego
+
+- name: cf-cli-tracker
+  type: tracker
+  source:
+    token: {{cf-cli-public-tracker-token}}
+    project_id: {{cf-cli-public-tracker-project-id}}
+    tracker_url: https://www.pivotaltracker.com
+
+- name: golang
+  type: docker-image
+  source:
+    repository: golang
+    tag: latest
+
+- name: cli-ci-dockerfile
+  type: git
+  source:
+    uri: git@github.com:cloudfoundry/cli
+    private_key: {{cf-cli-eng-github-private-key}}
+    branch: master
+    paths: [ci/Dockerfile]
+
+- name: cf-cli-image
+  type: docker-image
+  source:
+    repository: cloudfoundry/cli-ci
+    username: {{dockerhub-username}}
+    email: {{dockerhub-email}}
+    password: {{dockerhub-password}}
+
+- name: slack-alert
+  type: slack-notification
+  source:
+    url: https://hooks.slack.com/services/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
+
+groups:
+- name: cli
+  jobs:
+  - units
+  - build-binaries
+  - gats
+  - cats-linux
+  - cats-diego
+  - cats-windows
+  - create-installers
+  - publish-edge-archives
+  - publish-final-release
+- name: images
+  jobs:
+  - create-cli-ci-image
+
+jobs:
+- name: units
+  serial: true
+  plan:
+  - aggregate:
+    - get: cli
+      trigger: true
+    - get: final-cli
+    - get: cli-ci
+  - aggregate:
+    - task: units-linux
+      file: cli-ci/ci/cli/tasks/units-linux.yml
+      on_failure:
+         put: slack-alert
+         params:
+           channel: '#cli-firehose'
+           text: "linux unit tests failed OR errored :("
+    - task: units-osx
+      file: cli-ci/ci/cli/tasks/units-osx.yml
+      on_failure:
+         put: slack-alert
+         params:
+           channel: '#cli-firehose'
+           text: "osx unit tests failed OR errored :("
+    - task: units-windows
+      file: cli-ci/ci/cli/tasks/units-windows.yml
+      on_failure:
+         put: slack-alert
+         params:
+           channel: '#cli-firehose'
+           text: "windows unit tests failed OR errored :("
+    - task: lint
+      file: cli-ci/ci/cli/tasks/lint.yml
+
+- name: build-binaries
+  serial: true
+  plan:
+  - aggregate:
+    - get: cli
+      trigger: true
+      passed: [units]
+    - get: final-cli
+      passed: [units]
+    - get: cli-ci
+  - aggregate:
+    - task: build
+      file: cli-ci/ci/cli/tasks/build-binaries.yml
+      on_failure:
+         put: slack-alert
+         params:
+           channel: '#cli-firehose'
+           text: "build binaries failed OR errored :("
+    - task: build-osx
+      file: cli-ci/ci/cli/tasks/build-osx-binary.yml
+      on_failure:
+         put: slack-alert
+         params:
+           channel: '#cli-firehose'
+           text: "build osx binaries failed OR errored :("
+  - task: sign-windows-binary
+    file: cli-ci/ci/cli/tasks/sign-windows-binary.yml
+    params:
+      SIGNTOOL_CERT_PATH: {{signtool-cert-path}}
+      SIGNTOOL_CERT_PASSWORD: {{signtool-cert-password}}
+    on_failure:
+       put: slack-alert
+       params:
+         channel: '#cli-firehose'
+         text: "signing binaries failed OR errored :("
+  - task: combine-binaries
+    file: cli-ci/ci/cli/tasks/combine-binaries.yml
+  - put: cf-cli-binaries
+    params:
+      file: compiled/cf-cli-binaries.tgz
+
+- name: gats
+  serial: true
+  plan:
+  - aggregate:
+    - get: cf-cli-binaries
+      trigger: true
+      passed: [build-binaries]
+    - get: final-cli
+      passed: [build-binaries]
+    - get: cli
+      passed: [build-binaries]
+    - get: cli-acceptance-tests
+    - get: cli-ci
+    - put: bosh-lite-lock
+      resource: bosh-lites-dea-pool
+      params:
+        acquire: true
+  - aggregate:
+    - do:
+      - task: linux
+        file: cli-ci/ci/cli/tasks/gats-linux.yml
+      - task: windows
+        file: cli-ci/ci/cli/tasks/gats-windows.yml
+        params:
+          ADMIN_USER: {{bosh-lite-admin-username}}
+          ADMIN_PASSWORD: {{bosh-lite-admin-password}}
+      on_failure:
+         put: slack-alert
+         params:
+           channel: '#cli-firehose'
+           text: "gats failed OR errored :("
+    ensure:
+      put: bosh-lites-dea-pool
+      params:
+        release: bosh-lite-lock
+
+- name: cats-linux
+  serial: true
+  plan:
+  - aggregate:
+    - get: final-cli
+      passed: [build-binaries]
+    - get: cli
+      passed: [build-binaries]
+    - get: cf-release-repo
+      params:
+        submodules:
+        - src/github.com/cloudfoundry/cf-acceptance-tests
+    - get: cf-cli-binaries
+      trigger: true
+      passed: [build-binaries]
+    - get: cli-ci
+    - put: bosh-lite-lock
+      resource: bosh-lites-dea-pool
+      params:
+        acquire: true
+  - aggregate:
+    - task: cats
+      file: cli-ci/ci/cli/tasks/cats-linux.yml
+      params:
+        BACKEND: dea
+        INCLUDE_DEFAULT: true
+        INCLUDE_INTERNET_DEPENDENT: true
+        INCLUDE_ROUTE_SERVICES: true
+        INCLUDE_SECURITY_GROUPS: true
+      on_failure:
+         put: slack-alert
+         params:
+           channel: '#cli-firehose'
+           text: "cats linux failed OR errored :("
+    - task: cats-services
+      file: cli-ci/ci/cli/tasks/cats-linux.yml
+      params:
+        INCLUDE_SERVICES: true
+      on_failure:
+         put: slack-alert
+         params:
+           channel: '#cli-firehose'
+           text: "cats services linux failed OR errored :("
+    ensure:
+      put: bosh-lites-dea-pool
+      params:
+        release: bosh-lite-lock
+
+- name: cats-diego
+  serial: true
+  plan:
+  - aggregate:
+    - get: final-cli
+      passed: [build-binaries]
+    - get: cli
+      passed: [build-binaries]
+    - get: cf-release-repo
+      params:
+        submodules:
+        - src/github.com/cloudfoundry/cf-acceptance-tests
+    - get: cf-cli-binaries
+      trigger: true
+      passed: [build-binaries]
+    - get: cli-ci
+    - put: bosh-lite-lock
+      resource: bosh-lites-diego-pool
+      params:
+        acquire: true
+  - task: linux
+    file: cli-ci/ci/cli/tasks/cats-linux.yml
+    params:
+      BACKEND: diego
+      INCLUDE_DEFAULT: true
+      INCLUDE_BACKEND_COMPATIBILITY: true
+      INCLUDE_DIEGO_DOCKER: true
+      INCLUDE_DIEGO_SSH: true
+      INCLUDE_INTERNET_DEPENDENT: true
+      INCLUDE_ROUTE_SERVICES: true
+      INCLUDE_SECURITY_GROUPS: true
+    ensure:
+      put: bosh-lites-diego-pool
+      params:
+        release: bosh-lite-lock
+    on_failure:
+       put: slack-alert
+       params:
+         channel: '#cli-firehose'
+         text: "cats diego failed OR errored :("
+
+- name: cats-windows
+  serial: true
+  plan:
+  - aggregate:
+    - get: cf-cli-binaries
+      trigger: true
+      passed: [build-binaries]
+    - get: final-cli
+      passed: [build-binaries]
+    - get: cli
+      passed: [build-binaries]
+    - get: cf-release-repo
+      params:
+        submodules:
+        - src/github.com/cloudfoundry/cf-acceptance-tests
+    - get: cli-ci
+    - put: bosh-lite-lock
+      resource: bosh-lites-dea-pool
+      params:
+        acquire: true
+  - task: cats
+    file: cli-ci/ci/cli/tasks/cats-windows.yml
+    params:
+      ADMIN_USER: {{bosh-lite-admin-username}}
+      ADMIN_PASSWORD: {{bosh-lite-admin-password}}
+    ensure:
+      put: bosh-lites-dea-pool
+      params:
+        release: bosh-lite-lock
+    on_failure:
+       put: slack-alert
+       params:
+         channel: '#cli-firehose'
+         text: "cats windows failed OR errored :("
+
+- name: create-installers
+  serial: true
+  plan:
+  - aggregate:
+    - get: final-cli
+      passed: [cats-linux, cats-windows, cats-diego, gats]
+    - get: cli
+      passed: [cats-linux, cats-windows, cats-diego, gats]
+    - get: cf-cli-binaries
+      trigger: true
+      passed: [cats-linux, cats-windows, cats-diego, gats]
+    - get: cli-private
+    - get: cli-ci
+  - aggregate:
+    - do:
+      - task: windows
+        file: cli-ci/ci/cli/tasks/create-installers-windows.yml
+        params:
+          SIGNTOOL_CERT_PATH: {{signtool-cert-path}}
+          SIGNTOOL_CERT_PASSWORD: {{signtool-cert-password}}
+      - task: unix
+        file: cli-ci/ci/cli/tasks/create-installers.yml
+      on_failure:
+         put: slack-alert
+         params:
+           channel: '#cli-firehose'
+           text: "create installers failed OR errored :("
+  - aggregate:
+    - put: cf-cli-installer-win32
+      params:
+        file: winstallers/cf-cli-installer_win32.zip
+    - put: cf-cli-installer-win64
+      params:
+        file: winstallers/cf-cli-installer_winx64.zip
+    - put: cf-cli-installers
+      params:
+        file: installers/cf-cli-installers.tgz
+
+- name: publish-edge-archives
+  serial: true
+  plan:
+  - aggregate:
+    - get: cf-cli-binaries
+      trigger: true
+      passed: [create-installers]
+    - get: cli
+      passed: [create-installers]
+    - get: cf-cli-installers
+      passed: [create-installers]
+    - get: cf-cli-installer-win32
+      passed: [create-installers]
+    - get: cf-cli-installer-win64
+      passed: [create-installers]
+    - get: cli-ci
+  - task: publish
+    file: cli-ci/ci/cli/tasks/publish-edge-archives.yml
+    params:
+      AWS_ACCESS_KEY_ID: {{release-bucket-access-key-id}}
+      AWS_SECRET_ACCESS_KEY: {{release-bucket-secret-access-key}}
+    on_failure:
+       put: slack-alert
+       params:
+         channel: '#cli-firehose'
+         text: "publish edge archives failed OR errored :("
+  - put: cf-cli-tracker
+    params:
+      repos:
+      - cli
+
+- name: publish-final-release
+  serial: true
+  plan:
+  - aggregate:
+    - get: final-cli
+      trigger: true
+      passed: [create-installers]
+    - get: cf-cli-binaries
+      passed: [create-installers]
+    - get: cf-cli-installers
+      passed: [create-installers]
+    - get: cf-cli-installer-win32
+      passed: [create-installers]
+    - get: cf-cli-installer-win64
+      passed: [create-installers]
+    - get: cli-ci
+    - get: homebrew-tap
+  - task: publish
+    file: cli-ci/ci/cli/tasks/publish-final-release.yml
+    params:
+      AWS_ACCESS_KEY_ID: {{release-bucket-access-key-id}}
+      AWS_SECRET_ACCESS_KEY: {{release-bucket-secret-access-key}}
+    on_failure:
+       put: slack-alert
+       params:
+         channel: '#cli-firehose'
+         text: "publish final release failed OR errored :("
+  - task: update-brew-formula
+    file: cli-ci/ci/cli/tasks/update-brew-formula.yml
+    on_failure:
+       put: slack-alert
+       params:
+         channel: '#cli-firehose'
+         text: "Update brew formula failed OR errored :("
+  - put: homebrew-tap
+    params:
+      repository: update-brew-formula-output/homebrew-tap
+
+- name: create-cli-ci-image
+  serial: true
+  plan:
+  - aggregate:
+    - get: cli-ci-dockerfile
+      trigger: true
+    - get: golang
+      trigger: true
+      params: {save: true}
+  - put: cf-cli-image
+    params:
+      load_base: golang
+      build: cli-ci-dockerfile/ci

@@ -6,21 +6,22 @@ import (
 
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/api/resources"
-	"github.com/cloudfoundry/cli/cf/command_registry"
+	"github.com/cloudfoundry/cli/cf/api/stacks/stacksfakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
 	"github.com/cloudfoundry/cli/cf/commands/application"
 	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/flags"
 	"github.com/cloudfoundry/cli/cf/formatters"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/flags"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	"github.com/cloudfoundry/cli/plugin/models"
 
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
-	fakeappinstances "github.com/cloudfoundry/cli/cf/api/app_instances/fakes"
-	fakeapi "github.com/cloudfoundry/cli/cf/api/fakes"
-	fakerequirements "github.com/cloudfoundry/cli/cf/requirements/fakes"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
+	"github.com/cloudfoundry/cli/cf/api/appinstances/appinstancesfakes"
 
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 
@@ -28,29 +29,22 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-type passingRequirement struct {
-	Name string
-}
-
-func (r passingRequirement) Execute() bool {
-	return true
-}
-
 var _ = Describe("App", func() {
 	var (
 		ui               *testterm.FakeUI
-		appSummaryRepo   *fakeapi.FakeAppSummaryRepository
-		appInstancesRepo *fakeappinstances.FakeAppInstancesRepository
+		appSummaryRepo   *apifakes.FakeAppSummaryRepository
+		appInstancesRepo *appinstancesfakes.FakeAppInstancesRepository
+		stackRepo        *stacksfakes.FakeStackRepository
 		getAppModel      *plugin_models.GetAppModel
 
-		cmd         command_registry.Command
-		deps        command_registry.Dependency
-		factory     *fakerequirements.FakeFactory
+		cmd         commandregistry.Command
+		deps        commandregistry.Dependency
+		factory     *requirementsfakes.FakeFactory
 		flagContext flags.FlagContext
 
 		loginRequirement         requirements.Requirement
 		targetedSpaceRequirement requirements.Requirement
-		applicationRequirement   *fakerequirements.FakeApplicationRequirement
+		applicationRequirement   *requirementsfakes.FakeApplicationRequirement
 	)
 
 	BeforeEach(func() {
@@ -62,15 +56,17 @@ var _ = Describe("App", func() {
 		getAppModel = &plugin_models.GetAppModel{}
 
 		repoLocator := api.RepositoryLocator{}
-		appSummaryRepo = &fakeapi.FakeAppSummaryRepository{}
+		appSummaryRepo = new(apifakes.FakeAppSummaryRepository)
 		repoLocator = repoLocator.SetAppSummaryRepository(appSummaryRepo)
-		appInstancesRepo = &fakeappinstances.FakeAppInstancesRepository{}
+		appInstancesRepo = new(appinstancesfakes.FakeAppInstancesRepository)
 		repoLocator = repoLocator.SetAppInstancesRepository(appInstancesRepo)
+		stackRepo = new(stacksfakes.FakeStackRepository)
+		repoLocator = repoLocator.SetStackRepository(stackRepo)
 
-		deps = command_registry.Dependency{
-			Ui:     ui,
+		deps = commandregistry.Dependency{
+			UI:     ui,
 			Config: testconfig.NewRepositoryWithDefaults(),
-			PluginModels: &command_registry.PluginModels{
+			PluginModels: &commandregistry.PluginModels{
 				Application: getAppModel,
 			},
 			RepoLocator: repoLocator,
@@ -78,7 +74,7 @@ var _ = Describe("App", func() {
 
 		cmd.SetDependency(deps, false)
 
-		factory = &fakerequirements.FakeFactory{}
+		factory = new(requirementsfakes.FakeFactory)
 
 		loginRequirement = &passingRequirement{}
 		factory.NewLoginRequirementReturns(loginRequirement)
@@ -86,7 +82,7 @@ var _ = Describe("App", func() {
 		targetedSpaceRequirement = &passingRequirement{}
 		factory.NewTargetedSpaceRequirementReturns(targetedSpaceRequirement)
 
-		applicationRequirement = &fakerequirements.FakeApplicationRequirement{}
+		applicationRequirement = new(requirementsfakes.FakeApplicationRequirement)
 		factory.NewApplicationRequirementReturns(applicationRequirement)
 	})
 
@@ -98,7 +94,7 @@ var _ = Describe("App", func() {
 
 			It("fails with usage", func() {
 				Expect(func() { cmd.Requirements(factory, flagContext) }).To(Panic())
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Incorrect Usage. Requires an argument"},
 					[]string{"NAME"},
 					[]string{"USAGE"},
@@ -112,24 +108,21 @@ var _ = Describe("App", func() {
 			})
 
 			It("returns a LoginRequirement", func() {
-				actualRequirements, err := cmd.Requirements(factory, flagContext)
-				Expect(err).NotTo(HaveOccurred())
+				actualRequirements := cmd.Requirements(factory, flagContext)
 				Expect(factory.NewLoginRequirementCallCount()).To(Equal(1))
 
 				Expect(actualRequirements).To(ContainElement(loginRequirement))
 			})
 
 			It("returns a TargetedSpaceRequirement", func() {
-				actualRequirements, err := cmd.Requirements(factory, flagContext)
-				Expect(err).NotTo(HaveOccurred())
+				actualRequirements := cmd.Requirements(factory, flagContext)
 				Expect(factory.NewTargetedSpaceRequirementCallCount()).To(Equal(1))
 
 				Expect(actualRequirements).To(ContainElement(targetedSpaceRequirement))
 			})
 
 			It("returns an ApplicationRequirement", func() {
-				actualRequirements, err := cmd.Requirements(factory, flagContext)
-				Expect(err).NotTo(HaveOccurred())
+				actualRequirements := cmd.Requirements(factory, flagContext)
 				Expect(factory.NewApplicationRequirementCallCount()).To(Equal(1))
 				Expect(factory.NewApplicationRequirementArgsForCall(0)).To(Equal("app-name"))
 
@@ -142,15 +135,16 @@ var _ = Describe("App", func() {
 		var (
 			getApplicationModel models.Application
 			getAppSummaryModel  models.Application
+			appStackModel       models.Stack
 			appInstanceFields   []models.AppInstanceFields
 			getAppSummaryErr    error
+			err                 error
 		)
 
 		BeforeEach(func() {
 			err := flagContext.Parse("app-name")
 			Expect(err).NotTo(HaveOccurred())
-			_, err = cmd.Requirements(factory, flagContext)
-			Expect(err).NotTo(HaveOccurred())
+			cmd.Requirements(factory, flagContext)
 
 			paginatedApplicationResources := resources.PaginatedApplicationResources{}
 			err = json.Unmarshal([]byte(getApplicationJSON), &paginatedApplicationResources)
@@ -169,7 +163,7 @@ var _ = Describe("App", func() {
 					State:     models.InstanceRunning,
 					Details:   "fake-instance-details",
 					Since:     time.Date(2015, time.November, 19, 1, 1, 17, 0, time.UTC),
-					CpuUsage:  float64(0.25),
+					CPUUsage:  float64(0.25),
 					DiskUsage: int64(1 * formatters.GIGABYTE),
 					DiskQuota: int64(2 * formatters.GIGABYTE),
 					MemUsage:  int64(24 * formatters.MEGABYTE),
@@ -177,32 +171,49 @@ var _ = Describe("App", func() {
 				},
 			}
 
+			appStackModel = models.Stack{
+				GUID: "fake-stack-guid",
+				Name: "fake-stack-name",
+			}
+
 			applicationRequirement.GetApplicationReturns(getApplicationModel)
 			appSummaryRepo.GetSummaryReturns(getAppSummaryModel, getAppSummaryErr)
 			appInstancesRepo.GetInstancesReturns(appInstanceFields, nil)
+			stackRepo.FindByGUIDReturns(appStackModel, nil)
+		})
+
+		JustBeforeEach(func() {
+			err = cmd.Execute(flagContext)
 		})
 
 		It("gets the application summary", func() {
-			cmd.Execute(flagContext)
+			Expect(err).NotTo(HaveOccurred())
 			Expect(appSummaryRepo.GetSummaryCallCount()).To(Equal(1))
 		})
 
 		It("gets the app instances", func() {
-			cmd.Execute(flagContext)
+			Expect(err).NotTo(HaveOccurred())
 			Expect(appInstancesRepo.GetInstancesCallCount()).To(Equal(1))
 		})
 
 		It("gets the application from the application requirement", func() {
-			cmd.Execute(flagContext)
+			Expect(err).NotTo(HaveOccurred())
 			Expect(applicationRequirement.GetApplicationCallCount()).To(Equal(1))
 		})
 
+		It("gets the stack name from the stack repository", func() {
+			Expect(err).NotTo(HaveOccurred())
+			Expect(stackRepo.FindByGUIDCallCount()).To(Equal(1))
+		})
+
 		It("prints a summary of the app", func() {
-			cmd.Execute(flagContext)
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(err).NotTo(HaveOccurred())
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Showing health and status for app fake-app-name"},
 				[]string{"requested state: started"},
 				[]string{"instances: 1/1"},
+				// Commented to hide app-ports for release #117189491
+				// []string{"app ports: 8080, 9090"},
 				[]string{"usage: 1G x 1 instances"},
 				[]string{"urls: fake-route-host.fake-route-domain-name"},
 				[]string{"last uploaded: Thu Nov 19 01:00:15 UTC 2015"},
@@ -217,12 +228,12 @@ var _ = Describe("App", func() {
 				getAppSummaryModel.RunningInstances = 0
 				getAppSummaryModel.InstanceCount = 1
 				getAppSummaryModel.State = "stopped"
-				appSummaryRepo.GetSummaryReturns(getAppSummaryModel, errors.NewHttpError(400, errors.APP_STOPPED, "error"))
+				appSummaryRepo.GetSummaryReturns(getAppSummaryModel, errors.NewHTTPError(400, errors.InstancesError, "error"))
 			})
 
 			It("prints appropriate output", func() {
-				cmd.Execute(flagContext)
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(err).NotTo(HaveOccurred())
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Showing health and status", "fake-app-name", "my-org", "my-space", "my-user"},
 					[]string{"state", "stopped"},
 					[]string{"instances", "0/1"},
@@ -237,12 +248,12 @@ var _ = Describe("App", func() {
 				getAppSummaryModel.RunningInstances = 0
 				getAppSummaryModel.InstanceCount = 1
 				getAppSummaryModel.State = "stopped"
-				appSummaryRepo.GetSummaryReturns(getAppSummaryModel, errors.NewHttpError(400, errors.APP_NOT_STAGED, "error"))
+				appSummaryRepo.GetSummaryReturns(getAppSummaryModel, errors.NewHTTPError(400, errors.NotStaged, "error"))
 			})
 
 			It("prints appropriate output", func() {
-				cmd.Execute(flagContext)
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(err).NotTo(HaveOccurred())
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Showing health and status", "fake-app-name", "my-org", "my-space", "my-user"},
 					[]string{"state", "stopped"},
 					[]string{"instances", "0/1"},
@@ -259,12 +270,9 @@ var _ = Describe("App", func() {
 				appSummaryRepo.GetSummaryReturns(getAppSummaryModel, errors.New("an-error"))
 			})
 
-			It("panics and prints a failure message", func() {
-				Expect(func() { cmd.Execute(flagContext) }).To(Panic())
-				Expect(ui.Outputs).To(ContainSubstrings(
-					[]string{"FAILED"},
-					[]string{"an-error"},
-				))
+			It("returns an error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal("an-error"))
 			})
 
 			Context("when the app is stopped", func() {
@@ -274,8 +282,8 @@ var _ = Describe("App", func() {
 				})
 
 				It("prints appropriate output", func() {
-					cmd.Execute(flagContext)
-					Expect(ui.Outputs).To(ContainSubstrings(
+					Expect(err).NotTo(HaveOccurred())
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"Showing health and status", "fake-app-name", "my-org", "my-space", "my-user"},
 						[]string{"state", "stopped"},
 						[]string{"instances", "0/1"},
@@ -291,12 +299,9 @@ var _ = Describe("App", func() {
 				appInstancesRepo.GetInstancesReturns([]models.AppInstanceFields{}, errors.New("an-error"))
 			})
 
-			It("panics and prints a failure message", func() {
-				Expect(func() { cmd.Execute(flagContext) }).To(Panic())
-				Expect(ui.Outputs).To(ContainSubstrings(
-					[]string{"FAILED"},
-					[]string{"an-error"},
-				))
+			It("returns an error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal("an-error"))
 			})
 
 			Context("when the app is stopped", func() {
@@ -307,8 +312,8 @@ var _ = Describe("App", func() {
 				})
 
 				It("prints appropriate output", func() {
-					cmd.Execute(flagContext)
-					Expect(ui.Outputs).To(ContainSubstrings(
+					Expect(err).NotTo(HaveOccurred())
+					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"Showing health and status", "fake-app-name", "my-org", "my-space", "my-user"},
 						[]string{"state", "stopped"},
 						[]string{"instances", "0/1"},
@@ -326,10 +331,25 @@ var _ = Describe("App", func() {
 			})
 
 			It("prints 'unknown' as last uploaded", func() {
-				cmd.Execute(flagContext)
+				Expect(err).NotTo(HaveOccurred())
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"last uploaded: unknown"},
+				))
+			})
+		})
+
+		Context("when the application has no app ports", func() {
+			BeforeEach(func() {
+				getAppSummaryModel.AppPorts = []int{}
+				appSummaryRepo.GetSummaryReturns(getAppSummaryModel, nil)
+			})
+
+			It("does not print 'app ports'", func() {
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(ui.Outputs()).NotTo(ContainSubstrings(
+					[]string{"app ports:"},
 				))
 			})
 		})
@@ -343,9 +363,9 @@ var _ = Describe("App", func() {
 			})
 
 			It("prints the buildpack", func() {
-				cmd.Execute(flagContext)
+				Expect(err).NotTo(HaveOccurred())
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"buildpack", "fake-buildpack"},
 				))
 			})
@@ -360,9 +380,9 @@ var _ = Describe("App", func() {
 			})
 
 			It("prints the detected buildpack", func() {
-				cmd.Execute(flagContext)
+				Expect(err).NotTo(HaveOccurred())
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"buildpack", "fake-detected-buildpack"},
 				))
 			})
@@ -377,8 +397,8 @@ var _ = Describe("App", func() {
 			})
 
 			It("prints the 'unknown' as the buildpack", func() {
-				cmd.Execute(flagContext)
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(err).NotTo(HaveOccurred())
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"buildpack", "unknown"},
 				))
 			})
@@ -391,8 +411,8 @@ var _ = Describe("App", func() {
 			})
 
 			It("displays a '?' for running instances", func() {
-				cmd.Execute(flagContext)
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(err).NotTo(HaveOccurred())
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"instances", "?/1"},
 				))
 			})
@@ -404,11 +424,11 @@ var _ = Describe("App", func() {
 			})
 
 			It("only prints the guid for the app", func() {
-				cmd.Execute(flagContext)
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(err).NotTo(HaveOccurred())
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"fake-app-guid"},
 				))
-				Expect(ui.Outputs).ToNot(ContainSubstrings(
+				Expect(ui.Outputs()).ToNot(ContainSubstrings(
 					[]string{"Showing health and status", "my-app"},
 				))
 			})
@@ -420,7 +440,7 @@ var _ = Describe("App", func() {
 			})
 
 			It("populates the plugin model", func() {
-				cmd.Execute(flagContext)
+				Expect(err).NotTo(HaveOccurred())
 
 				// from AppRequirement model
 				Expect(getAppModel.Stack.Name).To(Equal("fake-stack-name"))
@@ -444,6 +464,7 @@ var _ = Describe("App", func() {
 				Expect(getAppModel.PackageState).To(Equal("STAGED"))
 				Expect(getAppModel.StagingFailedReason).To(BeEmpty())
 				Expect(getAppModel.BuildpackUrl).To(Equal("fake-buildpack"))
+				Expect(getAppModel.AppPorts).To(Equal([]int{8080, 9090}))
 				Expect(getAppModel.Routes[0].Host).To(Equal("fake-route-host"))
 				Expect(getAppModel.Routes[0].Guid).To(Equal("fake-route-guid"))
 				Expect(getAppModel.Routes[0].Domain.Name).To(Equal("fake-route-domain-name"))
@@ -509,7 +530,10 @@ var getApplicationJSON string = `{
         "docker_credentials_json": {
           "redacted_message": "[PRIVATE DATA HIDDEN]"
         },
-        "ports": null,
+        "ports": [
+          8080,
+          9090
+				],
         "space_url": "fake-space-url",
         "space": {
           "metadata": {
@@ -649,5 +673,8 @@ var getSummaryJSON string = `{
 	"docker_credentials_json": {
 		"redacted_message": "[PRIVATE DATA HIDDEN]"
 	},
-	"ports": null
+	"ports": [
+		8080,
+		9090
+	]
 }`

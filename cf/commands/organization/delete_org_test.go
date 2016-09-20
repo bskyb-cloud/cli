@@ -2,14 +2,15 @@ package organization_test
 
 import (
 	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 
-	test_org "github.com/cloudfoundry/cli/cf/api/organizations/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/organizations/organizationsfakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/models"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -19,19 +20,19 @@ import (
 
 var _ = Describe("delete-org command", func() {
 	var (
-		config              core_config.Repository
+		config              coreconfig.Repository
 		ui                  *testterm.FakeUI
-		requirementsFactory *testreq.FakeReqFactory
-		orgRepo             *test_org.FakeOrganizationRepository
+		requirementsFactory *requirementsfakes.FakeFactory
+		orgRepo             *organizationsfakes.FakeOrganizationRepository
 		org                 models.Organization
-		deps                command_registry.Dependency
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.RepoLocator = deps.RepoLocator.SetOrganizationRepository(orgRepo)
 		deps.Config = config
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("delete-org").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("delete-org").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
@@ -39,35 +40,36 @@ var _ = Describe("delete-org command", func() {
 			Inputs: []string{"y"},
 		}
 		config = testconfig.NewRepositoryWithDefaults()
-		requirementsFactory = &testreq.FakeReqFactory{}
+		requirementsFactory = new(requirementsfakes.FakeFactory)
 
 		org = models.Organization{}
 		org.Name = "org-to-delete"
-		org.Guid = "org-to-delete-guid"
-		orgRepo = &test_org.FakeOrganizationRepository{}
+		org.GUID = "org-to-delete-guid"
+		orgRepo = new(organizationsfakes.FakeOrganizationRepository)
 
 		orgRepo.ListOrgsReturns([]models.Organization{org}, nil)
 		orgRepo.FindByNameReturns(org, nil)
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("delete-org", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("delete-org", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	It("fails requirements when not logged in", func() {
+		requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 		Expect(runCommand("some-org-name")).To(BeFalse())
 	})
 
 	It("fails with usage if no arguments are given", func() {
 		runCommand()
-		Expect(ui.Outputs).To(ContainSubstrings(
+		Expect(ui.Outputs()).To(ContainSubstrings(
 			[]string{"Incorrect Usage", "Requires an argument"},
 		))
 	})
 
 	Context("when logged in", func() {
 		BeforeEach(func() {
-			requirementsFactory.LoginSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
 		})
 
 		Context("when deleting the currently targeted org", func() {
@@ -83,7 +85,7 @@ var _ = Describe("delete-org command", func() {
 		Context("when deleting an org that is not targeted", func() {
 			BeforeEach(func() {
 				otherOrgFields := models.OrganizationFields{}
-				otherOrgFields.Guid = "some-other-org-guid"
+				otherOrgFields.GUID = "some-other-org-guid"
 				otherOrgFields.Name = "some-other-org"
 				config.SetOrganizationFields(otherOrgFields)
 
@@ -97,7 +99,7 @@ var _ = Describe("delete-org command", func() {
 
 				Expect(ui.Prompts).To(ContainSubstrings([]string{"Really delete the org org-to-delete"}))
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Deleting", "org-to-delete"},
 					[]string{"OK"},
 				))
@@ -117,7 +119,7 @@ var _ = Describe("delete-org command", func() {
 			ui.Inputs = []string{}
 			runCommand("-f", "org-to-delete")
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Deleting", "org-to-delete"},
 				[]string{"OK"},
 			))
@@ -132,7 +134,7 @@ var _ = Describe("delete-org command", func() {
 
 			Expect(orgRepo.DeleteCallCount()).To(Equal(0))
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Deleting", "org-to-delete"},
 				[]string{"OK"},
 			))

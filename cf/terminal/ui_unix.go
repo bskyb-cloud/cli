@@ -1,6 +1,6 @@
 // Copied from https://code.google.com/p/gopass/
 
-// +build darwin freebsd linux netbsd openbsd
+// +build !windows
 
 package terminal
 
@@ -16,24 +16,23 @@ import (
 )
 
 const (
-	sttyArg0   = "/bin/stty"
-	exec_cwdir = ""
+	sttyArg0  = "/bin/stty"
+	execCWDir = ""
 )
 
 // Tells the terminal to turn echo off.
-var sttyArgvEOff []string = []string{"stty", "-echo"}
+var sttyArgvEOff = []string{"stty", "-echo"}
 
 // Tells the terminal to turn echo on.
-var sttyArgvEOn []string = []string{"stty", "echo"}
+var sttyArgvEOn = []string{"stty", "echo"}
 
 var ws syscall.WaitStatus
 
-func (ui terminalUI) AskForPassword(prompt string, args ...interface{}) (passwd string) {
+func (ui terminalUI) AskForPassword(prompt string) (passwd string) {
 	sig := make(chan os.Signal, 10)
 
 	// Display the prompt.
-	fmt.Println("")
-	fmt.Printf(prompt+PromptColor(">")+" ", args...)
+	fmt.Printf("\n%s%s ", prompt, PromptColor(">"))
 
 	// File descriptors for stdin, stdout, and stderr.
 	fd := []uintptr{os.Stdin.Fd(), os.Stdout.Fd(), os.Stderr.Fd()}
@@ -62,7 +61,7 @@ func (ui terminalUI) AskForPassword(prompt string, args ...interface{}) (passwd 
 
 func readPassword(pid int) string {
 	rd := bufio.NewReader(os.Stdin)
-	syscall.Wait4(pid, &ws, 0, nil)
+	_, _ = syscall.Wait4(pid, &ws, 0, nil)
 
 	line, err := rd.ReadString('\n')
 	if err == nil {
@@ -72,7 +71,7 @@ func readPassword(pid int) string {
 }
 
 func echoOff(fd []uintptr) (int, error) {
-	pid, err := syscall.ForkExec(sttyArg0, sttyArgvEOff, &syscall.ProcAttr{Dir: exec_cwdir, Files: fd})
+	pid, err := syscall.ForkExec(sttyArg0, sttyArgvEOff, &syscall.ProcAttr{Dir: execCWDir, Files: fd})
 
 	if err != nil {
 		return 0, fmt.Errorf(T("failed turning off console echo for password entry:\n{{.ErrorDescription}}", map[string]interface{}{"ErrorDescription": err}))
@@ -84,10 +83,10 @@ func echoOff(fd []uintptr) (int, error) {
 // echoOn turns back on the terminal echo.
 func echoOn(fd []uintptr) {
 	// Turn on the terminal echo.
-	pid, e := syscall.ForkExec(sttyArg0, sttyArgvEOn, &syscall.ProcAttr{Dir: exec_cwdir, Files: fd})
+	pid, e := syscall.ForkExec(sttyArg0, sttyArgvEOn, &syscall.ProcAttr{Dir: execCWDir, Files: fd})
 
 	if e == nil {
-		syscall.Wait4(pid, &ws, 0, nil)
+		_, _ = syscall.Wait4(pid, &ws, 0, nil)
 	}
 }
 

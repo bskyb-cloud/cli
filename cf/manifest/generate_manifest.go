@@ -1,37 +1,69 @@
 package manifest
 
 import (
+	"errors"
 	"fmt"
-	"os"
 
 	"github.com/cloudfoundry/cli/cf/models"
+
+	"gopkg.in/yaml.v2"
+
+	"io"
+
+	. "github.com/cloudfoundry/cli/cf/i18n"
 )
 
-type AppManifest interface {
-	BuildpackUrl(string, string)
+//go:generate counterfeiter . App
+
+type App interface {
+	BuildpackURL(string, string)
+	DiskQuota(string, int64)
 	Memory(string, int64)
 	Service(string, string)
 	StartCommand(string, string)
 	EnvironmentVars(string, string, string)
 	HealthCheckTimeout(string, int)
 	Instances(string, int)
-	Domain(string, string, string)
+	Route(string, string, string, string, int)
 	GetContents() []models.Application
-	FileSavePath(string)
-	Save() error
+	Stack(string, string)
+	AppPorts(string, []int)
+	Save(f io.Writer) error
+}
+
+type Application struct {
+	Name      string                 `yaml:"name"`
+	Instances int                    `yaml:"instances,omitempty"`
+	Memory    string                 `yaml:"memory,omitempty"`
+	DiskQuota string                 `yaml:"disk_quota,omitempty"`
+	AppPorts  []int                  `yaml:"app-ports,omitempty"`
+	Routes    []map[string]string    `yaml:"routes,omitempty"`
+	NoRoute   bool                   `yaml:"no-route,omitempty"`
+	Buildpack string                 `yaml:"buildpack,omitempty"`
+	Command   string                 `yaml:"command,omitempty"`
+	Env       map[string]interface{} `yaml:"env,omitempty"`
+	Services  []string               `yaml:"services,omitempty"`
+	Stack     string                 `yaml:"stack,omitempty"`
+	Timeout   int                    `yaml:"timeout,omitempty"`
+}
+
+type Applications struct {
+	Applications []Application `yaml:"applications"`
 }
 
 type appManifest struct {
-	savePath string
 	contents []models.Application
 }
 
-func NewGenerator() AppManifest {
+func NewGenerator() App {
 	return &appManifest{}
 }
 
-func (m *appManifest) FileSavePath(savePath string) {
-	m.savePath = savePath
+func (m *appManifest) Stack(appName string, stackName string) {
+	i := m.findOrCreateApplication(appName)
+	m.contents[i].Stack = &models.Stack{
+		Name: stackName,
+	}
 }
 
 func (m *appManifest) Memory(appName string, memory int64) {
@@ -39,14 +71,19 @@ func (m *appManifest) Memory(appName string, memory int64) {
 	m.contents[i].Memory = memory
 }
 
+func (m *appManifest) DiskQuota(appName string, diskQuota int64) {
+	i := m.findOrCreateApplication(appName)
+	m.contents[i].DiskQuota = diskQuota
+}
+
 func (m *appManifest) StartCommand(appName string, cmd string) {
 	i := m.findOrCreateApplication(appName)
 	m.contents[i].Command = cmd
 }
 
-func (m *appManifest) BuildpackUrl(appName string, url string) {
+func (m *appManifest) BuildpackURL(appName string, url string) {
 	i := m.findOrCreateApplication(appName)
-	m.contents[i].BuildpackUrl = url
+	m.contents[i].BuildpackURL = url
 }
 
 func (m *appManifest) HealthCheckTimeout(appName string, timeout int) {
@@ -62,19 +99,22 @@ func (m *appManifest) Instances(appName string, instances int) {
 func (m *appManifest) Service(appName string, name string) {
 	i := m.findOrCreateApplication(appName)
 	m.contents[i].Services = append(m.contents[i].Services, models.ServicePlanSummary{
-		Guid: "",
+		GUID: "",
 		Name: name,
 	})
 }
 
-func (m *appManifest) Domain(appName string, host string, domain string) {
+func (m *appManifest) Route(appName, host, domain, path string, port int) {
 	i := m.findOrCreateApplication(appName)
 	m.contents[i].Routes = append(m.contents[i].Routes, models.RouteSummary{
 		Host: host,
 		Domain: models.DomainFields{
 			Name: domain,
 		},
+		Path: path,
+		Port: port,
 	})
+
 }
 
 func (m *appManifest) EnvironmentVars(appName string, key, value string) {
@@ -82,86 +122,109 @@ func (m *appManifest) EnvironmentVars(appName string, key, value string) {
 	m.contents[i].EnvironmentVars[key] = value
 }
 
+func (m *appManifest) AppPorts(appName string, appPorts []int) {
+	i := m.findOrCreateApplication(appName)
+	m.contents[i].AppPorts = appPorts
+}
+
 func (m *appManifest) GetContents() []models.Application {
 	return m.contents
 }
 
-func (m *appManifest) Save() error {
-	f, err := os.Create(m.savePath)
-	if err != nil {
-		return err
+func generateAppMap(app models.Application) (Application, error) {
+	if app.Stack == nil {
+		return Application{}, errors.New(T("required attribute 'stack' missing"))
 	}
-	defer f.Close()
 
-	_, err = fmt.Fprintln(f, "---\napplications:")
-	if err != nil {
-		return err
+	if app.Memory == 0 {
+		return Application{}, errors.New(T("required attribute 'memory' missing"))
 	}
+
+	if app.DiskQuota == 0 {
+		return Application{}, errors.New(T("required attribute 'disk_quota' missing"))
+	}
+
+	if app.InstanceCount == 0 {
+		return Application{}, errors.New(T("required attribute 'instances' missing"))
+	}
+
+	var services []string
+	for _, s := range app.Services {
+		services = append(services, s.Name)
+	}
+
+	var routes []map[string]string
+	for _, routeSummary := range app.Routes {
+		routes = append(routes, buildRoute(routeSummary))
+	}
+	m := Application{
+		Name:      app.Name,
+		Services:  services,
+		Buildpack: app.BuildpackURL,
+		Memory:    fmt.Sprintf("%dM", app.Memory),
+		Command:   app.Command,
+		Env:       app.EnvironmentVars,
+		Timeout:   app.HealthCheckTimeout,
+		Instances: app.InstanceCount,
+		DiskQuota: fmt.Sprintf("%dM", app.DiskQuota),
+		Stack:     app.Stack.Name,
+		AppPorts:  app.AppPorts,
+		Routes:    routes,
+	}
+
+	if len(app.Routes) == 0 {
+		m.NoRoute = true
+
+	}
+
+	return m, nil
+}
+
+func (m *appManifest) Save(f io.Writer) error {
+	apps := Applications{}
 
 	for _, app := range m.contents {
-		if _, err := fmt.Fprintf(f, "- name: %s\n", app.Name); err != nil {
-			return err
+		appMap, mapErr := generateAppMap(app)
+		if mapErr != nil {
+			return fmt.Errorf(T("Error saving manifest: {{.Error}}", map[string]interface{}{
+				"Error": mapErr.Error(),
+			}))
 		}
-
-		if _, err := fmt.Fprintf(f, "  memory: %dM\n", app.Memory); err != nil {
-			return err
-		}
-
-		if _, err := fmt.Fprintf(f, "  instances: %d\n", app.InstanceCount); err != nil {
-			return err
-		}
-
-		if app.BuildpackUrl != "" {
-			if _, err := fmt.Fprintf(f, "  buildpack: %s\n", app.BuildpackUrl); err != nil {
-				return err
-			}
-		}
-
-		if app.HealthCheckTimeout > 0 {
-			if _, err := fmt.Fprintf(f, "  timeout: %d\n", app.HealthCheckTimeout); err != nil {
-				return err
-			}
-		}
-
-		if app.Command != "" {
-			if _, err := fmt.Fprintf(f, "  command: %s\n", app.Command); err != nil {
-				return err
-			}
-		}
-
-		if len(app.Routes) > 0 {
-			if len(app.Routes) == 1 {
-				if _, err := fmt.Fprintf(f, "  host: %s\n", app.Routes[0].Host); err != nil {
-					return err
-				}
-				if _, err := fmt.Fprintf(f, "  domain: %s\n", app.Routes[0].Domain.Name); err != nil {
-					return err
-				}
-			} else {
-				if err := writeRoutesToFile(f, app.Routes); err != nil {
-					return err
-				}
-			}
-		} else {
-			if _, err := fmt.Fprintf(f, "  no-route: true\n"); err != nil {
-				return err
-			}
-		}
-
-		if len(app.Services) > 0 {
-			if err := writeServicesToFile(f, app.Services); err != nil {
-				return err
-			}
-		}
-
-		if len(app.EnvironmentVars) > 0 {
-			if err := writeEnvironmentVarToFile(f, app.EnvironmentVars); err != nil {
-				return err
-			}
-		}
-
+		apps.Applications = append(apps.Applications, appMap)
 	}
+
+	contents, err := yaml.Marshal(apps)
+	if err != nil {
+		return err
+	}
+
+	_, err = f.Write(contents)
+	if err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func buildRoute(routeSummary models.RouteSummary) map[string]string {
+	var route string
+	if routeSummary.Host != "" {
+		route = fmt.Sprintf("%s.", routeSummary.Host)
+	}
+
+	route = fmt.Sprintf("%s%s", route, routeSummary.Domain.Name)
+
+	if routeSummary.Path != "" {
+		route = fmt.Sprintf("%s%s", route, routeSummary.Path)
+	}
+
+	if routeSummary.Port != 0 {
+		route = fmt.Sprintf("%s:%d", route, routeSummary.Port)
+	}
+
+	return map[string]string{
+		"route": route,
+	}
 }
 
 func (m *appManifest) findOrCreateApplication(name string) int {
@@ -181,90 +244,4 @@ func (m *appManifest) addApplication(name string) {
 			EnvironmentVars: make(map[string]interface{}),
 		},
 	})
-}
-func writeRoutesToFile(f *os.File, routes []models.RouteSummary) error {
-	var (
-		hostSlice    []string
-		domainSlice  []string
-		hostPSlice   *[]string
-		domainPSlice *[]string
-		hosts        []string
-		domains      []string
-	)
-
-	for i := 0; i < len(routes); i++ {
-		hostSlice = append(hostSlice, routes[i].Host)
-		domainSlice = append(domainSlice, routes[i].Domain.Name)
-	}
-
-	hostPSlice = removeDuplicatedValue(hostSlice)
-	domainPSlice = removeDuplicatedValue(domainSlice)
-
-	if hostPSlice != nil {
-		hosts = *hostPSlice
-	}
-	if domainPSlice != nil {
-		domains = *domainPSlice
-	}
-
-	if len(hosts) == 1 {
-		if _, err := fmt.Fprintf(f, "  host: %s\n", hosts[0]); err != nil {
-			return err
-		}
-	} else {
-		if _, err := fmt.Fprintln(f, "  hosts:"); err != nil {
-			return err
-		}
-		for i := 0; i < len(hosts); i++ {
-			if _, err := fmt.Fprintf(f, "  - %s\n", hosts[i]); err != nil {
-				return err
-			}
-		}
-	}
-
-	if len(domains) == 1 {
-		if _, err := fmt.Fprintf(f, "  domain: %s\n", domains[0]); err != nil {
-			return err
-		}
-	} else {
-		if _, err := fmt.Fprintln(f, "  domains:"); err != nil {
-			return err
-		}
-		for i := 0; i < len(domains); i++ {
-			if _, err := fmt.Fprintf(f, "  - %s\n", domains[i]); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-func writeServicesToFile(f *os.File, entries []models.ServicePlanSummary) error {
-	_, err := fmt.Fprintln(f, "  services:")
-	if err != nil {
-		return err
-	}
-	for _, service := range entries {
-		_, err = fmt.Fprintf(f, "  - %s\n", service.Name)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func writeEnvironmentVarToFile(f *os.File, envVars map[string]interface{}) error {
-	_, err := fmt.Fprintln(f, "  env:")
-	if err != nil {
-		return err
-	}
-	for k, v := range envVars {
-		_, err = fmt.Fprintf(f, "    %s: %s\n", k, v)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }

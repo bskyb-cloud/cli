@@ -3,41 +3,39 @@ package requirements
 import (
 	"github.com/cloudfoundry/cli/cf/api"
 	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/terminal"
 )
+
+//go:generate counterfeiter . ServiceInstanceRequirement
 
 type ServiceInstanceRequirement interface {
 	Requirement
 	GetServiceInstance() models.ServiceInstance
 }
 
-type serviceInstanceApiRequirement struct {
+type serviceInstanceAPIRequirement struct {
 	name            string
-	ui              terminal.UI
 	serviceRepo     api.ServiceRepository
 	serviceInstance models.ServiceInstance
 }
 
-func NewServiceInstanceRequirement(name string, ui terminal.UI, sR api.ServiceRepository) (req *serviceInstanceApiRequirement) {
-	req = new(serviceInstanceApiRequirement)
+func NewServiceInstanceRequirement(name string, sR api.ServiceRepository) (req *serviceInstanceAPIRequirement) {
+	req = new(serviceInstanceAPIRequirement)
 	req.name = name
-	req.ui = ui
 	req.serviceRepo = sR
 	return
 }
 
-func (req *serviceInstanceApiRequirement) Execute() (success bool) {
+func (req *serviceInstanceAPIRequirement) Execute() error {
 	var apiErr error
 	req.serviceInstance, apiErr = req.serviceRepo.FindInstanceByName(req.name)
 
 	if apiErr != nil {
-		req.ui.Failed(apiErr.Error())
-		return false
+		return apiErr
 	}
 
-	return true
+	return nil
 }
 
-func (req *serviceInstanceApiRequirement) GetServiceInstance() models.ServiceInstance {
+func (req *serviceInstanceAPIRequirement) GetServiceInstance() models.ServiceInstance {
 	return req.serviceInstance
 }

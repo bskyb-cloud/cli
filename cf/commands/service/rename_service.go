@@ -3,58 +3,60 @@ package service
 import (
 	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
 )
 
 type RenameService struct {
 	ui                 terminal.UI
-	config             core_config.Reader
+	config             coreconfig.Reader
 	serviceRepo        api.ServiceRepository
 	serviceInstanceReq requirements.ServiceInstanceRequirement
 }
 
 func init() {
-	command_registry.Register(&RenameService{})
+	commandregistry.Register(&RenameService{})
 }
 
-func (cmd *RenameService) MetaData() command_registry.CommandMetadata {
-	return command_registry.CommandMetadata{
+func (cmd *RenameService) MetaData() commandregistry.CommandMetadata {
+	return commandregistry.CommandMetadata{
 		Name:        "rename-service",
 		Description: T("Rename a service instance"),
-		Usage:       T("CF_NAME rename-service SERVICE_INSTANCE NEW_SERVICE_INSTANCE"),
+		Usage: []string{
+			T("CF_NAME rename-service SERVICE_INSTANCE NEW_SERVICE_INSTANCE"),
+		},
 	}
 }
 
-func (cmd *RenameService) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+func (cmd *RenameService) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
 	if len(fc.Args()) != 2 {
-		cmd.ui.Failed(T("Incorrect Usage. Requires SERVICE_INSTANCE and NEW_SERVICE_INSTANCE as arguments\n\n") + command_registry.Commands.CommandUsage("rename-service"))
+		cmd.ui.Failed(T("Incorrect Usage. Requires SERVICE_INSTANCE and NEW_SERVICE_INSTANCE as arguments\n\n") + commandregistry.Commands.CommandUsage("rename-service"))
 	}
 
 	cmd.serviceInstanceReq = requirementsFactory.NewServiceInstanceRequirement(fc.Args()[0])
 
-	reqs = []requirements.Requirement{
+	reqs := []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 		requirementsFactory.NewTargetedSpaceRequirement(),
 		cmd.serviceInstanceReq,
 	}
 
-	return
+	return reqs
 }
 
-func (cmd *RenameService) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *RenameService) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.serviceRepo = deps.RepoLocator.GetServiceRepository()
 	return cmd
 }
 
-func (cmd *RenameService) Execute(c flags.FlagContext) {
+func (cmd *RenameService) Execute(c flags.FlagContext) error {
 	newName := c.Args()[1]
 	serviceInstance := cmd.serviceInstanceReq.GetServiceInstance()
 
@@ -69,16 +71,16 @@ func (cmd *RenameService) Execute(c flags.FlagContext) {
 	err := cmd.serviceRepo.RenameService(serviceInstance, newName)
 
 	if err != nil {
-		if httpError, ok := err.(errors.HttpError); ok && httpError.ErrorCode() == errors.SERVICE_INSTANCE_NAME_TAKEN {
-			cmd.ui.Failed(T("{{.ErrorDescription}}\nTIP: Use '{{.CFServicesCommand}}' to view all services in this org and space.",
+		if httpError, ok := err.(errors.HTTPError); ok && httpError.ErrorCode() == errors.ServiceInstanceNameTaken {
+			return errors.New(T("{{.ErrorDescription}}\nTIP: Use '{{.CFServicesCommand}}' to view all services in this org and space.",
 				map[string]interface{}{
 					"ErrorDescription":  httpError.Error(),
-					"CFServicesCommand": cf.Name() + " " + "services",
+					"CFServicesCommand": cf.Name + " " + "services",
 				}))
-		} else {
-			cmd.ui.Failed(err.Error())
 		}
+		return err
 	}
 
 	cmd.ui.Ok()
+	return nil
 }

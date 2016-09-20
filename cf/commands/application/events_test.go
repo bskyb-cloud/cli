@@ -1,129 +1,220 @@
 package application_test
 
 import (
+	"errors"
 	"time"
 
-	testapi "github.com/cloudfoundry/cli/cf/api/app_events/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
-	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/commands/application"
+	"github.com/cloudfoundry/cli/cf/flags"
 	"github.com/cloudfoundry/cli/cf/models"
-	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements"
+
+	"github.com/cloudfoundry/cli/cf/api/appevents/appeventsfakes"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig/coreconfigfakes"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
+
+const TIMESTAMP_FORMAT = "2006-01-02T15:04:05.00-0700"
 
 var _ = Describe("events command", func() {
 	var (
-		requirementsFactory *testreq.FakeReqFactory
-		eventsRepo          *testapi.FakeAppEventsRepository
-		ui                  *testterm.FakeUI
-		configRepo          core_config.Repository
-		deps                command_registry.Dependency
+		reqFactory  *requirementsfakes.FakeFactory
+		eventsRepo  *appeventsfakes.FakeAppEventsRepository
+		ui          *testterm.FakeUI
+		config      *coreconfigfakes.FakeRepository
+		deps        commandregistry.Dependency
+		flagContext flags.FlagContext
+
+		loginRequirement         requirements.Requirement
+		targetedSpaceRequirement requirements.Requirement
+		applicationRequirement   *requirementsfakes.FakeApplicationRequirement
+
+		cmd *application.Events
 	)
 
-	const TIMESTAMP_FORMAT = "2006-01-02T15:04:05.00-0700"
-
-	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
-		deps.Config = configRepo
-		deps.RepoLocator = deps.RepoLocator.SetAppEventsRepository(eventsRepo)
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("events").SetDependency(deps, pluginCall))
-	}
-
 	BeforeEach(func() {
-		eventsRepo = new(testapi.FakeAppEventsRepository)
-		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: true}
+		cmd = &application.Events{}
+
 		ui = new(testterm.FakeUI)
-		configRepo = testconfig.NewRepositoryWithDefaults()
+		eventsRepo = new(appeventsfakes.FakeAppEventsRepository)
+		config = new(coreconfigfakes.FakeRepository)
+
+		config.OrganizationFieldsReturns(models.OrganizationFields{Name: "my-org"})
+		config.SpaceFieldsReturns(models.SpaceFields{Name: "my-space"})
+		config.UsernameReturns("my-user")
+
+		deps = commandregistry.Dependency{
+			UI:          ui,
+			RepoLocator: api.RepositoryLocator{}.SetAppEventsRepository(eventsRepo),
+			Config:      config,
+		}
+
+		flagContext = flags.NewFlagContext(cmd.MetaData().Flags)
+
+		reqFactory = new(requirementsfakes.FakeFactory)
+		loginRequirement = &passingRequirement{Name: "login-requirement"}
+		reqFactory.NewLoginRequirementReturns(loginRequirement)
+		targetedSpaceRequirement = &passingRequirement{Name: "targeted-space-requirement"}
+		reqFactory.NewTargetedSpaceRequirementReturns(targetedSpaceRequirement)
+		applicationRequirement = new(requirementsfakes.FakeApplicationRequirement)
+		applicationRequirement.ExecuteReturns(nil)
+		reqFactory.NewApplicationRequirementReturns(applicationRequirement)
 	})
 
-	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("events", args, requirementsFactory, updateCommandDependency, false)
-	}
+	Describe("Requirements", func() {
+		BeforeEach(func() {
+			cmd.SetDependency(deps, false)
+		})
 
-	It("fails with usage when called without an app name", func() {
-		passed := runCommand()
-		Expect(ui.Outputs).To(ContainSubstrings(
-			[]string{"Incorrect Usage", "Requires", "argument"},
-		))
-		Expect(passed).To(BeFalse())
+		Context("when not provided exactly 1 argument", func() {
+			It("fails", func() {
+				err := flagContext.Parse("too", "many")
+				Expect(err).NotTo(HaveOccurred())
+				Expect(func() { cmd.Requirements(reqFactory, flagContext) }).To(Panic())
+				Expect(ui.Outputs()).To(ContainSubstrings(
+					[]string{"Incorrect Usage", "Requires an argument"},
+				))
+			})
+		})
+
+		Context("when provided exactly one arg", func() {
+			var actualRequirements []requirements.Requirement
+
+			BeforeEach(func() {
+				err := flagContext.Parse("service-name")
+				Expect(err).NotTo(HaveOccurred())
+				actualRequirements = cmd.Requirements(reqFactory, flagContext)
+			})
+
+			It("returns a LoginRequirement", func() {
+				Expect(reqFactory.NewLoginRequirementCallCount()).To(Equal(1))
+				Expect(actualRequirements).To(ContainElement(loginRequirement))
+			})
+
+			It("returns a TargetedSpaceRequirement", func() {
+				Expect(reqFactory.NewTargetedSpaceRequirementCallCount()).To(Equal(1))
+				Expect(actualRequirements).To(ContainElement(targetedSpaceRequirement))
+			})
+
+			It("returns a ApplicationRequirement", func() {
+				Expect(reqFactory.NewApplicationRequirementCallCount()).To(Equal(1))
+				Expect(actualRequirements).To(ContainElement(applicationRequirement))
+			})
+		})
 	})
 
-	It("lists events given an app name", func() {
-		earlierTimestamp, err := time.Parse(TIMESTAMP_FORMAT, "1999-12-31T23:59:11.00-0000")
-		Expect(err).NotTo(HaveOccurred())
+	Describe("Execute", func() {
+		var executeCmdErr error
 
-		timestamp, err := time.Parse(TIMESTAMP_FORMAT, "2000-01-01T00:01:11.00-0000")
-		Expect(err).NotTo(HaveOccurred())
+		BeforeEach(func() {
+			applicationRequirement.GetApplicationReturns(models.Application{
+				ApplicationFields: models.ApplicationFields{
+					Name: "my-app",
+					GUID: "my-app-guid",
+				},
+			})
 
-		app := models.Application{}
-		app.Name = "my-app"
-		app.Guid = "my-app-guid"
-		requirementsFactory.Application = app
+			err := flagContext.Parse("my-app")
+			Expect(err).NotTo(HaveOccurred())
+		})
 
-		eventsRepo.RecentEventsReturns([]models.EventFields{
-			{
-				Guid:        "event-guid-1",
-				Name:        "app crashed",
-				Timestamp:   earlierTimestamp,
-				Description: "reason: app instance exited, exit_status: 78",
-				ActorName:   "George Clooney",
-			},
-			{
-				Guid:        "event-guid-2",
-				Name:        "app crashed",
-				Timestamp:   timestamp,
-				Description: "reason: app instance was stopped, exit_status: 77",
-				ActorName:   "Marcel Marceau",
-			},
-		}, nil)
+		JustBeforeEach(func() {
+			executeCmdErr = cmd.Execute(flagContext)
+		})
 
-		runCommand("my-app")
+		Context("when no events exist", func() {
+			BeforeEach(func() {
+				eventsRepo.RecentEventsReturns([]models.EventFields{}, nil)
 
-		Expect(eventsRepo.RecentEventsCallCount()).To(Equal(1))
-		appGuid, limit := eventsRepo.RecentEventsArgsForCall(0)
-		Expect(limit).To(Equal(int64(50)))
-		Expect(appGuid).To(Equal("my-app-guid"))
-		Expect(ui.Outputs).To(ContainSubstrings(
-			[]string{"Getting events for app", "my-app", "my-org", "my-space", "my-user"},
-			[]string{"time", "event", "actor", "description"},
-			[]string{earlierTimestamp.Local().Format(TIMESTAMP_FORMAT), "app crashed", "George Clooney", "app instance exited", "78"},
-			[]string{timestamp.Local().Format(TIMESTAMP_FORMAT), "app crashed", "Marcel Marceau", "app instance was stopped", "77"},
-		))
-	})
+				cmd.SetDependency(deps, false)
+				cmd.Requirements(reqFactory, flagContext)
+			})
 
-	It("tells the user when an error occurs", func() {
-		eventsRepo.RecentEventsReturns(nil, errors.New("welp"))
+			It("tells the user", func() {
+				Expect(executeCmdErr).NotTo(HaveOccurred())
+				Expect(ui.Outputs()).To(ContainSubstrings(
+					[]string{"events", "my-app"},
+					[]string{"No events", "my-app"},
+				))
+			})
+		})
 
-		app := models.Application{}
-		app.Name = "my-app"
-		requirementsFactory.Application = app
+		Context("when events exist", func() {
+			var (
+				earlierTimestamp time.Time
+				timestamp        time.Time
+			)
 
-		runCommand("my-app")
+			BeforeEach(func() {
+				var err error
 
-		Expect(ui.Outputs).To(ContainSubstrings(
-			[]string{"events", "my-app"},
-			[]string{"FAILED"},
-			[]string{"welp"},
-		))
-	})
+				earlierTimestamp, err = time.Parse(TIMESTAMP_FORMAT, "1999-12-31T23:59:11.00-0000")
+				Expect(err).NotTo(HaveOccurred())
 
-	It("tells the user when no events exist for that app", func() {
-		app := models.Application{}
-		app.Name = "my-app"
-		requirementsFactory.Application = app
+				timestamp, err = time.Parse(TIMESTAMP_FORMAT, "2000-01-01T00:01:11.00-0000")
+				Expect(err).NotTo(HaveOccurred())
 
-		runCommand("my-app")
+				eventsRepo.RecentEventsReturns([]models.EventFields{
+					{
+						GUID:        "event-guid-1",
+						Name:        "app crashed",
+						Timestamp:   earlierTimestamp,
+						Description: "reason: app instance exited, exit_status: 78",
+						Actor:       "george-clooney",
+						ActorName:   "George Clooney",
+					},
+					{
+						GUID:        "event-guid-2",
+						Name:        "app crashed",
+						Timestamp:   timestamp,
+						Description: "reason: app instance was stopped, exit_status: 77",
+						Actor:       "marcel-marceau",
+					},
+				}, nil)
 
-		Expect(ui.Outputs).To(ContainSubstrings(
-			[]string{"events", "my-app"},
-			[]string{"No events", "my-app"},
-		))
+				cmd.SetDependency(deps, false)
+				cmd.Requirements(reqFactory, flagContext)
+			})
+
+			It("lists events given an app name", func() {
+				Expect(executeCmdErr).NotTo(HaveOccurred())
+				Expect(eventsRepo.RecentEventsCallCount()).To(Equal(1))
+				appGUID, limit := eventsRepo.RecentEventsArgsForCall(0)
+				Expect(limit).To(Equal(int64(50)))
+				Expect(appGUID).To(Equal("my-app-guid"))
+
+				Expect(ui.Outputs()).To(ContainSubstrings(
+					[]string{"Getting events for app", "my-app", "my-org", "my-space", "my-user"},
+					[]string{"time", "event", "actor", "description"},
+					[]string{earlierTimestamp.Local().Format(TIMESTAMP_FORMAT), "app crashed", "George Clooney", "app instance exited", "78"},
+					[]string{timestamp.Local().Format(TIMESTAMP_FORMAT), "app crashed", "marcel-marceau", "app instance was stopped", "77"},
+				))
+			})
+		})
+
+		Context("when the request fails", func() {
+			BeforeEach(func() {
+				eventsRepo.RecentEventsReturns([]models.EventFields{}, errors.New("welp"))
+
+				cmd.SetDependency(deps, false)
+				cmd.Requirements(reqFactory, flagContext)
+			})
+
+			It("tells the user when an error occurs", func() {
+				Expect(executeCmdErr).To(HaveOccurred())
+				Expect(ui.Outputs()).To(ContainSubstrings(
+					[]string{"events", "my-app"},
+				))
+				errStr := executeCmdErr.Error()
+				Expect(errStr).To(ContainSubstring("welp"))
+			})
+		})
 	})
 })

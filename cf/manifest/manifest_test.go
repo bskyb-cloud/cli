@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/cloudfoundry/cli/cf/manifest"
-	"github.com/cloudfoundry/cli/generic"
+	"github.com/cloudfoundry/cli/utils/generic"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -37,7 +37,7 @@ var _ = Describe("Manifests", func() {
 		Expect(apps[0].NoRoute).To(BeTrue())
 	})
 
-	Describe("when there is no applications block", func() {
+	Context("when there is no applications block", func() {
 		It("returns a single application with the global properties", func() {
 			m := NewManifest("/some/path/manifest.yml", generic.NewMap(map[interface{}]interface{}{
 				"instances": "3",
@@ -69,7 +69,6 @@ var _ = Describe("Manifests", func() {
 		Expect(err.Error()).To(ContainSubstring("Invalid value for 'memory': 512"))
 	})
 
-	//candiedyaml returns an integer value when no unit is provided
 	It("returns an error when the memory limit is a non-string", func() {
 		m := NewManifest("/some/path/manifest.yml", generic.NewMap(map[interface{}]interface{}{
 			"instances": "3",
@@ -265,10 +264,10 @@ var _ = Describe("Manifests", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(len(apps)).To(Equal(1))
 
-		Expect(*apps[0].BuildpackUrl).To(Equal("my-buildpack"))
+		Expect(*apps[0].BuildpackURL).To(Equal("my-buildpack"))
 		Expect(*apps[0].DiskQuota).To(Equal(int64(512)))
-		Expect(*apps[0].Domains).To(ConsistOf([]string{"domain1.test", "domain2.test", "my-domain"}))
-		Expect(*apps[0].Hosts).To(ConsistOf([]string{"host-1", "host-2", "my-hostname"}))
+		Expect(apps[0].Domains).To(ConsistOf([]string{"domain1.test", "domain2.test", "my-domain"}))
+		Expect(apps[0].Hosts).To(ConsistOf([]string{"host-1", "host-2", "my-hostname"}))
 		Expect(*apps[0].Name).To(Equal("my-app-name"))
 		Expect(*apps[0].StackName).To(Equal("my-stack"))
 		Expect(*apps[0].HealthCheckType).To(Equal("none"))
@@ -276,8 +275,8 @@ var _ = Describe("Manifests", func() {
 		Expect(*apps[0].InstanceCount).To(Equal(1))
 		Expect(*apps[0].HealthCheckTimeout).To(Equal(11))
 		Expect(apps[0].NoRoute).To(BeTrue())
-		Expect(apps[0].NoHostname).To(BeTrue())
-		Expect(apps[0].UseRandomHostname).To(BeTrue())
+		Expect(*apps[0].NoHostname).To(BeTrue())
+		Expect(apps[0].UseRandomRoute).To(BeTrue())
 	})
 
 	It("removes duplicated values in 'hosts' and 'domains'", func() {
@@ -297,13 +296,13 @@ var _ = Describe("Manifests", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(len(apps)).To(Equal(1))
 
-		Expect(len(*apps[0].Domains)).To(Equal(3))
-		Expect(*apps[0].Domains).To(ConsistOf([]string{"my-domain", "domain1.test", "domain2.test"}))
-		Expect(len(*apps[0].Hosts)).To(Equal(3))
-		Expect(*apps[0].Hosts).To(ConsistOf([]string{"my-hostname", "host-1", "host-2"}))
+		Expect(len(apps[0].Domains)).To(Equal(3))
+		Expect(apps[0].Domains).To(ConsistOf([]string{"my-domain", "domain1.test", "domain2.test"}))
+		Expect(len(apps[0].Hosts)).To(Equal(3))
+		Expect(apps[0].Hosts).To(ConsistOf([]string{"my-hostname", "host-1", "host-2"}))
 	})
 
-	Describe("old-style property syntax", func() {
+	Context("old-style property syntax", func() {
 		It("returns an error when the manifest contains non-whitelist properties", func() {
 			m := NewManifest("/some/path/manifest.yml", generic.NewMap(map[interface{}]interface{}{
 				"applications": []interface{}{
@@ -356,7 +355,7 @@ var _ = Describe("Manifests", func() {
 		apps, err := m.Applications()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(*apps[0].Command).To(Equal(""))
-		Expect(*apps[0].BuildpackUrl).To(Equal(""))
+		Expect(*apps[0].BuildpackURL).To(Equal(""))
 	})
 
 	It("sets the command and buildpack to blank when their values are 'default' in the manifest", func() {
@@ -372,7 +371,7 @@ var _ = Describe("Manifests", func() {
 		apps, err := m.Applications()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(*apps[0].Command).To(Equal(""))
-		Expect(*apps[0].BuildpackUrl).To(Equal(""))
+		Expect(*apps[0].BuildpackURL).To(Equal(""))
 	})
 
 	It("does not set the start command when the manifest doesn't have the 'command' key", func() {
@@ -408,7 +407,72 @@ var _ = Describe("Manifests", func() {
 		Expect(apps1).To(Equal(apps2))
 	})
 
-	Describe("parsing env vars", func() {
+	Context("parsing app ports", func() {
+		It("parses app ports", func() {
+			m := NewManifest("/some/path", generic.NewMap(map[interface{}]interface{}{
+				"applications": []interface{}{
+					map[interface{}]interface{}{
+						"app-ports": []interface{}{
+							8080,
+							9090,
+						},
+					},
+				},
+			}))
+
+			apps, err := m.Applications()
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(apps[0].AppPorts).NotTo(BeNil())
+			Expect(*(apps[0].AppPorts)).To(Equal([]int{8080, 9090}))
+		})
+
+		It("handles omitted field", func() {
+			m := NewManifest("/some/path", generic.NewMap(map[interface{}]interface{}{
+				"applications": []interface{}{
+					map[interface{}]interface{}{},
+				},
+			}))
+
+			apps, err := m.Applications()
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(apps[0].AppPorts).To(BeNil())
+		})
+
+		It("handles mixed arrays", func() {
+			m := NewManifest("/some/path", generic.NewMap(map[interface{}]interface{}{
+				"applications": []interface{}{
+					map[interface{}]interface{}{
+						"app-ports": []interface{}{
+							8080,
+							"potato",
+						},
+					},
+				},
+			}))
+
+			_, err := m.Applications()
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("Expected app-ports to be a list of integers."))
+		})
+
+		It("handles non-array values", func() {
+			m := NewManifest("/some/path", generic.NewMap(map[interface{}]interface{}{
+				"applications": []interface{}{
+					map[interface{}]interface{}{
+						"app-ports": "potato",
+					},
+				},
+			}))
+
+			_, err := m.Applications()
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("Expected app-ports to be a list of integers."))
+		})
+	})
+
+	Context("parsing env vars", func() {
 		It("handles values that are not strings", func() {
 			m := NewManifest("/some/path/manifest.yml", generic.NewMap(map[interface{}]interface{}{
 				"applications": []interface{}{
@@ -431,7 +495,7 @@ var _ = Describe("Manifests", func() {
 		})
 	})
 
-	Describe("parsing services", func() {
+	Context("parsing services", func() {
 		It("can read a list of service instance names", func() {
 			m := NewManifest("/some/path/manifest.yml", generic.NewMap(map[interface{}]interface{}{
 				"services": []interface{}{"service-1", "service-2"},
@@ -440,7 +504,183 @@ var _ = Describe("Manifests", func() {
 			app, err := m.Applications()
 			Expect(err).NotTo(HaveOccurred())
 
-			Expect(*app[0].ServicesToBind).To(Equal([]string{"service-1", "service-2"}))
+			Expect(app[0].ServicesToBind).To(Equal([]string{"service-1", "service-2"}))
+		})
+	})
+
+	Context("when routes are provided", func() {
+		var manifest *manifest.Manifest
+
+		Context("when passed 'routes'", func() {
+			Context("valid 'routes'", func() {
+				BeforeEach(func() {
+					manifest = NewManifest("/some/path/manifest.yml", generic.NewMap(map[interface{}]interface{}{
+						"applications": []interface{}{
+							generic.NewMap(map[interface{}]interface{}{
+								"routes": []interface{}{
+									map[interface{}]interface{}{"route": "route1.example.com"},
+									map[interface{}]interface{}{"route": "route2.example.com"},
+								},
+							}),
+						},
+					}))
+				})
+
+				It("parses routes into app params", func() {
+					apps, err := manifest.Applications()
+					Expect(err).NotTo(HaveOccurred())
+					Expect(apps).To(HaveLen(1))
+
+					routes := apps[0].Routes
+					Expect(routes).To(HaveLen(2))
+					Expect(routes[0].Route).To(Equal("route1.example.com"))
+					Expect(routes[1].Route).To(Equal("route2.example.com"))
+				})
+			})
+
+			Context("invalid 'routes'", func() {
+				Context("'routes' is formatted incorrectly", func() {
+					BeforeEach(func() {
+						manifest = NewManifest("/some/path/manifest.yml", generic.NewMap(map[interface{}]interface{}{
+							"applications": []interface{}{
+								generic.NewMap(map[interface{}]interface{}{
+									"routes": []string{},
+								}),
+							},
+						}))
+					})
+
+					It("errors out", func() {
+						_, err := manifest.Applications()
+						Expect(err).To(HaveOccurred())
+						Expect(err.Error()).To(MatchRegexp("should be a list"))
+					})
+				})
+
+				Context("an individual 'route' is formatted incorrectly", func() {
+					BeforeEach(func() {
+						manifest = NewManifest("/some/path/manifest.yml", generic.NewMap(map[interface{}]interface{}{
+							"applications": []interface{}{
+								generic.NewMap(map[interface{}]interface{}{
+									"routes": []interface{}{
+										map[interface{}]interface{}{"routef": "route1.example.com"},
+									},
+								}),
+							},
+						}))
+					})
+
+					It("parses routes into app params", func() {
+						_, err := manifest.Applications()
+						Expect(err).To(HaveOccurred())
+						Expect(err.Error()).To(MatchRegexp("each route in 'routes' must have a 'route' property"))
+					})
+				})
+			})
+		})
+
+		Context("when there are no routes", func() {
+			BeforeEach(func() {
+				manifest = NewManifest("/some/path/manifest.yml", generic.NewMap(map[interface{}]interface{}{
+					"applications": []interface{}{
+						generic.NewMap(map[interface{}]interface{}{
+							"buildpack": nil,
+							"command":   "echo banana",
+						}),
+					},
+				}))
+			})
+
+			It("sets routes to be nil", func() {
+				apps, err := manifest.Applications()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(apps).To(HaveLen(1))
+				Expect(apps[0].Routes).To(BeNil())
+			})
+		})
+
+		Context("when no-hostname is not specified in the manifest", func() {
+			BeforeEach(func() {
+				manifest = NewManifest("/some/path/manifest.yml", generic.NewMap(map[interface{}]interface{}{
+					"applications": []interface{}{
+						generic.NewMap(map[interface{}]interface{}{
+							"buildpack": nil,
+							"command":   "echo banana",
+						}),
+					},
+				}))
+			})
+
+			It("sets no-hostname to be nil", func() {
+				apps, err := manifest.Applications()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(apps).To(HaveLen(1))
+				Expect(apps[0].NoHostname).To(BeNil())
+			})
+		})
+
+		Context("when no-hostname is specified in the manifest", func() {
+			Context("and it is set to true", func() {
+				Context("and the value is a boolean", func() {
+					BeforeEach(func() {
+						manifest = NewManifest("/some/path/manifest.yml", generic.NewMap(map[interface{}]interface{}{
+							"applications": []interface{}{
+								generic.NewMap(map[interface{}]interface{}{
+									"buildpack":   nil,
+									"command":     "echo banana",
+									"no-hostname": true,
+								}),
+							},
+						}))
+					})
+
+					It("sets no-hostname to be true", func() {
+						apps, err := manifest.Applications()
+						Expect(err).NotTo(HaveOccurred())
+						Expect(apps).To(HaveLen(1))
+						Expect(*apps[0].NoHostname).To(BeTrue())
+					})
+				})
+				Context("and the value is a string", func() {
+					BeforeEach(func() {
+						manifest = NewManifest("/some/path/manifest.yml", generic.NewMap(map[interface{}]interface{}{
+							"applications": []interface{}{
+								generic.NewMap(map[interface{}]interface{}{
+									"buildpack":   nil,
+									"command":     "echo banana",
+									"no-hostname": "true",
+								}),
+							},
+						}))
+					})
+
+					It("sets no-hostname to be true", func() {
+						apps, err := manifest.Applications()
+						Expect(err).NotTo(HaveOccurred())
+						Expect(apps).To(HaveLen(1))
+						Expect(*apps[0].NoHostname).To(BeTrue())
+					})
+				})
+			})
+			Context("and it is set to false", func() {
+				BeforeEach(func() {
+					manifest = NewManifest("/some/path/manifest.yml", generic.NewMap(map[interface{}]interface{}{
+						"applications": []interface{}{
+							generic.NewMap(map[interface{}]interface{}{
+								"buildpack":   nil,
+								"command":     "echo banana",
+								"no-hostname": false,
+							}),
+						},
+					}))
+				})
+				It("sets no-hostname to be false", func() {
+					apps, err := manifest.Applications()
+					Expect(err).NotTo(HaveOccurred())
+					Expect(apps).To(HaveLen(1))
+					Expect(*apps[0].NoHostname).To(BeFalse())
+				})
+			})
 		})
 	})
 })

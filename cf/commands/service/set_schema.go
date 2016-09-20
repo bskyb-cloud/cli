@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"github.com/cloudfoundry/cli/cf"
 	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/flags"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
 	"golang.org/x/net/publicsuffix"
 	"io/ioutil"
 	"strings"
@@ -17,17 +17,17 @@ import (
 
 type SetSchema struct {
 	ui                 terminal.UI
-	config             core_config.Reader
+	config             coreconfig.Reader
 	serviceRepo        api.ServiceRepository
 	serviceInstanceReq requirements.ServiceInstanceRequirement
 }
 
 func init() {
-	command_registry.Register(&SetSchema{})
+	commandregistry.Register(&SetSchema{})
 }
 
-func (cmd *SetSchema) MetaData() command_registry.CommandMetadata {
-	return command_registry.CommandMetadata{
+func (cmd *SetSchema) MetaData() commandregistry.CommandMetadata {
+	return commandregistry.CommandMetadata{
 		Name:        "set-schema",
 		ShortName:   "ss",
 		Description: "Set schema for a service. Currently only supported in the webproxy.",
@@ -35,10 +35,10 @@ func (cmd *SetSchema) MetaData() command_registry.CommandMetadata {
 	}
 }
 
-func (cmd *SetSchema) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+func (cmd *SetSchema) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement) {
 
 	if len(fc.Args()) != 2 {
-		cmd.ui.Failed("Incorrect Usage." + "\n\n" + command_registry.Commands.CommandUsage("set-schema"))
+		cmd.ui.Failed("Incorrect Usage." + "\n\n" + commandregistry.Commands.CommandUsage("set-schema"))
 	}
 
 	cmd.serviceInstanceReq = requirementsFactory.NewServiceInstanceRequirement(fc.Args()[0])
@@ -52,14 +52,14 @@ func (cmd *SetSchema) Requirements(requirementsFactory requirements.Factory, fc 
 	return
 }
 
-func (cmd *SetSchema) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *SetSchema) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.serviceRepo = deps.RepoLocator.GetServiceRepository()
 	return cmd
 }
 
-func (cmd *SetSchema) Execute(fc flags.FlagContext) {
+func (cmd *SetSchema) Execute(fc flags.FlagContext) error {
 	schemaFilename := fc.Args()[1]
 
 	schemaBytes, ferr := ioutil.ReadFile(schemaFilename)
@@ -88,14 +88,16 @@ func (cmd *SetSchema) Execute(fc flags.FlagContext) {
 	err = cmd.serviceRepo.SetSchema(serviceInstance, schema)
 
 	if err != nil {
-		if httpError, ok := err.(errors.HttpError); ok && httpError.ErrorCode() == errors.SERVICE_INSTANCE_NAME_TAKEN {
+		if httpError, ok := err.(errors.HTTPError); ok && httpError.ErrorCode() == errors.SERVICE_INSTANCE_NAME_TAKEN {
 			cmd.ui.Failed("%s\nTIP: Use '%s services' to view all services in this org and space.", httpError.Error(), cf.Name())
 		} else {
 			cmd.ui.Failed(err.Error())
 		}
+		return errors.New("Error setting schema: " + err.Error())
 	}
 
 	cmd.ui.Ok()
+	return nil
 }
 
 func validateForDuplicates(fileContents string) error {

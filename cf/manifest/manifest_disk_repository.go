@@ -9,21 +9,23 @@ import (
 
 	"github.com/cloudfoundry/cli/cf/errors"
 	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/generic"
+	"github.com/cloudfoundry/cli/utils/generic"
 	"gopkg.in/yaml.v2"
 )
 
-type ManifestRepository interface {
+//go:generate counterfeiter . Repository
+
+type Repository interface {
 	ReadManifest(string) (*Manifest, error)
 }
 
-type ManifestDiskRepository struct{}
+type DiskRepository struct{}
 
-func NewManifestDiskRepository() (repo ManifestRepository) {
-	return ManifestDiskRepository{}
+func NewDiskRepository() (repo Repository) {
+	return DiskRepository{}
 }
 
-func (repo ManifestDiskRepository) ReadManifest(inputPath string) (*Manifest, error) {
+func (repo DiskRepository) ReadManifest(inputPath string) (*Manifest, error) {
 	m := NewEmptyManifest()
 	manifestPath, err := repo.manifestPath(inputPath)
 
@@ -43,7 +45,7 @@ func (repo ManifestDiskRepository) ReadManifest(inputPath string) (*Manifest, er
 	return m, nil
 }
 
-func (repo ManifestDiskRepository) readAllYAMLFiles(path string) (mergedMap generic.Map, err error) {
+func (repo DiskRepository) readAllYAMLFiles(path string) (mergedMap generic.Map, err error) {
 	file, err := os.Open(filepath.Clean(path))
 	if err != nil {
 		return
@@ -101,7 +103,7 @@ func parseManifest(file io.Reader) (yamlMap generic.Map, err error) {
 	return
 }
 
-func (repo ManifestDiskRepository) manifestPath(userSpecifiedPath string) (string, error) {
+func (repo DiskRepository) manifestPath(userSpecifiedPath string) (string, error) {
 	fileInfo, err := os.Stat(userSpecifiedPath)
 	if err != nil {
 		return "", err

@@ -5,74 +5,79 @@ import (
 
 	"github.com/cloudfoundry/cli/cf/api/organizations"
 	"github.com/cloudfoundry/cli/cf/api/spaces"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/models"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
-	"github.com/cloudfoundry/cli/flags/flag"
 )
 
 type Target struct {
 	ui        terminal.UI
-	config    core_config.ReadWriter
+	config    coreconfig.ReadWriter
 	orgRepo   organizations.OrganizationRepository
 	spaceRepo spaces.SpaceRepository
 }
 
 func init() {
-	command_registry.Register(&Target{})
+	commandregistry.Register(&Target{})
 }
 
-func (cmd *Target) MetaData() command_registry.CommandMetadata {
+func (cmd *Target) MetaData() commandregistry.CommandMetadata {
 	fs := make(map[string]flags.FlagSet)
-	fs["o"] = &cliFlags.StringFlag{ShortName: "o", Usage: T("organization")}
-	fs["s"] = &cliFlags.StringFlag{ShortName: "s", Usage: T("space")}
+	fs["o"] = &flags.StringFlag{ShortName: "o", Usage: T("Organization")}
+	fs["s"] = &flags.StringFlag{ShortName: "s", Usage: T("Space")}
 
-	return command_registry.CommandMetadata{
+	return commandregistry.CommandMetadata{
 		Name:        "target",
 		ShortName:   "t",
 		Description: T("Set or view the targeted org or space"),
-		Usage:       T("CF_NAME target [-o ORG] [-s SPACE]"),
-		Flags:       fs,
+		Usage: []string{
+			T("CF_NAME target [-o ORG] [-s SPACE]"),
+		},
+		Flags: fs,
 	}
 }
 
-func (cmd *Target) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
-	if len(fc.Args()) != 0 {
-		cmd.ui.Failed(T("Incorrect Usage. No argument required\n\n") + command_registry.Commands.CommandUsage("target"))
-	}
+func (cmd *Target) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+	usageReq := requirements.NewUsageRequirement(commandregistry.CLICommandUsagePresenter(cmd),
+		T("No argument required"),
+		func() bool {
+			return len(fc.Args()) != 0
+		},
+	)
 
-	reqs = []requirements.Requirement{
-		requirementsFactory.NewApiEndpointRequirement(),
+	reqs := []requirements.Requirement{
+		usageReq,
+		requirementsFactory.NewAPIEndpointRequirement(),
 	}
 
 	if fc.IsSet("o") || fc.IsSet("s") {
 		reqs = append(reqs, requirementsFactory.NewLoginRequirement())
 	}
 
-	return
+	return reqs
 }
 
-func (cmd *Target) SetDependency(deps command_registry.Dependency, _ bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *Target) SetDependency(deps commandregistry.Dependency, _ bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.orgRepo = deps.RepoLocator.GetOrganizationRepository()
 	cmd.spaceRepo = deps.RepoLocator.GetSpaceRepository()
 	return cmd
 }
 
-func (cmd *Target) Execute(c flags.FlagContext) {
+func (cmd *Target) Execute(c flags.FlagContext) error {
 	orgName := c.String("o")
 	spaceName := c.String("s")
 
 	if orgName != "" {
 		err := cmd.setOrganization(orgName)
 		if err != nil {
-			cmd.ui.Failed(err.Error())
+			return err
 		} else if spaceName == "" {
 			spaceList, apiErr := cmd.getSpaceList()
 			if apiErr == nil && len(spaceList) == 1 {
@@ -84,7 +89,7 @@ func (cmd *Target) Execute(c flags.FlagContext) {
 	if spaceName != "" {
 		err := cmd.setSpace(spaceName)
 		if err != nil {
-			cmd.ui.Failed(err.Error())
+			return err
 		}
 	}
 
@@ -93,7 +98,7 @@ func (cmd *Target) Execute(c flags.FlagContext) {
 		cmd.ui.PanicQuietly()
 	}
 	cmd.ui.NotifyUpdateIfNeeded(cmd.config)
-	return
+	return nil
 }
 
 func (cmd Target) setOrganization(orgName string) error {
@@ -103,8 +108,8 @@ func (cmd Target) setOrganization(orgName string) error {
 
 	org, apiErr := cmd.orgRepo.FindByName(orgName)
 	if apiErr != nil {
-		return fmt.Errorf(T("Could not target org.\n{{.ApiErr}}",
-			map[string]interface{}{"ApiErr": apiErr.Error()}))
+		return fmt.Errorf(T("Could not target org.\n{{.APIErr}}",
+			map[string]interface{}{"APIErr": apiErr.Error()}))
 	}
 
 	cmd.config.SetOrganizationFields(org.OrganizationFields)
@@ -120,8 +125,8 @@ func (cmd Target) setSpace(spaceName string) error {
 
 	space, apiErr := cmd.spaceRepo.FindByName(spaceName)
 	if apiErr != nil {
-		return fmt.Errorf(T("Unable to access space {{.SpaceName}}.\n{{.ApiErr}}",
-			map[string]interface{}{"SpaceName": spaceName, "ApiErr": apiErr.Error()}))
+		return fmt.Errorf(T("Unable to access space {{.SpaceName}}.\n{{.APIErr}}",
+			map[string]interface{}{"SpaceName": spaceName, "APIErr": apiErr.Error()}))
 	}
 
 	cmd.config.SetSpaceFields(space.SpaceFields)

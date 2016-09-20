@@ -1,39 +1,42 @@
 package application
 
 import (
+	"errors"
 	"strconv"
 
-	"github.com/cloudfoundry/cli/cf/api/app_instances"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/appinstances"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
 )
 
 type RestartAppInstance struct {
 	ui               terminal.UI
-	config           core_config.Reader
+	config           coreconfig.Reader
 	appReq           requirements.ApplicationRequirement
-	appInstancesRepo app_instances.AppInstancesRepository
+	appInstancesRepo appinstances.Repository
 }
 
 func init() {
-	command_registry.Register(&RestartAppInstance{})
+	commandregistry.Register(&RestartAppInstance{})
 }
 
-func (cmd *RestartAppInstance) MetaData() command_registry.CommandMetadata {
-	return command_registry.CommandMetadata{
+func (cmd *RestartAppInstance) MetaData() commandregistry.CommandMetadata {
+	return commandregistry.CommandMetadata{
 		Name:        "restart-app-instance",
 		Description: T("Terminate the running application Instance at the given index and instantiate a new instance of the application with the same index"),
-		Usage:       T("CF_NAME restart-app-instance APP_NAME INDEX"),
+		Usage: []string{
+			T("CF_NAME restart-app-instance APP_NAME INDEX"),
+		},
 	}
 }
 
-func (cmd *RestartAppInstance) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+func (cmd *RestartAppInstance) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
 	if len(fc.Args()) != 2 {
-		usage := command_registry.Commands.CommandUsage("restart-app-instance")
+		usage := commandregistry.Commands.CommandUsage("restart-app-instance")
 		cmd.ui.Failed(T("Incorrect Usage. Requires arguments\n\n") + usage)
 	}
 
@@ -41,29 +44,29 @@ func (cmd *RestartAppInstance) Requirements(requirementsFactory requirements.Fac
 
 	cmd.appReq = requirementsFactory.NewApplicationRequirement(appName)
 
-	reqs = []requirements.Requirement{
+	reqs := []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 		requirementsFactory.NewTargetedSpaceRequirement(),
 		cmd.appReq,
 	}
 
-	return
+	return reqs
 }
 
-func (cmd *RestartAppInstance) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *RestartAppInstance) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.appInstancesRepo = deps.RepoLocator.GetAppInstancesRepository()
 	return cmd
 }
 
-func (cmd *RestartAppInstance) Execute(fc flags.FlagContext) {
+func (cmd *RestartAppInstance) Execute(fc flags.FlagContext) error {
 	app := cmd.appReq.GetApplication()
 
 	instance, err := strconv.Atoi(fc.Args()[1])
 
 	if err != nil {
-		cmd.ui.Failed(T("Instance must be a non-negative integer"))
+		return errors.New(T("Instance must be a non-negative integer"))
 	}
 
 	cmd.ui.Say(T("Restarting instance {{.Instance}} of application {{.AppName}} as {{.Username}}",
@@ -73,11 +76,12 @@ func (cmd *RestartAppInstance) Execute(fc flags.FlagContext) {
 			"Username": terminal.EntityNameColor(cmd.config.Username()),
 		}))
 
-	err = cmd.appInstancesRepo.DeleteInstance(app.Guid, instance)
+	err = cmd.appInstancesRepo.DeleteInstance(app.GUID, instance)
 	if err != nil {
-		cmd.ui.Failed(err.Error())
+		return err
 	}
 
 	cmd.ui.Ok()
 	cmd.ui.Say("")
+	return nil
 }

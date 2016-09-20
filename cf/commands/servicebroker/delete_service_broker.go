@@ -2,58 +2,62 @@ package servicebroker
 
 import (
 	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
+	"github.com/cloudfoundry/cli/cf/flags"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/requirements"
 	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/flags"
-	"github.com/cloudfoundry/cli/flags/flag"
 )
 
 type DeleteServiceBroker struct {
 	ui     terminal.UI
-	config core_config.Reader
+	config coreconfig.Reader
 	repo   api.ServiceBrokerRepository
 }
 
 func init() {
-	command_registry.Register(&DeleteServiceBroker{})
+	commandregistry.Register(&DeleteServiceBroker{})
 }
 
-func (cmd *DeleteServiceBroker) MetaData() command_registry.CommandMetadata {
+func (cmd *DeleteServiceBroker) MetaData() commandregistry.CommandMetadata {
 	fs := make(map[string]flags.FlagSet)
-	fs["f"] = &cliFlags.BoolFlag{ShortName: "f", Usage: T("Force deletion without confirmation")}
+	fs["f"] = &flags.BoolFlag{ShortName: "f", Usage: T("Force deletion without confirmation")}
 
-	return command_registry.CommandMetadata{
+	return commandregistry.CommandMetadata{
 		Name:        "delete-service-broker",
 		Description: T("Delete a service broker"),
-		Usage:       T("CF_NAME delete-service-broker SERVICE_BROKER [-f]"),
-		Flags:       fs,
+		Usage: []string{
+			T("CF_NAME delete-service-broker SERVICE_BROKER [-f]"),
+		},
+		Flags: fs,
 	}
 }
 
-func (cmd *DeleteServiceBroker) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
+func (cmd *DeleteServiceBroker) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
 	if len(fc.Args()) != 1 {
-		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + command_registry.Commands.CommandUsage("delete-service-broker"))
+		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + commandregistry.Commands.CommandUsage("delete-service-broker"))
 	}
 
-	reqs = append(reqs, requirementsFactory.NewLoginRequirement())
-	return
+	reqs := []requirements.Requirement{
+		requirementsFactory.NewLoginRequirement(),
+	}
+
+	return reqs
 }
 
-func (cmd *DeleteServiceBroker) SetDependency(deps command_registry.Dependency, pluginCall bool) command_registry.Command {
-	cmd.ui = deps.Ui
+func (cmd *DeleteServiceBroker) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
+	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.repo = deps.RepoLocator.GetServiceBrokerRepository()
 	return cmd
 }
 
-func (cmd *DeleteServiceBroker) Execute(c flags.FlagContext) {
+func (cmd *DeleteServiceBroker) Execute(c flags.FlagContext) error {
 	brokerName := c.Args()[0]
 	if !c.Bool("f") && !cmd.ui.ConfirmDelete(T("service-broker"), brokerName) {
-		return
+		return nil
 	}
 
 	cmd.ui.Say(T("Deleting service broker {{.Name}} as {{.Username}}...",
@@ -62,25 +66,23 @@ func (cmd *DeleteServiceBroker) Execute(c flags.FlagContext) {
 			"Username": terminal.EntityNameColor(cmd.config.Username()),
 		}))
 
-	broker, apiErr := cmd.repo.FindByName(brokerName)
+	broker, err := cmd.repo.FindByName(brokerName)
 
-	switch apiErr.(type) {
+	switch err.(type) {
 	case nil:
 	case *errors.ModelNotFoundError:
 		cmd.ui.Ok()
 		cmd.ui.Warn(T("Service Broker {{.Name}} does not exist.", map[string]interface{}{"Name": brokerName}))
-		return
+		return nil
 	default:
-		cmd.ui.Failed(apiErr.Error())
-		return
+		return err
 	}
 
-	apiErr = cmd.repo.Delete(broker.Guid)
-	if apiErr != nil {
-		cmd.ui.Failed(apiErr.Error())
-		return
+	err = cmd.repo.Delete(broker.GUID)
+	if err != nil {
+		return err
 	}
 
 	cmd.ui.Ok()
-	return
+	return nil
 }

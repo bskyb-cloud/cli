@@ -1,14 +1,15 @@
 package application_test
 
 import (
-	testApplication "github.com/cloudfoundry/cli/cf/api/applications/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/applications/applicationsfakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
@@ -20,17 +21,17 @@ var _ = Describe("env command", func() {
 	var (
 		ui                  *testterm.FakeUI
 		app                 models.Application
-		appRepo             *testApplication.FakeApplicationRepository
-		configRepo          core_config.Repository
-		requirementsFactory *testreq.FakeReqFactory
-		deps                command_registry.Dependency
+		appRepo             *applicationsfakes.FakeRepository
+		configRepo          coreconfig.Repository
+		requirementsFactory *requirementsfakes.FakeFactory
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.Config = configRepo
 		deps.RepoLocator = deps.RepoLocator.SetApplicationRepository(appRepo)
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("env").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("env").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
@@ -38,24 +39,28 @@ var _ = Describe("env command", func() {
 
 		app = models.Application{}
 		app.Name = "my-app"
-		appRepo = &testApplication.FakeApplicationRepository{}
+		appRepo = new(applicationsfakes.FakeRepository)
 		appRepo.ReadReturns(app, nil)
 
 		configRepo = testconfig.NewRepositoryWithDefaults()
-		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: true}
+		requirementsFactory = new(requirementsfakes.FakeFactory)
+		requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+		requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Passing{})
 	})
 
 	runCommand := func(args ...string) bool {
-		return testcmd.RunCliCommand("env", args, requirementsFactory, updateCommandDependency, false)
+		return testcmd.RunCLICommand("env", args, requirementsFactory, updateCommandDependency, false, ui)
 	}
 
 	Describe("Requirements", func() {
 		It("fails when the user is not logged in", func() {
-			requirementsFactory.LoginSuccess = false
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 			Expect(runCommand("my-app")).To(BeFalse())
 		})
+
 		It("fails if a space is not targeted", func() {
-			requirementsFactory.TargetedSpaceSuccess = false
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Failing{Message: "not targeting space"})
 			Expect(runCommand("my-app")).To(BeFalse())
 		})
 	})
@@ -63,7 +68,7 @@ var _ = Describe("env command", func() {
 	It("fails with usage when no app name is given", func() {
 		passed := runCommand()
 
-		Expect(ui.Outputs).To(ContainSubstrings(
+		Expect(ui.Outputs()).To(ContainSubstrings(
 			[]string{"Incorrect Usage", "Requires", "argument"},
 		))
 		Expect(passed).To(BeFalse())
@@ -73,7 +78,7 @@ var _ = Describe("env command", func() {
 		appRepo.ReadReturns(models.Application{}, errors.NewModelNotFoundError("app", "hocus-pocus"))
 		runCommand("hocus-pocus")
 
-		Expect(ui.Outputs).To(ContainSubstrings(
+		Expect(ui.Outputs()).To(ContainSubstrings(
 			[]string{"FAILED"},
 			[]string{"not found"},
 		))
@@ -83,7 +88,7 @@ var _ = Describe("env command", func() {
 		BeforeEach(func() {
 			app = models.Application{}
 			app.Name = "my-app"
-			app.Guid = "the-app-guid"
+			app.GUID = "the-app-guid"
 
 			appRepo.ReadReturns(app, nil)
 			appRepo.ReadEnvReturns(&models.Environment{
@@ -111,7 +116,7 @@ var _ = Describe("env command", func() {
 		It("lists those environment variables, in sorted order for provided services", func() {
 			runCommand("my-app")
 			Expect(appRepo.ReadEnvArgsForCall(0)).To(Equal("the-app-guid"))
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Getting env variables for app", "my-app", "my-org", "my-space", "my-user"},
 				[]string{"OK"},
 				[]string{"System-Provided:"},
@@ -127,7 +132,7 @@ var _ = Describe("env command", func() {
 		})
 		It("displays the application env info under the System env column", func() {
 			runCommand("my-app")
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Getting env variables for app", "my-app", "my-org", "my-space", "my-user"},
 				[]string{"OK"},
 				[]string{"System-Provided:"},
@@ -148,7 +153,7 @@ var _ = Describe("env command", func() {
 			appRepo.ReadEnvReturns(&models.Environment{}, nil)
 			runCommand("my-app")
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Getting env variables for app", "my-app"},
 				[]string{"OK"},
 				[]string{"No", "system-provided", "env variables", "have been set"},
@@ -162,10 +167,10 @@ var _ = Describe("env command", func() {
 			appRepo.ReadEnvReturns(&models.Environment{}, nil)
 
 			runCommand("my-app")
-			Expect(ui.Outputs).To(ContainSubstrings([]string{"No system-provided env variables have been set"}))
-			Expect(ui.Outputs).To(ContainSubstrings([]string{"No user-defined env variables have been set"}))
-			Expect(ui.Outputs).To(ContainSubstrings([]string{"No running env variables have been set"}))
-			Expect(ui.Outputs).To(ContainSubstrings([]string{"No staging env variables have been set"}))
+			Expect(ui.Outputs()).To(ContainSubstrings([]string{"No system-provided env variables have been set"}))
+			Expect(ui.Outputs()).To(ContainSubstrings([]string{"No user-defined env variables have been set"}))
+			Expect(ui.Outputs()).To(ContainSubstrings([]string{"No running env variables have been set"}))
+			Expect(ui.Outputs()).To(ContainSubstrings([]string{"No staging env variables have been set"}))
 		})
 	})
 
@@ -173,7 +178,7 @@ var _ = Describe("env command", func() {
 		BeforeEach(func() {
 			app = models.Application{}
 			app.Name = "my-app"
-			app.Guid = "the-app-guid"
+			app.GUID = "the-app-guid"
 
 			appRepo.ReadReturns(app, nil)
 			appRepo.ReadEnvReturns(&models.Environment{
@@ -195,7 +200,7 @@ var _ = Describe("env command", func() {
 		It("lists the environment variables", func() {
 			runCommand("my-app")
 			Expect(appRepo.ReadEnvArgsForCall(0)).To(Equal("the-app-guid"))
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Getting env variables for app", "my-app", "my-org", "my-space", "my-user"},
 				[]string{"OK"},
 				[]string{"Running Environment Variable Groups:"},
@@ -216,7 +221,7 @@ var _ = Describe("env command", func() {
 		It("tells you about that error", func() {
 			appRepo.ReadEnvReturns(nil, errors.New("BOO YOU CANT DO THAT; GO HOME; you're drunk"))
 			runCommand("whatever")
-			Expect(ui.Outputs).To(ContainSubstrings([]string{"you're drunk"}))
+			Expect(ui.Outputs()).To(ContainSubstrings([]string{"you're drunk"}))
 		})
 	})
 })

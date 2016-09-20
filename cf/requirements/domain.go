@@ -2,46 +2,43 @@ package requirements
 
 import (
 	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/terminal"
 )
 
-//go:generate counterfeiter -o fakes/fake_domain_requirement.go . DomainRequirement
+//go:generate counterfeiter . DomainRequirement
+
 type DomainRequirement interface {
 	Requirement
 	GetDomain() models.DomainFields
 }
 
-type domainApiRequirement struct {
+type domainAPIRequirement struct {
 	name       string
-	ui         terminal.UI
-	config     core_config.Reader
+	config     coreconfig.Reader
 	domainRepo api.DomainRepository
 	domain     models.DomainFields
 }
 
-func NewDomainRequirement(name string, ui terminal.UI, config core_config.Reader, domainRepo api.DomainRepository) (req *domainApiRequirement) {
-	req = new(domainApiRequirement)
+func NewDomainRequirement(name string, config coreconfig.Reader, domainRepo api.DomainRepository) (req *domainAPIRequirement) {
+	req = new(domainAPIRequirement)
 	req.name = name
-	req.ui = ui
 	req.config = config
 	req.domainRepo = domainRepo
 	return
 }
 
-func (req *domainApiRequirement) Execute() bool {
+func (req *domainAPIRequirement) Execute() error {
 	var apiErr error
-	req.domain, apiErr = req.domainRepo.FindByNameInOrg(req.name, req.config.OrganizationFields().Guid)
+	req.domain, apiErr = req.domainRepo.FindByNameInOrg(req.name, req.config.OrganizationFields().GUID)
 
 	if apiErr != nil {
-		req.ui.Failed(apiErr.Error())
-		return false
+		return apiErr
 	}
 
-	return true
+	return nil
 }
 
-func (req *domainApiRequirement) GetDomain() models.DomainFields {
+func (req *domainAPIRequirement) GetDomain() models.DomainFields {
 	return req.domain
 }

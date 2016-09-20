@@ -1,15 +1,15 @@
 package application_test
 
 import (
-	testApplication "github.com/cloudfoundry/cli/cf/api/applications/fakes"
-	"github.com/cloudfoundry/cli/cf/command_registry"
-	appCmdFakes "github.com/cloudfoundry/cli/cf/commands/application/fakes"
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/api/applications/applicationsfakes"
+	"github.com/cloudfoundry/cli/cf/commandregistry"
+	"github.com/cloudfoundry/cli/cf/commands/application/applicationfakes"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/models"
+	"github.com/cloudfoundry/cli/cf/requirements"
+	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	"github.com/cloudfoundry/cli/testhelpers/maker"
-	testreq "github.com/cloudfoundry/cli/testhelpers/requirements"
 	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -19,97 +19,97 @@ import (
 
 var _ = Describe("scale command", func() {
 	var (
-		requirementsFactory *testreq.FakeReqFactory
-		restarter           *appCmdFakes.FakeApplicationRestarter
-		appRepo             *testApplication.FakeApplicationRepository
+		requirementsFactory *requirementsfakes.FakeFactory
+		restarter           *applicationfakes.FakeRestarter
+		appRepo             *applicationsfakes.FakeRepository
 		ui                  *testterm.FakeUI
-		config              core_config.Repository
+		config              coreconfig.Repository
 		app                 models.Application
-		OriginalCommand     command_registry.Command
-		deps                command_registry.Dependency
+		OriginalCommand     commandregistry.Command
+		deps                commandregistry.Dependency
 	)
 
 	updateCommandDependency := func(pluginCall bool) {
-		deps.Ui = ui
+		deps.UI = ui
 		deps.RepoLocator = deps.RepoLocator.SetApplicationRepository(appRepo)
 		deps.Config = config
 
 		//inject fake 'command dependency' into registry
-		command_registry.Register(restarter)
+		commandregistry.Register(restarter)
 
-		command_registry.Commands.SetCommand(command_registry.Commands.FindCommand("scale").SetDependency(deps, pluginCall))
+		commandregistry.Commands.SetCommand(commandregistry.Commands.FindCommand("scale").SetDependency(deps, pluginCall))
 	}
 
 	BeforeEach(func() {
-		requirementsFactory = &testreq.FakeReqFactory{LoginSuccess: true, TargetedSpaceSuccess: true}
+		requirementsFactory = new(requirementsfakes.FakeFactory)
+		requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+		requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Passing{})
 
 		//save original command and restore later
-		OriginalCommand = command_registry.Commands.FindCommand("restart")
+		OriginalCommand = commandregistry.Commands.FindCommand("restart")
 
-		restarter = &appCmdFakes.FakeApplicationRestarter{}
-		//setup fakes to correctly interact with command_registry
-		restarter.SetDependencyStub = func(_ command_registry.Dependency, _ bool) command_registry.Command {
+		restarter = new(applicationfakes.FakeRestarter)
+		//setup fakes to correctly interact with commandregistry
+		restarter.SetDependencyStub = func(_ commandregistry.Dependency, _ bool) commandregistry.Command {
 			return restarter
 		}
-		restarter.MetaDataReturns(command_registry.CommandMetadata{Name: "restart"})
+		restarter.MetaDataReturns(commandregistry.CommandMetadata{Name: "restart"})
 
-		appRepo = &testApplication.FakeApplicationRepository{}
+		appRepo = new(applicationsfakes.FakeRepository)
 		ui = new(testterm.FakeUI)
 		config = testconfig.NewRepositoryWithDefaults()
+
+		app = models.Application{ApplicationFields: models.ApplicationFields{
+			Name:          "my-app",
+			GUID:          "my-app-guid",
+			InstanceCount: 42,
+			DiskQuota:     1024,
+			Memory:        256,
+		}}
+		applicationReq := new(requirementsfakes.FakeApplicationRequirement)
+		applicationReq.GetApplicationReturns(app)
+		requirementsFactory.NewApplicationRequirementReturns(applicationReq)
+		appRepo.UpdateReturns(app, nil)
 	})
 
 	AfterEach(func() {
-		command_registry.Register(OriginalCommand)
+		commandregistry.Register(OriginalCommand)
 	})
 
 	Describe("requirements", func() {
 		It("requires the user to be logged in with a targed space", func() {
 			args := []string{"-m", "1G", "my-app"}
 
-			requirementsFactory.LoginSuccess = false
-			requirementsFactory.TargetedSpaceSuccess = true
+			requirementsFactory.NewLoginRequirementReturns(requirements.Failing{Message: "not logged in"})
 
-			Expect(testcmd.RunCliCommand("scale", args, requirementsFactory, updateCommandDependency, false)).To(BeFalse())
+			Expect(testcmd.RunCLICommand("scale", args, requirementsFactory, updateCommandDependency, false, ui)).To(BeFalse())
 
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedSpaceSuccess = false
+			requirementsFactory.NewLoginRequirementReturns(requirements.Passing{})
+			requirementsFactory.NewTargetedSpaceRequirementReturns(requirements.Failing{Message: "not targeting space"})
 
-			Expect(testcmd.RunCliCommand("scale", args, requirementsFactory, updateCommandDependency, false)).To(BeFalse())
+			Expect(testcmd.RunCLICommand("scale", args, requirementsFactory, updateCommandDependency, false, ui)).To(BeFalse())
 		})
 
 		It("requires an app to be specified", func() {
-			passed := testcmd.RunCliCommand("scale", []string{"-m", "1G"}, requirementsFactory, updateCommandDependency, false)
+			passed := testcmd.RunCLICommand("scale", []string{"-m", "1G"}, requirementsFactory, updateCommandDependency, false, ui)
 
-			Expect(ui.Outputs).To(ContainSubstrings(
+			Expect(ui.Outputs()).To(ContainSubstrings(
 				[]string{"Incorrect Usage", "Requires", "argument"},
 			))
 			Expect(passed).To(BeFalse())
 		})
 
 		It("does not require any flags", func() {
-			requirementsFactory.LoginSuccess = true
-			requirementsFactory.TargetedSpaceSuccess = true
-
-			Expect(testcmd.RunCliCommand("scale", []string{"my-app"}, requirementsFactory, updateCommandDependency, false)).To(BeTrue())
+			Expect(testcmd.RunCLICommand("scale", []string{"my-app"}, requirementsFactory, updateCommandDependency, false, ui)).To(BeTrue())
 		})
 	})
 
 	Describe("scaling an app", func() {
-		BeforeEach(func() {
-			app = maker.NewApp(maker.Overrides{"name": "my-app", "guid": "my-app-guid"})
-			app.InstanceCount = 42
-			app.DiskQuota = 1024
-			app.Memory = 256
-
-			requirementsFactory.Application = app
-			appRepo.UpdateReturns(app, nil)
-		})
-
 		Context("when no flags are specified", func() {
 			It("prints a description of the app's limits", func() {
-				testcmd.RunCliCommand("scale", []string{"my-app"}, requirementsFactory, updateCommandDependency, false)
+				testcmd.RunCLICommand("scale", []string{"my-app"}, requirementsFactory, updateCommandDependency, false, ui)
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Showing", "my-app", "my-org", "my-space", "my-user"},
 					[]string{"OK"},
 					[]string{"memory", "256M"},
@@ -117,14 +117,14 @@ var _ = Describe("scale command", func() {
 					[]string{"instances", "42"},
 				))
 
-				Expect(ui.Outputs).ToNot(ContainSubstrings([]string{"Scaling", "my-app", "my-org", "my-space", "my-user"}))
+				Expect(ui.Outputs()).ToNot(ContainSubstrings([]string{"Scaling", "my-app", "my-org", "my-space", "my-user"}))
 			})
 		})
 
 		Context("when the user does not confirm 'yes'", func() {
 			It("does not restart the app", func() {
 				ui.Inputs = []string{"whatever"}
-				testcmd.RunCliCommand("scale", []string{"-i", "5", "-m", "512M", "-k", "2G", "my-app"}, requirementsFactory, updateCommandDependency, false)
+				testcmd.RunCLICommand("scale", []string{"-i", "5", "-m", "512M", "-k", "2G", "my-app"}, requirementsFactory, updateCommandDependency, false, ui)
 
 				Expect(restarter.ApplicationRestartCallCount()).To(Equal(0))
 			})
@@ -132,7 +132,7 @@ var _ = Describe("scale command", func() {
 
 		Context("when the user provides the -f flag", func() {
 			It("does not prompt the user", func() {
-				testcmd.RunCliCommand("scale", []string{"-f", "-i", "5", "-m", "512M", "-k", "2G", "my-app"}, requirementsFactory, updateCommandDependency, false)
+				testcmd.RunCLICommand("scale", []string{"-f", "-i", "5", "-m", "512M", "-k", "2G", "my-app"}, requirementsFactory, updateCommandDependency, false, ui)
 
 				application, orgName, spaceName := restarter.ApplicationRestartArgsForCall(0)
 				Expect(application).To(Equal(app))
@@ -147,9 +147,9 @@ var _ = Describe("scale command", func() {
 			})
 
 			It("can set an app's instance count, memory limit and disk limit", func() {
-				testcmd.RunCliCommand("scale", []string{"-i", "5", "-m", "512M", "-k", "2G", "my-app"}, requirementsFactory, updateCommandDependency, false)
+				testcmd.RunCLICommand("scale", []string{"-i", "5", "-m", "512M", "-k", "2G", "my-app"}, requirementsFactory, updateCommandDependency, false, ui)
 
-				Expect(ui.Outputs).To(ContainSubstrings(
+				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Scaling", "my-app", "my-org", "my-space", "my-user"},
 					[]string{"OK"},
 				))
@@ -169,7 +169,7 @@ var _ = Describe("scale command", func() {
 			})
 
 			It("does not scale the memory and disk limits if they are not specified", func() {
-				testcmd.RunCliCommand("scale", []string{"-i", "5", "my-app"}, requirementsFactory, updateCommandDependency, false)
+				testcmd.RunCLICommand("scale", []string{"-i", "5", "my-app"}, requirementsFactory, updateCommandDependency, false, ui)
 
 				Expect(restarter.ApplicationRestartCallCount()).To(Equal(0))
 
@@ -181,7 +181,7 @@ var _ = Describe("scale command", func() {
 			})
 
 			It("does not scale the app's instance count if it is not specified", func() {
-				testcmd.RunCliCommand("scale", []string{"-m", "512M", "my-app"}, requirementsFactory, updateCommandDependency, false)
+				testcmd.RunCLICommand("scale", []string{"-m", "512M", "my-app"}, requirementsFactory, updateCommandDependency, false, ui)
 
 				application, orgName, spaceName := restarter.ApplicationRestartArgsForCall(0)
 				Expect(application).To(Equal(app))

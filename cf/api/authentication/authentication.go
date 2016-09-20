@@ -1,41 +1,116 @@
 package authentication
 
 import (
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
-	. "github.com/cloudfoundry/cli/cf/i18n"
-
-	"github.com/cloudfoundry/cli/cf/configuration/core_config"
+	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
 	"github.com/cloudfoundry/cli/cf/errors"
+	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/cf/net"
 )
+
+//go:generate counterfeiter . TokenRefresher
 
 type TokenRefresher interface {
 	RefreshAuthToken() (updatedToken string, apiErr error)
 }
 
-type AuthenticationRepository interface {
+//go:generate counterfeiter . Repository
+
+type Repository interface {
+	net.RequestDumperInterface
+
 	RefreshAuthToken() (updatedToken string, apiErr error)
 	Authenticate(credentials map[string]string) (apiErr error)
-	GetLoginPromptsAndSaveUAAServerURL() (map[string]core_config.AuthPrompt, error)
+	Authorize(token string) (string, error)
+	GetLoginPromptsAndSaveUAAServerURL() (map[string]coreconfig.AuthPrompt, error)
 }
 
-type UAAAuthenticationRepository struct {
-	config  core_config.ReadWriter
+type UAARepository struct {
+	config  coreconfig.ReadWriter
 	gateway net.Gateway
+	dumper  net.RequestDumper
 }
 
-func NewUAAAuthenticationRepository(gateway net.Gateway, config core_config.ReadWriter) (uaa UAAAuthenticationRepository) {
-	uaa.gateway = gateway
-	uaa.config = config
-	return
+var ErrPreventRedirect = errors.New("prevent-redirect")
+
+func NewUAARepository(gateway net.Gateway, config coreconfig.ReadWriter, dumper net.RequestDumper) UAARepository {
+	return UAARepository{
+		config:  config,
+		gateway: gateway,
+		dumper:  dumper,
+	}
 }
 
-func (uaa UAAAuthenticationRepository) Authenticate(credentials map[string]string) error {
+func (uaa UAARepository) Authorize(token string) (string, error) {
+	httpClient := &http.Client{
+		CheckRedirect: func(req *http.Request, _ []*http.Request) error {
+			uaa.DumpRequest(req)
+			return ErrPreventRedirect
+		},
+		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			DisableKeepAlives: true,
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: uaa.config.IsSSLDisabled(),
+			},
+			Proxy:               http.ProxyFromEnvironment,
+			TLSHandshakeTimeout: 10 * time.Second,
+		},
+	}
+
+	authorizeURL, err := url.Parse(uaa.config.UaaEndpoint())
+	if err != nil {
+		return "", err
+	}
+
+	values := url.Values{}
+	values.Set("response_type", "code")
+	values.Set("grant_type", "authorization_code")
+	values.Set("client_id", uaa.config.SSHOAuthClient())
+
+	authorizeURL.Path = "/oauth/authorize"
+	authorizeURL.RawQuery = values.Encode()
+
+	authorizeReq, err := http.NewRequest("GET", authorizeURL.String(), nil)
+	if err != nil {
+		return "", err
+	}
+
+	authorizeReq.Header.Add("authorization", token)
+
+	resp, err := httpClient.Do(authorizeReq)
+	if resp != nil {
+		uaa.DumpResponse(resp)
+	}
+	if err == nil {
+		return "", errors.New(T("Authorization server did not redirect with one time code"))
+	}
+
+	if netErr, ok := err.(*url.Error); !ok || netErr.Err != ErrPreventRedirect {
+		return "", errors.New(T("Error requesting one time code from server: {{.Error}}", map[string]interface{}{"Error": err.Error()}))
+	}
+
+	loc, err := resp.Location()
+	if err != nil {
+		return "", errors.New(T("Error getting the redirected location: {{.Error}}", map[string]interface{}{"Error": err.Error()}))
+	}
+
+	codes := loc.Query()["code"]
+	if len(codes) != 1 {
+		return "", errors.New(T("Unable to acquire one time code from authorization response"))
+	}
+
+	return codes[0], nil
+}
+
+func (uaa UAARepository) Authenticate(credentials map[string]string) error {
 	data := url.Values{
 		"grant_type": {"password"},
 		"scope":      {""},
@@ -46,7 +121,7 @@ func (uaa UAAAuthenticationRepository) Authenticate(credentials map[string]strin
 
 	err := uaa.getAuthToken(data)
 	if err != nil {
-		httpError, ok := err.(errors.HttpError)
+		httpError, ok := err.(errors.HTTPError)
 		if ok {
 			switch {
 			case httpError.StatusCode() == http.StatusUnauthorized:
@@ -62,20 +137,28 @@ func (uaa UAAAuthenticationRepository) Authenticate(credentials map[string]strin
 	return nil
 }
 
+func (uaa UAARepository) DumpRequest(req *http.Request) {
+	uaa.dumper.DumpRequest(req)
+}
+
+func (uaa UAARepository) DumpResponse(res *http.Response) {
+	uaa.dumper.DumpResponse(res)
+}
+
 type LoginResource struct {
 	Prompts map[string][]string
 	Links   map[string]string
 }
 
-var knownAuthPromptTypes = map[string]core_config.AuthPromptType{
-	"text":     core_config.AuthPromptTypeText,
-	"password": core_config.AuthPromptTypePassword,
+var knownAuthPromptTypes = map[string]coreconfig.AuthPromptType{
+	"text":     coreconfig.AuthPromptTypeText,
+	"password": coreconfig.AuthPromptTypePassword,
 }
 
-func (r *LoginResource) parsePrompts() (prompts map[string]core_config.AuthPrompt) {
-	prompts = make(map[string]core_config.AuthPrompt)
+func (r *LoginResource) parsePrompts() (prompts map[string]coreconfig.AuthPrompt) {
+	prompts = make(map[string]coreconfig.AuthPrompt)
 	for key, val := range r.Prompts {
-		prompts[key] = core_config.AuthPrompt{
+		prompts[key] = coreconfig.AuthPrompt{
 			Type:        knownAuthPromptTypes[val[0]],
 			DisplayName: val[1],
 		}
@@ -83,7 +166,7 @@ func (r *LoginResource) parsePrompts() (prompts map[string]core_config.AuthPromp
 	return
 }
 
-func (uaa UAAAuthenticationRepository) GetLoginPromptsAndSaveUAAServerURL() (prompts map[string]core_config.AuthPrompt, apiErr error) {
+func (uaa UAARepository) GetLoginPromptsAndSaveUAAServerURL() (prompts map[string]coreconfig.AuthPrompt, apiErr error) {
 	url := fmt.Sprintf("%s/login", uaa.config.AuthenticationEndpoint())
 	resource := &LoginResource{}
 	apiErr = uaa.gateway.GetResource(url, resource)
@@ -97,7 +180,7 @@ func (uaa UAAAuthenticationRepository) GetLoginPromptsAndSaveUAAServerURL() (pro
 	return
 }
 
-func (uaa UAAAuthenticationRepository) RefreshAuthToken() (string, error) {
+func (uaa UAARepository) RefreshAuthToken() (string, error) {
 	data := url.Values{
 		"refresh_token": {uaa.config.RefreshToken()},
 		"grant_type":    {"refresh_token"},
@@ -110,7 +193,7 @@ func (uaa UAAAuthenticationRepository) RefreshAuthToken() (string, error) {
 	return updatedToken, apiErr
 }
 
-func (uaa UAAAuthenticationRepository) getAuthToken(data url.Values) error {
+func (uaa UAARepository) getAuthToken(data url.Values) error {
 	type uaaErrorResponse struct {
 		Code        string `json:"error"`
 		Description string `json:"error_description"`
@@ -128,14 +211,14 @@ func (uaa UAAAuthenticationRepository) getAuthToken(data url.Values) error {
 	if err != nil {
 		return fmt.Errorf("%s: %s", T("Failed to start oauth request"), err.Error())
 	}
-	request.HttpReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.HTTPReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	response := new(AuthenticationResponse)
 	_, err = uaa.gateway.PerformRequestForJSONResponse(request, &response)
 
 	switch err.(type) {
 	case nil:
-	case errors.HttpError:
+	case errors.HTTPError:
 		return err
 	case *errors.InvalidTokenError:
 		return errors.New(T("Authentication has expired.  Please log back in to re-authenticate.\n\nTIP: Use `cf login -a <endpoint> -u <user> -o <org> -s <space>` to log back in and re-authenticate."))
@@ -145,7 +228,7 @@ func (uaa UAAAuthenticationRepository) getAuthToken(data url.Values) error {
 
 	// TODO: get the actual status code
 	if response.Error.Code != "" {
-		return errors.NewHttpError(0, response.Error.Code, response.Error.Description)
+		return errors.NewHTTPError(0, response.Error.Code, response.Error.Description)
 	}
 
 	uaa.config.SetAccessToken(fmt.Sprintf("%s %s", response.TokenType, response.AccessToken))
