@@ -2,12 +2,12 @@ package api_test
 
 import (
 	. "github.com/cloudfoundry/cli/cf/api"
+	"github.com/cloudfoundry/cli/cf/api/apifakes"
 	"github.com/cloudfoundry/cli/cf/net"
-	testapi "github.com/cloudfoundry/cli/testhelpers/api"
-	//testapi "github.com/cloudfoundry/cli/cf/api/fakes"
+	"github.com/cloudfoundry/cli/cf/terminal/terminalfakes"
 	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
 
+	"github.com/cloudfoundry/cli/cf/trace/tracefakes"
 	. "github.com/cloudfoundry/cli/testhelpers/matchers"
 	testnet "github.com/cloudfoundry/cli/testhelpers/net"
 	. "github.com/onsi/ginkgo"
@@ -19,7 +19,7 @@ import (
 
 var _ = Describe("AppSshRepository", func() {
 	It("TestGetSshCurrentSpace", func() {
-		getAppSshInfoRequest := testapi.NewCloudControllerTestRequest(testnet.TestRequest{
+		getAppSshInfoRequest := apifakes.NewCloudControllerTestRequest(testnet.TestRequest{
 			Method:   "GET",
 			Path:     "/v2/apps/my-app-guid/instances/0/ssh",
 			Response: testnet.TestResponse{Status: http.StatusOK, Body: getSshInfoResponseBody},
@@ -52,8 +52,8 @@ var getSshInfoResponseBody = `
 func createSshInfoRepo(requests []testnet.TestRequest) (ts *httptest.Server, handler *testnet.TestHandler, repo AppSshRepository) {
 	ts, handler = testnet.NewServer(requests)
 	configRepo := testconfig.NewRepositoryWithDefaults()
-	configRepo.SetApiEndpoint(ts.URL)
-	gateway := net.NewCloudControllerGateway(configRepo, time.Now, &testterm.FakeUI{})
+	configRepo.SetAPIEndpoint(ts.URL)
+	gateway := net.NewCloudControllerGateway(configRepo, time.Now, new(terminalfakes.FakeUI), new(tracefakes.FakePrinter), "")
 	repo = NewCloudControllerAppSshRepository(configRepo, gateway)
 	return
 }

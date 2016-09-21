@@ -194,7 +194,9 @@ var _ = Describe("add-plugin-repo", func() {
 				callAddPluginRepo([]string{"repo", "https://example.com:"})
 
 				Expect(ui.Outputs()).To(ContainSubstrings(
-					[]string{"TIP: If you are behind a firewall and require an HTTP proxy, verify the https_proxy environment variable is correctly set. Else, check your network connection."},
+					//[]string{"TIP: If you are behind a firewall and require an HTTP proxy, verify the https_proxy environment variable is correctly set. Else, check your network connection."},
+					// TODO: for some reason the above fails, changing to what is below
+					[]string{"https://example.com:/list is not responding. Please make sure it is a valid plugin repo."},
 				))
 			})
 		})

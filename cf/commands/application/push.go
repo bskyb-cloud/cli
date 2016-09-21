@@ -292,9 +292,9 @@ func (cmd *Push) Execute(c flags.FlagContext) error {
 		}
 
 		if appParams.ServicesToBind != nil {
-			err := cmd.bindAppToServices(appParams.ServicesToBind, app)
-			if err != nil {
-				return err
+			errBind := cmd.bindAppToServices(appParams.ServicesToBind, app)
+			if errBind != nil {
+				return errBind
 			}
 		}
 

@@ -27,7 +27,7 @@ func (cmd *GetSchema) MetaData() commandregistry.CommandMetadata {
 		Name:        "get-schema",
 		ShortName:   "gs",
 		Description: "Get a service schema. Currently only supported in the webproxy.",
-		Usage:       "CF_NAME get-schema SERVICE_INSTANCE",
+		Usage:       []string{"CF_NAME get-schema SERVICE_INSTANCE"},
 	}
 }
 
@@ -67,8 +67,8 @@ func (cmd *GetSchema) Execute(fc flags.FlagContext) error {
 	schema, err := cmd.serviceRepo.GetSchema(serviceInstance)
 
 	if err != nil {
-		if httpError, ok := err.(errors.HTTPError); ok && httpError.ErrorCode() == errors.SERVICE_INSTANCE_NAME_TAKEN {
-			cmd.ui.Failed("%s\nTIP: Use '%s services' to view all services in this org and space.", httpError.Error(), cf.Name())
+		if httpError, ok := err.(errors.HTTPError); ok && httpError.ErrorCode() == errors.ServiceInstanceNameTaken {
+			cmd.ui.Failed("%s\nTIP: Use '%s services' to view all services in this org and space.", httpError.Error(), cf.Name)
 		} else {
 			cmd.ui.Failed(err.Error())
 		}

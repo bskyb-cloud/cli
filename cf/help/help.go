@@ -194,8 +194,8 @@ func newAppPresenter() appPresenter {
 			Name: T("PROXY SERVICE"),
 			CommandSubGroups: [][]cmdPresenter{
 				{
-					presentNonCodegangstaCommand("get-schema"),
-					presentNonCodegangstaCommand("set-schema"),
+					presentCommand("get-schema"),
+					presentCommand("set-schema"),
 				},
 			},
 		}, {

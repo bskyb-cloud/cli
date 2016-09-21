@@ -31,7 +31,7 @@ func (cmd *SetSchema) MetaData() commandregistry.CommandMetadata {
 		Name:        "set-schema",
 		ShortName:   "ss",
 		Description: "Set schema for a service. Currently only supported in the webproxy.",
-		Usage:       "CF_NAME set-schema SERVICE_INSTANCE SCHEME_FILENAME",
+		Usage:       []string{"CF_NAME set-schema SERVICE_INSTANCE SCHEME_FILENAME"},
 	}
 }
 
@@ -49,7 +49,7 @@ func (cmd *SetSchema) Requirements(requirementsFactory requirements.Factory, fc 
 		cmd.serviceInstanceReq,
 	}
 
-	return
+	return reqs
 }
 
 func (cmd *SetSchema) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
@@ -65,7 +65,7 @@ func (cmd *SetSchema) Execute(fc flags.FlagContext) error {
 	schemaBytes, ferr := ioutil.ReadFile(schemaFilename)
 	if ferr != nil {
 		cmd.ui.Failed("Failed to read file %s. Error: %s", schemaFilename, ferr)
-		return
+		return errors.New("Error reading schema file: " + ferr.Error())
 	}
 
 	schema := string(schemaBytes)
@@ -73,7 +73,7 @@ func (cmd *SetSchema) Execute(fc flags.FlagContext) error {
 	err := validateForDuplicates(schema)
 	if err != nil {
 		cmd.ui.Failed(err.Error())
-		return
+		return errors.New("Schema file invalid: " + err.Error())
 	}
 
 	serviceInstance := cmd.serviceInstanceReq.GetServiceInstance()
@@ -88,8 +88,8 @@ func (cmd *SetSchema) Execute(fc flags.FlagContext) error {
 	err = cmd.serviceRepo.SetSchema(serviceInstance, schema)
 
 	if err != nil {
-		if httpError, ok := err.(errors.HTTPError); ok && httpError.ErrorCode() == errors.SERVICE_INSTANCE_NAME_TAKEN {
-			cmd.ui.Failed("%s\nTIP: Use '%s services' to view all services in this org and space.", httpError.Error(), cf.Name())
+		if httpError, ok := err.(errors.HTTPError); ok && httpError.ErrorCode() == errors.ServiceInstanceNameTaken {
+			cmd.ui.Failed("%s\nTIP: Use '%s services' to view all services in this org and space.", httpError.Error(), cf.Name)
 		} else {
 			cmd.ui.Failed(err.Error())
 		}

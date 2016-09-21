@@ -123,7 +123,7 @@ func (cmd *SSH) Execute(fc flags.FlagContext) error {
 	if app.Diego {
 		return cmd.executeDiego(fc, app)
 	} else {
-		cmd.executeNimbusDEA(fc, app)
+		return cmd.executeNimbusDEA(fc, app)
 	}
 }
 
@@ -261,4 +261,5 @@ func (cmd *SSH) executeNimbusDEA(fc flags.FlagContext, app models.Application) e
 	}
 
 	cmd.ui.Say("SSH Finished\n")
+	return nil
 }
