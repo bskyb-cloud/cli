@@ -3,22 +3,22 @@ package service_test
 import (
 	"errors"
 
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/commands/service"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	cferrors "code.cloudfoundry.org/cli/cf/errors"
+	"code.cloudfoundry.org/cli/cf/flags"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/requirements/requirementsfakes"
 	"github.com/blang/semver"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/commands/service"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	cferrors "github.com/cloudfoundry/cli/cf/errors"
-	"github.com/cloudfoundry/cli/cf/flags"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 
-	"github.com/cloudfoundry/cli/cf/api/apifakes"
+	"code.cloudfoundry.org/cli/cf/api/apifakes"
 
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	testconfig "code.cloudfoundry.org/cli/testhelpers/configuration"
+	testterm "code.cloudfoundry.org/cli/testhelpers/terminal"
 
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "code.cloudfoundry.org/cli/testhelpers/matchers"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -72,7 +72,8 @@ var _ = Describe("PurgeServiceInstance", func() {
 			})
 
 			It("fails with usage", func() {
-				Expect(func() { cmd.Requirements(factory, flagContext) }).To(Panic())
+				_, err := cmd.Requirements(factory, flagContext)
+				Expect(err).To(HaveOccurred())
 				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Incorrect Usage. Requires an argument"},
 					[]string{"NAME"},
@@ -87,14 +88,16 @@ var _ = Describe("PurgeServiceInstance", func() {
 			})
 
 			It("returns a LoginRequirement", func() {
-				actualRequirements := cmd.Requirements(factory, flagContext)
+				actualRequirements, err := cmd.Requirements(factory, flagContext)
+				Expect(err).NotTo(HaveOccurred())
 				Expect(factory.NewLoginRequirementCallCount()).To(Equal(1))
 
 				Expect(actualRequirements).To(ContainElement(loginRequirement))
 			})
 
 			It("returns a MinAPIVersionRequirement", func() {
-				actualRequirements := cmd.Requirements(factory, flagContext)
+				actualRequirements, err := cmd.Requirements(factory, flagContext)
+				Expect(err).NotTo(HaveOccurred())
 				Expect(factory.NewMinAPIVersionRequirementCallCount()).To(Equal(1))
 
 				expectedVersion, err := semver.Make("2.36.0")
@@ -208,7 +211,7 @@ var _ = Describe("PurgeServiceInstance", func() {
 				runCLIErr = cmd.Execute(flagContext)
 			})
 
-			It("panics and prints a message with the error", func() {
+			It("prints a message with the error", func() {
 				Expect(runCLIErr).To(HaveOccurred())
 			})
 		})

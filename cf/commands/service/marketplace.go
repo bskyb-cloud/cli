@@ -6,15 +6,15 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
 
-	"github.com/cloudfoundry/cli/cf/actors/servicebuilder"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/actors/servicebuilder"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
 )
 
 type MarketplaceServices struct {
@@ -43,7 +43,7 @@ func (cmd *MarketplaceServices) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *MarketplaceServices) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *MarketplaceServices) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	usageReq := requirements.NewUsageRequirement(commandregistry.CLICommandUsagePresenter(cmd),
 		T("No argument required"),
 		func() bool {
@@ -56,7 +56,7 @@ func (cmd *MarketplaceServices) Requirements(requirementsFactory requirements.Fa
 		requirementsFactory.NewAPIEndpointRequirement(),
 	}
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *MarketplaceServices) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
@@ -123,7 +123,10 @@ func (cmd MarketplaceServices) marketplaceByService(serviceName string) error {
 		table.Add(plan.Name, plan.Description, freeOrPaid)
 	}
 
-	table.Print()
+	err = table.Print()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -181,7 +184,10 @@ func (cmd MarketplaceServices) marketplace() error {
 		table.Add(offering.Label, planNames, offering.Description)
 	}
 
-	table.Print()
+	err = table.Print()
+	if err != nil {
+		return err
+	}
 	if paidPlanExists {
 		cmd.ui.Say(T("\n* These service plans have an associated cost. Creating a service instance will incur this cost."))
 	}

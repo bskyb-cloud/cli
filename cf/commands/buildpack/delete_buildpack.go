@@ -1,13 +1,13 @@
 package buildpack
 
 import (
-	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/errors"
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/api"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/errors"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
 )
 
 type DeleteBuildpack struct {
@@ -39,7 +39,7 @@ func (cmd *DeleteBuildpack) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *DeleteBuildpack) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *DeleteBuildpack) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	usageReq := requirements.NewUsageRequirement(commandregistry.CLICommandUsagePresenter(cmd), "",
 		func() bool {
 			return len(fc.Args()) != 1
@@ -53,7 +53,7 @@ func (cmd *DeleteBuildpack) Requirements(requirementsFactory requirements.Factor
 		loginReq,
 	}
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *DeleteBuildpack) Execute(c flags.FlagContext) error {

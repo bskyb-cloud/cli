@@ -3,21 +3,21 @@ package domain_test
 import (
 	"errors"
 
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/flags"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/flags"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/requirements/requirementsfakes"
 
-	"github.com/cloudfoundry/cli/cf/api/apifakes"
-	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	"code.cloudfoundry.org/cli/cf/api/apifakes"
+	testcmd "code.cloudfoundry.org/cli/testhelpers/commands"
+	testconfig "code.cloudfoundry.org/cli/testhelpers/configuration"
+	testterm "code.cloudfoundry.org/cli/testhelpers/terminal"
 
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "code.cloudfoundry.org/cli/testhelpers/matchers"
 
-	"github.com/cloudfoundry/cli/cf/commands/domain"
+	"code.cloudfoundry.org/cli/cf/commands/domain"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -108,9 +108,10 @@ var _ = Describe("ListDomains", func() {
 			It("should fail with usage", func() {
 				flagContext.Parse("blahblah")
 
-				reqs := cmd.Requirements(factory, flagContext)
+				reqs, err := cmd.Requirements(factory, flagContext)
+				Expect(err).NotTo(HaveOccurred())
 
-				err := testcmd.RunRequirements(reqs)
+				err = testcmd.RunRequirements(reqs)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("Incorrect Usage"))
 				Expect(err.Error()).To(ContainSubstring("No argument required"))
@@ -123,7 +124,8 @@ var _ = Describe("ListDomains", func() {
 			})
 
 			It("does not fail with usage", func() {
-				cmd.Requirements(factory, flagContext)
+				_, err := cmd.Requirements(factory, flagContext)
+				Expect(err).NotTo(HaveOccurred())
 				Expect(ui.Outputs()).NotTo(ContainSubstrings(
 					[]string{"Incorrect Usage. No argument required"},
 					[]string{"NAME"},
@@ -132,13 +134,15 @@ var _ = Describe("ListDomains", func() {
 			})
 
 			It("returns a LoginRequirement", func() {
-				actualRequirements := cmd.Requirements(factory, flagContext)
+				actualRequirements, err := cmd.Requirements(factory, flagContext)
+				Expect(err).NotTo(HaveOccurred())
 				Expect(factory.NewLoginRequirementCallCount()).To(Equal(1))
 				Expect(actualRequirements).To(ContainElement(loginRequirement))
 			})
 
 			It("returns a TargetedOrgRequirement", func() {
-				actualRequirements := cmd.Requirements(factory, flagContext)
+				actualRequirements, err := cmd.Requirements(factory, flagContext)
+				Expect(err).NotTo(HaveOccurred())
 				Expect(factory.NewTargetedOrgRequirementCallCount()).To(Equal(1))
 				Expect(actualRequirements).To(ContainElement(targetedOrgRequirement))
 			})

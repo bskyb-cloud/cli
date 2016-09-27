@@ -1,20 +1,20 @@
 package securitygroup_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/api/securitygroups/securitygroupsfakes"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/errors"
-	"github.com/cloudfoundry/cli/cf/flags"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
-	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	"code.cloudfoundry.org/cli/cf/api/securitygroups/securitygroupsfakes"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/errors"
+	"code.cloudfoundry.org/cli/cf/flags"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/requirements/requirementsfakes"
+	testcmd "code.cloudfoundry.org/cli/testhelpers/commands"
+	testconfig "code.cloudfoundry.org/cli/testhelpers/configuration"
+	testterm "code.cloudfoundry.org/cli/testhelpers/terminal"
 
-	"github.com/cloudfoundry/cli/cf/commands/securitygroup"
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	"code.cloudfoundry.org/cli/cf/commands/securitygroup"
+	. "code.cloudfoundry.org/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -65,9 +65,10 @@ var _ = Describe("list-security-groups command", func() {
 			It("should fail with usage", func() {
 				flagContext.Parse("blahblah")
 
-				reqs := cmd.Requirements(requirementsFactory, flagContext)
+				reqs, err := cmd.Requirements(requirementsFactory, flagContext)
+				Expect(err).NotTo(HaveOccurred())
 
-				err := testcmd.RunRequirements(reqs)
+				err = testcmd.RunRequirements(reqs)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("Incorrect Usage"))
 				Expect(err.Error()).To(ContainSubstring("No argument required"))
@@ -146,8 +147,6 @@ var _ = Describe("list-security-groups command", func() {
 						[]string{"#0", "my-group", "org-1", "space-1"},
 					))
 
-					//If there is a panic in this test, it is likely due to the following
-					//Expectation to be false
 					Expect(ui.Outputs()).ToNot(ContainSubstrings(
 						[]string{"#0", "my-group", "org-2", "space-2"},
 					))

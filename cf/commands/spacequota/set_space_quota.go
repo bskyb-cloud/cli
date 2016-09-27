@@ -2,15 +2,16 @@ package spacequota
 
 import (
 	"errors"
+	"fmt"
 
-	"github.com/cloudfoundry/cli/cf/api/spacequotas"
-	"github.com/cloudfoundry/cli/cf/api/spaces"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/api/spacequotas"
+	"code.cloudfoundry.org/cli/cf/api/spaces"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
 )
 
 type SetSpaceQuota struct {
@@ -34,9 +35,10 @@ func (cmd *SetSpaceQuota) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *SetSpaceQuota) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *SetSpaceQuota) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	if len(fc.Args()) != 2 {
 		cmd.ui.Failed(T("Incorrect Usage. Requires SPACE-NAME and SPACE-QUOTA-NAME as arguments\n\n") + commandregistry.Commands.CommandUsage("set-space-quota"))
+		return nil, fmt.Errorf("Incorrect usage: %d arguments of %d required", len(fc.Args()), 2)
 	}
 
 	reqs := []requirements.Requirement{
@@ -44,7 +46,7 @@ func (cmd *SetSpaceQuota) Requirements(requirementsFactory requirements.Factory,
 		requirementsFactory.NewTargetedOrgRequirement(),
 	}
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *SetSpaceQuota) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {

@@ -3,10 +3,10 @@ package fakecommand
 import (
 	"fmt"
 
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/flags"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/flags"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
 )
 
 type FakeCommand1 struct {
@@ -29,9 +29,9 @@ func (cmd FakeCommand1) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd FakeCommand1) Requirements(_ requirements.Factory, _ flags.FlagContext) []requirements.Requirement {
+func (cmd FakeCommand1) Requirements(_ requirements.Factory, _ flags.FlagContext) ([]requirements.Requirement, error) {
 	reqs := []requirements.Requirement{cmd.req}
-	return reqs
+	return reqs, nil
 }
 
 func (cmd FakeCommand1) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {

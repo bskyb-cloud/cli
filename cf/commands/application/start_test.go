@@ -4,28 +4,28 @@ import (
 	"os"
 	"time"
 
-	. "github.com/cloudfoundry/cli/cf/commands/application"
-	"github.com/cloudfoundry/cli/cf/commands/application/applicationfakes"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
-	"github.com/cloudfoundry/cli/cf/trace/tracefakes"
+	. "code.cloudfoundry.org/cli/cf/commands/application"
+	"code.cloudfoundry.org/cli/cf/commands/application/applicationfakes"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/requirements/requirementsfakes"
+	"code.cloudfoundry.org/cli/cf/trace/tracefakes"
 
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/errors"
-	"github.com/cloudfoundry/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/errors"
+	"code.cloudfoundry.org/cli/cf/models"
 	"github.com/cloudfoundry/loggregatorlib/logmessage"
 
-	"github.com/cloudfoundry/cli/cf/api/appinstances/appinstancesfakes"
-	"github.com/cloudfoundry/cli/cf/api/applications/applicationsfakes"
-	"github.com/cloudfoundry/cli/cf/api/logs"
-	"github.com/cloudfoundry/cli/cf/api/logs/logsfakes"
-	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testlogs "github.com/cloudfoundry/cli/testhelpers/logs"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	"code.cloudfoundry.org/cli/cf/api/appinstances/appinstancesfakes"
+	"code.cloudfoundry.org/cli/cf/api/applications/applicationsfakes"
+	"code.cloudfoundry.org/cli/cf/api/logs"
+	"code.cloudfoundry.org/cli/cf/api/logs/logsfakes"
+	testcmd "code.cloudfoundry.org/cli/testhelpers/commands"
+	testconfig "code.cloudfoundry.org/cli/testhelpers/configuration"
+	testlogs "code.cloudfoundry.org/cli/testhelpers/logs"
+	testterm "code.cloudfoundry.org/cli/testhelpers/terminal"
 
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "code.cloudfoundry.org/cli/testhelpers/matchers"
 
 	"sync"
 
@@ -308,9 +308,7 @@ var _ = Describe("start command", func() {
 				startWait.Add(1)
 				doneWait := new(sync.WaitGroup)
 				doneWait.Add(1)
-				Expect(func() {
-					cmd.TailStagingLogs(defaultAppForStart, make(chan bool, 1), startWait, doneWait)
-				}).NotTo(Panic())
+				cmd.TailStagingLogs(defaultAppForStart, make(chan bool, 1), startWait, doneWait)
 			})
 		})
 	})
@@ -362,6 +360,43 @@ var _ = Describe("start command", func() {
 			Expect(displayApp.AppToDisplay).To(Equal(defaultAppForStart))
 		})
 
+		Context("when app instance count is zero", func() {
+			var zeroInstanceApp models.Application
+			BeforeEach(func() {
+				zeroInstanceApp = models.Application{
+					ApplicationFields: models.ApplicationFields{
+						Name:          "my-app",
+						GUID:          "my-app-guid",
+						InstanceCount: 0,
+						PackageState:  "STAGED",
+					},
+				}
+				defaultInstanceResponses = [][]models.AppInstanceFields{{}}
+			})
+
+			It("exit without polling for the app, and warns the user", func() {
+				ui, _, _ := startAppWithInstancesAndErrors(zeroInstanceApp, requirementsFactory)
+
+				Expect(ui.Outputs()).To(ContainSubstrings(
+					[]string{"my-app", "my-org", "my-space", "my-user"},
+					[]string{"OK"},
+					[]string{"App state changed to started, but note that it has 0 instances."},
+				))
+
+				Expect(appRepo.UpdateCallCount()).To(Equal(1))
+				appGuid, appParams := appRepo.UpdateArgsForCall(0)
+				Expect(appGuid).To(Equal(zeroInstanceApp.GUID))
+				startedState := "started"
+				Expect(appParams).To(Equal(models.AppParams{State: &startedState}))
+
+				zeroInstanceApp.State = startedState
+				ui, _, _ = startAppWithInstancesAndErrors(zeroInstanceApp, requirementsFactory)
+				Expect(ui.Outputs()).To(ContainSubstrings(
+					[]string{"App my-app is already started"},
+				))
+				Expect(appRepo.UpdateCallCount()).To(Equal(1))
+			})
+		})
 		It("displays the command start command instead of the detected start command when set", func() {
 			defaultAppForStart.Command = "command start command"
 			defaultAppForStart.DetectedStartCommand = "detected start command"

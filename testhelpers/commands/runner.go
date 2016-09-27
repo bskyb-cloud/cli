@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/flags"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/flags"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	testterm "code.cloudfoundry.org/cli/testhelpers/terminal"
 )
 
 type RunCommandResult int
@@ -27,14 +27,11 @@ func RunCLICommand(cmdName string, args []string, requirementsFactory requiremen
 		os.Exit(1)
 	}
 
-	defer func() {
-		errMsg := recover()
-
-		if errMsg != nil && errMsg != testterm.QuietPanic {
-			panic(errMsg)
-		}
-	}()
-	requirements := cmd.Requirements(requirementsFactory, context)
+	var requirements []requirements.Requirement
+	requirements, err = cmd.Requirements(requirementsFactory, context)
+	if err != nil {
+		return false
+	}
 	for _, requirement := range requirements {
 		if err = requirement.Execute(); err != nil {
 			return false
@@ -44,6 +41,7 @@ func RunCLICommand(cmdName string, args []string, requirementsFactory requiremen
 	err = cmd.Execute(context)
 	if err != nil {
 		ui.Failed(err.Error())
+		return false
 	}
 
 	return true
@@ -62,12 +60,15 @@ func RunCLICommandWithoutDependency(cmdName string, args []string, requirementsF
 	defer func() {
 		errMsg := recover()
 
-		if errMsg != nil && errMsg != testterm.QuietPanic {
+		if errMsg != nil {
 			panic(errMsg)
 		}
 	}()
 
-	requirements := cmd.Requirements(requirementsFactory, context)
+	requirements, err := cmd.Requirements(requirementsFactory, context)
+	if err != nil {
+		return false
+	}
 
 	for _, requirement := range requirements {
 		if err = requirement.Execute(); err != nil {

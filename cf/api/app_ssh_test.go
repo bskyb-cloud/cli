@@ -1,15 +1,15 @@
 package api_test
 
 import (
-	. "github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/api/apifakes"
-	"github.com/cloudfoundry/cli/cf/net"
-	"github.com/cloudfoundry/cli/cf/terminal/terminalfakes"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
+	. "code.cloudfoundry.org/cli/cf/api"
+	"code.cloudfoundry.org/cli/cf/api/apifakes"
+	"code.cloudfoundry.org/cli/cf/net"
+	"code.cloudfoundry.org/cli/cf/terminal/terminalfakes"
+	testconfig "code.cloudfoundry.org/cli/testhelpers/configuration"
 
-	"github.com/cloudfoundry/cli/cf/trace/tracefakes"
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
-	testnet "github.com/cloudfoundry/cli/testhelpers/net"
+	"code.cloudfoundry.org/cli/cf/trace/tracefakes"
+	. "code.cloudfoundry.org/cli/testhelpers/matchers"
+	testnet "code.cloudfoundry.org/cli/testhelpers/net"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"net/http"

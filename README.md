@@ -1,9 +1,9 @@
-# Cloud Foundry CLI [![Build Status](https://travis-ci.org/cloudfoundry/cli.png?branch=master)](https://travis-ci.org/cloudfoundry/cli) [![Code Climate](https://codeclimate.com/github/cloudfoundry/cli/badges/gpa.svg)](https://codeclimate.com/github/cloudfoundry/cli)
+# Cloud Foundry CLI [![Apache License 2.0](https://img.shields.io/github/license/cloudfoundry/cli.svg)](https://github.com/cloudfoundry/cli/blob/master/LICENSE) [![Build Status](https://travis-ci.org/cloudfoundry/cli.png?branch=master)](https://travis-ci.org/cloudfoundry/cli) [![Code Climate](https://codeclimate.com/github/cloudfoundry/cli/badges/gpa.svg)](https://codeclimate.com/github/cloudfoundry/cli)
 
-This is the official command line client for [Cloud Foundry](cloudfoundry.org).
-Latest help of each command is [here](cli.cloudfoundry.org) (or run `cf help`);
+This is the official command line client for [Cloud Foundry](https://cloudfoundry.org).
+Latest help of each command is [here](https://cli.cloudfoundry.org) (or run `cf help`);
 Further documentation is at the [docs page for the
-CLI](docs.cloudfoundry.org/cf-cli).  
+CLI](https://docs.cloudfoundry.org/cf-cli).  
 
 If you have any questions, ask away on the #cli channel in [our Slack
 community](http://slack.cloudfoundry.org/) and the
@@ -30,6 +30,8 @@ $ cd [my-app-directory]
 $ cf push
 ```
 
+Check out our [community contributed CLI plugins](https://plugins.cloudfoundry.org) to further enhance your CLI experience.
+
 ## Downloads
 
 **Latest stable:** Download the installer or compressed binary for your platform:
@@ -43,9 +45,9 @@ $ cf push
 ```
 # ...download & extract Mac OS X binary
 $ curl -L "https://cli.run.pivotal.io/stable?release=macosx64-binary&source=github" | tar -zx
-# ...or Linux binary
+# ...or Linux 64-bit binary
 $ curl -L "https://cli.run.pivotal.io/stable?release=linux64-binary&source=github" | tar -zx
-# ...and confirm you got the version you expected
+# ...and to confirm your cf CLI version
 $ ./cf --version
 cf version x.y.z-...
 ```
@@ -57,10 +59,10 @@ $ brew tap cloudfoundry/tap
 $ brew install cf-cli
 ```
 
-Also, edge binaries are published for [Mac OS X 64 bit](https://cli.run.pivotal.io/edge?arch=macosx64&source=github), [Windows 64 bit](https://cli.run.pivotal.io/edge?arch=windows64&source=github) and [Linux 64 bit](https://cli.run.pivotal.io/edge?arch=linux64&source=github) with each new 'push' that passes though CI.
-These binaries are *not intended for wider use*; they're for developers to test new features and fixes as they are completed.
+**Releases:** 32 bit releases and information about all our releases can be found [here](https://github.com/cloudfoundry/cli/releases).
 
-**Releases:** 32 bit releases and information about all our releases can be found [here](https://github.com/cloudfoundry/cli/releases)
+Also, **edge binaries** are published for [Mac OS X 64 bit](https://cli.run.pivotal.io/edge?arch=macosx64&source=github), [Windows 64 bit](https://cli.run.pivotal.io/edge?arch=windows64&source=github) and [Linux 64 bit](https://cli.run.pivotal.io/edge?arch=linux64&source=github) with each new 'push' that passes though CI.
+These binaries are *not intended for wider use*; they're for developers to test new features and fixes as they are completed.
 
 ## Known Issues
 
@@ -68,47 +70,18 @@ These binaries are *not intended for wider use*; they're for developers to test 
 * .cfignore used in `cf push` must be in UTF8 encoding for CLI to interpret correctly.
 * On Linux, when encountering message "bash: .cf: No such file or directory", ensure that you're using the correct binary or installer for your architecture. See http://askubuntu.com/questions/133389/no-such-file-or-directory-but-the-file-exists
 
-## Filing Issues
+## Filing Issues & Feature Requests
 
 First, update to the [latest cli](https://github.com/cloudfoundry/cli/releases)
 and try the command again.
 
-If the error remains, run the command that exposes the bug with the environment
-variable CF_TRACE set to true and [create an
-issue](https://github.com/cloudfoundry/cli/issues).
+If the error remains or feature still missing, check the [open issues](https://github.com/cloudfoundry/cli/issues) and if not already raised please file a new issue with the requested details.
 
-Include the below information when creating the issue:
-
-* The error that occurred
-* The stack trace (if applicable)
-* The command you ran (e.g. `cf org-users`)
-* The CLI Version (e.g. 6.13.0-dfba612)
-* Your platform details (e.g. Mac OS X 10.11, Windows 8.1 64-bit, Ubuntu 14.04.3 64-bit)
-* The shell you used (e.g. Terminal, iTerm, Powershell, Cygwin, gnome-terminal, terminator)
-
-##### For simple issues (eg: text formatting, help messages, etc), please provide
-
-- the command you ran
-- what occurred
-- what you expected to occur
-
-##### For issues related to HTTP requests or strange behavior, please run the command with env var `CF_TRACE=true` and provide
-
-- the command you ran
-- the trace output
-- a high-level description of the bug
-
-##### For panics and other crashes, please provide
-
-- the command you ran
-- the stack trace generated (if any)
-- any other relevant information
-
-## Plugins
+## Plugin Development
 
 For development guide on writing a cli plugin, see [here](https://github.com/cloudfoundry/cli/tree/master/plugin_examples).
 
-## Contributing
+## Contributing & Build Instructions
 
 Please read the [contributors' guide](CONTRIBUTING.md)
 

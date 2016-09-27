@@ -1,10 +1,10 @@
 package servicefakes
 
 import (
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/flags"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/flags"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
 )
 
 type OldFakeAppBinder struct {
@@ -33,8 +33,8 @@ func (binder *OldFakeAppBinder) SetDependency(_ commandregistry.Dependency, _ bo
 	return binder
 }
 
-func (binder *OldFakeAppBinder) Requirements(_ requirements.Factory, _ flags.FlagContext) []requirements.Requirement {
-	return []requirements.Requirement{}
+func (binder *OldFakeAppBinder) Requirements(_ requirements.Factory, _ flags.FlagContext) ([]requirements.Requirement, error) {
+	return []requirements.Requirement{}, nil
 }
 
 func (binder *OldFakeAppBinder) Execute(_ flags.FlagContext) error {

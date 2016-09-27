@@ -1,9 +1,9 @@
 package fakecommand
 
 import (
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/flags"
-	"github.com/cloudfoundry/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/flags"
+	"code.cloudfoundry.org/cli/cf/requirements"
 )
 
 type FakeCommand2 struct {
@@ -21,8 +21,8 @@ func (cmd FakeCommand2) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd FakeCommand2) Requirements(_ requirements.Factory, _ flags.FlagContext) []requirements.Requirement {
-	return []requirements.Requirement{}
+func (cmd FakeCommand2) Requirements(_ requirements.Factory, _ flags.FlagContext) ([]requirements.Requirement, error) {
+	return []requirements.Requirement{}, nil
 }
 
 func (cmd FakeCommand2) SetDependency(deps commandregistry.Dependency, _ bool) commandregistry.Command {

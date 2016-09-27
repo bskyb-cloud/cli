@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/cloudfoundry/cli/testhelpers/pluginbuilder"
+	"code.cloudfoundry.org/cli/testhelpers/pluginbuilder"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -24,7 +24,6 @@ func TestMain(t *testing.T) {
 	pluginbuilder.BuildTestBinary(filepath.Join("..", "..", "fixtures", "plugins"), "my_say")
 	pluginbuilder.BuildTestBinary(filepath.Join("..", "..", "fixtures", "plugins"), "call_core_cmd")
 	pluginbuilder.BuildTestBinary(filepath.Join("..", "..", "fixtures", "plugins"), "input")
-	pluginbuilder.BuildTestBinary(filepath.Join("..", "..", "fixtures", "plugins"), "panics")
 
 	//compile plugin examples to ensure they're up to date
 	pluginbuilder.BuildTestBinary(filepath.Join("..", "..", "plugin_examples"), "basic_plugin")

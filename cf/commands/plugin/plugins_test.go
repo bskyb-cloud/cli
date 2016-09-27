@@ -3,16 +3,16 @@ package plugin_test
 import (
 	"net/rpc"
 
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	plugincmd "github.com/cloudfoundry/cli/cf/commands/plugin"
-	"github.com/cloudfoundry/cli/cf/configuration/pluginconfig"
-	"github.com/cloudfoundry/cli/cf/configuration/pluginconfig/pluginconfigfakes"
-	"github.com/cloudfoundry/cli/cf/flags"
-	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
-	"github.com/cloudfoundry/cli/plugin"
-	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	plugincmd "code.cloudfoundry.org/cli/cf/commands/plugin"
+	"code.cloudfoundry.org/cli/cf/configuration/pluginconfig"
+	"code.cloudfoundry.org/cli/cf/configuration/pluginconfig/pluginconfigfakes"
+	"code.cloudfoundry.org/cli/cf/flags"
+	"code.cloudfoundry.org/cli/cf/requirements/requirementsfakes"
+	"code.cloudfoundry.org/cli/plugin"
+	testcmd "code.cloudfoundry.org/cli/testhelpers/commands"
+	. "code.cloudfoundry.org/cli/testhelpers/matchers"
+	testterm "code.cloudfoundry.org/cli/testhelpers/terminal"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -77,22 +77,29 @@ var _ = Describe("Plugins", func() {
 		It("should fail with usage", func() {
 			flagContext.Parse("blahblah")
 
-			reqs := cmd.Requirements(requirementsFactory, flagContext)
+			reqs, err := cmd.Requirements(requirementsFactory, flagContext)
+			Expect(err).NotTo(HaveOccurred())
 
-			err := testcmd.RunRequirements(reqs)
+			err = testcmd.RunRequirements(reqs)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("Incorrect Usage"))
 			Expect(err.Error()).To(ContainSubstring("No argument required"))
 		})
 	})
 
-	It("returns a list of available methods of a plugin", func() {
+	It("returns a  sorted list of available methods of a plugin", func() {
 		config.PluginsReturns(map[string]pluginconfig.PluginMetadata{
-			"Test1": {
+			"BTest2": {
 				Location: "path/to/plugin",
 				Commands: []plugin.Command{
-					{Name: "test_1_cmd1", HelpText: "help text for test_1_cmd1"},
-					{Name: "test_1_cmd2", HelpText: "help text for test_1_cmd2"},
+					{Name: "B_test_2_cmd1", HelpText: "help text for test_2_cmd1"},
+				},
+			},
+			"aTest1": {
+				Location: "path/to/plugin",
+				Commands: []plugin.Command{
+					{Name: "a_test_1_cmd1", HelpText: "help text for test_1_cmd1"},
+					{Name: "a_test_1_cmd2", HelpText: "help text for test_1_cmd2"},
 				},
 			},
 		})
@@ -103,9 +110,12 @@ var _ = Describe("Plugins", func() {
 			[]string{"Listing Installed Plugins..."},
 			[]string{"OK"},
 			[]string{"Plugin Name", "Command Name", "Command Help"},
-			[]string{"Test1", "test_1_cmd1", "help text for test_1_cmd1"},
-			[]string{"Test1", "test_1_cmd2", "help text for test_1_cmd2"},
+			[]string{"aTest1", "a_test_1_cmd1", "help text for test_1_cmd1"},
+			[]string{"aTest1", "a_test_1_cmd2", "help text for test_1_cmd2"},
+			[]string{"BTest2", "B_test_2_cmd1", "help text for test_2_cmd1"},
 		))
+
+		Expect(ui.Outputs()[6]).To(ContainSubstring("Test2"))
 	})
 
 	It("lists the name of the command, it's alias and version", func() {

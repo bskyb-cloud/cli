@@ -4,7 +4,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/cloudfoundry/cli/cf/configuration/pluginconfig"
+	"code.cloudfoundry.org/cli/cf/configuration/pluginconfig"
 )
 
 func RunMethodIfExists(rpcService *CliRpcService, args []string, pluginList map[string]pluginconfig.PluginMetadata) bool {
@@ -21,6 +21,7 @@ func RunMethodIfExists(rpcService *CliRpcService, args []string, pluginList map[
 				cmd := exec.Command(metadata.Location, pluginArgs...)
 				cmd.Stdout = os.Stdout
 				cmd.Stdin = os.Stdin
+				cmd.Stderr = os.Stderr
 
 				defer stopPlugin(cmd)
 				err := cmd.Run()

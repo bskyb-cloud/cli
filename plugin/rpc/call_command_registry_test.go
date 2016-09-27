@@ -3,17 +3,16 @@ package rpc_test
 import (
 	"os"
 
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/terminal/terminalfakes"
-	"github.com/cloudfoundry/cli/cf/trace/tracefakes"
-	. "github.com/cloudfoundry/cli/plugin/rpc"
-	. "github.com/cloudfoundry/cli/plugin/rpc/fakecommand"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/terminal/terminalfakes"
+	"code.cloudfoundry.org/cli/cf/trace/tracefakes"
+	. "code.cloudfoundry.org/cli/plugin/rpc"
+	. "code.cloudfoundry.org/cli/plugin/rpc/fakecommand"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("calling commands in commandregistry", func() {
-
 	_ = FakeCommand1{} //make sure fake_command is imported and self-registered with init()
 	_ = FakeCommand3{} //make sure fake_command is imported and self-registered with init()
 	_ = FakeCommand4{} //make sure fake_command is imported and self-registered with init()
@@ -87,6 +86,7 @@ var _ = Describe("calling commands in commandregistry", func() {
 
 		It("returns an error", func() {
 			err := NewCommandRunner().Command([]string{"fake-command3"}, deps, false)
+			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(MatchRegexp("cli_rpc_server_test"))
 		})
 	})

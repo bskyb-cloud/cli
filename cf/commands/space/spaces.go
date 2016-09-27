@@ -3,15 +3,15 @@ package space
 import (
 	"errors"
 
-	"github.com/cloudfoundry/cli/cf/api/spaces"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/plugin/models"
+	"code.cloudfoundry.org/cli/cf/api/spaces"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/plugin/models"
 )
 
 type ListSpaces struct {
@@ -38,7 +38,7 @@ func (cmd *ListSpaces) MetaData() commandregistry.CommandMetadata {
 
 }
 
-func (cmd *ListSpaces) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *ListSpaces) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	usageReq := requirements.NewUsageRequirement(commandregistry.CLICommandUsagePresenter(cmd),
 		T("No argument required"),
 		func() bool {
@@ -52,7 +52,7 @@ func (cmd *ListSpaces) Requirements(requirementsFactory requirements.Factory, fc
 		requirementsFactory.NewTargetedOrgRequirement(),
 	}
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *ListSpaces) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
@@ -86,7 +86,10 @@ func (cmd *ListSpaces) Execute(c flags.FlagContext) error {
 
 		return true
 	})
-	table.Print()
+	err = table.Print()
+	if err != nil {
+		return err
+	}
 
 	if err != nil {
 		return errors.New(T("Failed fetching spaces.\n{{.ErrorDescription}}",

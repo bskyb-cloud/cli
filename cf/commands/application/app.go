@@ -4,21 +4,21 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/plugin/models"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/plugin/models"
 
-	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/api/appinstances"
-	"github.com/cloudfoundry/cli/cf/api/stacks"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/errors"
-	"github.com/cloudfoundry/cli/cf/formatters"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/cf/uihelpers"
+	"code.cloudfoundry.org/cli/cf/api"
+	"code.cloudfoundry.org/cli/cf/api/appinstances"
+	"code.cloudfoundry.org/cli/cf/api/stacks"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/errors"
+	"code.cloudfoundry.org/cli/cf/formatters"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/uihelpers"
 )
 
 //go:generate counterfeiter . Displayer
@@ -56,9 +56,10 @@ func (cmd *ShowApp) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *ShowApp) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *ShowApp) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	if len(fc.Args()) != 1 {
 		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + commandregistry.Commands.CommandUsage("app"))
+		return nil, fmt.Errorf("Incorrect usage: %d arguments of %d required", len(fc.Args()), 1)
 	}
 
 	cmd.appReq = requirementsFactory.NewApplicationRequirement(fc.Args()[0])
@@ -69,7 +70,7 @@ func (cmd *ShowApp) Requirements(requirementsFactory requirements.Factory, fc fl
 		cmd.appReq,
 	}
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *ShowApp) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
@@ -122,10 +123,6 @@ func (cmd *ShowApp) ShowApp(app models.Application, orgName, spaceName string) e
 
 	var instances []models.AppInstanceFields
 	instances, err = cmd.appInstancesRepo.GetInstances(app.GUID)
-	if err != nil && !appIsStopped {
-		return err
-	}
-
 	if err != nil && !appIsStopped {
 		return err
 	}
@@ -208,7 +205,13 @@ func (cmd *ShowApp) ShowApp(app models.Application, orgName, spaceName string) e
 		)
 	}
 
-	table.Print()
+	err = table.Print()
+	if err != nil {
+		return err
+	}
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

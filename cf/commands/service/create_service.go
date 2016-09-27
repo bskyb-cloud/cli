@@ -3,18 +3,18 @@ package service
 import (
 	"fmt"
 
-	"github.com/cloudfoundry/cli/cf/actors/servicebuilder"
-	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/errors"
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/cf/uihelpers"
-	"github.com/cloudfoundry/cli/utils/json"
+	"code.cloudfoundry.org/cli/cf/actors/servicebuilder"
+	"code.cloudfoundry.org/cli/cf/api"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/errors"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/uihelpers"
+	"code.cloudfoundry.org/cli/utils/json"
 )
 
 type CreateService struct {
@@ -81,9 +81,10 @@ func (cmd *CreateService) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *CreateService) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *CreateService) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	if len(fc.Args()) != 3 {
 		cmd.ui.Failed(T("Incorrect Usage. Requires service, service plan, service instance as arguments\n\n") + commandregistry.Commands.CommandUsage("create-service"))
+		return nil, fmt.Errorf("Incorrect usage: %d arguments of %d required", len(fc.Args()), 3)
 	}
 
 	reqs := []requirements.Requirement{
@@ -91,7 +92,7 @@ func (cmd *CreateService) Requirements(requirementsFactory requirements.Factory,
 		requirementsFactory.NewTargetedSpaceRequirement(),
 	}
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *CreateService) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {

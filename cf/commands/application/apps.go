@@ -4,18 +4,18 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/plugin/models"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/plugin/models"
 
-	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/formatters"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/cf/uihelpers"
+	"code.cloudfoundry.org/cli/cf/api"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/formatters"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/uihelpers"
 )
 
 type ListApps struct {
@@ -42,7 +42,7 @@ func (cmd *ListApps) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *ListApps) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *ListApps) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	usageReq := requirements.NewUsageRequirement(commandregistry.CLICommandUsagePresenter(cmd),
 		T("No argument required"),
 		func() bool {
@@ -56,7 +56,7 @@ func (cmd *ListApps) Requirements(requirementsFactory requirements.Factory, fc f
 		requirementsFactory.NewTargetedSpaceRequirement(),
 	}
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *ListApps) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
@@ -123,8 +123,10 @@ func (cmd *ListApps) Execute(c flags.FlagContext) error {
 		)
 	}
 
-	table.Print()
-
+	err = table.Print()
+	if err != nil {
+		return err
+	}
 	if cmd.pluginCall {
 		cmd.populatePluginModel(apps)
 	}

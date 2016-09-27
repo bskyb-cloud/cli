@@ -1,18 +1,18 @@
 package organization_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/flags"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/plugin/models"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/flags"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/plugin/models"
+	testconfig "code.cloudfoundry.org/cli/testhelpers/configuration"
+	testterm "code.cloudfoundry.org/cli/testhelpers/terminal"
 
-	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/commands/organization"
-	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	"code.cloudfoundry.org/cli/cf/api"
+	"code.cloudfoundry.org/cli/cf/commands/organization"
+	"code.cloudfoundry.org/cli/cf/requirements/requirementsfakes"
+	. "code.cloudfoundry.org/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -65,7 +65,8 @@ var _ = Describe("org command", func() {
 			})
 
 			It("fails with no args", func() {
-				Expect(func() { cmd.Requirements(reqFactory, flagContext) }).To(Panic())
+				_, err := cmd.Requirements(reqFactory, flagContext)
+				Expect(err).To(HaveOccurred())
 				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"FAILED"},
 					[]string{"Incorrect Usage. Requires an argument"},
@@ -79,7 +80,8 @@ var _ = Describe("org command", func() {
 			BeforeEach(func() {
 				err := flagContext.Parse("my-org")
 				Expect(err).NotTo(HaveOccurred())
-				actualRequirements = cmd.Requirements(reqFactory, flagContext)
+				actualRequirements, err = cmd.Requirements(reqFactory, flagContext)
+				Expect(err).NotTo(HaveOccurred())
 			})
 
 			Context("when no flags are provided", func() {

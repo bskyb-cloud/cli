@@ -3,14 +3,14 @@ package servicebroker
 import (
 	"sort"
 
-	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/api"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
 )
 
 type ListServiceBrokers struct {
@@ -40,7 +40,7 @@ func (cmd *ListServiceBrokers) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *ListServiceBrokers) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *ListServiceBrokers) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	usageReq := requirements.NewUsageRequirement(commandregistry.CLICommandUsagePresenter(cmd),
 		T("No argument required"),
 		func() bool {
@@ -53,7 +53,7 @@ func (cmd *ListServiceBrokers) Requirements(requirementsFactory requirements.Fac
 		requirementsFactory.NewLoginRequirement(),
 	}
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *ListServiceBrokers) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
@@ -81,6 +81,9 @@ func (cmd *ListServiceBrokers) Execute(c flags.FlagContext) error {
 		foundBrokers = true
 		return true
 	})
+	if err != nil {
+		return err
+	}
 
 	sort.Sort(sbTable)
 
@@ -88,8 +91,7 @@ func (cmd *ListServiceBrokers) Execute(c flags.FlagContext) error {
 		table.Add(sb.name, sb.url)
 	}
 
-	table.Print()
-
+	err = table.Print()
 	if err != nil {
 		return err
 	}

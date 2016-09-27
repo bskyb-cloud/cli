@@ -4,17 +4,17 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/cloudfoundry/cli/cf/actors/pluginrepo"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/flags"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/actors/pluginrepo"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/flags"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
 
 	clipr "github.com/cloudfoundry-incubator/cli-plugin-repo/web"
 
-	. "github.com/cloudfoundry/cli/cf/i18n"
+	. "code.cloudfoundry.org/cli/cf/i18n"
 )
 
 type RepoPlugins struct {
@@ -44,9 +44,9 @@ func (cmd *RepoPlugins) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *RepoPlugins) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *RepoPlugins) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	reqs := []requirements.Requirement{}
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *RepoPlugins) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
@@ -83,22 +83,30 @@ func (cmd *RepoPlugins) Execute(c flags.FlagContext) error {
 
 	repoPlugins, repoError := cmd.pluginRepo.GetPlugins(repos)
 
-	cmd.printTable(repoPlugins)
+	err := cmd.printTable(repoPlugins)
 
 	cmd.printErrors(repoError)
+
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
-func (cmd RepoPlugins) printTable(repoPlugins map[string][]clipr.Plugin) {
+func (cmd RepoPlugins) printTable(repoPlugins map[string][]clipr.Plugin) error {
 	for k, plugins := range repoPlugins {
 		cmd.ui.Say(terminal.ColorizeBold(T("Repository: ")+k, 33))
 		table := cmd.ui.Table([]string{T("name"), T("version"), T("description")})
 		for _, p := range plugins {
 			table.Add(p.Name, p.Version, p.Description)
 		}
-		table.Print()
+		err := table.Print()
+		if err != nil {
+			return err
+		}
 		cmd.ui.Say("")
 	}
+	return nil
 }
 
 func (cmd RepoPlugins) printErrors(repoError []string) {

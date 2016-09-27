@@ -2,14 +2,15 @@ package application
 
 import (
 	"errors"
+	"fmt"
 
-	"github.com/cloudfoundry/cli/cf/api/appevents"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/api/appevents"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
 )
 
 type Events struct {
@@ -34,9 +35,10 @@ func (cmd *Events) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *Events) Requirements(requirementsFactory requirements.Factory, c flags.FlagContext) []requirements.Requirement {
+func (cmd *Events) Requirements(requirementsFactory requirements.Factory, c flags.FlagContext) ([]requirements.Requirement, error) {
 	if len(c.Args()) != 1 {
 		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + commandregistry.Commands.CommandUsage("events"))
+		return nil, fmt.Errorf("Incorrect usage: %d arguments of %d required", len(c.Args()), 1)
 	}
 
 	cmd.appReq = requirementsFactory.NewApplicationRequirement(c.Args()[0])
@@ -47,7 +49,7 @@ func (cmd *Events) Requirements(requirementsFactory requirements.Factory, c flag
 		cmd.appReq,
 	}
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *Events) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
@@ -89,7 +91,10 @@ func (cmd *Events) Execute(c flags.FlagContext) error {
 		)
 	}
 
-	table.Print()
+	err = table.Print()
+	if err != nil {
+		return err
+	}
 
 	if len(events) == 0 {
 		cmd.ui.Say(T("No events for app {{.AppName}}",

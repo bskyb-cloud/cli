@@ -1,16 +1,17 @@
 package route
 
 import (
+	"fmt"
 	"strings"
 
-	"github.com/cloudfoundry/cli/cf"
-	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf"
+	"code.cloudfoundry.org/cli/cf/api"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
 )
 
 type CheckRoute struct {
@@ -42,9 +43,10 @@ func (cmd *CheckRoute) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *CheckRoute) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *CheckRoute) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	if len(fc.Args()) != 2 {
 		cmd.ui.Failed(T("Incorrect Usage. Requires host and domain as arguments\n\n") + commandregistry.Commands.CommandUsage("check-route"))
+		return nil, fmt.Errorf("Incorrect usage: %d arguments of %d required", len(fc.Args()), 2)
 	}
 
 	var reqs []requirements.Requirement
@@ -58,7 +60,7 @@ func (cmd *CheckRoute) Requirements(requirementsFactory requirements.Factory, fc
 		requirementsFactory.NewLoginRequirement(),
 	}...)
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *CheckRoute) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {

@@ -17,7 +17,7 @@ import (
 var buildPath string
 
 var _ = SynchronizedBeforeSuite(func() []byte {
-	path, buildErr := Build("github.com/cloudfoundry/cli")
+	path, buildErr := Build("code.cloudfoundry.org/cli")
 	Expect(buildErr).NotTo(HaveOccurred())
 	return []byte(path)
 }, func(data []byte) {
@@ -52,13 +52,13 @@ var _ = Describe("main", func() {
 
 	Describe("Help menu with -h/--help", func() {
 		It("prints the help output with our custom template when run with 'cf -h'", func() {
-			output := Cf("-h")
+			output := Cf("-h", "-a")
 			Eventually(output.Out.Contents).Should(ContainSubstring("A command line tool to interact with Cloud Foundry"))
 			Eventually(output.Out.Contents).Should(ContainSubstring("CF_TRACE=true"))
 		})
 
 		It("prints the help output with our custom template when run with 'cf --help'", func() {
-			output := Cf("--help")
+			output := Cf("--help", "-a")
 			Eventually(output.Out.Contents).Should(ContainSubstring("A command line tool to interact with Cloud Foundry"))
 			Eventually(output.Out.Contents).Should(ContainSubstring("CF_TRACE=true"))
 		})
@@ -82,6 +82,15 @@ var _ = Describe("main", func() {
 			Consistently(result.Out).ShouldNot(Say("Incorrect Usage"))
 			Consistently(result.Out).ShouldNot(Say("Start an app"))
 			Eventually(result.Out.Contents).Should(ContainSubstring("USAGE"))
+			Eventually(result.Out.Contents).Should(ContainSubstring("push"))
+		})
+
+		It("accepts -h before the command alias", func() {
+			result := Cf("-h", "p", "--no-route")
+			Consistently(result.Out).ShouldNot(Say("Incorrect Usage"))
+			Consistently(result.Out).ShouldNot(Say("Start an app"))
+			Eventually(result.Out.Contents).Should(ContainSubstring("USAGE"))
+			Eventually(result.Out.Contents).Should(ContainSubstring("push"))
 		})
 	})
 
@@ -108,10 +117,6 @@ var _ = Describe("main", func() {
 			}
 			setApiOutput := Cf("api", "http://api.bosh-lite.com", "--skip-ssl-validation")
 			Eventually(setApiOutput.Out.Contents).Should(ContainSubstring("OK"))
-		})
-
-		AfterEach(func() {
-			Eventually(Cf("api", "nonsense").Out.Contents).Should(ContainSubstring("no such host"))
 		})
 
 		// Normally cf curl only shows the output of the response
@@ -145,15 +150,6 @@ var _ = Describe("main", func() {
 			Consistently(result.Out).ShouldNot(Say("Invalid flag: --h"))
 			Eventually(result.Out.Contents).Should(ContainSubstring("api - Set or view target api url"))
 		})
-
-		It("runs requirement of the command", func() {
-			dir, err := os.Getwd()
-			Expect(err).ToNot(HaveOccurred())
-			fullDir := filepath.Join(dir, "..", "..", "fixtures") //set home to a config w/o targeted api
-			result := CfWith_CF_HOME(fullDir, "app", "app-should-never-exist-blah-blah")
-
-			Eventually(result.Out).Should(Say("No API endpoint set."))
-		})
 	})
 
 	Describe("exit codes", func() {
@@ -172,13 +168,21 @@ var _ = Describe("main", func() {
 
 	It("can print help menu by executing only the command `cf`", func() {
 		output := Cf()
-		Eventually(output.Out.Contents).Should(ContainSubstring("A command line tool to interact with Cloud Foundry"))
+		Eventually(output.Out.Contents).Should(ContainSubstring("Cloud Foundry command line tool"))
 	})
 
 	It("show user suggested commands for typos", func() {
 		output := Cf("hlp")
 		Eventually(output.Out, 3*time.Second).Should(Say("'hlp' is not a registered command. See 'cf help'"))
 		Eventually(output.Out, 3*time.Second).Should(Say("Did you mean?"))
+	})
+
+	It("does not display requirement errors twice", func() {
+		output := Cf("space")
+		Eventually(output).Should(Exit(1))
+		Expect(output.Err).To(Say("the required argument `SPACE` was not provided"))
+		Expect(output.Err).NotTo(Say("the required argument `SPACE` was not provided"))
+		Expect(output.Out).NotTo(Say("the required argument `SPACE` was not provided"))
 	})
 
 	Describe("Plugins", func() {

@@ -1,10 +1,10 @@
 package applicationfakes
 
 import (
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/flags"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/flags"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
 )
 
 type FakeAppDisplayer struct {
@@ -26,8 +26,8 @@ func (displayer *FakeAppDisplayer) SetDependency(_ commandregistry.Dependency, _
 	return displayer
 }
 
-func (displayer *FakeAppDisplayer) Requirements(_ requirements.Factory, _ flags.FlagContext) []requirements.Requirement {
-	return []requirements.Requirement{}
+func (displayer *FakeAppDisplayer) Requirements(_ requirements.Factory, _ flags.FlagContext) ([]requirements.Requirement, error) {
+	return []requirements.Requirement{}, nil
 }
 
 func (displayer *FakeAppDisplayer) Execute(_ flags.FlagContext) error {

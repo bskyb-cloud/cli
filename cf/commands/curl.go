@@ -4,27 +4,29 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/cf/util"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/util"
 
-	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/cf/trace"
+	"code.cloudfoundry.org/cli/cf/api"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/trace"
 )
 
 type Curl struct {
-	ui       terminal.UI
-	config   coreconfig.Reader
-	curlRepo api.CurlRepository
+	ui         terminal.UI
+	config     coreconfig.Reader
+	curlRepo   api.CurlRepository
+	pluginCall bool
 }
 
 func init() {
@@ -60,22 +62,24 @@ func (cmd *Curl) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *Curl) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *Curl) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	if len(fc.Args()) != 1 {
 		cmd.ui.Failed(T("Incorrect Usage. An argument is missing or not correctly enclosed.\n\n") + commandregistry.Commands.CommandUsage("curl"))
+		return nil, fmt.Errorf("Incorrect usage: %d arguments of %d required", len(fc.Args()), 1)
 	}
 
 	reqs := []requirements.Requirement{
 		requirementsFactory.NewAPIEndpointRequirement(),
 	}
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *Curl) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
 	cmd.ui = deps.UI
 	cmd.config = deps.Config
 	cmd.curlRepo = deps.RepoLocator.GetCurlRepository()
+	cmd.pluginCall = pluginCall
 	return cmd
 }
 
@@ -107,7 +111,7 @@ func (cmd *Curl) Execute(c flags.FlagContext) error {
 		return errors.New(T("Error creating request:\n{{.Err}}", map[string]interface{}{"Err": apiErr.Error()}))
 	}
 
-	if trace.LoggingToStdout {
+	if trace.LoggingToStdout && !cmd.pluginCall {
 		return nil
 	}
 

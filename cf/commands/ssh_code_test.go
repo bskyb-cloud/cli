@@ -3,19 +3,19 @@ package commands_test
 import (
 	"errors"
 
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/commands"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig/coreconfigfakes"
-	"github.com/cloudfoundry/cli/cf/flags"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/commands"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig/coreconfigfakes"
+	"code.cloudfoundry.org/cli/cf/flags"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/requirements/requirementsfakes"
 
-	"github.com/cloudfoundry/cli/cf/api/authentication/authenticationfakes"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	"code.cloudfoundry.org/cli/cf/api/authentication/authenticationfakes"
+	testconfig "code.cloudfoundry.org/cli/testhelpers/configuration"
+	testterm "code.cloudfoundry.org/cli/testhelpers/terminal"
 
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "code.cloudfoundry.org/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -64,7 +64,8 @@ var _ = Describe("OneTimeSSHCode", func() {
 
 	Describe("Requirements", func() {
 		It("returns an EndpointRequirement", func() {
-			actualRequirements := cmd.Requirements(factory, flagContext)
+			actualRequirements, err := cmd.Requirements(factory, flagContext)
+			Expect(err).NotTo(HaveOccurred())
 			Expect(factory.NewAPIEndpointRequirementCallCount()).To(Equal(1))
 			Expect(actualRequirements).To(ContainElement(endpointRequirement))
 		})
@@ -77,7 +78,8 @@ var _ = Describe("OneTimeSSHCode", func() {
 			It("fails with usage", func() {
 				var firstErr error
 
-				reqs := cmd.Requirements(factory, flagContext)
+				reqs, err := cmd.Requirements(factory, flagContext)
+				Expect(err).NotTo(HaveOccurred())
 
 				for _, req := range reqs {
 					err := req.Execute()

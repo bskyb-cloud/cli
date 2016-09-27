@@ -3,14 +3,14 @@ package routergroups
 import (
 	"errors"
 
-	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/api"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
 )
 
 type RouterGroups struct {
@@ -33,8 +33,7 @@ func (cmd *RouterGroups) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *RouterGroups) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
-
+func (cmd *RouterGroups) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	return []requirements.Requirement{
 		requirementsFactory.NewUsageRequirement(commandregistry.CLICommandUsagePresenter(cmd),
 			T("No argument required"),
@@ -44,7 +43,7 @@ func (cmd *RouterGroups) Requirements(requirementsFactory requirements.Factory, 
 		),
 		requirementsFactory.NewLoginRequirement(),
 		requirementsFactory.NewRoutingAPIRequirement(),
-	}
+	}, nil
 }
 
 func (cmd *RouterGroups) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
@@ -76,6 +75,9 @@ func (cmd *RouterGroups) Execute(c flags.FlagContext) error {
 		cmd.ui.Say(T("No router groups found"))
 	}
 
-	table.Print()
+	err := table.Print()
+	if err != nil {
+		return err
+	}
 	return nil
 }

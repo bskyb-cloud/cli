@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cloudfoundry/cli/cf/api/spaces"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/api/spaces"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
 )
 
 type DisallowSpaceSSH struct {
@@ -34,9 +34,10 @@ func (cmd *DisallowSpaceSSH) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *DisallowSpaceSSH) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *DisallowSpaceSSH) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	if len(fc.Args()) != 1 {
 		cmd.ui.Failed(T("Incorrect Usage. Requires SPACE_NAME as argument\n\n") + commandregistry.Commands.CommandUsage("disallow-space-ssh"))
+		return nil, fmt.Errorf("Incorrect usage: %d arguments of %d required", len(fc.Args()), 1)
 	}
 
 	cmd.spaceReq = requirementsFactory.NewSpaceRequirement(fc.Args()[0])
@@ -47,7 +48,7 @@ func (cmd *DisallowSpaceSSH) Requirements(requirementsFactory requirements.Facto
 		cmd.spaceReq,
 	}
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *DisallowSpaceSSH) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
@@ -65,7 +66,11 @@ func (cmd *DisallowSpaceSSH) Execute(fc flags.FlagContext) error {
 		return nil
 	}
 
-	cmd.ui.Say(fmt.Sprintf(T("Disabling ssh support for space '%s'..."), space.Name))
+	cmd.ui.Say(T("Disabling ssh support for space '{{.SpaceName}}'...",
+		map[string]interface{}{
+			"SpaceName": space.Name,
+		},
+	))
 	cmd.ui.Say("")
 
 	err := cmd.spaceRepo.SetAllowSSH(space.GUID, false)

@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/cloudfoundry/cli/cf/api/applicationbits"
-	"github.com/cloudfoundry/cli/cf/api/resources"
-	"github.com/cloudfoundry/cli/cf/appfiles"
-	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/gofileutils/fileutils"
+	"code.cloudfoundry.org/cli/cf/api/applicationbits"
+	"code.cloudfoundry.org/cli/cf/api/resources"
+	"code.cloudfoundry.org/cli/cf/appfiles"
+	. "code.cloudfoundry.org/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/gofileutils/fileutils"
 )
 
 const windowsPathPrefix = `\\?\`
@@ -54,24 +54,26 @@ func NewPushActor(appBitsRepo applicationbits.Repository, zipper appfiles.Zipper
 // given a zip.
 func (actor PushActorImpl) ProcessPath(dirOrZipFile string, f func(string) error) error {
 	if !actor.zipper.IsZipFile(dirOrZipFile) {
-		appDir, err := filepath.EvalSymlinks(dirOrZipFile)
-		if err != nil {
-			return err
-		}
-
-		if filepath.IsAbs(appDir) {
+		if filepath.IsAbs(dirOrZipFile) {
+			appDir, err := filepath.EvalSymlinks(dirOrZipFile)
+			if err != nil {
+				return err
+			}
 			err = f(appDir)
 			if err != nil {
 				return err
 			}
 		} else {
-			var absPath string
-			absPath, err = filepath.Abs(appDir)
+			absPath, err := filepath.Abs(dirOrZipFile)
+			if err != nil {
+				return err
+			}
+			appDir, err := filepath.EvalSymlinks(absPath)
 			if err != nil {
 				return err
 			}
 
-			err = f(absPath)
+			err = f(appDir)
 			if err != nil {
 				return err
 			}

@@ -1,15 +1,15 @@
 package service
 
 import (
+	"code.cloudfoundry.org/cli/cf"
+	"code.cloudfoundry.org/cli/cf/api"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/errors"
+	"code.cloudfoundry.org/cli/cf/flags"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
 	"fmt"
-	"github.com/cloudfoundry/cli/cf"
-	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/errors"
-	"github.com/cloudfoundry/cli/cf/flags"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
 	"golang.org/x/net/publicsuffix"
 	"io/ioutil"
 	"strings"
@@ -35,10 +35,11 @@ func (cmd *SetSchema) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *SetSchema) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement) {
+func (cmd *SetSchema) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) (reqs []requirements.Requirement, err error) {
 
 	if len(fc.Args()) != 2 {
 		cmd.ui.Failed("Incorrect Usage." + "\n\n" + commandregistry.Commands.CommandUsage("set-schema"))
+		return nil, fmt.Errorf("Incorrect usage: %d arguments of %d required", len(fc.Args()), 2)
 	}
 
 	cmd.serviceInstanceReq = requirementsFactory.NewServiceInstanceRequirement(fc.Args()[0])
@@ -49,7 +50,7 @@ func (cmd *SetSchema) Requirements(requirementsFactory requirements.Factory, fc 
 		cmd.serviceInstanceReq,
 	}
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *SetSchema) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {

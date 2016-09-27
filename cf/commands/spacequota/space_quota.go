@@ -3,14 +3,14 @@ package spacequota
 import (
 	"fmt"
 
-	"github.com/cloudfoundry/cli/cf/api/spacequotas"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/flags"
-	"github.com/cloudfoundry/cli/cf/formatters"
-	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/api/spacequotas"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/flags"
+	"code.cloudfoundry.org/cli/cf/formatters"
+	. "code.cloudfoundry.org/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
 )
 
 type SpaceQuota struct {
@@ -33,9 +33,10 @@ func (cmd *SpaceQuota) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *SpaceQuota) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *SpaceQuota) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	if len(fc.Args()) != 1 {
 		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + commandregistry.Commands.CommandUsage("space-quota"))
+		return nil, fmt.Errorf("Incorrect usage: %d arguments of %d required", len(fc.Args()), 1)
 	}
 
 	reqs := []requirements.Requirement{
@@ -43,7 +44,7 @@ func (cmd *SpaceQuota) Requirements(requirementsFactory requirements.Factory, fc
 		requirementsFactory.NewTargetedOrgRequirement(),
 	}
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *SpaceQuota) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
@@ -87,6 +88,9 @@ func (cmd *SpaceQuota) Execute(c flags.FlagContext) error {
 	table.Add(T("app instance limit"), T(spaceQuota.FormattedAppInstanceLimit()))
 	table.Add(T("reserved route ports"), T(spaceQuota.FormattedRoutePortsLimit()))
 
-	table.Print()
+	err = table.Print()
+	if err != nil {
+		return err
+	}
 	return nil
 }

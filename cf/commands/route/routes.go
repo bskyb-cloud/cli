@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
 
-	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/api"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
 )
 
 type ListRoutes struct {
@@ -42,7 +42,7 @@ func (cmd *ListRoutes) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *ListRoutes) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *ListRoutes) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	usageReq := requirements.NewUsageRequirement(commandregistry.CLICommandUsagePresenter(cmd),
 		T("No argument required"),
 		func() bool {
@@ -56,7 +56,7 @@ func (cmd *ListRoutes) Requirements(requirementsFactory requirements.Factory, fc
 		requirementsFactory.NewTargetedSpaceRequirement(),
 	}
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *ListRoutes) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
@@ -134,10 +134,13 @@ func (cmd *ListRoutes) Execute(c flags.FlagContext) error {
 	} else {
 		err = cmd.routeRepo.ListRoutes(cb)
 	}
-
-	table.Print()
 	if err != nil {
 		return errors.New(T("Failed fetching routes.\n{{.Err}}", map[string]interface{}{"Err": err.Error()}))
+	}
+
+	err = table.Print()
+	if err != nil {
+		return err
 	}
 
 	if !routesFound {

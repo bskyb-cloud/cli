@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
 
-	"github.com/cloudfoundry/cli/cf/api/securitygroups"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/api/securitygroups"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
 )
 
 type ShowSecurityGroup struct {
@@ -34,16 +34,17 @@ func (cmd *ShowSecurityGroup) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *ShowSecurityGroup) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *ShowSecurityGroup) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	if len(fc.Args()) != 1 {
 		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + commandregistry.Commands.CommandUsage("security-group"))
+		return nil, fmt.Errorf("Incorrect usage: %d arguments of %d required", len(fc.Args()), 1)
 	}
 
 	reqs := []requirements.Requirement{
 		requirementsFactory.NewLoginRequirement(),
 	}
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *ShowSecurityGroup) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
@@ -76,7 +77,10 @@ func (cmd *ShowSecurityGroup) Execute(c flags.FlagContext) error {
 	table := cmd.ui.Table([]string{"", ""})
 	table.Add(T("Name"), securityGroup.Name)
 	table.Add(T("Rules"), "")
-	table.Print()
+	err = table.Print()
+	if err != nil {
+		return err
+	}
 	cmd.ui.Say("\t" + string(jsonEncodedBytes))
 
 	cmd.ui.Say("")
@@ -87,7 +91,10 @@ func (cmd *ShowSecurityGroup) Execute(c flags.FlagContext) error {
 		for index, space := range securityGroup.Spaces {
 			table.Add(fmt.Sprintf("#%d", index), space.Organization.Name, space.Name)
 		}
-		table.Print()
+		err = table.Print()
+		if err != nil {
+			return err
+		}
 	} else {
 		cmd.ui.Say(T("No spaces assigned"))
 	}

@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/cloudfoundry/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/models"
 )
 
 type FakeAppSshRepo struct {

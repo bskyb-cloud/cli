@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cloudfoundry/cli/cf/actors"
-	"github.com/cloudfoundry/cli/cf/api/authentication"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/actors"
+	"code.cloudfoundry.org/cli/cf/api/authentication"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
 )
 
 type ServiceAccess struct {
@@ -42,7 +42,7 @@ func (cmd *ServiceAccess) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *ServiceAccess) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *ServiceAccess) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	usageReq := requirements.NewUsageRequirement(commandregistry.CLICommandUsagePresenter(cmd),
 		T("No argument required"),
 		func() bool {
@@ -55,7 +55,7 @@ func (cmd *ServiceAccess) Requirements(requirementsFactory requirements.Factory,
 		requirementsFactory.NewLoginRequirement(),
 	}
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *ServiceAccess) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
@@ -122,7 +122,7 @@ func (cmd *ServiceAccess) Execute(c flags.FlagContext) error {
 	return nil
 }
 
-func (cmd ServiceAccess) printTable(brokers []models.ServiceBroker) {
+func (cmd ServiceAccess) printTable(brokers []models.ServiceBroker) error {
 	for _, serviceBroker := range brokers {
 		cmd.ui.Say(fmt.Sprintf(T("broker: {{.Name}}", map[string]interface{}{"Name": serviceBroker.Name})))
 
@@ -136,11 +136,14 @@ func (cmd ServiceAccess) printTable(brokers []models.ServiceBroker) {
 				table.Add("", service.Label, "", "", "")
 			}
 		}
-		table.Print()
+		err := table.Print()
+		if err != nil {
+			return err
+		}
 
 		cmd.ui.Say("")
 	}
-	return
+	return nil
 }
 
 func (cmd ServiceAccess) formatAccess(public bool, orgNames []string) string {

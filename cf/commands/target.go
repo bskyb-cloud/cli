@@ -3,16 +3,16 @@ package commands
 import (
 	"fmt"
 
-	"github.com/cloudfoundry/cli/cf/api/organizations"
-	"github.com/cloudfoundry/cli/cf/api/spaces"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/errors"
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/api/organizations"
+	"code.cloudfoundry.org/cli/cf/api/spaces"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/errors"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
 )
 
 type Target struct {
@@ -42,7 +42,7 @@ func (cmd *Target) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *Target) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *Target) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	usageReq := requirements.NewUsageRequirement(commandregistry.CLICommandUsagePresenter(cmd),
 		T("No argument required"),
 		func() bool {
@@ -59,7 +59,7 @@ func (cmd *Target) Requirements(requirementsFactory requirements.Factory, fc fla
 		reqs = append(reqs, requirementsFactory.NewLoginRequirement())
 	}
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *Target) SetDependency(deps commandregistry.Dependency, _ bool) commandregistry.Command {
@@ -93,11 +93,14 @@ func (cmd *Target) Execute(c flags.FlagContext) error {
 		}
 	}
 
-	cmd.ui.ShowConfiguration(cmd.config)
-	if !cmd.config.IsLoggedIn() {
-		cmd.ui.PanicQuietly()
+	err := cmd.ui.ShowConfiguration(cmd.config)
+	if err != nil {
+		return err
 	}
 	cmd.ui.NotifyUpdateIfNeeded(cmd.config)
+	if !cmd.config.IsLoggedIn() {
+		return fmt.Errorf(terminal.NotLoggedInText())
+	}
 	return nil
 }
 

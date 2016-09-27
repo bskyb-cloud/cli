@@ -7,20 +7,20 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"code.cloudfoundry.org/cli/cf/api"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/commands"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/net"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	sshCmd "code.cloudfoundry.org/cli/cf/ssh"
+	"code.cloudfoundry.org/cli/cf/ssh/options"
+	sshTerminal "code.cloudfoundry.org/cli/cf/ssh/terminal"
+	"code.cloudfoundry.org/cli/cf/terminal"
 	"errors"
-	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/commands"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/net"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	sshCmd "github.com/cloudfoundry/cli/cf/ssh"
-	"github.com/cloudfoundry/cli/cf/ssh/options"
-	sshTerminal "github.com/cloudfoundry/cli/cf/ssh/terminal"
-	"github.com/cloudfoundry/cli/cf/terminal"
 	"io/ioutil"
 	"os/exec"
 	"path"
@@ -71,13 +71,15 @@ func (cmd *SSH) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *SSH) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *SSH) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	if len(fc.Args()) != 1 {
 		cmd.ui.Failed(T("Incorrect Usage. Requires APP_NAME as argument") + "\n\n" + commandregistry.Commands.CommandUsage("ssh"))
+		return nil, fmt.Errorf("Incorrect usage: %d arguments of %d required", len(fc.Args()), 1)
 	}
 
 	if fc.IsSet("i") && fc.Int("i") < 0 {
 		cmd.ui.Failed(fmt.Sprintf(T("Incorrect Usage:")+" %s\n\n%s", T("Value for flag 'app-instance-index' cannot be negative"), commandregistry.Commands.CommandUsage("ssh")))
+		return nil, fmt.Errorf("Incorrect usage: app-instance-index cannot be negative")
 	}
 
 	var err error
@@ -85,6 +87,7 @@ func (cmd *SSH) Requirements(requirementsFactory requirements.Factory, fc flags.
 
 	if err != nil {
 		cmd.ui.Failed(fmt.Sprintf(T("Incorrect Usage:")+" %s\n\n%s", err.Error(), commandregistry.Commands.CommandUsage("ssh")))
+		return nil, err
 	}
 
 	cmd.appReq = requirementsFactory.NewApplicationRequirement(cmd.opts.AppName)
@@ -95,7 +98,7 @@ func (cmd *SSH) Requirements(requirementsFactory requirements.Factory, fc flags.
 		cmd.appReq,
 	}
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *SSH) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
@@ -174,7 +177,10 @@ func (cmd *SSH) executeDiego(fc flags.FlagContext, app models.Application) error
 		if exitError, ok := err.(*ssh.ExitError); ok {
 			exitStatus := exitError.ExitStatus()
 			if sig := exitError.Signal(); sig != "" {
-				cmd.ui.Say(fmt.Sprintf(T("Process terminated by signal: %s. Exited with")+" %d.\n", sig, exitStatus))
+				cmd.ui.Say(T("Process terminated by signal: {{.Signal}}. Exited with {{.ExitCode}}", map[string]interface{}{
+					"Signal":   sig,
+					"ExitCode": exitStatus,
+				}))
 			}
 			os.Exit(exitStatus)
 		} else {

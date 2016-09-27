@@ -3,24 +3,24 @@ package route_test
 import (
 	"errors"
 
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/commands/route"
+	"code.cloudfoundry.org/cli/cf/commands/route/routefakes"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/flags"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/requirements/requirementsfakes"
 	"github.com/blang/semver"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/commands/route"
-	"github.com/cloudfoundry/cli/cf/commands/route/routefakes"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/flags"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
 
-	"github.com/cloudfoundry/cli/cf/api/apifakes"
+	"code.cloudfoundry.org/cli/cf/api/apifakes"
 
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	testconfig "code.cloudfoundry.org/cli/testhelpers/configuration"
+	testterm "code.cloudfoundry.org/cli/testhelpers/terminal"
 
 	"strings"
 
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "code.cloudfoundry.org/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -138,7 +138,8 @@ var _ = Describe("MapRoute", func() {
 			})
 
 			It("fails with usage", func() {
-				Expect(func() { cmd.Requirements(factory, flagContext) }).To(Panic())
+				_, err := cmd.Requirements(factory, flagContext)
+				Expect(err).To(HaveOccurred())
 				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Incorrect Usage. Requires APP_NAME and DOMAIN as arguments"},
 					[]string{"NAME"},
@@ -153,14 +154,16 @@ var _ = Describe("MapRoute", func() {
 			})
 
 			It("returns a LoginRequirement", func() {
-				actualRequirements := cmd.Requirements(factory, flagContext)
+				actualRequirements, err := cmd.Requirements(factory, flagContext)
+				Expect(err).NotTo(HaveOccurred())
 				Expect(factory.NewLoginRequirementCallCount()).To(Equal(1))
 
 				Expect(actualRequirements).To(ContainElement(loginRequirement))
 			})
 
 			It("returns an ApplicationRequirement", func() {
-				actualRequirements := cmd.Requirements(factory, flagContext)
+				actualRequirements, err := cmd.Requirements(factory, flagContext)
+				Expect(err).NotTo(HaveOccurred())
 				Expect(factory.NewApplicationRequirementCallCount()).To(Equal(1))
 
 				Expect(factory.NewApplicationRequirementArgsForCall(0)).To(Equal("app-name"))
@@ -168,7 +171,8 @@ var _ = Describe("MapRoute", func() {
 			})
 
 			It("returns a DomainRequirement", func() {
-				actualRequirements := cmd.Requirements(factory, flagContext)
+				actualRequirements, err := cmd.Requirements(factory, flagContext)
+				Expect(err).NotTo(HaveOccurred())
 				Expect(factory.NewDomainRequirementCallCount()).To(Equal(1))
 
 				Expect(factory.NewDomainRequirementArgsForCall(0)).To(Equal("domain-name"))
@@ -181,7 +185,8 @@ var _ = Describe("MapRoute", func() {
 				})
 
 				It("returns a MinAPIVersionRequirement as the first requirement", func() {
-					actualRequirements := cmd.Requirements(factory, flagContext)
+					actualRequirements, err := cmd.Requirements(factory, flagContext)
+					Expect(err).NotTo(HaveOccurred())
 
 					expectedVersion, err := semver.Make("2.36.0")
 					Expect(err).NotTo(HaveOccurred())
@@ -200,7 +205,8 @@ var _ = Describe("MapRoute", func() {
 				})
 
 				It("does not return a MinAPIVersionRequirement", func() {
-					actualRequirements := cmd.Requirements(factory, flagContext)
+					actualRequirements, err := cmd.Requirements(factory, flagContext)
+					Expect(err).NotTo(HaveOccurred())
 					Expect(factory.NewMinAPIVersionRequirementCallCount()).To(Equal(0))
 					Expect(actualRequirements).NotTo(ContainElement(minAPIVersionRequirement))
 				})
@@ -214,7 +220,8 @@ var _ = Describe("MapRoute", func() {
 				})
 
 				It("returns a MinAPIVersionRequirement as the first requirement", func() {
-					actualRequirements := cmd.Requirements(factory, flagContext)
+					actualRequirements, err := cmd.Requirements(factory, flagContext)
+					Expect(err).NotTo(HaveOccurred())
 
 					expectedVersion, err := semver.Make("2.53.0")
 					Expect(err).NotTo(HaveOccurred())
@@ -227,7 +234,8 @@ var _ = Describe("MapRoute", func() {
 				})
 
 				It("returns a DiegoApplicationRequirement", func() {
-					actualRequirements := cmd.Requirements(factory, flagContext)
+					actualRequirements, err := cmd.Requirements(factory, flagContext)
+					Expect(err).NotTo(HaveOccurred())
 
 					Expect(factory.NewDiegoApplicationRequirementCallCount()).To(Equal(1))
 					actualAppName := factory.NewDiegoApplicationRequirementArgsForCall(0)
@@ -248,7 +256,8 @@ var _ = Describe("MapRoute", func() {
 					expectedVersion, err := semver.Make("2.53.0")
 					Expect(err).NotTo(HaveOccurred())
 
-					actualRequirements := cmd.Requirements(factory, flagContext)
+					actualRequirements, err := cmd.Requirements(factory, flagContext)
+					Expect(err).NotTo(HaveOccurred())
 
 					Expect(factory.NewMinAPIVersionRequirementCallCount()).To(Equal(1))
 					feature, requiredVersion := factory.NewMinAPIVersionRequirementArgsForCall(0)
@@ -258,7 +267,8 @@ var _ = Describe("MapRoute", func() {
 				})
 
 				It("returns a DiegoApplicationRequirement", func() {
-					actualRequirements := cmd.Requirements(factory, flagContext)
+					actualRequirements, err := cmd.Requirements(factory, flagContext)
+					Expect(err).NotTo(HaveOccurred())
 
 					Expect(factory.NewDiegoApplicationRequirementCallCount()).To(Equal(1))
 					actualAppName := factory.NewDiegoApplicationRequirementArgsForCall(0)
@@ -273,7 +283,8 @@ var _ = Describe("MapRoute", func() {
 				})
 
 				It("fails", func() {
-					Expect(func() { cmd.Requirements(factory, flagContext) }).To(Panic())
+					_, err := cmd.Requirements(factory, flagContext)
+					Expect(err).To(HaveOccurred())
 					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"FAILED"},
 						[]string{"Cannot specify port together with hostname and/or path."},
@@ -287,7 +298,8 @@ var _ = Describe("MapRoute", func() {
 				})
 
 				It("fails", func() {
-					Expect(func() { cmd.Requirements(factory, flagContext) }).To(Panic())
+					_, err := cmd.Requirements(factory, flagContext)
+					Expect(err).To(HaveOccurred())
 					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"FAILED"},
 						[]string{"Cannot specify port together with hostname and/or path."},
@@ -302,9 +314,8 @@ var _ = Describe("MapRoute", func() {
 				})
 
 				It("fails with error", func() {
-					Expect(func() {
-						cmd.Requirements(factory, flagContext)
-					}).To(Panic())
+					_, err := cmd.Requirements(factory, flagContext)
+					Expect(err).To(HaveOccurred())
 					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"FAILED"},
 						[]string{"Cannot specify random-port together with port, hostname and/or path."},
@@ -319,9 +330,8 @@ var _ = Describe("MapRoute", func() {
 				})
 
 				It("fails with error", func() {
-					Expect(func() {
-						cmd.Requirements(factory, flagContext)
-					}).To(Panic())
+					_, err := cmd.Requirements(factory, flagContext)
+					Expect(err).To(HaveOccurred())
 					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"FAILED"},
 						[]string{"Cannot specify random-port together with port, hostname and/or path."},
@@ -336,9 +346,8 @@ var _ = Describe("MapRoute", func() {
 				})
 
 				It("fails with error", func() {
-					Expect(func() {
-						cmd.Requirements(factory, flagContext)
-					}).To(Panic())
+					_, err := cmd.Requirements(factory, flagContext)
+					Expect(err).To(HaveOccurred())
 					Expect(ui.Outputs()).To(ContainSubstrings(
 						[]string{"FAILED"},
 						[]string{"Cannot specify random-port together with port, hostname and/or path."},

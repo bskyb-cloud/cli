@@ -3,14 +3,14 @@ package domain
 import (
 	"errors"
 
-	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/api"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
 )
 
 type ListDomains struct {
@@ -34,7 +34,7 @@ func (cmd *ListDomains) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *ListDomains) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *ListDomains) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	usageReq := requirements.NewUsageRequirement(commandregistry.CLICommandUsagePresenter(cmd),
 		T("No argument required"),
 		func() bool {
@@ -48,7 +48,7 @@ func (cmd *ListDomains) Requirements(requirementsFactory requirements.Factory, f
 		requirementsFactory.NewTargetedOrgRequirement(),
 	}
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *ListDomains) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
@@ -87,7 +87,10 @@ func (cmd *ListDomains) Execute(c flags.FlagContext) error {
 		}
 	}
 
-	table.Print()
+	err = table.Print()
+	if err != nil {
+		return err
+	}
 
 	if len(domains) == 0 {
 		cmd.ui.Say(T("No domains found"))

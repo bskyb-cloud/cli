@@ -4,14 +4,14 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
 
-	"github.com/cloudfoundry/cli/cf/api"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/api"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
 )
 
 type ListBuildpacks struct {
@@ -33,7 +33,7 @@ func (cmd *ListBuildpacks) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *ListBuildpacks) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *ListBuildpacks) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	usageReq := requirements.NewUsageRequirement(commandregistry.CLICommandUsagePresenter(cmd),
 		T("No argument required"),
 		func() bool {
@@ -46,7 +46,7 @@ func (cmd *ListBuildpacks) Requirements(requirementsFactory requirements.Factory
 		requirementsFactory.NewLoginRequirement(),
 	}
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *ListBuildpacks) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
@@ -84,7 +84,10 @@ func (cmd *ListBuildpacks) Execute(c flags.FlagContext) error {
 		noBuildpacks = false
 		return true
 	})
-	table.Print()
+	err := table.Print()
+	if err != nil {
+		return err
+	}
 
 	if apiErr != nil {
 		return errors.New(T("Failed fetching buildpacks.\n{{.Error}}", map[string]interface{}{"Error": apiErr.Error()}))

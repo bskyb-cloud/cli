@@ -1,17 +1,17 @@
 package buildpack_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/api/apifakes"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/flags"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
-	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	"code.cloudfoundry.org/cli/cf/api/apifakes"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/flags"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/requirements/requirementsfakes"
+	testcmd "code.cloudfoundry.org/cli/testhelpers/commands"
+	testterm "code.cloudfoundry.org/cli/testhelpers/terminal"
 
-	"github.com/cloudfoundry/cli/cf/commands/buildpack"
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	"code.cloudfoundry.org/cli/cf/commands/buildpack"
+	. "code.cloudfoundry.org/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -53,9 +53,10 @@ var _ = Describe("ListBuildpacks", func() {
 		It("should fail with usage", func() {
 			flagContext.Parse("blahblah")
 
-			reqs := cmd.Requirements(requirementsFactory, flagContext)
+			reqs, err := cmd.Requirements(requirementsFactory, flagContext)
+			Expect(err).NotTo(HaveOccurred())
 
-			err := testcmd.RunRequirements(reqs)
+			err = testcmd.RunRequirements(reqs)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("Incorrect Usage"))
 			Expect(err.Error()).To(ContainSubstring("No argument required"))

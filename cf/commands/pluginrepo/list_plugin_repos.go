@@ -1,13 +1,13 @@
 package pluginrepo
 
 import (
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/flags"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/flags"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
 
-	. "github.com/cloudfoundry/cli/cf/i18n"
+	. "code.cloudfoundry.org/cli/cf/i18n"
 )
 
 type ListPluginRepos struct {
@@ -29,7 +29,7 @@ func (cmd *ListPluginRepos) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *ListPluginRepos) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *ListPluginRepos) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	usageReq := requirements.NewUsageRequirement(commandregistry.CLICommandUsagePresenter(cmd),
 		T("No argument required"),
 		func() bool {
@@ -40,7 +40,7 @@ func (cmd *ListPluginRepos) Requirements(requirementsFactory requirements.Factor
 	reqs := []requirements.Requirement{
 		usageReq,
 	}
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *ListPluginRepos) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
@@ -61,7 +61,10 @@ func (cmd *ListPluginRepos) Execute(c flags.FlagContext) error {
 	cmd.ui.Ok()
 	cmd.ui.Say("")
 
-	table.Print()
+	err := table.Print()
+	if err != nil {
+		return err
+	}
 
 	cmd.ui.Say("")
 	return nil

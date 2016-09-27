@@ -20,6 +20,10 @@
     "translation": "\nApp gestartet\n"
   },
   {
+    "id": "\nApp state changed to started, but note that it has 0 instances.\n",
+    "translation": ""
+  },
+  {
     "id": "\nApp {{.AppName}} was started using this command `{{.Command}}`\n",
     "translation": "\nApp {{.AppName}} wurde mit diesem Befehl gestartet: `{{.Command}}`\n"
   },
@@ -41,7 +45,7 @@
   },
   {
     "id": "\nTIP: Use '{{.CFTargetCommand}}' to target new space",
-    "translation": "\nTIPP: Verwenden Sie '{{.CFTargetCommand}}', um einen neuen Bereich zu nutzen."
+    "translation": "\nTIPP: Verwenden Sie '{{.CFTargetCommand}}', um einen neuen Bereich zu nutzen"
   },
   {
     "id": "\nTIP: Use '{{.Command}}' to target new org",
@@ -49,11 +53,15 @@
   },
   {
     "id": "\nTIP: use 'cf login -a API --skip-ssl-validation' or 'cf api API --skip-ssl-validation' to suppress this error",
-    "translation": "\nTIPP: Verwenden Sie 'cf login -a API --skip-ssl-validation' oder 'cf api API --skip-ssl-validation', um diesen Fehler zu unterdrücken."
+    "translation": "\nTIPP: Verwenden Sie 'cf login -a API --skip-ssl-validation' oder 'cf api API --skip-ssl-validation', um diesen Fehler zu unterdrücken"
+  },
+  {
+    "id": "\nTip: use `add-plugin-repo` command to add repos.",
+    "translation": ""
   },
   {
     "id": "   CF_NAME copy-source SOURCE-APP TARGET-APP [-s TARGET-SPACE [-o TARGET-ORG]] [--no-restart]\n",
-    "translation": "   CF_NAME copy-source SOURCE-APP TARGET-APP [-s TARGET-SPACE [-o TARGET-ORG]] [--no-restart]\n"
+    "translation": ""
   },
   {
     "id": "   Optionally provide a list of comma-delimited tags that will be written to the VCAP_SERVICES environment variable for any bound applications.",
@@ -96,6 +104,10 @@
     "translation": " ist als Repository nicht vorhanden"
   },
   {
+    "id": " does not exist as an available plugin repo.",
+    "translation": ""
+  },
+  {
     "id": " for ",
     "translation": " für "
   },
@@ -136,8 +148,12 @@
     "translation": "' ist kein registrierter Befehl. Siehe 'cf help'"
   },
   {
-    "id": "'routes' should be a list",
+    "id": "'cf help -a' lists all commands with short descriptions. See 'cf help \u003ccommand\u003e' to read about a specific command.",
     "translation": ""
+  },
+  {
+    "id": "'routes' should be a list",
+    "translation": "'routes' muss eine Liste sein"
   },
   {
     "id": "'{{.VersionShort}}' and '{{.VersionLong}}' are also accepted.",
@@ -164,12 +180,28 @@
     "translation": "PLUG-IN-REPOSITORY HINZUFÜGEN/ENTFERNEN"
   },
   {
+    "id": "ADD/REMOVE PLUGIN REPOSITORY:",
+    "translation": "PLUG-IN-REPOSITORY HINZUFÜGEN/ENTFERNEN:"
+  },
+  {
+    "id": "ADD/REMOVE PLUGIN:",
+    "translation": "PLUG-IN HINZUFÜGEN/ENTFERNEN:"
+  },
+  {
     "id": "ADVANCED",
     "translation": "ERWEITERT"
   },
   {
+    "id": "ADVANCED:",
+    "translation": "ERWEITERT:"
+  },
+  {
     "id": "ALIAS:",
-    "translation": "ALIAS:"
+    "translation": ""
+  },
+  {
+    "id": "API URL to target",
+    "translation": ""
   },
   {
     "id": "API endpoint",
@@ -196,12 +228,20 @@
     "translation": "API-Endpunkt: {{.Endpoint}}"
   },
   {
+    "id": "API version",
+    "translation": ""
+  },
+  {
     "id": "APPS",
-    "translation": "APPS"
+    "translation": ""
+  },
+  {
+    "id": "APPS:",
+    "translation": ""
   },
   {
     "id": "APP_INSTANCES",
-    "translation": "APP_INSTANCES"
+    "translation": "APP-INSTANZEN"
   },
   {
     "id": "APP_NAME",
@@ -244,6 +284,10 @@
     "translation": "Alias `{{.Command}}` ist ein Befehl/Alias in Plug-in '{{.PluginName}}'.  Sie können das Deinstallieren des Plug-ins '{{.PluginName}}' versuchen und dieses Plug-in anschließend installieren, um den Befehl `{{.Command}}` aufzurufen.  Sie sollten jedoch zuerst die Auswirkung der Deinstallation des vorhandenen Plug-ins '{{.PluginName}}' verstehen."
   },
   {
+    "id": "All available CLI commands",
+    "translation": ""
+  },
+  {
     "id": "Allow SSH access for the space",
     "translation": "SSH-Zugriff für den Bereich ermöglichen"
   },
@@ -253,11 +297,15 @@
   },
   {
     "id": "An org must be targeted before targeting a space",
-    "translation": "Eine Organisation muss als Ziel ausgewählt sein, bevor ein Bereich als Ziel verwendet werden kann."
+    "translation": "Eine Organisation muss als Ziel ausgewählt sein, bevor ein Bereich als Ziel verwendet werden kann"
+  },
+  {
+    "id": "App",
+    "translation": ""
   },
   {
     "id": "App ",
-    "translation": "App "
+    "translation": ""
   },
   {
     "id": "App instance limit",
@@ -273,7 +321,7 @@
   },
   {
     "id": "App {{.AppName}} is a worker, skipping route creation",
-    "translation": "App {{.AppName}} ist ein Worker, der die Routeerstellung überspringt."
+    "translation": "App {{.AppName}} ist ein Worker, der die Routeerstellung überspringt"
   },
   {
     "id": "App {{.AppName}} is already bound to {{.ServiceName}}.",
@@ -292,20 +340,24 @@
     "translation": "Anwendungsinstanzindex"
   },
   {
-    "id": "Application {{.AppName}} must not be configured with both 'routes' and 'domain'/'domains'",
+    "id": "Application lifecycle:",
     "translation": ""
+  },
+  {
+    "id": "Application {{.AppName}} must not be configured with both 'routes' and 'domain'/'domains'",
+    "translation": "Anwendung {{.AppName}} darf nicht mit 'routes' und 'domain'/'domains' zusammen konfiguriert werden"
   },
   {
     "id": "Application {{.AppName}} must not be configured with both 'routes' and 'host'/'hosts'",
-    "translation": ""
+    "translation": "Anwendung {{.AppName}} darf nicht mit 'routes' und 'host'/'hosts' zusammen konfiguriert werden"
   },
   {
     "id": "Application {{.AppName}} must not be configured with both 'routes' and 'no-hostname'",
-    "translation": ""
+    "translation": "Anwendung {{.AppName}} darf nicht mit 'routes' and 'no-hostname' zusammen konfiguriert werden"
   },
   {
     "id": "Apps:",
-    "translation": "Apps:"
+    "translation": ""
   },
   {
     "id": "Assign a quota to an org",
@@ -384,12 +436,24 @@
     "translation": "BUILDPAKETE"
   },
   {
+    "id": "BUILDPACKS:",
+    "translation": "BUILDPAKETE:"
+  },
+  {
     "id": "BUILDPACK_NAME",
     "translation": "BUILDPACKNAME"
   },
   {
-    "id": "Bind a security group to a particular space, or all existing spaces of an org",
+    "id": "Basic ",
     "translation": ""
+  },
+  {
+    "id": "Before getting started:",
+    "translation": ""
+  },
+  {
+    "id": "Bind a security group to a particular space, or all existing spaces of an org",
+    "translation": "Eine Sicherheitsgruppe an einen bestimmten Bereich oder an alle vorhandenen Bereiche einer Organisation binden"
   },
   {
     "id": "Bind a security group to the list of security groups to be used for running applications",
@@ -441,7 +505,7 @@
   },
   {
     "id": "Buildpack {{.BuildpackName}} already exists",
-    "translation": "Buildpack {{.BuildpackName}} ist bereits vorhanden."
+    "translation": "Buildpack {{.BuildpackName}} ist bereits vorhanden"
   },
   {
     "id": "Buildpack {{.BuildpackName}} does not exist.",
@@ -449,27 +513,43 @@
   },
   {
     "id": "Byte quantity must be an integer with a unit of measurement like M, MB, G, or GB",
-    "translation": "Die Bytemenge muss eine ganze Zahl mit einer Maßeinheit wie M, MB, G oder GB sein."
+    "translation": "Die Bytemenge muss eine ganze Zahl mit einer Maßeinheit wie M, MB, G oder GB sein"
+  },
+  {
+    "id": "CF_NAME add-plugin-repo PrivateRepo https://myprivaterepo.com/repo/",
+    "translation": ""
   },
   {
     "id": "CF_NAME add-plugin-repo REPO_NAME URL",
-    "translation": "CF_NAME add-plugin-repo REPO_NAME URL"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME add-plugin-repo REPO_NAME URL\\n\\nEXAMPLES:\\n   CF_NAME add-plugin-repo PrivateRepo https://myprivaterepo.com/repo/",
+    "translation": ""
   },
   {
     "id": "CF_NAME allow-space-ssh SPACE_NAME",
-    "translation": "CF_NAME allow-space-ssh SPACE_NAME"
+    "translation": ""
   },
   {
     "id": "CF_NAME api [URL]",
-    "translation": "CF_NAME api [URL]"
+    "translation": ""
   },
   {
     "id": "CF_NAME app APP_NAME",
-    "translation": "CF_NAME app APP_NAME"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME apps",
+    "translation": ""
   },
   {
     "id": "CF_NAME auth USERNAME PASSWORD\n\n",
-    "translation": "CF_NAME auth USERNAME PASSWORD\n\n"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME auth USERNAME PASSWORD\\n\\nWARNING:\\n   Providing your password as a command line option is highly discouraged\\n   Your password may be visible to others and may be recorded in your shell history\\n\\nEXAMPLES:\\n   CF_NAME auth name@example.com \\\"my password\\\" (use quotes for passwords with a space)\\n   CF_NAME auth name@example.com \\\"\\\\\\\"password\\\\\\\"\\\" (escape quotes if used in password)",
+    "translation": ""
   },
   {
     "id": "CF_NAME auth name@example.com \"\\\"password\\\"\" (escape quotes if used in password)",
@@ -481,203 +561,431 @@
   },
   {
     "id": "CF_NAME bind-route-service DOMAIN SERVICE_INSTANCE [--hostname HOSTNAME] [--path PATH] [-c PARAMETERS_AS_JSON]",
-    "translation": "CF_NAME bind-route-service DOMAIN SERVICE_INSTANCE [--hostname HOSTNAME] [--path PATH] [-c PARAMETERS_AS_JSON]"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME bind-route-service DOMAIN SERVICE_INSTANCE [--hostname HOSTNAME] [--path PATH] [-c PARAMETERS_AS_JSON]\\n\\nEXAMPLES:\\n   CF_NAME bind-route-service example.com myratelimiter --hostname myapp --path foo\\n   CF_NAME bind-route-service example.com myratelimiter -c file.json\\n   CF_NAME bind-route-service example.com myratelimiter -c '{\\\"valid\\\":\\\"json\\\"}'\\n\\n   In Windows PowerShell use double-quoted, escaped JSON: \\\"{\\\\\\\"valid\\\\\\\":\\\\\\\"json\\\\\\\"}\\\"\\n   In Windows Command Line use single-quoted, escaped JSON: '{\\\\\\\"valid\\\\\\\":\\\\\\\"json\\\\\\\"}'",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME bind-route-service example.com myratelimiter --hostname myapp --path foo",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME bind-route-service example.com myratelimiter -c '{\"valid\":\"json\"}'",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME bind-route-service example.com myratelimiter -c file.json",
+    "translation": ""
   },
   {
     "id": "CF_NAME bind-running-security-group SECURITY_GROUP",
-    "translation": "CF_NAME bind-running-security-group SECURITY_GROUP"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME bind-running-security-group SECURITY_GROUP\\n\\nTIP: Changes will not apply to existing running applications until they are restarted.",
+    "translation": ""
   },
   {
     "id": "CF_NAME bind-security-group SECURITY_GROUP ORG [SPACE]",
-    "translation": "CF_NAME bind-security-group SECURITY_GROUP ORG [SPACE]"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME bind-security-group SECURITY_GROUP ORG [SPACE]\\n\\nTIP: Changes will not apply to existing running applications until they are restarted.",
+    "translation": ""
   },
   {
     "id": "CF_NAME bind-service APP_NAME SERVICE_INSTANCE [-c PARAMETERS_AS_JSON]",
-    "translation": "CF_NAME bind-service APP_NAME SERVICE_INSTANCE [-c PARAMETERS_AS_JSON]"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME bind-service APP_NAME SERVICE_INSTANCE [-c PARAMETERS_AS_JSON]\\n\\n   Optionally provide service-specific configuration parameters in a valid JSON object in-line:\\n\\n   CF_NAME bind-service APP_NAME SERVICE_INSTANCE -c '{\\\"name\\\":\\\"value\\\",\\\"name\\\":\\\"value\\\"}'\\n\\n   Optionally provide a file containing service-specific configuration parameters in a valid JSON object. \\n   The path to the parameters file can be an absolute or relative path to a file.\\n   CF_NAME bind-service APP_NAME SERVICE_INSTANCE -c PATH_TO_FILE\\n\\n   Example of valid JSON object:\\n   {\\n      \\\"permissions\\\": \\\"read-only\\\"\\n   }\\n\\nEXAMPLES:\\n   Linux/Mac:\\n      CF_NAME bind-service myapp mydb -c '{\\\"permissions\\\":\\\"read-only\\\"}'\\n\\n   Windows Command Line:\\n      CF_NAME bind-service myapp mydb -c \\\"{\\\\\\\"permissions\\\\\\\":\\\\\\\"read-only\\\\\\\"}\\\"\\n\\n   Windows PowerShell:\\n      CF_NAME bind-service myapp mydb -c '{\\\\\\\"permissions\\\\\\\":\\\\\\\"read-only\\\\\\\"}'\\n\\n   CF_NAME bind-service myapp mydb -c ~/workspace/tmp/instance_config.json",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME bind-service myapp mydb -c ~/workspace/tmp/instance_config.json",
+    "translation": ""
   },
   {
     "id": "CF_NAME bind-staging-security-group SECURITY_GROUP",
-    "translation": "CF_NAME bind-staging-security-group SECURITY_GROUP"
+    "translation": ""
   },
   {
     "id": "CF_NAME buildpacks",
-    "translation": "CF_NAME buildpacks"
+    "translation": ""
   },
   {
     "id": "CF_NAME check-route HOST DOMAIN [--path PATH]",
-    "translation": "CF_NAME check-route HOST DOMAIN [--path PATH]"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME check-route HOST DOMAIN [--path PATH]\\n\\nEXAMPLES:\\n   CF_NAME check-route myhost example.com            # example.com\\n   CF_NAME check-route myhost example.com --path foo # myhost.example.com/foo",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME check-route myhost example.com            # example.com",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME check-route myhost example.com --path foo # myhost.example.com/foo",
+    "translation": ""
   },
   {
     "id": "CF_NAME config [--async-timeout TIMEOUT_IN_MINUTES] [--trace (true | false | path/to/file)] [--color (true | false)] [--locale (LOCALE | CLEAR)]",
-    "translation": "CF_NAME config [--async-timeout TIMEOUT_IN_MINUTES] [--trace (true | false | path/to/file)] [--color (true | false)] [--locale (LOCALE | CLEAR)]"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME copy-source SOURCE_APP TARGET_APP [-s TARGET_SPACE [-o TARGET_ORG]] [--no-restart]",
+    "translation": ""
   },
   {
     "id": "CF_NAME create-app-manifest APP_NAME [-p /path/to/\u003capp-name\u003e-manifest.yml ]",
-    "translation": "CF_NAME create-app-manifest APP_NAME [-p /path/to/\u003capp-name\u003e-manifest.yml ]"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME create-app-manifest APP_NAME [-p /path/to/\u003capp-name\u003e-manifest.yml]",
+    "translation": ""
   },
   {
     "id": "CF_NAME create-buildpack BUILDPACK PATH POSITION [--enable|--disable]",
-    "translation": "CF_NAME create-buildpack BUILDPACK PATH POSITION [--enable|--disable]"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME create-buildpack BUILDPACK PATH POSITION [--enable|--disable]\\n\\nTIP:\\n   Path should be a zip file, a url to a zip file, or a local directory. Position is a positive integer, sets priority, and is sorted from lowest to highest.",
+    "translation": ""
   },
   {
     "id": "CF_NAME create-domain ORG DOMAIN",
-    "translation": "CF_NAME create-domain ORG DOMAIN"
+    "translation": ""
   },
   {
     "id": "CF_NAME create-org ORG",
-    "translation": "CF_NAME create-org ORG"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME create-quota ",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME create-quota QUOTA [-m TOTAL_MEMORY] [-i INSTANCE_MEMORY] [-r ROUTES] [-s SERVICE_INSTANCES] [-a APP_INSTANCES] [--allow-paid-service-plans] [--reserved-route-ports RESERVED_ROUTE_PORTS]",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME create-route my-space example.com                             # example.com",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME create-route my-space example.com --hostname myapp            # myapp.example.com",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME create-route my-space example.com --hostname myapp --path foo # myapp.example.com/foo",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME create-route my-space example.com --port 50000                # example.com:50000",
+    "translation": ""
   },
   {
     "id": "CF_NAME create-security-group SECURITY_GROUP PATH_TO_JSON_RULES_FILE",
-    "translation": "CF_NAME create-security-group SECURITY_GROUP PATH_TO_JSON_RULES_FILE"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME create-security-group SECURITY_GROUP PATH_TO_JSON_RULES_FILE\\n\\n   The provided path can be an absolute or relative path to a file.  The file should have\\n   a single array with JSON objects inside describing the rules.  The JSON Base Object is\\n   omitted and only the square brackets and associated child object are required in the file.\\n\\n   Valid json file example:\\n   [\\n     {\\n       \\\"protocol\\\": \\\"tcp\\\",\\n       \\\"destination\\\": \\\"10.244.1.18\\\",\\n       \\\"ports\\\": \\\"3306\\\"\\n     }\\n   ]",
+    "translation": ""
   },
   {
     "id": "CF_NAME create-service SERVICE PLAN SERVICE_INSTANCE [-c PARAMETERS_AS_JSON] [-t TAGS]",
-    "translation": "CF_NAME create-service SERVICE PLAN SERVICE_INSTANCE [-c PARAMETERS_AS_JSON] [-t TAGS]"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME create-service SERVICE PLAN SERVICE_INSTANCE [-c PARAMETERS_AS_JSON] [-t TAGS]\\n\\n   Optionally provide service-specific configuration parameters in a valid JSON object in-line:\\n\\n   CF_NAME create-service SERVICE PLAN SERVICE_INSTANCE -c '{\\\"name\\\":\\\"value\\\",\\\"name\\\":\\\"value\\\"}'\\n\\n   Optionally provide a file containing service-specific configuration parameters in a valid JSON object.\\n   The path to the parameters file can be an absolute or relative path to a file:\\n\\n   CF_NAME create-service SERVICE PLAN SERVICE_INSTANCE -c PATH_TO_FILE\\n\\n   Example of valid JSON object:\\n   {\\n      \\\"cluster_nodes\\\": {\\n         \\\"count\\\": 5,\\n         \\\"memory_mb\\\": 1024\\n      }\\n   }\\n\\nTIP:\\n   Use 'CF_NAME create-user-provided-service' to make user-provided services available to CF apps\\n\\nEXAMPLES:\\n   Linux/Mac:\\n      CF_NAME create-service db-service silver mydb -c '{\\\"ram_gb\\\":4}'\\n\\n   Windows Command Line:\\n      CF_NAME create-service db-service silver mydb -c \\\"{\\\\\\\"ram_gb\\\\\\\":4}\\\"\\n\\n   Windows PowerShell:\\n      CF_NAME create-service db-service silver mydb -c '{\\\\\\\"ram_gb\\\\\\\":4}'\\n\\n   CF_NAME create-service db-service silver mydb -c ~/workspace/tmp/instance_config.json\\n\\n   CF_NAME create-service db-service silver mydb -t \\\"list, of, tags\\\"",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME create-service db-service silver mydb -c ~/workspace/tmp/instance_config.json",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME create-service db-service silver mydb -t \"list, of, tags\"",
+    "translation": ""
   },
   {
     "id": "CF_NAME create-service-auth-token LABEL PROVIDER TOKEN",
-    "translation": "CF_NAME create-service-auth-token LABEL PROVIDER TOKEN"
+    "translation": ""
   },
   {
     "id": "CF_NAME create-service-broker SERVICE_BROKER USERNAME PASSWORD URL [--space-scoped]",
-    "translation": "CF_NAME create-service-broker SERVICE_BROKER USERNAME PASSWORD URL [--space-scoped]"
+    "translation": ""
   },
   {
     "id": "CF_NAME create-service-key SERVICE_INSTANCE SERVICE_KEY [-c PARAMETERS_AS_JSON]\n\n   Optionally provide service-specific configuration parameters in a valid JSON object in-line.\n   CF_NAME create-service-key SERVICE_INSTANCE SERVICE_KEY -c '{\"name\":\"value\",\"name\":\"value\"}'\n\n   Optionally provide a file containing service-specific configuration parameters in a valid JSON object. The path to the parameters file can be an absolute or relative path to a file.\n   CF_NAME create-service-key SERVICE_INSTANCE SERVICE_KEY -c PATH_TO_FILE\n\n   Example of valid JSON object:\n   {\n     \"permissions\": \"read-only\"\n   }",
     "translation": "CF_NAME create-service-key SERVICE_INSTANCE SERVICE_KEY [-c PARAMETERS_AS_JSON]\n\n   Optional können Sie servicespezifische Konfigurationsparameter in ein gültiges JSON-Objekt integriert zur Verfügung stellen.\n   CF_NAME create-service-key SERVICE_INSTANCE SERVICE_KEY -c '{\"name\":\"value\",\"name\":\"value\"}'\n\n   Optional können Sie eine Datei mit servicespezifischen Konfigurationsparametern in ein gültiges JSON-Objekt integriert zur Verfügung stellen. Der Pfad zur Parameterdatei kann ein absoluter oder relativer Pfad zu einer Datei sein.\n   CF_NAME create-service-key SERVICE_INSTANCE SERVICE_KEY -c PATH_TO_FILE\n\n   Beispiel für ein gültiges JSON-Objekt:\n   {\n     \"permissions\": \"read-only\"\n   }"
   },
   {
+    "id": "CF_NAME create-service-key SERVICE_INSTANCE SERVICE_KEY [-c PARAMETERS_AS_JSON]\\n\\n   Optionally provide service-specific configuration parameters in a valid JSON object in-line.\\n   CF_NAME create-service-key SERVICE_INSTANCE SERVICE_KEY -c '{\\\"name\\\":\\\"value\\\",\\\"name\\\":\\\"value\\\"}'\\n\\n   Optionally provide a file containing service-specific configuration parameters in a valid JSON object. The path to the parameters file can be an absolute or relative path to a file.\\n   CF_NAME create-service-key SERVICE_INSTANCE SERVICE_KEY -c PATH_TO_FILE\\n\\n   Example of valid JSON object:\\n   {\\n      \\\"permissions\\\": \\\"read-only\\\"\\n   }\\n\\nEXAMPLES:\\n   CF_NAME create-service-key mydb mykey -c '{\\\"permissions\\\":\\\"read-only\\\"}'\\n   CF_NAME create-service-key mydb mykey -c ~/workspace/tmp/instance_config.json",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME create-service-key mydb mykey -c '{\"permissions\":\"read-only\"}'",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME create-service-key mydb mykey -c ~/workspace/tmp/instance_config.json",
+    "translation": ""
+  },
+  {
     "id": "CF_NAME create-shared-domain DOMAIN [--router-group ROUTER_GROUP]",
-    "translation": "CF_NAME create-shared-domain DOMAIN [--router-group ROUTER_GROUP]"
+    "translation": ""
   },
   {
     "id": "CF_NAME create-space SPACE [-o ORG] [-q SPACE-QUOTA]",
-    "translation": "CF_NAME create-space SPACE [-o ORG] [-q SPACE-QUOTA]"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME create-space SPACE [-o ORG] [-q SPACE_QUOTA]",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME create-space-quota ",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME create-space-quota QUOTA [-i INSTANCE_MEMORY] [-m MEMORY] [-r ROUTES] [-s SERVICE_INSTANCES] [-a APP_INSTANCES] [--allow-paid-service-plans] [--reserved-route-ports RESERVED_ROUTE_PORTS]",
+    "translation": ""
   },
   {
     "id": "CF_NAME create-user USERNAME PASSWORD",
-    "translation": "CF_NAME create-user USERNAME PASSWORD"
+    "translation": ""
   },
   {
     "id": "CF_NAME create-user-provided-service SERVICE_INSTANCE [-p CREDENTIALS] [-l SYSLOG_DRAIN_URL] [-r ROUTE_SERVICE_URL]\n\n   Pass comma separated credential parameter names to enable interactive mode:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p \"comma, separated, parameter, names\"\n\n   Pass credential parameters as JSON to create a service non-interactively:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p '{\"key1\":\"value1\",\"key2\":\"value2\"}'\n\n   Specify a path to a file containing JSON:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p PATH_TO_FILE",
     "translation": "CF_NAME create-user-provided-service SERVICE_INSTANCE [-p CREDENTIALS] [-l SYSLOG_DRAIN_URL] [-r ROUTE_SERVICE_URL]\n\n   Durch Kommas getrennte Parameternamen für Berechtigungsnachweise übergeben, um den interaktiven Modus zu aktivieren:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p \"comma, separated, parameter, names\"\n\n   Parameter für Berechtigungsnachweise als JSON übergeben, um einen Service nicht interaktiv zu erstellen:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p '{\"key1\":\"value1\",\"key2\":\"value2\"}'\n\n   Einen Pfad zu einer Datei mit JSON angeben:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p PATH_TO_FILE"
   },
   {
+    "id": "CF_NAME create-user-provided-service SERVICE_INSTANCE [-p CREDENTIALS] [-l SYSLOG_DRAIN_URL] [-r ROUTE_SERVICE_URL]\\n\\n   Pass comma separated credential parameter names to enable interactive mode:\\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p \\\"comma, separated, parameter, names\\\"\\n\\n   Pass credential parameters as JSON to create a service non-interactively:\\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p '{\\\"key1\\\":\\\"value1\\\",\\\"key2\\\":\\\"value2\\\"}'\\n\\n   Specify a path to a file containing JSON:\\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p PATH_TO_FILE\\n\\nEXAMPLES:\\n   CF_NAME create-user-provided-service my-db-mine -p \\\"username, password\\\"\\n   CF_NAME create-user-provided-service my-db-mine -p /path/to/credentials.json\\n   CF_NAME create-user-provided-service my-drain-service -l syslog://example.com\\n   CF_NAME create-user-provided-service my-route-service -r https://example.com\\n\\n   Linux/Mac:\\n      CF_NAME create-user-provided-service my-db-mine -p '{\\\"username\\\":\\\"admin\\\",\\\"password\\\":\\\"pa55woRD\\\"}'\\n\\n   Windows Command Line:\\n      CF_NAME create-user-provided-service my-db-mine -p \\\"{\\\\\\\"username\\\\\\\":\\\\\\\"admin\\\\\\\",\\\\\\\"password\\\\\\\":\\\\\\\"pa55woRD\\\\\\\"}\\\"\\n\\n   Windows PowerShell:\\n      CF_NAME create-user-provided-service my-db-mine -p '{\\\\\\\"username\\\\\\\":\\\\\\\"admin\\\\\\\",\\\\\\\"password\\\\\\\":\\\\\\\"pa55woRD\\\\\\\"}'",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME create-user-provided-service my-db-mine -p \"username, password\"",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME create-user-provided-service my-db-mine -p /path/to/credentials.json",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME create-user-provided-service my-drain-service -l syslog://example.com",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME create-user-provided-service my-route-service -r https://example.com",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME curl \"/v2/apps\" -X GET -H \"Content-Type: application/x-www-form-urlencoded\" -d 'q=name:myapp'",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME curl \"/v2/apps\" -d @/path/to/file",
+    "translation": ""
+  },
+  {
     "id": "CF_NAME curl PATH [-iv] [-X METHOD] [-H HEADER] [-d DATA] [--output FILE]\n\n   By default 'CF_NAME curl' will perform a GET to the specified PATH. If data\n   is provided via -d, a POST will be performed instead, and the Content-Type\n   will be set to application/json. You may override headers with -H and the\n   request method with -X.\n\n   For API documentation, please visit http://apidocs.cloudfoundry.org.",
     "translation": "CF_NAME curl PATH [-iv] [-X METHOD] [-H HEADER] [-d DATA] [--output FILE]\n\n   Standardmäßig führt 'CF_NAME curl' eine GET-Operation für den angegebenen Pfad (PATH) durch. Wenn Daten\n   mittels -d bereitgestellt werden, wird stattdessen eine POST-Operation durchgeführt und der Inhaltstyp (Content-Type)\n   wird auf application/json festgelegt. Sie können Header mit -H und die\n   Anforderungsmethode mit -X überschreiben.\n\n   Die API-Dokumentation finden Sie unter http://apidocs.cloudfoundry.org."
   },
   {
+    "id": "CF_NAME curl PATH [-iv] [-X METHOD] [-H HEADER] [-d DATA] [--output FILE]\\n\\n   By default 'CF_NAME curl' will perform a GET to the specified PATH. If data\\n   is provided via -d, a POST will be performed instead, and the Content-Type\\n   will be set to application/json. You may override headers with -H and the\\n   request method with -X.\\n\\n   For API documentation, please visit http://apidocs.cloudfoundry.org.\\n\\nEXAMPLES:\\n   CF_NAME curl \\\"/v2/apps\\\" -X GET -H \\\"Content-Type: application/x-www-form-urlencoded\\\" -d 'q=name:myapp'\\n   CF_NAME curl \\\"/v2/apps\\\" -d @/path/to/file",
+    "translation": ""
+  },
+  {
     "id": "CF_NAME delete APP_NAME [-f -r]",
-    "translation": "CF_NAME delete APP_NAME [-f -r]"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME delete APP_NAME [-r] [-f]",
+    "translation": ""
   },
   {
     "id": "CF_NAME delete-buildpack BUILDPACK [-f]",
-    "translation": "CF_NAME delete-buildpack BUILDPACK [-f]"
+    "translation": ""
   },
   {
     "id": "CF_NAME delete-domain DOMAIN [-f]",
-    "translation": "CF_NAME delete-domain DOMAIN [-f]"
+    "translation": ""
   },
   {
     "id": "CF_NAME delete-org ORG [-f]",
-    "translation": "CF_NAME delete-org ORG [-f]"
+    "translation": ""
   },
   {
     "id": "CF_NAME delete-orphaned-routes [-f]",
-    "translation": "CF_NAME delete-orphaned-routes [-f]"
+    "translation": ""
   },
   {
     "id": "CF_NAME delete-quota QUOTA [-f]",
-    "translation": "CF_NAME delete-quota QUOTA [-f]"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME delete-route example.com                              # example.com",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME delete-route example.com --hostname myhost            # myhost.example.com",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME delete-route example.com --hostname myhost --path foo # myhost.example.com/foo",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME delete-route example.com --port 50000                 # example.com:50000",
+    "translation": ""
   },
   {
     "id": "CF_NAME delete-security-group SECURITY_GROUP [-f]",
-    "translation": "CF_NAME delete-security-group SECURITY_GROUP [-f]"
+    "translation": ""
   },
   {
     "id": "CF_NAME delete-service SERVICE_INSTANCE [-f]",
-    "translation": "CF_NAME delete-service SERVICE_INSTANCE [-f]"
+    "translation": ""
   },
   {
     "id": "CF_NAME delete-service-auth-token LABEL PROVIDER [-f]",
-    "translation": "CF_NAME delete-service-auth-token LABEL PROVIDER [-f]"
+    "translation": ""
   },
   {
     "id": "CF_NAME delete-service-broker SERVICE_BROKER [-f]",
-    "translation": "CF_NAME delete-service-broker SERVICE_BROKER [-f]"
+    "translation": ""
   },
   {
     "id": "CF_NAME delete-service-key SERVICE_INSTANCE SERVICE_KEY [-f]",
-    "translation": "CF_NAME delete-service-key SERVICE_INSTANCE SERVICE_KEY [-f]"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME delete-service-key SERVICE_INSTANCE SERVICE_KEY [-f]\\n\\nEXAMPLES:\\n   CF_NAME delete-service-key mydb mykey",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME delete-service-key mydb mykey",
+    "translation": ""
   },
   {
     "id": "CF_NAME delete-shared-domain DOMAIN [-f]",
-    "translation": "CF_NAME delete-shared-domain DOMAIN [-f]"
+    "translation": ""
   },
   {
     "id": "CF_NAME delete-space SPACE [-f]",
-    "translation": "CF_NAME delete-space SPACE [-f]"
+    "translation": ""
   },
   {
     "id": "CF_NAME delete-space-quota SPACE-QUOTA-NAME [-f]",
-    "translation": "CF_NAME delete-space-quota SPACE-QUOTA-NAME [-f]"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME delete-space-quota SPACE_QUOTA_NAME [-f]",
+    "translation": ""
   },
   {
     "id": "CF_NAME delete-user USERNAME [-f]",
-    "translation": "CF_NAME delete-user USERNAME [-f]"
+    "translation": ""
   },
   {
     "id": "CF_NAME disable-feature-flag FEATURE_NAME",
-    "translation": "CF_NAME disable-feature-flag FEATURE_NAME"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME disable-service-access SERVICE [-p PLAN] [-o ORG]",
+    "translation": ""
   },
   {
     "id": "CF_NAME disable-ssh APP_NAME",
-    "translation": "CF_NAME disable-ssh APP_NAME"
+    "translation": ""
   },
   {
     "id": "CF_NAME disallow-space-ssh SPACE_NAME",
-    "translation": "CF_NAME disallow-space-ssh SPACE_NAME"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME domains",
+    "translation": ""
   },
   {
     "id": "CF_NAME enable-feature-flag FEATURE_NAME",
-    "translation": "CF_NAME enable-feature-flag FEATURE_NAME"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME enable-service-access SERVICE [-p PLAN] [-o ORG]",
+    "translation": ""
   },
   {
     "id": "CF_NAME enable-ssh APP_NAME",
-    "translation": "CF_NAME enable-ssh APP_NAME"
+    "translation": ""
   },
   {
     "id": "CF_NAME env APP_NAME",
-    "translation": "CF_NAME env APP_NAME"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME events ",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME events APP_NAME",
+    "translation": ""
   },
   {
     "id": "CF_NAME feature-flag FEATURE_NAME",
-    "translation": "CF_NAME feature-flag FEATURE_NAME"
+    "translation": ""
   },
   {
     "id": "CF_NAME feature-flags",
-    "translation": "CF_NAME feature-flags"
+    "translation": ""
   },
   {
     "id": "CF_NAME files APP_NAME [PATH] [-i INSTANCE]\n\t\t\t\nTIP:\n  To list and inspect files of an app running on the Diego backend, use 'CF_NAME ssh'",
     "translation": "CF_NAME files APP_NAME [PATH] [-i INSTANCE]\n\t\t\t\nTIPP:\n  Verwenden Sie 'CF_NAME ssh', um Dateien einer App, die am Diego-Back-End ausgeführt wird, aufzulisten und zu überprüfen."
   },
   {
+    "id": "CF_NAME files APP_NAME [PATH] [-i INSTANCE]\\n\\nTIP:\\n   To list and inspect files of an app running on the Diego backend, use 'CF_NAME ssh'",
+    "translation": ""
+  },
+  {
     "id": "CF_NAME get-health-check APP_NAME",
-    "translation": "CF_NAME get-health-check APP_NAME"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME get-schema SERVICE_INSTANCE",
+    "translation": ""
   },
   {
     "id": "CF_NAME help [COMMAND]",
-    "translation": "CF_NAME help [COMMAND]"
+    "translation": ""
   },
   {
     "id": "CF_NAME install-plugin (LOCAL-PATH/TO/PLUGIN | URL | -r REPO_NAME PLUGIN_NAME) [-f]\n\n   Prompts for confirmation unless '-f' is provided.",
     "translation": "CF_NAME install-plugin (LOCAL-PATH/TO/PLUGIN | URL | -r REPO_NAME PLUGIN_NAME) [-f]\n\n   Fordert zur Bestätigung auf, es sei denn, '-f' wird angegeben."
   },
   {
+    "id": "CF_NAME install-plugin (LOCAL-PATH/TO/PLUGIN | URL | -r REPO_NAME PLUGIN_NAME) [-f]\\n\\n   Prompts for confirmation unless '-f' is provided.\\n\\nEXAMPLES:\\n   CF_NAME install-plugin ~/Downloads/plugin-foobar\\n   CF_NAME install-plugin https://example.com/plugin-foobar_linux_amd64\\n   CF_NAME install-plugin -r My-Repo plugin-echo",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME install-plugin -r My-Repo plugin-echo",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME install-plugin https://example.com/plugin-foobar_linux_amd64",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME install-plugin ~/Downloads/plugin-foobar",
+    "translation": ""
+  },
+  {
     "id": "CF_NAME list-plugin-repos",
-    "translation": "CF_NAME list-plugin-repos"
+    "translation": ""
   },
   {
     "id": "CF_NAME login (omit username and password to login interactively -- CF_NAME will prompt for both)",
@@ -701,295 +1009,583 @@
   },
   {
     "id": "CF_NAME login [-a API_URL] [-u USERNAME] [-p PASSWORD] [-o ORG] [-s SPACE]\n\n",
-    "translation": "CF_NAME login [-a API_URL] [-u USERNAME] [-p PASSWORD] [-o ORG] [-s SPACE]\n\n"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME login [-a API_URL] [-u USERNAME] [-p PASSWORD] [-o ORG] [-s SPACE]\\n\\nWARNING:\\n   Providing your password as a command line option is highly discouraged\\n   Your password may be visible to others and may be recorded in your shell history\\n\\nEXAMPLES:\\n   CF_NAME login (omit username and password to login interactively -- CF_NAME will prompt for both)\\n   CF_NAME login -u name@example.com -p pa55woRD (specify username and password as arguments)\\n   CF_NAME login -u name@example.com -p \\\"my password\\\" (use quotes for passwords with a space)\\n   CF_NAME login -u name@example.com -p \\\"\\\\\\\"password\\\\\\\"\\\" (escape quotes if used in password)\\n   CF_NAME login --sso (CF_NAME will provide a url to obtain a one-time password to login)",
+    "translation": ""
   },
   {
     "id": "CF_NAME logout",
-    "translation": "CF_NAME logout"
+    "translation": ""
   },
   {
     "id": "CF_NAME logs APP_NAME",
-    "translation": "CF_NAME logs APP_NAME"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME map-route my-app example.com                              # example.com",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME map-route my-app example.com --hostname myhost            # myhost.example.com",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME map-route my-app example.com --hostname myhost --path foo # myhost.example.com/foo",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME map-route my-app example.com --port 50000                 # example.com:50000",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME marketplace ",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME marketplace [-s SERVICE]",
+    "translation": ""
   },
   {
     "id": "CF_NAME migrate-service-instances v1_SERVICE v1_PROVIDER v1_PLAN v2_SERVICE v2_PLAN\n\n",
-    "translation": "CF_NAME migrate-service-instances v1_SERVICE v1_PROVIDER v1_PLAN v2_SERVICE v2_PLAN\n\n"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME migrate-service-instances v1_SERVICE v1_PROVIDER v1_PLAN v2_SERVICE v2_PLAN\\n\\nWARNING: This operation is internal to Cloud Foundry; service brokers will not be contacted and resources for service instances will not be altered. The primary use case for this operation is to replace a service broker which implements the v1 Service Broker API with a broker which implements the v2 API by remapping service instances from v1 plans to v2 plans.  We recommend making the v1 plan private or shutting down the v1 broker to prevent additional instances from being created. Once service instances have been migrated, the v1 services and plans can be removed from Cloud Foundry.",
+    "translation": ""
   },
   {
     "id": "CF_NAME oauth-token",
-    "translation": "CF_NAME oauth-token"
+    "translation": ""
   },
   {
     "id": "CF_NAME org ORG",
-    "translation": "CF_NAME org ORG"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME org ORG [--guid]",
+    "translation": ""
   },
   {
     "id": "CF_NAME org-users ORG",
-    "translation": "CF_NAME org-users ORG"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME orgs",
+    "translation": ""
   },
   {
     "id": "CF_NAME passwd",
-    "translation": "CF_NAME passwd"
+    "translation": ""
   },
   {
     "id": "CF_NAME plugins",
-    "translation": "CF_NAME plugins"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME plugins [--checksum]",
+    "translation": ""
   },
   {
     "id": "CF_NAME purge-service-instance SERVICE_INSTANCE",
-    "translation": "CF_NAME purge-service-instance SERVICE_INSTANCE"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME purge-service-instance SERVICE_INSTANCE\\n\\nWARNING: This operation assumes that the service broker responsible for this service instance is no longer available or is not responding with a 200 or 410, and the service instance has been deleted, leaving orphan records in Cloud Foundry's database. All knowledge of the service instance will be removed from Cloud Foundry, including service bindings and service keys.",
+    "translation": ""
   },
   {
     "id": "CF_NAME purge-service-offering SERVICE [-p PROVIDER]",
-    "translation": "CF_NAME purge-service-offering SERVICE [-p PROVIDER]"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME purge-service-offering SERVICE [-p PROVIDER] [-f]\\n\\nWARNING: This operation assumes that the service broker responsible for this service offering is no longer available, and all service instances have been deleted, leaving orphan records in Cloud Foundry's database. All knowledge of the service will be removed from Cloud Foundry, including service instances and service bindings. No attempt will be made to contact the service broker; running this command without destroying the service broker will cause orphan service instances. After running this command you may want to run either delete-service-auth-token or delete-service-broker to complete the cleanup.",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME push ",
+    "translation": ""
   },
   {
     "id": "CF_NAME quota QUOTA",
-    "translation": "CF_NAME quota QUOTA"
+    "translation": ""
   },
   {
     "id": "CF_NAME quotas",
-    "translation": "CF_NAME quotas"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME remove-plugin-repo PrivateRepo",
+    "translation": ""
   },
   {
     "id": "CF_NAME remove-plugin-repo REPO_NAME",
-    "translation": "CF_NAME remove-plugin-repo REPO_NAME"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME remove-plugin-repo REPO_NAME\\n\\nEXAMPLES:\\n   CF_NAME remove-plugin-repo PrivateRepo",
+    "translation": ""
   },
   {
     "id": "CF_NAME rename APP_NAME NEW_APP_NAME",
-    "translation": "CF_NAME rename APP_NAME NEW_APP_NAME"
+    "translation": ""
   },
   {
     "id": "CF_NAME rename-buildpack BUILDPACK_NAME NEW_BUILDPACK_NAME",
-    "translation": "CF_NAME rename-buildpack BUILDPACK_NAME NEW_BUILDPACK_NAME"
+    "translation": ""
   },
   {
     "id": "CF_NAME rename-org ORG NEW_ORG",
-    "translation": "CF_NAME rename-org ORG NEW_ORG"
+    "translation": ""
   },
   {
     "id": "CF_NAME rename-service SERVICE_INSTANCE NEW_SERVICE_INSTANCE",
-    "translation": "CF_NAME rename-service SERVICE_INSTANCE NEW_SERVICE_INSTANCE"
+    "translation": ""
   },
   {
     "id": "CF_NAME rename-service-broker SERVICE_BROKER NEW_SERVICE_BROKER",
-    "translation": "CF_NAME rename-service-broker SERVICE_BROKER NEW_SERVICE_BROKER"
+    "translation": ""
   },
   {
     "id": "CF_NAME rename-space SPACE NEW_SPACE",
-    "translation": "CF_NAME rename-space SPACE NEW_SPACE"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME repo-plugins -r PrivateRepo",
+    "translation": ""
   },
   {
     "id": "CF_NAME repo-plugins [-r REPO_NAME]",
-    "translation": "CF_NAME repo-plugins [-r REPO_NAME]"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME repo-plugins [-r REPO_NAME]\\n\\nEXAMPLES:\\n   CF_NAME repo-plugins -r PrivateRepo",
+    "translation": ""
   },
   {
     "id": "CF_NAME restage APP_NAME",
-    "translation": "CF_NAME restage APP_NAME"
+    "translation": ""
   },
   {
     "id": "CF_NAME restart APP_NAME",
-    "translation": "CF_NAME restart APP_NAME"
+    "translation": ""
   },
   {
     "id": "CF_NAME restart-app-instance APP_NAME INDEX",
-    "translation": "CF_NAME restart-app-instance APP_NAME INDEX"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME router-groups",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME routes [--orglevel]",
+    "translation": ""
   },
   {
     "id": "CF_NAME running-environment-variable-group",
-    "translation": "CF_NAME running-environment-variable-group"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME running-security-groups",
+    "translation": ""
   },
   {
     "id": "CF_NAME scale APP_NAME [-i INSTANCES] [-k DISK] [-m MEMORY] [-f]",
-    "translation": "CF_NAME scale APP_NAME [-i INSTANCES] [-k DISK] [-m MEMORY] [-f]"
+    "translation": ""
   },
   {
     "id": "CF_NAME security-group SECURITY_GROUP",
-    "translation": "CF_NAME security-group SECURITY_GROUP"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME security-groups",
+    "translation": ""
   },
   {
     "id": "CF_NAME service SERVICE_INSTANCE",
-    "translation": "CF_NAME service SERVICE_INSTANCE"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME service-access [-b BROKER] [-e SERVICE] [-o ORG]",
+    "translation": ""
   },
   {
     "id": "CF_NAME service-auth-tokens",
-    "translation": "CF_NAME service-auth-tokens"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME service-brokers",
+    "translation": ""
   },
   {
     "id": "CF_NAME service-key SERVICE_INSTANCE SERVICE_KEY",
-    "translation": "CF_NAME service-key SERVICE_INSTANCE SERVICE_KEY"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME service-key SERVICE_INSTANCE SERVICE_KEY\\n\\nEXAMPLES:\\n   CF_NAME service-key mydb mykey",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME service-key mydb mykey",
+    "translation": ""
   },
   {
     "id": "CF_NAME service-keys SERVICE_INSTANCE",
-    "translation": "CF_NAME service-keys SERVICE_INSTANCE"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME service-keys SERVICE_INSTANCE\\n\\nEXAMPLES:\\n   CF_NAME service-keys mydb",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME service-keys mydb",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME services",
+    "translation": ""
   },
   {
     "id": "CF_NAME set-env APP_NAME ENV_VAR_NAME ENV_VAR_VALUE",
-    "translation": "CF_NAME set-env APP_NAME ENV_VAR_NAME ENV_VAR_VALUE"
+    "translation": ""
   },
   {
     "id": "CF_NAME set-health-check APP_NAME 'port'|'none'",
-    "translation": "CF_NAME set-health-check APP_NAME 'port'|'none'"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME set-health-check APP_NAME ('port' | 'none')",
+    "translation": ""
   },
   {
     "id": "CF_NAME set-org-role USERNAME ORG ROLE\n\n",
-    "translation": "CF_NAME set-org-role USERNAME ORG ROLE\n\n"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME set-org-role USERNAME ORG ROLE\\n\\nROLES:\\n   'OrgManager' - Invite and manage users, select and change plans, and set spending limits\\n   'BillingManager' - Create and manage the billing account and payment info\\n   'OrgAuditor' - Read-only access to org info and reports",
+    "translation": ""
   },
   {
     "id": "CF_NAME set-quota ORG QUOTA\n\n",
-    "translation": "CF_NAME set-quota ORG QUOTA\n\n"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME set-quota ORG QUOTA\\n\\nTIP:\\n   View allowable quotas with 'CF_NAME quotas'",
+    "translation": ""
   },
   {
     "id": "CF_NAME set-running-environment-variable-group '{\"name\":\"value\",\"name\":\"value\"}'",
-    "translation": "CF_NAME set-running-environment-variable-group '{\"name\":\"value\",\"name\":\"value\"}'"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME set-running-environment-variable-group '{\\\"name\\\":\\\"value\\\",\\\"name\\\":\\\"value\\\"}'",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME set-schema SERVICE_INSTANCE SCHEME_FILENAME",
+    "translation": ""
   },
   {
     "id": "CF_NAME set-space-quota SPACE-NAME SPACE-QUOTA-NAME",
-    "translation": "CF_NAME set-space-quota SPACE-NAME SPACE-QUOTA-NAME"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME set-space-quota SPACE_NAME SPACE_QUOTA_NAME",
+    "translation": ""
   },
   {
     "id": "CF_NAME set-space-role USERNAME ORG SPACE ROLE\n\n",
-    "translation": "CF_NAME set-space-role USERNAME ORG SPACE ROLE\n\n"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME set-space-role USERNAME ORG SPACE ROLE\\n\\nROLES:\\n   'SpaceManager' - Invite and manage users, and enable features for a given space\\n   'SpaceDeveloper' - Create and manage apps and services, and see logs and reports\\n   'SpaceAuditor' - View logs, reports, and settings on this space",
+    "translation": ""
   },
   {
     "id": "CF_NAME set-staging-environment-variable-group '{\"name\":\"value\",\"name\":\"value\"}'",
-    "translation": "CF_NAME set-staging-environment-variable-group '{\"name\":\"value\",\"name\":\"value\"}'"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME set-staging-environment-variable-group '{\\\"name\\\":\\\"value\\\",\\\"name\\\":\\\"value\\\"}'",
+    "translation": ""
   },
   {
     "id": "CF_NAME share-private-domain ORG DOMAIN",
-    "translation": "CF_NAME share-private-domain ORG DOMAIN"
+    "translation": ""
   },
   {
     "id": "CF_NAME space SPACE",
-    "translation": "CF_NAME space SPACE"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME space SPACE [--guid] [--security-group-rules]",
+    "translation": ""
   },
   {
     "id": "CF_NAME space-quota SPACE_QUOTA_NAME",
-    "translation": "CF_NAME space-quota SPACE_QUOTA_NAME"
+    "translation": ""
   },
   {
     "id": "CF_NAME space-quotas",
-    "translation": "CF_NAME space-quotas"
+    "translation": ""
   },
   {
     "id": "CF_NAME space-ssh-allowed SPACE_NAME",
-    "translation": "CF_NAME space-ssh-allowed SPACE_NAME"
+    "translation": ""
   },
   {
     "id": "CF_NAME space-users ORG SPACE",
-    "translation": "CF_NAME space-users ORG SPACE"
+    "translation": ""
   },
   {
     "id": "CF_NAME spaces",
-    "translation": "CF_NAME spaces"
+    "translation": ""
   },
   {
     "id": "CF_NAME ssh APP_NAME [-i app-instance-index] [--instance dea-app-instance] [-c command] [-L [bind_address:]port:host:hostport] [--skip-host-validation] [--skip-remote-execution] [--request-pseudo-tty] [--force-pseudo-tty] [--disable-pseudo-tty]",
     "translation": ""
   },
   {
+    "id": "CF_NAME ssh APP_NAME [-i app-instance-index] [-c command] [-L [bind_address:]port:host:hostport] [--skip-host-validation] [--skip-remote-execution] [--request-pseudo-tty] [--force-pseudo-tty] [--disable-pseudo-tty]",
+    "translation": ""
+  },
+  {
     "id": "CF_NAME ssh-code",
-    "translation": "CF_NAME ssh-code"
+    "translation": ""
   },
   {
     "id": "CF_NAME ssh-enabled APP_NAME",
-    "translation": "CF_NAME ssh-enabled APP_NAME"
+    "translation": ""
   },
   {
     "id": "CF_NAME stack STACK_NAME",
-    "translation": "CF_NAME stack STACK_NAME"
+    "translation": ""
   },
   {
     "id": "CF_NAME stacks",
-    "translation": "CF_NAME stacks"
+    "translation": ""
   },
   {
     "id": "CF_NAME staging-environment-variable-group",
-    "translation": "CF_NAME staging-environment-variable-group"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME staging-security-groups",
+    "translation": ""
   },
   {
     "id": "CF_NAME start APP_NAME",
-    "translation": "CF_NAME start APP_NAME"
+    "translation": ""
   },
   {
     "id": "CF_NAME stop APP_NAME",
-    "translation": "CF_NAME stop APP_NAME"
+    "translation": ""
   },
   {
     "id": "CF_NAME target [-o ORG] [-s SPACE]",
-    "translation": "CF_NAME target [-o ORG] [-s SPACE]"
+    "translation": ""
   },
   {
     "id": "CF_NAME unbind-route-service DOMAIN SERVICE_INSTANCE [--hostname HOSTNAME] [--path PATH] [-f]",
-    "translation": "CF_NAME unbind-route-service DOMAIN SERVICE_INSTANCE [--hostname HOSTNAME] [--path PATH] [-f]"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME unbind-route-service DOMAIN SERVICE_INSTANCE [--hostname HOSTNAME] [--path PATH] [-f]\\n\\nEXAMPLES:\\n   CF_NAME unbind-route-service example.com myratelimiter --hostname myapp --path foo",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME unbind-route-service example.com myratelimiter --hostname myapp --path foo",
+    "translation": ""
   },
   {
     "id": "CF_NAME unbind-running-security-group SECURITY_GROUP",
-    "translation": "CF_NAME unbind-running-security-group SECURITY_GROUP"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME unbind-running-security-group SECURITY_GROUP\\n\\nTIP: Changes will not apply to existing running applications until they are restarted.",
+    "translation": ""
   },
   {
     "id": "CF_NAME unbind-security-group SECURITY_GROUP ORG SPACE",
-    "translation": "CF_NAME unbind-security-group SECURITY_GROUP ORG SPACE"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME unbind-security-group SECURITY_GROUP ORG SPACE\\n\\nTIP: Changes will not apply to existing running applications until they are restarted.",
+    "translation": ""
   },
   {
     "id": "CF_NAME unbind-service APP_NAME SERVICE_INSTANCE",
-    "translation": "CF_NAME unbind-service APP_NAME SERVICE_INSTANCE"
+    "translation": ""
   },
   {
     "id": "CF_NAME unbind-staging-security-group SECURITY_GROUP",
-    "translation": "CF_NAME unbind-staging-security-group SECURITY_GROUP"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME unbind-staging-security-group SECURITY_GROUP\\n\\nTIP: Changes will not apply to existing running applications until they are restarted.",
+    "translation": ""
   },
   {
     "id": "CF_NAME uninstall-plugin PLUGIN-NAME",
-    "translation": "CF_NAME uninstall-plugin PLUGIN-NAME"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME unmap-route my-app example.com                              # example.com",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME unmap-route my-app example.com --hostname myhost            # myhost.example.com",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME unmap-route my-app example.com --hostname myhost --path foo # myhost.example.com/foo",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME unmap-route my-app example.com --port 5000                  # example.com:5000",
+    "translation": ""
   },
   {
     "id": "CF_NAME unset-env APP_NAME ENV_VAR_NAME",
-    "translation": "CF_NAME unset-env APP_NAME ENV_VAR_NAME"
+    "translation": ""
   },
   {
     "id": "CF_NAME unset-org-role USERNAME ORG ROLE\n\n",
-    "translation": "CF_NAME unset-org-role USERNAME ORG ROLE\n\n"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME unset-org-role USERNAME ORG ROLE\\n\\nROLES:\\n   'OrgManager' - Invite and manage users, select and change plans, and set spending limits\\n   'BillingManager' - Create and manage the billing account and payment info\\n   'OrgAuditor' - Read-only access to org info and reports",
+    "translation": ""
   },
   {
     "id": "CF_NAME unset-space-quota SPACE QUOTA\n\n",
-    "translation": "CF_NAME unset-space-quota SPACE QUOTA\n\n"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME unset-space-quota SPACE SPACE_QUOTA",
+    "translation": ""
   },
   {
     "id": "CF_NAME unset-space-role USERNAME ORG SPACE ROLE\n\n",
-    "translation": "CF_NAME unset-space-role USERNAME ORG SPACE ROLE\n\n"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME unset-space-role USERNAME ORG SPACE ROLE\\n\\nROLES:\\n   'SpaceManager' - Invite and manage users, and enable features for a given space\\n   'SpaceDeveloper' - Create and manage apps and services, and see logs and reports\\n   'SpaceAuditor' - View logs, reports, and settings on this space",
+    "translation": ""
   },
   {
     "id": "CF_NAME unshare-private-domain ORG DOMAIN",
-    "translation": "CF_NAME unshare-private-domain ORG DOMAIN"
+    "translation": ""
   },
   {
     "id": "CF_NAME update-buildpack BUILDPACK [-p PATH] [-i POSITION] [--enable|--disable] [--lock|--unlock]",
-    "translation": "CF_NAME update-buildpack BUILDPACK [-p PATH] [-i POSITION] [--enable|--disable] [--lock|--unlock]"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME update-buildpack BUILDPACK [-p PATH] [-i POSITION] [--enable|--disable] [--lock|--unlock]\\n\\nTIP:\\n   Path should be a zip file, a url to a zip file, or a local directory. Position is a positive integer, sets priority, and is sorted from lowest to highest.",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME update-quota ",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME update-quota QUOTA [-m TOTAL_MEMORY] [-i INSTANCE_MEMORY] [-n NEW_NAME] [-r ROUTES] [-s SERVICE_INSTANCES] [-a APP_INSTANCES] [--allow-paid-service-plans | --disallow-paid-service-plans] [--reserved-route-ports RESERVED_ROUTE_PORTS]",
+    "translation": ""
   },
   {
     "id": "CF_NAME update-security-group SECURITY_GROUP PATH_TO_JSON_RULES_FILE",
-    "translation": "CF_NAME update-security-group SECURITY_GROUP PATH_TO_JSON_RULES_FILE"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME update-security-group SECURITY_GROUP PATH_TO_JSON_RULES_FILE\\n\\n   The provided path can be an absolute or relative path to a file.\\n   It should have a single array with JSON objects inside describing the rules.\\n\\nTIP: Changes will not apply to existing running applications until they are restarted.",
+    "translation": ""
   },
   {
     "id": "CF_NAME update-service SERVICE_INSTANCE [-p NEW_PLAN] [-c PARAMETERS_AS_JSON] [-t TAGS]",
-    "translation": "CF_NAME update-service SERVICE_INSTANCE [-p NEW_PLAN] [-c PARAMETERS_AS_JSON] [-t TAGS]"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME update-service SERVICE_INSTANCE [-p NEW_PLAN] [-c PARAMETERS_AS_JSON] [-t TAGS]\\n\\n   Optionally provide service-specific configuration parameters in a valid JSON object in-line.\\n   CF_NAME update-service -c '{\\\"name\\\":\\\"value\\\",\\\"name\\\":\\\"value\\\"}'\\n\\n   Optionally provide a file containing service-specific configuration parameters in a valid JSON object. \\n   The path to the parameters file can be an absolute or relative path to a file.\\n   CF_NAME update-service -c PATH_TO_FILE\\n\\n   Example of valid JSON object:\\n   {\\n      \\\"cluster_nodes\\\": {\\n         \\\"count\\\": 5,\\n         \\\"memory_mb\\\": 1024\\n      }\\n   }\\n\\n   Optionally provide a list of comma-delimited tags that will be written to the VCAP_SERVICES environment variable for any bound applications.\\n\\nEXAMPLES:\\n   CF_NAME update-service mydb -p gold\\n   CF_NAME update-service mydb -c '{\\\"ram_gb\\\":4}'\\n   CF_NAME update-service mydb -c ~/workspace/tmp/instance_config.json\\n   CF_NAME update-service mydb -t \\\"list, of, tags\\\"",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME update-service mydb -c '{\"ram_gb\":4}'",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME update-service mydb -c ~/workspace/tmp/instance_config.json",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME update-service mydb -p gold",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME update-service mydb -t \"list,of, tags\"",
+    "translation": ""
   },
   {
     "id": "CF_NAME update-service-auth-token LABEL PROVIDER TOKEN",
-    "translation": "CF_NAME update-service-auth-token LABEL PROVIDER TOKEN"
+    "translation": ""
   },
   {
     "id": "CF_NAME update-service-broker SERVICE_BROKER USERNAME PASSWORD URL",
-    "translation": "CF_NAME update-service-broker SERVICE_BROKER USERNAME PASSWORD URL"
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME update-space-quota ",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME update-space-quota SPACE_QUOTA [-i INSTANCE_MEMORY] [-m MEMORY] [-n NAME] [-r ROUTES] [-s SERVICE_INSTANCES] [-a APP_INSTANCES] [--allow-paid-service-plans | --disallow-paid-service-plans] [--reserved-route-ports RESERVED_ROUTE_PORTS]",
+    "translation": ""
   },
   {
     "id": "CF_NAME update-user-provided-service SERVICE_INSTANCE [-p CREDENTIALS] [-l SYSLOG_DRAIN_URL] [-r ROUTE_SERVICE_URL]\n\n   Pass comma separated credential parameter names to enable interactive mode:\n   CF_NAME update-user-provided-service SERVICE_INSTANCE -p \"comma, separated, parameter, names\"\n\n   Pass credential parameters as JSON to create a service non-interactively:\n   CF_NAME update-user-provided-service SERVICE_INSTANCE -p '{\"key1\":\"value1\",\"key2\":\"value2\"}'\n\n   Specify a path to a file containing JSON:\n   CF_NAME update-user-provided-service SERVICE_INSTANCE -p PATH_TO_FILE",
     "translation": "CF_NAME update-user-provided-service SERVICE_INSTANCE [-p CREDENTIALS] [-l SYSLOG_DRAIN_URL] [-r ROUTE_SERVICE_URL]\n\n   Durch Kommas getrennte Parameternamen für Berechtigungsnachweise übergeben, um den interaktiven Modus zu aktivieren:\n   CF_NAME update-user-provided-service SERVICE_INSTANCE -p \"comma, separated, parameter, names\"\n\n   Parameter für Berechtigungsnachweise als JSON übergeben, um einen Service nicht interaktiv zu erstellen:\n   CF_NAME update-user-provided-service SERVICE_INSTANCE -p '{\"key1\":\"value1\",\"key2\":\"value2\"}'\n\n   Einen Pfad zu einer Datei mit JSON angeben:\n   CF_NAME update-user-provided-service SERVICE_INSTANCE -p PATH_TO_FILE"
   },
   {
+    "id": "CF_NAME update-user-provided-service SERVICE_INSTANCE [-p CREDENTIALS] [-l SYSLOG_DRAIN_URL] [-r ROUTE_SERVICE_URL]\\n\\n   Pass comma separated credential parameter names to enable interactive mode:\\n   CF_NAME update-user-provided-service SERVICE_INSTANCE -p \\\"comma, separated, parameter, names\\\"\\n\\n   Pass credential parameters as JSON to create a service non-interactively:\\n   CF_NAME update-user-provided-service SERVICE_INSTANCE -p '{\\\"key1\\\":\\\"value1\\\",\\\"key2\\\":\\\"value2\\\"}'\\n\\n   Specify a path to a file containing JSON:\\n   CF_NAME update-user-provided-service SERVICE_INSTANCE -p PATH_TO_FILE\\n\\nEXAMPLES:\\n   CF_NAME update-user-provided-service my-db-mine -p '{\\\"username\\\":\\\"admin\\\", \\\"password\\\":\\\"pa55woRD\\\"}'\\n   CF_NAME update-user-provided-service my-db-mine -p /path/to/credentials.json\\n   CF_NAME update-user-provided-service my-drain-service -l syslog://example.com\\n   CF_NAME update-user-provided-service my-route-service -r https://example.com",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME update-user-provided-service my-db-mine -p '{\"username\":\"admin\", \"password\":\"pa55woRD\"}'",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME update-user-provided-service my-db-mine -p /path/to/credentials.json",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME update-user-provided-service my-drain-service -l syslog://example.com",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME update-user-provided-service my-route-service -r https://example.com",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME v3apps",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME version",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME version\\n\\n   'cf -v' and 'cf --version' are also accepted.",
+    "translation": ""
+  },
+  {
     "id": "CF_TRACE ERROR CREATING LOG FILE {{.Path}}:\n{{.Err}}",
-    "translation": "CF_TRACE ERROR CREATING LOG FILE {{.Path}}:\n{{.Err}}"
+    "translation": ""
+  },
+  {
+    "id": "CLI plugin management:",
+    "translation": ""
   },
   {
     "id": "COMMAND",
@@ -1009,15 +1605,15 @@
   },
   {
     "id": "Cannot delete service instance, service keys and bindings must first be deleted",
-    "translation": "Löschen nicht möglich, weil zuerst Serviceinstanzen, Serviceschlüssel und Bindungen gelöscht werden müssen."
+    "translation": "Löschen nicht möglich, weil zuerst Serviceinstanzen, Serviceschlüssel und Bindungen gelöscht werden müssen"
   },
   {
     "id": "Cannot list marketplace services without a targeted space",
-    "translation": "Marktplatzservices können ohne als Ziel ausgewählten Bereich nicht aufgelistet werden."
+    "translation": "Marktplatzservices können ohne als Ziel ausgewählten Bereich nicht aufgelistet werden"
   },
   {
     "id": "Cannot list plan information for {{.ServiceName}} without a targeted space",
-    "translation": "Planinformationen für {{.ServiceName}} können ohne als Ziel ausgewählten Bereich nicht aufgelistet werden."
+    "translation": "Planinformationen für {{.ServiceName}} können ohne als Ziel ausgewählten Bereich nicht aufgelistet werden"
   },
   {
     "id": "Cannot provision instances of paid service plans",
@@ -1068,8 +1664,16 @@
     "translation": "Cloud Foundry-API-Version {{.APIVer}} erfordert CLI-Version {{.CLIMin}}.  Sie verwenden aktuell die Version {{.CLIVer}}. Um eine Aktualisierung Ihrer CLI auszuführen, gehen Sie auf folgende Seite: https://github.com/cloudfoundry/cli#downloads"
   },
   {
+    "id": "Cloud Foundry command line tool",
+    "translation": ""
+  },
+  {
     "id": "Comma delimited list of ports the application may listen on",
     "translation": "Durch Kommas begrenzte Liste von Ports, bei denen die Anwendung empfangsbereit sein kann"
+  },
+  {
+    "id": "Comma delimited list of ports the application may listen on\" hidden:\"true",
+    "translation": ""
   },
   {
     "id": "Command Help",
@@ -1092,12 +1696,20 @@
     "translation": "Auszuführender Befehl. Dieses Flag kann mehrfach definiert werden."
   },
   {
+    "id": "Commands offered by installed plugins:",
+    "translation": ""
+  },
+  {
     "id": "Compute and show the sha1 value of the plugin binary file",
     "translation": "Den sha1-Wert der Binärdatei des Plug-ins berechnen und anzeigen"
   },
   {
     "id": "Computing sha1 for installed plugins, this may take a while ...",
     "translation": "Berechnung von sha1 für installierte Plug-ins. Dieser Vorgang kann eine Weile dauern..."
+  },
+  {
+    "id": "ConnectTimeout=5",
+    "translation": ""
   },
   {
     "id": "Connected, dumping recent logs for app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.Username}}...\n",
@@ -1109,7 +1721,7 @@
   },
   {
     "id": "Copies the source code of an application to another existing application (and restarts that application)",
-    "translation": "Kopie des Quellcodes der App von einer Anwendung für eine andere erstellen.  Der Befehl copy-source startet die Anwendung erneut, wenn er nicht überschrieben wurde."
+    "translation": "Kopiert den Quellcode einer Anwendung zu einer weiteren bereits vorhandenen Anwendung (und startet diese Anwendung erneut)"
   },
   {
     "id": "Copying source from app {{.SourceApp}} to target app {{.TargetApp}} in org {{.OrgName}} / space {{.SpaceName}} as {{.Username}}...",
@@ -1142,6 +1754,10 @@
   {
     "id": "Could not find plan with name {{.ServicePlanName}}",
     "translation": "Konnte keinen Plan mit dem Namen {{.ServicePlanName}} finden"
+  },
+  {
+    "id": "Could not find service",
+    "translation": ""
   },
   {
     "id": "Could not find service {{.ServiceName}} to bind to {{.AppName}}",
@@ -1230,6 +1846,10 @@
   {
     "id": "Create an HTTP route",
     "translation": "HTTP-Route erstellen"
+  },
+  {
+    "id": "Create an HTTP route:\\n      CF_NAME create-route SPACE DOMAIN [--hostname HOSTNAME] [--path PATH]\\n\\n   Create a TCP route:\\n      CF_NAME create-route SPACE DOMAIN (--port PORT | --random-port)\\n\\nEXAMPLES:\\n   CF_NAME create-route my-space example.com                             # example.com\\n   CF_NAME create-route my-space example.com --hostname myapp            # myapp.example.com\\n   CF_NAME create-route my-space example.com --hostname myapp --path foo # myapp.example.com/foo\\n   CF_NAME create-route my-space example.com --port 5000                 # example.com:5000",
+    "translation": ""
   },
   {
     "id": "Create an app manifest for an app that has been pushed successfully",
@@ -1349,11 +1969,11 @@
   },
   {
     "id": "Custom buildpack by name (e.g. my-buildpack) or Git URL (e.g. 'https://github.com/cloudfoundry/java-buildpack.git') or Git URL with a branch or tag (e.g. 'https://github.com/cloudfoundry/java-buildpack.git#v3.3.0' for 'v3.3.0' tag). To use built-in buildpacks only, specify 'default' or 'null'",
-    "translation": "Angepasstes Buildpack nach Name (z. B. my-buildpack) oder Git-URL (z. B. 'https://github.com/cloudfoundry/java-buildpack.git') oder Git-URL mit Zweig oder Tag (z. B. 'https://github.com/cloudfoundry/java-buildpack.git#v3.3.0' für Tag 'v3.3.0'). Geben Sie zur ausschließlichen Verwendung von integrierten Buildpacks 'default' oder 'null' an."
+    "translation": "Angepasstes Buildpack nach Name (z.B. my-buildpack) oder Git-URL (z.B. 'https://github.com/cloudfoundry/java-buildpack.git') oder Git-URL mit Zweig oder Tag (z.B. 'https://github.com/cloudfoundry/java-buildpack.git#v3.3.0' für Tag 'v3.3.0'). Geben Sie zur ausschließlichen Verwendung von integrierten Buildpacks 'default' oder 'null' an"
   },
   {
     "id": "Custom headers to include in the request, flag can be specified multiple times",
-    "translation": "Angepasste Header, die in die Anforderung einbezogen werden sollen. Das Flag kann mehrfach angegeben werden."
+    "translation": "Angepasste Header, die in die Anforderung einbezogen werden sollen. Das Flag kann mehrfach angegeben werden"
   },
   {
     "id": "DEA application instance index",
@@ -1376,8 +1996,12 @@
     "translation": "DOMÄNEN"
   },
   {
+    "id": "DOMAINS:",
+    "translation": "DOMÄNEN:"
+  },
+  {
     "id": "Dashboard: {{.URL}}",
-    "translation": "Dashboard: {{.URL}}"
+    "translation": ""
   },
   {
     "id": "Define a new resource quota",
@@ -1446,6 +2070,10 @@
   {
     "id": "Delete an HTTP route",
     "translation": "HTTP-Route löschen"
+  },
+  {
+    "id": "Delete an HTTP route:\\n      CF_NAME delete-route DOMAIN [--hostname HOSTNAME] [--path PATH] [-f]\\n\\n   Delete a TCP route:\\n      CF_NAME delete-route DOMAIN --port PORT [-f]\\n\\nEXAMPLES:\\n   CF_NAME delete-route example.com                              # example.com\\n   CF_NAME delete-route example.com --hostname myhost            # myhost.example.com\\n   CF_NAME delete-route example.com --hostname myhost --path foo # myhost.example.com/foo\\n   CF_NAME delete-route example.com --port 5000                  # example.com:5000",
+    "translation": ""
   },
   {
     "id": "Delete an app",
@@ -1576,12 +2204,12 @@
     "translation": "Inaktivieren des Zugriffs auf Plan {{.PlanName}} von Service {{.ServiceName}} für Organisation {{.OrgName}} als {{.Username}}..."
   },
   {
-    "id": "Disabling ssh support for '%s'...",
-    "translation": "Inaktivieren von SSH-Unterstützung für '%s'..."
+    "id": "Disabling ssh support for '{{.AppName}}'...",
+    "translation": "Inaktivieren von SSH-Unterstützung für '{{.AppName}}'..."
   },
   {
-    "id": "Disabling ssh support for space '%s'...",
-    "translation": "Inaktivieren von SSH-Unterstützung für Bereich '%s'..."
+    "id": "Disabling ssh support for space '{{.SpaceName}}'...",
+    "translation": "Inaktivieren von SSH-Unterstützung für Bereich '{{.SpaceName}}'..."
   },
   {
     "id": "Disallow SSH access for the space",
@@ -1613,7 +2241,7 @@
   },
   {
     "id": "Docker-image to be used (e.g. user/docker-image-name)",
-    "translation": "Zu verwendendes Docker-Image (z. B. user/docker-image-name)"
+    "translation": "Zu verwendendes Docker-Image (z.B. user/docker-image-name)"
   },
   {
     "id": "Documentation url: {{.URL}}",
@@ -1621,7 +2249,7 @@
   },
   {
     "id": "Domain (e.g. example.com)",
-    "translation": "Domäne (z. B. example.com)"
+    "translation": "Domäne (z.B. example.com)"
   },
   {
     "id": "Domains:",
@@ -1633,7 +2261,7 @@
   },
   {
     "id": "Downloaded plugin binary's checksum does not match repo metadata",
-    "translation": "Die Kontrollsumme der heruntergeladen Binärdateien des Plug-ins stimmt nicht mit den Repositorymetadaten überein."
+    "translation": "Die Kontrollsumme der heruntergeladen Binärdateien des Plug-ins stimmt nicht mit den Repositorymetadaten überein"
   },
   {
     "id": "Dump recent logs instead of tailing",
@@ -1644,12 +2272,24 @@
     "translation": "UMGEBUNGSVARIABLENGRUPPEN"
   },
   {
+    "id": "ENVIRONMENT VARIABLE GROUPS:",
+    "translation": "UMGEBUNGSVARIABLENGRUPPEN:"
+  },
+  {
     "id": "ENVIRONMENT VARIABLES:",
     "translation": "UMGEBUNGSVARIABLEN:"
   },
   {
+    "id": "ENVIRONMENT:",
+    "translation": ""
+  },
+  {
     "id": "EXAMPLES",
     "translation": "BEISPIELE"
+  },
+  {
+    "id": "Empty file or folder",
+    "translation": ""
   },
   {
     "id": "Enable HTTP proxying for API requests",
@@ -1700,12 +2340,16 @@
     "translation": "Aktivieren des Zugriffs auf Plan {{.PlanName}} von Service {{.ServiceName}} für Organisation {{.OrgName}} als {{.Username}}..."
   },
   {
-    "id": "Enabling ssh support for '%s'...",
-    "translation": "Aktivieren von SSH-Unterstützung für '%s'..."
+    "id": "Enabling ssh support for '{{.AppName}}'...",
+    "translation": "Aktivieren von SSH-Unterstützung für '{{.AppName}}'..."
   },
   {
-    "id": "Enabling ssh support for space '%s'...",
-    "translation": "Aktivieren von SSH-Unterstützung für Bereich '%s'..."
+    "id": "Enabling ssh support for space '{{.SpaceName}}'...",
+    "translation": "Aktivieren von SSH-Unterstützung für Bereich '{{.SpaceName}}'..."
+  },
+  {
+    "id": "Endpoint deprecated",
+    "translation": ""
   },
   {
     "id": "Env variable {{.VarName}} was not set.",
@@ -1840,6 +2484,10 @@
     "translation": "Fehler beim Abrufen der Plug-in-Metadaten aus dem Repository: "
   },
   {
+    "id": "Error getting ssh details: ",
+    "translation": ""
+  },
+  {
     "id": "Error getting the redirected location: {{.Error}}",
     "translation": "Fehler beim Abrufen der Position der Weiterleitung: {{.Error}}"
   },
@@ -1868,6 +2516,10 @@
     "translation": "Fehler beim Parsing der Header"
   },
   {
+    "id": "Error parsing response",
+    "translation": ""
+  },
+  {
     "id": "Error performing request",
     "translation": "Fehler bei der Ausführung der Anforderung"
   },
@@ -1882,6 +2534,10 @@
   {
     "id": "Error processing data from server: ",
     "translation": "Fehler bei der Verarbeitung der Daten von Server: "
+  },
+  {
+    "id": "Error read/writing config: ",
+    "translation": ""
   },
   {
     "id": "Error reading manifest file:\n{{.Err}}",
@@ -1900,8 +2556,24 @@
     "translation": "Fehler beim Lesen der Antwort von Server: "
   },
   {
+    "id": "Error reading schema file: ",
+    "translation": ""
+  },
+  {
+    "id": "Error reading schema: ",
+    "translation": ""
+  },
+  {
+    "id": "Error refreshing config: ",
+    "translation": ""
+  },
+  {
     "id": "Error refreshing oauth token: ",
     "translation": "Fehler bei der Aktualisierung des OAuth-Tokens: "
+  },
+  {
+    "id": "Error removing plugin binary: ",
+    "translation": ""
   },
   {
     "id": "Error renaming buildpack {{.Name}}\n{{.Error}}",
@@ -1932,8 +2604,20 @@
     "translation": "Fehler beim Abrufen der Stacks: {{.Error}}"
   },
   {
+    "id": "Error running ssh command: ",
+    "translation": ""
+  },
+  {
     "id": "Error saving manifest: {{.Error}}",
     "translation": "Fehler beim Speichern des Manifests: {{.Error}}"
+  },
+  {
+    "id": "Error setting schema: ",
+    "translation": ""
+  },
+  {
+    "id": "Error tmp dir: ",
+    "translation": ""
   },
   {
     "id": "Error updating buildpack {{.Name}}\n{{.Error}}",
@@ -1950,6 +2634,10 @@
   {
     "id": "Error uploading buildpack {{.Name}}\n{{.Error}}",
     "translation": "Fehler beim Hochladen des Buildpacks {{.Name}}\n{{.Error}}"
+  },
+  {
+    "id": "Error writing ssh keys to tmp file: ",
+    "translation": ""
   },
   {
     "id": "Error writing to tmp file: {{.Err}}",
@@ -1989,7 +2677,7 @@
   },
   {
     "id": "Expected applications to be a list",
-    "translation": "Es wird erwartet, dass die Anwendungen Listen sind."
+    "translation": "Es wird erwartet, dass die Anwendungen Listen sind"
   },
   {
     "id": "Expected {{.Name}} to be a set of key =\u003e value, but it was a {{.Type}}.",
@@ -2020,6 +2708,10 @@
     "translation": "FEATURE-FLAGS"
   },
   {
+    "id": "FEATURE FLAGS:",
+    "translation": "FEATURE-FLAGS:"
+  },
+  {
     "id": "Failed assigning org role to user: ",
     "translation": "Zuordnen von Organisationsrolle zu Benutzer ist fehlgeschlagen: "
   },
@@ -2029,7 +2721,7 @@
   },
   {
     "id": "Failed fetching domains for organization {{.OrgName}}.\n{{.Err}}",
-    "translation": "Abrufen von Domänen für Organization {{.OrgName}} ist fehlgeschlagen.\n{{.Err}}"
+    "translation": "Abrufen von Domänen für Organization %{{.OrgName}}ist fehlgeschlagen.\n{{.Err}}"
   },
   {
     "id": "Failed fetching domains.\n{{.Error}}",
@@ -2101,7 +2793,7 @@
   },
   {
     "id": "Features",
-    "translation": "Features"
+    "translation": ""
   },
   {
     "id": "File not found locally, make sure the file exists at given path {{.filepath}}",
@@ -2140,12 +2832,20 @@
     "translation": "ERSTE SCHRITTE"
   },
   {
+    "id": "GETTING STARTED:",
+    "translation": "ERSTE SCHRITTE:"
+  },
+  {
     "id": "GLOBAL OPTIONS:",
     "translation": "GLOBALE OPTIONEN:"
   },
   {
     "id": "Get a one time password for ssh clients",
     "translation": "Einmalkennwort für SSH-Clients abrufen"
+  },
+  {
+    "id": "Get a service schema. Currently only supported in the webproxy.",
+    "translation": ""
   },
   {
     "id": "Get the health_check_type value of an app",
@@ -2332,16 +3032,20 @@
     "translation": "Abrufen von Benutzern in Organisation {{.TargetOrg}} als {{.CurrentUser}}..."
   },
   {
+    "id": "Global options:",
+    "translation": ""
+  },
+  {
     "id": "HEALTH_CHECK_TYPE",
-    "translation": "TYP-DER-ZUSTANDSPRÜFUNG"
+    "translation": "TYP_DER_ZUSTANDSPRÜFUNG"
   },
   {
     "id": "HOST",
-    "translation": "HOST"
+    "translation": ""
   },
   {
     "id": "HOSTNAME",
-    "translation": "HOSTNAME"
+    "translation": ""
   },
   {
     "id": "HTTP data to include in the request body, or '@' followed by a file name to read the data from",
@@ -2376,8 +3080,12 @@
     "translation": "INSTALLIERTE PLUG-IN-BEFEHLE"
   },
   {
+    "id": "INSTALLED PLUGIN COMMANDS:",
+    "translation": "INSTALLIERTE PLUG-IN-BEFEHLE:"
+  },
+  {
     "id": "INSTANCE_MEMORY",
-    "translation": "INSTANCE_MEMORY"
+    "translation": "INSTANZSPEICHER"
   },
   {
     "id": "Ignore manifest file",
@@ -2400,6 +3108,10 @@
     "translation": "Falsche Verwendung"
   },
   {
+    "id": "Incorrect Usage.",
+    "translation": ""
+  },
+  {
     "id": "Incorrect Usage. An argument is missing or not correctly enclosed.\n\n",
     "translation": "Falsche Verwendung. Es fehlt ein Argument oder es wurde nicht korrekt eingeschlossen.\n\n"
   },
@@ -2409,51 +3121,51 @@
   },
   {
     "id": "Incorrect Usage. HEALTH_CHECK_TYPE must be \"port\" or \"none\"\\n\\n",
-    "translation": "Falsche Verwendung. HEALTH_CHECK_TYPE muss \"port\" oder \"none\" sein.\\n\\n"
+    "translation": "Falsche Verwendung. HEALTH_CHECK_TYPE muss \"port\" oder \"none\" sein\\n\\n"
   },
   {
     "id": "Incorrect Usage. Requires 'app-name env-name env-value' as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert 'app-name env-name env-value' als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert 'app-name env-name env-value' als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires 'app-name env-name' as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert 'app-name env-name' als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert 'app-name env-name' als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires 'username password' as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert 'username password' als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert 'username password' als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires APP SERVICE_INSTANCE as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert APP SERVICE_INSTANCE als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert APP SERVICE_INSTANCE als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires APP_NAME and DOMAIN as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert APP_NAME und DOMAIN als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert APP_NAME und DOMAIN als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires APP_NAME and HEALTH_CHECK_TYPE as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert APP_NAME und HEALTH_CHECK_TYPE als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert APP_NAME und HEALTH_CHECK_TYPE als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires APP_NAME and SERVICE_INSTANCE as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert APP_NAME und SERVICE_INSTANCE als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert APP_NAME und SERVICE_INSTANCE als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires APP_NAME as argument",
-    "translation": "Falsche Verwendung. Erfordert APP_NAME als Argument.-"
+    "translation": "Falsche Verwendung. Erfordert APP_NAME als Argument"
   },
   {
     "id": "Incorrect Usage. Requires APP_NAME as argument\n\n",
-    "translation": "Falsche Verwendung. Erfordert APP_NAME als Argument.\n\n"
+    "translation": "Falsche Verwendung. Erfordert APP_NAME als Argument\n\n"
   },
   {
     "id": "Incorrect Usage. Requires BUILDPACK_NAME, NEW_BUILDPACK_NAME as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert BUILDPACK_NAME, NEW_BUILDPACK_NAME als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert BUILDPACK_NAME, NEW_BUILDPACK_NAME als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires DOMAIN and SERVICE_INSTANCE as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert DOMAIN und SERVICE_INSTANCE als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert DOMAIN und SERVICE_INSTANCE als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires DOMAIN as an argument\n\n",
@@ -2461,75 +3173,75 @@
   },
   {
     "id": "Incorrect Usage. Requires LABEL, PROVIDER and TOKEN as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert LABEL, PROVIDER und TOKEN als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert LABEL, PROVIDER und TOKEN als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires LABEL, PROVIDER as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert LABEL, PROVIDER als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert LABEL, PROVIDER als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires ORG and DOMAIN arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert ORG und DOMAIN als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert ORG und DOMAIN als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires ORG and DOMAIN as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert ORG und DOMAIN als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert ORG und DOMAIN als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires ORG_NAME, QUOTA as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert ORG_NAME, QUOTA als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert ORG_NAME und QUOTA als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires REPO_NAME and URL as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert REPO_NAME und URL als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert REPO_NAME und URL als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires SECURITY_GROUP and ORG, optional SPACE as arguments\n\n",
-    "translation": ""
+    "translation": "Falsche Verwendung. Erfordert SECURITY_GROUP und ORG sowie optional SPACE als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires SECURITY_GROUP and PATH_TO_JSON_RULES_FILE as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert SECURITY_GROUP und PATH_TO_JSON_RULES_FILE als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert SECURITY_GROUP und PATH_TO_JSON_RULES_FILE als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires SECURITY_GROUP, ORG and SPACE as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert SECURITY_GROUP, ORG und SPACE als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert SECURITY_GROUP, ORG und SPACE als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires SERVICE_BROKER, NEW_SERVICE_BROKER as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert SERVICE_BROKER, NEW_SERVICE_BROKER als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert SERVICE_BROKER, NEW_SERVICE_BROKER als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires SERVICE_BROKER, USERNAME, PASSWORD, URL as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert SERVICE_BROKER, USERNAME, PASSWORD, URL als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert SERVICE_BROKER, USERNAME, PASSWORD, URL als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires SERVICE_INSTANCE SERVICE_KEY as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert SERVICE_INSTANCE SERVICE_KEY als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert SERVICE_INSTANCE SERVICE_KEY als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires SERVICE_INSTANCE and NEW_SERVICE_INSTANCE as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert SERVICE_INSTANCE und NEW_SERVICE_INSTANCE als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert SERVICE_INSTANCE und NEW_SERVICE_INSTANCE als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires SERVICE_INSTANCE and SERVICE_KEY as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert SERVICE_INSTANCE und SERVICE_KEY als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert SERVICE_INSTANCE und SERVICE_KEY als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires SPACE and DOMAIN as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert SPACE und DOMAIN als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert SPACE und DOMAIN als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires SPACE and QUOTA as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert SPACE und QUOTA als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert SPACE und QUOTA als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires SPACE-NAME and SPACE-QUOTA-NAME as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert SPACE-NAME und SPACE-QUOTA-NAME als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert SPACE-NAME und SPACE-QUOTA-NAME als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires SPACE_NAME NEW_SPACE_NAME as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert SPACE_NAME NEW_SPACE_NAME als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert SPACE_NAME NEW_SPACE_NAME als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires SPACE_NAME as argument\n\n",
@@ -2537,11 +3249,11 @@
   },
   {
     "id": "Incorrect Usage. Requires USERNAME, ORG, ROLE as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert USERNAME, ORG, ROLE als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert USERNAME, ORG, ROLE als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires USERNAME, ORG, SPACE, ROLE as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert USERNAME, ORG, SPACE, ROLE als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert USERNAME, ORG, SPACE, ROLE als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires an argument\n\n",
@@ -2549,7 +3261,7 @@
   },
   {
     "id": "Incorrect Usage. Requires app_name, domain_name as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert app_name, domain_name als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert app_name, domain_name als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires arguments\n\n",
@@ -2557,39 +3269,43 @@
   },
   {
     "id": "Incorrect Usage. Requires buildpack_name, path and position as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert buildpack_name, path und position als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert buildpack_name, path und position als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires host and domain as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert host und domain als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert host und domain als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires old app name and new app name as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert den alten und den neuen Namen der App als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert den alten und den neuen Namen der App als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires old org name, new org name as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert den alten und den neuen Namen der Organisation als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert den alten und den neuen Namen der Organisation als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires org_name, domain_name as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert org_name, domain_name als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert org_name, domain_name als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires service, service plan, service instance as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert Service, Serviceplan, Serviceinstanz als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert Service, Serviceplan, Serviceinstanz als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires stack name as argument\n\n",
-    "translation": "Falsche Verwendung. Erfordert den Namen des Stacks als Argument.\n\n"
+    "translation": "Falsche Verwendung. Erfordert den Namen des Stacks als Argument\n\n"
   },
   {
     "id": "Incorrect Usage. Requires v1_SERVICE v1_PROVIDER v1_PLAN v2_SERVICE v2_PLAN as arguments\n\n",
-    "translation": "Falsche Verwendung. Erfordert v1_SERVICE v1_PROVIDER v1_PLAN v2_SERVICE v2_PLAN als Argumente.\n\n"
+    "translation": "Falsche Verwendung. Erfordert v1_SERVICE v1_PROVIDER v1_PLAN v2_SERVICE v2_PLAN als Argumente\n\n"
   },
   {
     "id": "Incorrect Usage. Requires {{.Arguments}}",
     "translation": "Falsche Verwendung. {{.Arguments}} erforderlich"
+  },
+  {
+    "id": "Incorrect Usage. The push command requires an app name. The app name can be supplied as an argument or with a manifest.yml file.",
+    "translation": "Manifestdatei wurde im aktuellen Verzeichnis nicht gefunden. Bitte stellen Sie entweder einen App-Namen oder ein Manifest zur Verfügung"
   },
   {
     "id": "Incorrect Usage:",
@@ -2598,6 +3314,14 @@
   {
     "id": "Incorrect json format: file: {{.JSONFile}}\n\t\t\nValid json file example:\n[\n  {\n    \"protocol\": \"tcp\",\n    \"destination\": \"10.244.1.18\",\n    \"ports\": \"3306\"\n  }\n]",
     "translation": "Falsches JSON-Format: Datei: {{.JSONFile}}\n\t\t\nBeispiel für gültige JSON-Datei:\n[\n  {\n    \"protocol\": \"tcp\",\n    \"destination\": \"10.244.1.18\",\n    \"ports\": \"3306\"\n  }\n]"
+  },
+  {
+    "id": "Incorrect usage: app-instance-index cannot be negative",
+    "translation": ""
+  },
+  {
+    "id": "Incorrect usage: invalid healthcheck type",
+    "translation": ""
   },
   {
     "id": "Install CLI plugin",
@@ -2628,6 +3352,10 @@
     "translation": "Ungültige Rolle {{.Role}}"
   },
   {
+    "id": "Invalid SSL Cert for {{.API}}\nTIP: Use 'cf api --skip-ssl-validation' to continue with an insecure API endpoint",
+    "translation": ""
+  },
+  {
     "id": "Invalid SSL Cert for {{.URL}}\n{{.TipMessage}}",
     "translation": "Ungültiges SSL-Zertifikat für {{.URL}}\n{{.TipMessage}}"
   },
@@ -2637,7 +3365,7 @@
   },
   {
     "id": "Invalid application configuration",
-    "translation": ""
+    "translation": "Ungültige Anwendungskonfiguration"
   },
   {
     "id": "Invalid async response from server",
@@ -2653,7 +3381,7 @@
   },
   {
     "id": "Invalid data from '{{.repoName}}' - plugin data does not exist",
-    "translation": "Ungültige Daten von '{{.repoName}}' - Plug-in-Daten sind nicht vorhanden."
+    "translation": "Ungültige Daten von '{{.repoName}}' - Plug-in-Daten sind nicht vorhanden"
   },
   {
     "id": "Invalid disk quota: {{.DiskQuota}}\n{{.ErrorDescription}}",
@@ -2664,12 +3392,16 @@
     "translation": "Ungültige Größenbeschränkung für Platte: {{.DiskQuota}}\n{{.Err}}"
   },
   {
+    "id": "Invalid flag: ",
+    "translation": ""
+  },
+  {
     "id": "Invalid health-check-type param: {{.healthCheckType}}",
     "translation": "Ungültiger Parameter für health-check-type: {{.healthCheckType}}"
   },
   {
     "id": "Invalid instance count: {{.InstancesCount}}\nInstance count must be a positive integer",
-    "translation": "Ungültiger Instanzzähler: {{.InstancesCount}}\nDer Instanzzähler muss eine positive ganze Zahl angeben."
+    "translation": "Ungültiger Instanzzähler: {{.InstancesCount}}\nDer Instanzzähler muss eine positive ganze Zahl angeben"
   },
   {
     "id": "Invalid instance memory limit: {{.MemoryLimit}}\n{{.Err}}",
@@ -2677,7 +3409,7 @@
   },
   {
     "id": "Invalid instance: {{.Instance}}\nInstance must be a positive integer",
-    "translation": "Ungültige Instanz: {{.Instance}}\nDie Instanz muss eine positive ganze Zahl sein."
+    "translation": "Ungültige Instanz: {{.Instance}}\nDie Instanz muss eine positive ganze Zahl sein"
   },
   {
     "id": "Invalid instance: {{.Instance}}\nInstance must be less than {{.InstanceCount}}",
@@ -2689,7 +3421,7 @@
   },
   {
     "id": "Invalid manifest. Expected a map",
-    "translation": "Ungültiges Manifest. Es wurde eine Landkarte erwartet."
+    "translation": "Ungültiges Manifest. Es wurde eine Landkarte erwartet"
   },
   {
     "id": "Invalid memory limit: {{.MemLimit}}\n{{.Err}}",
@@ -2705,7 +3437,7 @@
   },
   {
     "id": "Invalid port for route {{.RouteName}}",
-    "translation": ""
+    "translation": "Ungültiger Port für Route {{.RouteName}}"
   },
   {
     "id": "Invalid timeout param: {{.Timeout}}\n{{.Err}}",
@@ -2726,10 +3458,6 @@
   {
     "id": "Last Operation",
     "translation": "Letzte Operation"
-  },
-  {
-    "id": "Linux/Mac",
-    "translation": "Linux/Mac"
   },
   {
     "id": "List all apps in the target space",
@@ -2857,7 +3585,7 @@
   },
   {
     "id": "Loggregator endpoint missing from config file",
-    "translation": "Loggregator-Endpunkt fehlt in Konfigurationsdatei."
+    "translation": "Loggregator-Endpunkt fehlt in Konfigurationsdatei"
   },
   {
     "id": "Looking up '{{.filePath}}' from repository '{{.repoName}}'",
@@ -2869,7 +3597,7 @@
   },
   {
     "id": "MEMORY",
-    "translation": "HAUTPSPEICHER"
+    "translation": "HAUPTSPEICHER"
   },
   {
     "id": "Make a user-provided service instance available to CF apps",
@@ -2884,16 +3612,16 @@
     "translation": "Manifestdatei wurde erfolgreich erstellt bei "
   },
   {
-    "id": "Manifest file is not found in the current directory, please provide either an app name or manifest",
-    "translation": "Manifestdatei wurde im aktuellen Verzeichnis nicht gefunden. Bitte stellen Sie entweder einen App-Namen oder ein Manifest zur Verfügung."
-  },
-  {
     "id": "Map a TCP route",
     "translation": "TCP-Route zuordnen"
   },
   {
     "id": "Map an HTTP route",
     "translation": "HTTP-Route zuordnen"
+  },
+  {
+    "id": "Map an HTTP route:\\n      CF_NAME map-route APP_NAME DOMAIN [--hostname HOSTNAME] [--path PATH]\\n\\n   Map a TCP route:\\n      CF_NAME map-route APP_NAME DOMAIN (--port PORT | --random-port)\\n\\nEXAMPLES:\\n   CF_NAME map-route my-app example.com                              # example.com\\n   CF_NAME map-route my-app example.com --hostname myhost            # myhost.example.com\\n   CF_NAME map-route my-app example.com --hostname myhost --path foo # myhost.example.com/foo\\n   CF_NAME map-route my-app example.com --port 5000                  # example.com:5000",
+    "translation": ""
   },
   {
     "id": "Map the root domain to this app",
@@ -2906,10 +3634,6 @@
   {
     "id": "Max wait time for buildpack staging, in minutes",
     "translation": "Maximale Wartezeit auf das Staging des Buildpacks in Minuten"
-  },
-  {
-    "id": "Max wait time to establish a connection, including name resolution, in seconds",
-    "translation": ""
   },
   {
     "id": "Maximum amount of memory an application instance can have (e.g. 1024M, 1G, 10G)",
@@ -2933,7 +3657,7 @@
   },
   {
     "id": "Maximum time (in seconds) for CLI to wait for application start, other server side timeouts may apply",
-    "translation": "Maximale Zeitdauer (in Sekunden), die die CLI auf den Start der Anwendung wartet. Es können andere Zeitlimitüberschreitung seitens des Servers auftreten."
+    "translation": "Maximale Zeitdauer (in Sekunden), die die CLI auf den Start der Anwendung wartet. Es können andere Zeitlimitüberschreitung seitens des Servers auftreten"
   },
   {
     "id": "Memory limit (e.g. 256M, 1024M, 1G)",
@@ -2949,23 +3673,23 @@
   },
   {
     "id": "NAME",
-    "translation": "NAME"
+    "translation": ""
   },
   {
     "id": "NAME:",
-    "translation": "NAME:"
+    "translation": ""
   },
   {
     "id": "NEW_NAME",
-    "translation": "NEW_NAME (NEUER NAME)"
+    "translation": "NEUER_NAME"
   },
   {
     "id": "NUM_INSTANCES",
-    "translation": "ANZAHL-INSTANZEN"
+    "translation": "ANZAHL_INSTANZEN"
   },
   {
     "id": "Name",
-    "translation": "Name"
+    "translation": ""
   },
   {
     "id": "Name of a registered repository",
@@ -2984,16 +3708,12 @@
     "translation": "Neuer Name"
   },
   {
-    "id": "No %s found",
-    "translation": "Kein %s gefunden"
-  },
-  {
     "id": "No API endpoint set. Use '{{.LoginTip}}' or '{{.APITip}}' to target an endpoint.",
     "translation": "Kein API-Endpunkt festgelegt. Verwenden Sie '{{.LoginTip}}' oder '{{.APITip}}', um einen Endpunkt als Ziel auszuwählen."
   },
   {
     "id": "No api endpoint set. Use '{{.Name}}' to set an endpoint",
-    "translation": "Kein API-Endpunkt festgelegt. Verwenden Sie '{{.Name}}', um einen Endpunkt festzulegen."
+    "translation": "Kein API-Endpunkt festgelegt. Verwenden Sie '{{.Name}}', um einen Endpunkt festzulegen"
   },
   {
     "id": "No app files found in '{{.Path}}'",
@@ -3029,7 +3749,7 @@
   },
   {
     "id": "No org and space targeted, use '{{.Command}}' to target an org and space",
-    "translation": "Keine Organisation und kein Bereich als Ziel ausgewählt, verwenden Sie '{{.Command}}', um eine Organisation und einen Bereich auszuwählen."
+    "translation": "Keine Organisation und kein Bereich als Ziel ausgewählt, verwenden Sie '{{.Command}}', um eine Organisation und einen Bereich auszuwählen"
   },
   {
     "id": "No org or space targeted, use '{{.CFTargetCommand}}'",
@@ -3057,11 +3777,11 @@
   },
   {
     "id": "No running env variables have been set",
-    "translation": "Es wurden keine aktiven Umgebungsvariablen festgelegt."
+    "translation": "Es wurden keine aktiven Umgebungsvariablen festgelegt"
   },
   {
     "id": "No running security groups set",
-    "translation": "Es wurden keine Sicherheitsgruppen festgelegt."
+    "translation": "Es wurden keine Sicherheitsgruppen festgelegt"
   },
   {
     "id": "No security groups",
@@ -3093,7 +3813,7 @@
   },
   {
     "id": "No space targeted, use '{{.Command}}' to target a space",
-    "translation": "Kein Bereich als Ziel ausgewählt, verwenden Sie '{{.Command}}', um einen Bereich als Ziel auszuwählen."
+    "translation": "Kein Bereich als Ziel ausgewählt, verwenden Sie '{{.Command}}', um einen Bereich als Ziel auszuwählen"
   },
   {
     "id": "No spaces assigned",
@@ -3120,12 +3840,24 @@
     "translation": "Keine benutzerdefinierten Umgebungsvariablen wurden festgelegt"
   },
   {
+    "id": "No value provided for flag: ",
+    "translation": ""
+  },
+  {
+    "id": "No {{.Role}} found",
+    "translation": "Kein {{.Role}} gefunden"
+  },
+  {
     "id": "Not logged in. Use '{{.CFLoginCommand}}' to log in.",
     "translation": "Nicht angemeldet. Verwenden Sie '{{.CFLoginCommand}}' für die Anmeldung."
   },
   {
+    "id": "Not supported on windows",
+    "translation": ""
+  },
+  {
     "id": "Note: this may take some time",
-    "translation": "Hinweis: Dieser Vorgang kann eine Weile dauern."
+    "translation": "Hinweis: Dieser Vorgang kann eine Weile dauern"
   },
   {
     "id": "Number of instances",
@@ -3133,7 +3865,7 @@
   },
   {
     "id": "OK",
-    "translation": "OK"
+    "translation": ""
   },
   {
     "id": "OPTIONS:",
@@ -3142,6 +3874,10 @@
   {
     "id": "ORG ADMIN",
     "translation": "ORGANISATIONSADMINISTRATOR"
+  },
+  {
+    "id": "ORG ADMIN:",
+    "translation": "ORGANISATIONSADMINISTRATOR:"
   },
   {
     "id": "ORG AUDITOR",
@@ -3156,12 +3892,60 @@
     "translation": "ORGANISATIONEN"
   },
   {
+    "id": "ORGS:",
+    "translation": "ORGANISATIONEN:"
+  },
+  {
+    "id": "Option '--app-ports'",
+    "translation": ""
+  },
+  {
     "id": "Option '--no-hostname' cannot be used with an app manifest containing the 'routes' attribute",
+    "translation": ""
+  },
+  {
+    "id": "Option '--path'",
+    "translation": ""
+  },
+  {
+    "id": "Option '--port'",
+    "translation": ""
+  },
+  {
+    "id": "Option '--random-port'",
+    "translation": ""
+  },
+  {
+    "id": "Option '--reserved-route-ports'",
+    "translation": ""
+  },
+  {
+    "id": "Option '--route-path'",
+    "translation": ""
+  },
+  {
+    "id": "Option '--router-group'",
+    "translation": ""
+  },
+  {
+    "id": "Option '-a'",
+    "translation": ""
+  },
+  {
+    "id": "Option '-p'",
+    "translation": ""
+  },
+  {
+    "id": "Option '-r'",
     "translation": ""
   },
   {
     "id": "Org",
     "translation": "Organisation"
+  },
+  {
+    "id": "Org management:",
+    "translation": ""
   },
   {
     "id": "Org that contains the target application",
@@ -3205,7 +3989,7 @@
   },
   {
     "id": "PORT",
-    "translation": "PORT"
+    "translation": ""
   },
   {
     "id": "PROXY SERVICE",
@@ -3214,6 +3998,10 @@
   {
     "id": "Paid service plans",
     "translation": "Bezahlte Servicepläne"
+  },
+  {
+    "id": "Parameters as JSON",
+    "translation": ""
   },
   {
     "id": "Pass parameters as JSON to create a running environment variable group",
@@ -3233,7 +4021,7 @@
   },
   {
     "id": "Path for HTTP route",
-    "translation": ""
+    "translation": "Pfad für HTTP-Route"
   },
   {
     "id": "Path for the HTTP route",
@@ -3245,7 +4033,7 @@
   },
   {
     "id": "Path not allowed in TCP route {{.RouteName}}",
-    "translation": ""
+    "translation": "Pfad in TCP-Route {{.RouteName}} nicht zulässig"
   },
   {
     "id": "Path to app directory or to a zip file of the contents of the app directory",
@@ -3254,6 +4042,10 @@
   {
     "id": "Path to directory or zip file",
     "translation": "Pfad zum Verzeichnis oder zur ZIP-Datei"
+  },
+  {
+    "id": "Path to file of JSON describing security group rules",
+    "translation": ""
   },
   {
     "id": "Path to manifest",
@@ -3281,7 +4073,7 @@
   },
   {
     "id": "Plan: {{.ServicePlanName}}",
-    "translation": "Plan: {{.ServicePlanName}}"
+    "translation": ""
   },
   {
     "id": "Plans accessible by a particular organization",
@@ -3293,11 +4085,11 @@
   },
   {
     "id": "Please log in again",
-    "translation": "Bitte melden Sie sich erneut an."
+    "translation": "Bitte melden Sie sich erneut an"
   },
   {
     "id": "Please provide the space within the organization containing the target application",
-    "translation": "Bitte stellen Sie einen Bereich innerhalb der Organisation zur Verfügung, der die Zielanwendung enthält."
+    "translation": "Bitte stellen Sie einen Bereich innerhalb der Organisation zur Verfügung, der die Zielanwendung enthält"
   },
   {
     "id": "Plugin Name",
@@ -3337,7 +4129,7 @@
   },
   {
     "id": "Port not allowed in HTTP route {{.RouteName}}",
-    "translation": ""
+    "translation": "Port in HTTP-Route {{.RouteName}} nicht zulässig"
   },
   {
     "id": "Port used to identify the TCP route",
@@ -3360,8 +4152,8 @@
     "translation": "Problem beim Entfernen der heruntergeladenen Binärdatei im Verzeichnis 'temp': "
   },
   {
-    "id": "Process terminated by signal: %s. Exited with",
-    "translation": "Der Prozesse wurde durch das folgende Signal beendet: %s Beendet mit"
+    "id": "Process terminated by signal: {{.Signal}}. Exited with {{.ExitCode}}",
+    "translation": "Der Prozesse wurde durch das folgende Signal beendet: {{.Signal}} Beendet mit {{.ExitCode}}"
   },
   {
     "id": "Property '{{.PropertyName}}' found in manifest. This feature is no longer supported. Please remove it and try again.",
@@ -3369,7 +4161,7 @@
   },
   {
     "id": "Provider",
-    "translation": "Provider"
+    "translation": ""
   },
   {
     "id": "Purging service {{.InstanceName}}...",
@@ -3388,8 +4180,12 @@
     "translation": "Eine einzelne App mit einer Push-Operation übertragen (mit oder ohne Manifest):"
   },
   {
+    "id": "Push a single app (with or without a manifest):\\n   CF_NAME push APP_NAME [-b BUILDPACK_NAME] [-c COMMAND] [-d DOMAIN] [-f MANIFEST_PATH] [--docker-image DOCKER_IMAGE]\\n   [-i NUM_INSTANCES] [-k DISK] [-m MEMORY] [--hostname HOST] [-p PATH] [-s STACK] [-t TIMEOUT] [-u HEALTH_CHECK_TYPE] [--route-path ROUTE_PATH]\\n   [--no-hostname] [--no-manifest] [--no-route] [--no-start] [--random-route]\\n\\n   Push multiple apps with a manifest:\\n   cf push [-f MANIFEST_PATH]",
+    "translation": ""
+  },
+  {
     "id": "Push multiple apps with a manifest",
-    "translation": "Mehrere Apps mit einem Manifest mithilfe einer Push-Operation übertragen"
+    "translation": "Mehrere Apps mit einem Manifest mithilfe einer Push-Operation übertragen:"
   },
   {
     "id": "QUOTA",
@@ -3417,7 +4213,7 @@
   },
   {
     "id": "RESERVED_ROUTE_PORTS",
-    "translation": "RESERVIERTE-ROUTENPORTS"
+    "translation": "RESERVIERTE_ROUTENPORTS"
   },
   {
     "id": "RESPONSE:",
@@ -3430,6 +4226,10 @@
   {
     "id": "ROUTES",
     "translation": "ROUTEN"
+  },
+  {
+    "id": "ROUTES:",
+    "translation": "ROUTEN:"
   },
   {
     "id": "ROUTE_PATH",
@@ -3581,7 +4381,11 @@
   },
   {
     "id": "Repository: ",
-    "translation": "Repository: "
+    "translation": ""
+  },
+  {
+    "id": "Request error: {{.Error}}\nTIP: If you are behind a firewall and require an HTTP proxy, verify the https_proxy environment variable is correctly set. Else, check your network connection.",
+    "translation": "Request error: {{.Error}}\nTIP: If you are behind a firewall and require an HTTP proxy, verify the https_proxy environment variable is correctly set. Else, check your network connection."
   },
   {
     "id": "Request pseudo-tty allocation",
@@ -3680,12 +4484,16 @@
     "translation": "Abrufen des Inhalts der Staging-Umgebungsvariablengruppe als {{.Username}}..."
   },
   {
+    "id": "Route and domain management:",
+    "translation": ""
+  },
+  {
     "id": "Route {{.HostName}}.{{.DomainName}} {{.Existence}}",
-    "translation": "Route {{.HostName}}.{{.DomainName}} {{.Existence}}"
+    "translation": ""
   },
   {
     "id": "Route {{.HostName}}.{{.DomainName}}/{{.Path}} {{.Existence}}",
-    "translation": "Route {{.HostName}}.{{.DomainName}}/{{.Path}} {{.Existence}}"
+    "translation": ""
   },
   {
     "id": "Route {{.Route}} was not bound to service instance {{.ServiceInstance}}.",
@@ -3724,16 +4532,32 @@
     "translation": "SICHERHEITSGRUPPE"
   },
   {
+    "id": "SECURITY GROUP:",
+    "translation": "SICHERHEITSGRUPPE:"
+  },
+  {
+    "id": "SEE ALSO:",
+    "translation": "SIEHE AUCH:"
+  },
+  {
     "id": "SERVICE",
-    "translation": "SERVICE"
+    "translation": ""
   },
   {
     "id": "SERVICE ADMIN",
     "translation": "SERVICE-ADMIN"
   },
   {
+    "id": "SERVICE ADMIN:",
+    "translation": "SERVICE-ADMIN:"
+  },
+  {
     "id": "SERVICES",
-    "translation": "SERVICES"
+    "translation": ""
+  },
+  {
+    "id": "SERVICES:",
+    "translation": ""
   },
   {
     "id": "SERVICE_INSTANCES",
@@ -3746,6 +4570,10 @@
   {
     "id": "SPACE ADMIN",
     "translation": "BEREICHSADMIN"
+  },
+  {
+    "id": "SPACE ADMIN:",
+    "translation": "BEREICHSADMIN:"
   },
   {
     "id": "SPACE AUDITOR",
@@ -3764,16 +4592,28 @@
     "translation": "BEREICHE"
   },
   {
+    "id": "SPACES:",
+    "translation": "BEREICHE:"
+  },
+  {
+    "id": "SSH Finished\n",
+    "translation": ""
+  },
+  {
     "id": "SSH to an application container instance",
     "translation": "SSH zu einer Anwendungscontainerinstanz"
   },
   {
     "id": "STACK",
-    "translation": "STACK"
+    "translation": ""
   },
   {
     "id": "Scaling app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
     "translation": "Skalieren von App {{.AppName}} in Organisation {{.OrgName}} / Bereich {{.SpaceName}} als {{.CurrentUser}}..."
+  },
+  {
+    "id": "Schema file invalid: ",
+    "translation": ""
   },
   {
     "id": "Security Groups:",
@@ -3801,7 +4641,7 @@
   },
   {
     "id": "Server error, status code: 403, error code: 10003, message: You are not authorized to perform the requested action",
-    "translation": "Serverfehler, Statuscode: 403, Fehlercode: 10003, Nachricht: Sie sind nicht berechtigt, die angeforderte Aktion auszuführen."
+    "translation": "Serverfehler, Statuscode: 403, Fehlercode: 10003, Nachricht: Sie sind nicht berechtigt, die angeforderte Aktion auszuführen"
   },
   {
     "id": "Server error, status code: 403: Access is denied.  You do not have privileges to execute this command.",
@@ -3824,6 +4664,10 @@
     "translation": "Serviceinstanz wurde nicht vom Benutzer zur Verfügung gestellt"
   },
   {
+    "id": "Service instance",
+    "translation": ""
+  },
+  {
     "id": "Service instance {{.InstanceName}} not found",
     "translation": "Serviceinstanz {{.InstanceName}} nicht gefunden"
   },
@@ -3840,6 +4684,10 @@
     "translation": "Serviceschlüssel {{.ServiceKeyName}} ist für die Serviceinstanz {{.ServiceInstanceName}} nicht vorhanden."
   },
   {
+    "id": "Service offering",
+    "translation": ""
+  },
+  {
     "id": "Service offering does not exist\nTIP: If you are trying to purge a v1 service offering, you must set the -p flag.",
     "translation": "Serviceangebot ist nicht vorhanden\nTIPP: Wenn Sie versuchen, ein v1-Serviceangebot freizugeben, müssen Sie das Flag -p setzen."
   },
@@ -3853,15 +4701,19 @@
   },
   {
     "id": "Service: {{.ServiceDescription}}",
-    "translation": "Service: {{.ServiceDescription}}"
+    "translation": ""
   },
   {
     "id": "Services",
-    "translation": "Services"
+    "translation": ""
+  },
+  {
+    "id": "Services integration:",
+    "translation": ""
   },
   {
     "id": "Services:",
-    "translation": "Services:"
+    "translation": ""
   },
   {
     "id": "Set an env variable for an app",
@@ -3882,6 +4734,18 @@
   {
     "id": "Set or view the targeted org or space",
     "translation": "Zielorganisation oder Zielbereich festlegen oder anzeigen"
+  },
+  {
+    "id": "Set schema for a service. Currently only supported in the webproxy.",
+    "translation": ""
+  },
+  {
+    "id": "Set to none",
+    "translation": ""
+  },
+  {
+    "id": "Set to port",
+    "translation": ""
   },
   {
     "id": "Setting api endpoint to {{.Endpoint}}...",
@@ -4004,6 +4868,10 @@
     "translation": "Bereichsgrößenbeschränkung:"
   },
   {
+    "id": "Space management:",
+    "translation": ""
+  },
+  {
     "id": "Space that contains the target application",
     "translation": "Bereich, der die Zielanwendung enthält"
   },
@@ -4037,7 +4905,7 @@
   },
   {
     "id": "Start unsuccessful\n\nTIP: use '{{.Command}}' for more information",
-    "translation": "Start nicht erfolgreich\n\nTIPP: Verwenden Sie '{{.Command}}', um weitere Informationen zu erhalten."
+    "translation": "Start nicht erfolgreich\n\nTIPP: Verwenden Sie '{{.Command}}', um weitere Informationen zu erhalten"
   },
   {
     "id": "Started: {{.Started}}",
@@ -4057,7 +4925,7 @@
   },
   {
     "id": "Status: {{.State}}",
-    "translation": "Status: {{.State}}"
+    "translation": ""
   },
   {
     "id": "Stop an app",
@@ -4066,6 +4934,10 @@
   {
     "id": "Stopping app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
     "translation": "Stoppen der App {{.AppName}} in Organisation {{.OrgName}} / Bereich {{.SpaceName}} als {{.CurrentUser}}..."
+  },
+  {
+    "id": "StrictHostKeychecking=no",
+    "translation": ""
   },
   {
     "id": "System-Provided:",
@@ -4081,7 +4953,7 @@
   },
   {
     "id": "TIP:\n   Use 'CF_NAME create-user-provided-service' to make user-provided services available to CF apps",
-    "translation": "TIPP:\n   Verwenden Sie 'CF_NAME create-user-provided-service', um vom Benutzer zur Verfügung gestellte Services für CF-Apps verfügbar zu machen."
+    "translation": "TIPP:\n   Verwenden Sie 'CF_NAME create-user-provided-service', um vom Benutzer zur Verfügung gestellte Services für CF-Apps verfügbar zu machen"
   },
   {
     "id": "TIP: Changes will not apply to existing running applications until they are restarted.",
@@ -4093,27 +4965,27 @@
   },
   {
     "id": "TIP: No space targeted, use '{{.CfTargetCommand}}' to target a space",
-    "translation": "TIPP: Kein Bereich als Ziel ausgewählt, verwenden Sie '{{.CfTargetCommand}}', um einen Bereich als Ziel auszuwählen."
+    "translation": "TIPP: Kein Bereich als Ziel ausgewählt, verwenden Sie '{{.CfTargetCommand}}', um einen Bereich als Ziel auszuwählen"
   },
   {
     "id": "TIP: Use '{{.APICommand}}' to continue with an insecure API endpoint",
-    "translation": "TIPP: Verwenden Sie '{{.APICommand}}', um mit einem unsicheren API-Endpunkt fortzufahren."
+    "translation": "TIPP: Verwenden Sie '{{.APICommand}}', um mit einem unsicheren API-Endpunkt fortzufahren"
   },
   {
     "id": "TIP: Use '{{.CFCommand}} {{.AppName}}' to ensure your env variable changes take effect",
-    "translation": "TIPP: Verwenden Sie '{{.CFCommand}} {{.AppName}}', um sicherzustellen, dass die Änderungen an der Umgebungsvariablen wirksam sind."
+    "translation": "TIPP: Verwenden Sie '{{.CFCommand}} {{.AppName}}', um sicherzustellen, dass die Änderungen an der Umgebungsvariablen wirksam sind"
   },
   {
     "id": "TIP: Use '{{.CFRestageCommand}}' for any bound apps to ensure your env variable changes take effect",
-    "translation": "TIPP: Verwenden Sie '{{.CFRestageCommand}}' für alle gebundenen Apps, um sicherzustellen, dass die Änderungen an Ihren Umgebungsvariablen wirksam sind."
+    "translation": "TIPP: Verwenden Sie '{{.CFRestageCommand}}' für alle gebundenen Apps, um sicherzustellen, dass die Änderungen an Ihren Umgebungsvariablen wirksam sind"
   },
   {
     "id": "TIP: Use '{{.Command}}' to ensure your env variable changes take effect",
-    "translation": "TIPP: Verwenden Sie '{{.Command}}', um sicherzustellen, dass die Änderungen an der Umgebungsvariablen wirksam sind."
+    "translation": "TIPP: Verwenden Sie '{{.Command}}', um sicherzustellen, dass die Änderungen an der Umgebungsvariablen wirksam sind"
   },
   {
     "id": "TIP: use '{{.CfUpdateBuildpackCommand}}' to update this buildpack",
-    "translation": "TIPP: Verwenden Sie '{{.CfUpdateBuildpackCommand}}', um dieses Buildpack zu aktualisieren."
+    "translation": "TIPP: Verwenden Sie '{{.CfUpdateBuildpackCommand}}', um dieses Buildpack zu aktualisieren"
   },
   {
     "id": "TOTAL_MEMORY",
@@ -4121,7 +4993,7 @@
   },
   {
     "id": "Tags: {{.Tags}}",
-    "translation": "Tags: {{.Tags}}"
+    "translation": ""
   },
   {
     "id": "Tail or show recent logs for an app",
@@ -4140,24 +5012,284 @@
     "translation": "Die aktive Anwendungsinstanz beim gegebenen Index beenden und eine neue Instanz der Anwendung mit demselben Index instanziieren"
   },
   {
+    "id": "The API endpoint",
+    "translation": ""
+  },
+  {
+    "id": "The URL of the service broker",
+    "translation": ""
+  },
+  {
+    "id": "The URL to the plugin repo",
+    "translation": ""
+  },
+  {
+    "id": "The URL to the plugin, if the plugin exists online",
+    "translation": ""
+  },
+  {
+    "id": "The app is running on the DEA backend, which does not support this command.",
+    "translation": ""
+  },
+  {
+    "id": "The app is running on the Diego backend, which does not support this command.",
+    "translation": ""
+  },
+  {
+    "id": "The application name",
+    "translation": ""
+  },
+  {
+    "id": "The buildpack",
+    "translation": ""
+  },
+  {
+    "id": "The command name",
+    "translation": ""
+  },
+  {
+    "id": "The domain",
+    "translation": ""
+  },
+  {
+    "id": "The domain of the route",
+    "translation": ""
+  },
+  {
+    "id": "The environment variable name",
+    "translation": ""
+  },
+  {
+    "id": "The environment variable value",
+    "translation": ""
+  },
+  {
+    "id": "The feature flag name",
+    "translation": ""
+  },
+  {
+    "id": "The file path",
+    "translation": ""
+  },
+  {
     "id": "The file {{.PluginExecutableName}} already exists under the plugin directory.\n",
     "translation": "Die Datei {{.PluginExecutableName}} ist bereits im Plug-in-Verzeichnis vorhanden.\n"
+  },
+  {
+    "id": "The hostname",
+    "translation": ""
+  },
+  {
+    "id": "The index of the application instance",
+    "translation": ""
+  },
+  {
+    "id": "The local path to the plugin, if the plugin exists locally",
+    "translation": ""
+  },
+  {
+    "id": "The new application name",
+    "translation": ""
+  },
+  {
+    "id": "The new buildpack name",
+    "translation": ""
+  },
+  {
+    "id": "The new name of the service instance",
+    "translation": ""
+  },
+  {
+    "id": "The new organization name",
+    "translation": ""
+  },
+  {
+    "id": "The new service broker name",
+    "translation": ""
+  },
+  {
+    "id": "The new service offering",
+    "translation": ""
+  },
+  {
+    "id": "The new service plan",
+    "translation": ""
+  },
+  {
+    "id": "The new space name",
+    "translation": ""
+  },
+  {
+    "id": "The old application name",
+    "translation": ""
+  },
+  {
+    "id": "The old buildpack name",
+    "translation": ""
+  },
+  {
+    "id": "The old organization name",
+    "translation": ""
+  },
+  {
+    "id": "The old service broker name",
+    "translation": ""
+  },
+  {
+    "id": "The old service offering",
+    "translation": ""
+  },
+  {
+    "id": "The old service plan",
+    "translation": ""
+  },
+  {
+    "id": "The old service provider",
+    "translation": ""
+  },
+  {
+    "id": "The old space name",
+    "translation": ""
   },
   {
     "id": "The order in which the buildpacks are checked during buildpack auto-detection",
     "translation": "Die Reihenfolge, in der die Buildpacks während der automatische Buildpackerkennung geprüft werden"
   },
   {
-    "id": "The route {{.RouteName}} did not match any existing domains.",
+    "id": "The organization",
     "translation": ""
+  },
+  {
+    "id": "The organization group name",
+    "translation": ""
+  },
+  {
+    "id": "The organization quota",
+    "translation": ""
+  },
+  {
+    "id": "The organization role",
+    "translation": ""
+  },
+  {
+    "id": "The password",
+    "translation": ""
+  },
+  {
+    "id": "The path to the buildpack file",
+    "translation": ""
+  },
+  {
+    "id": "The plugin name",
+    "translation": ""
+  },
+  {
+    "id": "The plugin repo name",
+    "translation": ""
+  },
+  {
+    "id": "The position that sets priority",
+    "translation": ""
+  },
+  {
+    "id": "The quota",
+    "translation": ""
+  },
+  {
+    "id": "The route {{.RouteName}} did not match any existing domains.",
+    "translation": "Die Route {{.RouteName}} stimmte mit keiner bereits vorhandenen Domäne überein."
   },
   {
     "id": "The route {{.URL}} is already in use.\nTIP: Change the hostname with -n HOSTNAME or use --random-route to generate a new route and then push again.",
     "translation": "Die Route {{.URL}} ist bereits im Gebrauch.\nTIPP: Ändern Sie den Hostnamen mit -n HOSTNAME oder verwenden Sie --random-route, um eine neue Route zu generieren, und führen Sie dann erneut eine Übertragung mit der Push-Operation durch."
   },
   {
+    "id": "The security group",
+    "translation": ""
+  },
+  {
+    "id": "The security group name",
+    "translation": ""
+  },
+  {
+    "id": "The service broker",
+    "translation": ""
+  },
+  {
+    "id": "The service broker name",
+    "translation": ""
+  },
+  {
+    "id": "The service instance",
+    "translation": ""
+  },
+  {
+    "id": "The service instance name",
+    "translation": ""
+  },
+  {
+    "id": "The service instance to rename",
+    "translation": ""
+  },
+  {
+    "id": "The service key",
+    "translation": ""
+  },
+  {
+    "id": "The service offering",
+    "translation": ""
+  },
+  {
+    "id": "The service offering name",
+    "translation": ""
+  },
+  {
+    "id": "The service plan that the service instance will use",
+    "translation": ""
+  },
+  {
+    "id": "The space",
+    "translation": ""
+  },
+  {
+    "id": "The space name",
+    "translation": ""
+  },
+  {
+    "id": "The space quota",
+    "translation": ""
+  },
+  {
+    "id": "The space role",
+    "translation": ""
+  },
+  {
+    "id": "The stack name",
+    "translation": ""
+  },
+  {
     "id": "The targeted API endpoint could not be reached.",
     "translation": "Der anvisierte API-Endpunkt konnte nicht erreicht werden."
+  },
+  {
+    "id": "The token",
+    "translation": ""
+  },
+  {
+    "id": "The token label",
+    "translation": ""
+  },
+  {
+    "id": "The token provider",
+    "translation": ""
+  },
+  {
+    "id": "The user",
+    "translation": ""
+  },
+  {
+    "id": "The username",
+    "translation": ""
   },
   {
     "id": "There are no running instances of this app.",
@@ -4180,12 +5312,20 @@
     "translation": "Dieser Befehl"
   },
   {
+    "id": "This command is in EXPERIMENTAL stage and may change without notice",
+    "translation": ""
+  },
+  {
     "id": "This command requires the Routing API. Your targeted endpoint reports it is not enabled.",
     "translation": "Für diesen Befehl ist die Routing-API erforderlich. Ihr anvisierter Endpunkt meldete, dass diese nicht aktiviert ist."
   },
   {
     "id": "This domain is shared across all orgs.\nDeleting it will remove all associated routes, and will make any app with this domain unreachable.\nAre you sure you want to delete the domain {{.DomainName}}? ",
     "translation": "Die Domäne wird von allen Organisationen gemeinsam genutzt.\nDurch das Löschen der Domäne werden alle zugehörigen Routen entfernt und alle Apps dieser Domäne werden unerreichbar.\nSind Sie sicher, dass Sie die Domäne {{.DomainName}} löschen möchten? "
+  },
+  {
+    "id": "This is for backwards compatibility",
+    "translation": ""
   },
   {
     "id": "This service doesn't support creation of keys.",
@@ -4205,7 +5345,7 @@
   },
   {
     "id": "Tip: use 'add-plugin-repo' to register the repo",
-    "translation": "Tipp: Verwenden Sie 'add-plugin-repo', um das Repository zu registrieren."
+    "translation": "Tipp: Verwenden Sie 'add-plugin-repo', um das Repository zu registrieren"
   },
   {
     "id": "Total Memory",
@@ -4217,7 +5357,7 @@
   },
   {
     "id": "Total amount of memory a space can have (e.g. 1024M, 1G, 10G)",
-    "translation": "Der gesamte Speicherplatz eines Bereichs kann z. B. 1024M, 1G oder 10G betragen"
+    "translation": "Der gesamte Speicherplatz eines Bereichs kann z.B. 1024M, 1G oder 10G betragen"
   },
   {
     "id": "Total number of application instances. -1 represents an unlimited amount.",
@@ -4245,7 +5385,7 @@
   },
   {
     "id": "URL",
-    "translation": "URL"
+    "translation": ""
   },
   {
     "id": "URL to which logs for bound applications will be streamed",
@@ -4253,7 +5393,7 @@
   },
   {
     "id": "URL to which requests for bound routes will be forwarded. Scheme for this URL must be https",
-    "translation": "URL, an die Anforderungen für gebundene Routen weitergeleitet werden. Das Schema für diese URL muss https sein."
+    "translation": "URL, an die Anforderungen für gebundene Routen weitergeleitet werden. Das Schema für diese URL muss https sein"
   },
   {
     "id": "USAGE:",
@@ -4262,6 +5402,10 @@
   {
     "id": "USER ADMIN",
     "translation": "BENUTZER ADMIN"
+  },
+  {
+    "id": "USER ADMIN:",
+    "translation": "BENUTZER ADMIN:"
   },
   {
     "id": "USERS",
@@ -4273,7 +5417,7 @@
   },
   {
     "id": "Unable to acquire one time code from authorization response",
-    "translation": "Es konnte kein Zeitcode aus der Autorisierungsantwort bezogen werden."
+    "translation": "Es konnte kein Zeitcode aus der Autorisierungsantwort bezogen werden"
   },
   {
     "id": "Unable to authenticate.",
@@ -4293,7 +5437,11 @@
   },
   {
     "id": "Unable to parse CC API Version '{{.APIVersion}}'",
-    "translation": "Die CC-API-Version '{{.APIVersion}}' kann nicht geparst werden."
+    "translation": "Die CC-API-Version '{{.APIVersion}}' kann nicht geparst werden"
+  },
+  {
+    "id": "Unable to retrieve information for bound application GUID ",
+    "translation": ""
   },
   {
     "id": "Unassign a quota from a space",
@@ -4333,7 +5481,7 @@
   },
   {
     "id": "Unbinding may leave apps mapped to route {{.URL}} vulnerable; e.g. if service instance {{.ServiceInstanceName}} provides authentication. Do you want to proceed?",
-    "translation": "Das Aufheben einer Bindung kann dazu führen, dass Apps, die der Route {{.URL}} zugeordnet sind, gefährdet sind, z. B. wenn die Serviceinstanz {{.ServiceInstanceName}} die Authentifizierung bereitstellt. Möchten Sie fortfahren?"
+    "translation": "Das Aufheben einer Bindung kann dazu führen, dass Apps, die der Route {{.URL}} zugeordnet sind, gefährdet sind, z.B. wenn die Serviceinstanz {{.ServiceInstanceName}} die Authentifizierung bereitstellt. Möchten Sie fortfahren?"
   },
   {
     "id": "Unbinding route {{.URL}} from service instance {{.ServiceInstanceName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
@@ -4376,6 +5524,10 @@
     "translation": "Zuordnung einer HTTP-Route aufheben"
   },
   {
+    "id": "Unmap an HTTP route:\\n      CF_NAME unmap-route APP_NAME DOMAIN [--hostname HOSTNAME] [--path PATH]\\n\\n   Unmap a TCP route:\\n      CF_NAME unmap-route APP_NAME DOMAIN --port PORT\\n\\nEXAMPLES:\\n   CF_NAME unmap-route my-app example.com                              # example.com\\n   CF_NAME unmap-route my-app example.com --hostname myhost            # myhost.example.com\\n   CF_NAME unmap-route my-app example.com --hostname myhost --path foo # myhost.example.com/foo\\n   CF_NAME unmap-route my-app example.com --port 5000                  # example.com:5000",
+    "translation": ""
+  },
+  {
     "id": "Unsetting api endpoint...",
     "translation": "Aufheben der Festlegung für API-Endpunkt..."
   },
@@ -4386,6 +5538,10 @@
   {
     "id": "Unsharing domain {{.DomainName}} from org {{.OrgName}} as {{.Username}}...",
     "translation": "Beenden der gemeinsamen Nutzung von Domäne {{.DomainName}} mit Organisation {{.OrgName}} als {{.Username}}..."
+  },
+  {
+    "id": "Unsupported host key fingerprint format",
+    "translation": ""
   },
   {
     "id": "Update a buildpack",
@@ -4424,8 +5580,8 @@
     "translation": "Aktualisiert: {{.Updated}}"
   },
   {
-    "id": "Updating %s health_check_type to '%s'",
-    "translation": "Aktualisierung von %s health_check_type auf '%s'"
+    "id": "Updating a plan",
+    "translation": ""
   },
   {
     "id": "Updating app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.Username}}...",
@@ -4464,6 +5620,10 @@
     "translation": "Aktualisieren von vom Benutzer zur Verfügung gestelltem Service {{.ServiceName}} in Organisation {{.OrgName}} / Bereich {{.SpaceName}} als {{.CurrentUser}}..."
   },
   {
+    "id": "Updating {{.AppName}} health_check_type to '{{.HealthCheckType}}'",
+    "translation": "Aktualisierung von {{.AppName}} health_check_type auf '{{.HealthCheckType}}'"
+  },
+  {
     "id": "Uploading app files from: {{.Path}}",
     "translation": "Hochladen von App-Dateien von: {{.Path}}"
   },
@@ -4480,12 +5640,20 @@
     "translation": "Hochladen von {{.ZipFileBytes}}, {{.FileCount}} Dateien"
   },
   {
+    "id": "Usage",
+    "translation": ""
+  },
+  {
+    "id": "Usage:",
+    "translation": ""
+  },
+  {
     "id": "Use '{{.Command}}' for more information",
-    "translation": "Verwenden Sie '{{.Command}}', um weitere Informationen zu erhalten."
+    "translation": "Verwenden Sie '{{.Command}}', um weitere Informationen zu erhalten"
   },
   {
     "id": "Use '{{.Name}}' to view or set your target org and space",
-    "translation": "Verwenden Sie '{{.Name}}', um Ihre Zielorganisation und Ihren Zielbereich anzuzeigen oder festzulegen."
+    "translation": "Verwenden Sie '{{.Name}}', um Ihre Zielorganisation und Ihren Zielbereich anzuzeigen oder festzulegen"
   },
   {
     "id": "Use a one-time password to login",
@@ -4508,6 +5676,10 @@
     "translation": "Benutzer:"
   },
   {
+    "id": "UserKnownHostsFile=/dev/null",
+    "translation": ""
+  },
+  {
     "id": "Username",
     "translation": "Benutzername"
   },
@@ -4525,7 +5697,7 @@
   },
   {
     "id": "VERSION:",
-    "translation": "VERSION:"
+    "translation": ""
   },
   {
     "id": "Valid JSON object containing service-specific configuration parameters, provided either in-line or in a file. For a list of supported configuration parameters, see documentation for the particular service offering.",
@@ -4549,7 +5721,7 @@
   },
   {
     "id": "Version",
-    "translation": "Version"
+    "translation": ""
   },
   {
     "id": "View logs, reports, and settings on this space\n",
@@ -4557,7 +5729,7 @@
   },
   {
     "id": "WARNING:\n   Providing your password as a command line option is highly discouraged\n   Your password may be visible to others and may be recorded in your shell history",
-    "translation": "WARNUNG:\n   Von der Angabe Ihres Kennworts als Befehlszeilenoption wird dringend abgeraten.\n   Ihr Kennwort könnte für andere sichtbar sein und in Ihrem Shellprotokoll erfasst werden."
+    "translation": "WARNUNG:\n   Von der Angabe Ihres Kennworts als Befehlszeilenoption wird dringend abgeraten.\n   Ihr Kennwort könnte für andere sichtbar sein und in Ihrem Shellprotokoll erfasst werden"
   },
   {
     "id": "WARNING: This operation assumes that the service broker responsible for this service instance is no longer available or is not responding with a 200 or 410, and the service instance has been deleted, leaving orphan records in Cloud Foundry's database. All knowledge of the service instance will be removed from Cloud Foundry, including service bindings and service keys.",
@@ -4572,8 +5744,12 @@
     "translation": "WARNUNG: Diese Operation ist eine interne Operation in Cloud Foundry; Service-Broker werden nicht kontaktiert und Ressourcen für Serviceinstanzen werde nicht geändert. Der wichtigste Anwendungsfall für diese Operation ist das Ersetzen eines Service-Brokers, wobei die V1 Service Broker-API auf einem Broker implementiert wird, der die V2 API durch eine erneute Zuordnung von Serviceinstanzen von V1-Plänen auf V2-Pläne implementiert.  Wir empfehlen den V1-Plan privat zu erstellen oder den V1-Broker zu beenden, um zu verhindern, dass weitere Instanzen erstellt werden. Sobald die Serviceinstanzen migriert wurden, können die V1-Services und -Pläne aus Cloud Foundry entfernt werden."
   },
   {
+    "id": "Warning: Insecure http API endpoint detected: secure https API endpoints are recommended",
+    "translation": ""
+  },
+  {
     "id": "Warning: Insecure http API endpoint detected: secure https API endpoints are recommended\n",
-    "translation": "Warnung: Unsicherer API-Endpunkt wurde entdeckt: Es werden sichere HTTPS-API-Endpunkte empfohlen.\n"
+    "translation": "Warnung: Unsicherer API-Endpunkt wurde entdeckt: Es werden sichere HTTPS-API-Endpunkte empfohlen\n"
   },
   {
     "id": "Warning: accessing feature flag 'set_roles_by_username'",
@@ -4589,7 +5765,7 @@
   },
   {
     "id": "Windows PowerShell",
-    "translation": "Windows PowerShell"
+    "translation": ""
   },
   {
     "id": "Write curl body to FILE instead of stdout",
@@ -4602,6 +5778,18 @@
   {
     "id": "Zip archive does not contain a buildpack",
     "translation": "ZIP-Archiv enthält kein Buildpack"
+  },
+  {
+    "id": "[--allow-paid-service-plans | --disallow-paid-service-plans] ",
+    "translation": ""
+  },
+  {
+    "id": "[--allow-paid-service-plans] ",
+    "translation": ""
+  },
+  {
+    "id": "[--no-hostname] [--no-manifest] [--no-route] [--no-start] [--random-route]\n",
+    "translation": ""
   },
   {
     "id": "[MULTIPART/FORM-DATA CONTENT HIDDEN]",
@@ -4676,6 +5864,22 @@
     "translation": "Heruntergeladene Byte"
   },
   {
+    "id": "cf --version",
+    "translation": ""
+  },
+  {
+    "id": "cf -v",
+    "translation": ""
+  },
+  {
+    "id": "cf services",
+    "translation": ""
+  },
+  {
+    "id": "cf target -s",
+    "translation": ""
+  },
+  {
     "id": "cpu",
     "translation": "CPU"
   },
@@ -4708,6 +5912,14 @@
     "translation": "Platte:"
   },
   {
+    "id": "does exist",
+    "translation": ""
+  },
+  {
+    "id": "does not exist",
+    "translation": ""
+  },
+  {
     "id": "does not exist.",
     "translation": "ist nicht vorhanden."
   },
@@ -4733,7 +5945,7 @@
   },
   {
     "id": "each route in 'routes' must have a 'route' property",
-    "translation": ""
+    "translation": "Jede Route in 'routes' muss eine Eigenschaft des Typs 'route' aufweisen"
   },
   {
     "id": "enabled",
@@ -4760,6 +5972,14 @@
     "translation": "kostenfrei oder bezahlt"
   },
   {
+    "id": "get-schema",
+    "translation": ""
+  },
+  {
+    "id": "gocf",
+    "translation": ""
+  },
+  {
     "id": "health_check_type is ",
     "translation": "health_check_type ist "
   },
@@ -4776,6 +5996,14 @@
     "translation": "Host"
   },
   {
+    "id": "identity",
+    "translation": ""
+  },
+  {
+    "id": "instance",
+    "translation": ""
+  },
+  {
     "id": "instance memory",
     "translation": "Instanzspeicher"
   },
@@ -4785,7 +6013,7 @@
   },
   {
     "id": "instance: {{.InstanceIndex}}, reason: {{.ExitDescription}}, exit_status: {{.ExitStatus}}",
-    "translation": "Instanz: {{.InstanceIndex}}, Ursache: {{.ExitDescription}}, exit_status: {{.ExitStatus}}"
+    "translation": "Instanz: {{.InstanceIndex}}, Ursache: {{.ExitDescription}}, Exitstatus: {{.ExitStatus}}"
   },
   {
     "id": "instances",
@@ -4838,6 +6066,10 @@
   {
     "id": "name",
     "translation": "Name"
+  },
+  {
+    "id": "name:",
+    "translation": ""
   },
   {
     "id": "non basic services",
@@ -4901,7 +6133,7 @@
   },
   {
     "id": "repo-plugins",
-    "translation": "repo-plugins"
+    "translation": ""
   },
   {
     "id": "requested state",
@@ -4976,8 +6208,20 @@
     "translation": "Service-Broker"
   },
   {
+    "id": "service_broker_guid IN ",
+    "translation": ""
+  },
+  {
+    "id": "service_guid IN ",
+    "translation": ""
+  },
+  {
     "id": "services",
     "translation": "Services"
+  },
+  {
+    "id": "set-schema",
+    "translation": ""
   },
   {
     "id": "shared",
@@ -5008,12 +6252,12 @@
     "translation": "SSH-Unterstützung ist bereits im Bereich inaktiviert "
   },
   {
-    "id": "ssh support is already enabled",
-    "translation": "SSH-Unterstützung ist bereits aktiviert"
+    "id": "ssh support is already enabled for '{{.AppName}}'",
+    "translation": "SSH-Unterstützung ist bereits aktiviert für '{{.AppName}}'"
   },
   {
-    "id": "ssh support is already enabled in space ",
-    "translation": "SSH-Unterstützung ist bereits im Bereich aktiviert "
+    "id": "ssh support is already enabled in space '{{.SpaceName}}'",
+    "translation": "SSH-Unterstützung ist bereits im Bereich aktiviert '{{.SpaceName}}'"
   },
   {
     "id": "ssh support is disabled for",
@@ -5068,6 +6312,10 @@
     "translation": "Zeit"
   },
   {
+    "id": "timeout connecting to log server, no log will be shown",
+    "translation": ""
+  },
+  {
     "id": "total memory",
     "translation": "Gesamtspeicher"
   },
@@ -5112,6 +6360,14 @@
     "translation": "vom Benutzer bereitgestellt"
   },
   {
+    "id": "username",
+    "translation": ""
+  },
+  {
+    "id": "verbose and version flag",
+    "translation": ""
+  },
+  {
     "id": "version",
     "translation": "Version"
   },
@@ -5141,7 +6397,7 @@
   },
   {
     "id": "{{.CrashedCount}} crashed",
-    "translation": "{{.CrashedCount}} ist abgestürzt."
+    "translation": "{{.CrashedCount}} ist abgestürzt"
   },
   {
     "id": "{{.DiskUsage}} of {{.DiskQuota}}",
@@ -5161,7 +6417,7 @@
   },
   {
     "id": "{{.Err}}\n\nTIP: use '{{.Command}}' for more information",
-    "translation": "{{.Err}}\n\nTIPP: Verwenden Sie '{{.Command}}', um weitere Informationen zu erhalten."
+    "translation": "{{.Err}}\n\nTIPP: Verwenden Sie '{{.Command}}', um weitere Informationen zu erhalten"
   },
   {
     "id": "{{.Feature}} only works up to CF API version {{.MaximumVersion}}. Your target is {{.APIVersion}}.",
@@ -5173,7 +6429,7 @@
   },
   {
     "id": "{{.FlappingCount}} failing",
-    "translation": "{{.FlappingCount}} ist fehlschlagen."
+    "translation": "{{.FlappingCount}} ist fehlschlagen"
   },
   {
     "id": "{{.InstanceMemoryLimit}} instance memory limit",
@@ -5193,31 +6449,31 @@
   },
   {
     "id": "{{.ModelType}} {{.ModelName}} already exists",
-    "translation": "{{.ModelType}} {{.ModelName}} ist bereits vorhanden."
+    "translation": "{{.ModelType}} {{.ModelName}} ist bereits vorhanden"
   },
   {
     "id": "{{.OperationType}} failed",
-    "translation": "{{.OperationType}} ist fehlgeschlagen."
+    "translation": "{{.OperationType}} ist fehlgeschlagen"
   },
   {
     "id": "{{.OperationType}} in progress",
-    "translation": "{{.OperationType}} ist in Bearbeitung."
+    "translation": "{{.OperationType}} ist in Bearbeitung"
   },
   {
     "id": "{{.OperationType}} succeeded",
-    "translation": "{{.OperationType}} war erfolgreich."
+    "translation": "{{.OperationType}} war erfolgreich"
   },
   {
     "id": "{{.PropertyName}} must be a string or null value",
-    "translation": "{{.PropertyName}} muss eine Zeichenfolge oder ein Nullwert sein."
+    "translation": "{{.PropertyName}} muss eine Zeichenfolge oder ein Nullwert sein"
   },
   {
     "id": "{{.PropertyName}} must be a string value",
-    "translation": "{{.PropertyName}} muss ein Zeichenfolgewert sein."
+    "translation": "{{.PropertyName}} muss ein Zeichenfolgewert sein"
   },
   {
     "id": "{{.PropertyName}} should not be null",
-    "translation": "{{.PropertyName}} sollte nicht null sein."
+    "translation": "{{.PropertyName}} sollte nicht null sein"
   },
   {
     "id": "{{.ReservedRoutePorts}} route ports",

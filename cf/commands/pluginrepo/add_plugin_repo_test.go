@@ -5,15 +5,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	testcmd "code.cloudfoundry.org/cli/testhelpers/commands"
+	testconfig "code.cloudfoundry.org/cli/testhelpers/configuration"
+	testterm "code.cloudfoundry.org/cli/testhelpers/terminal"
 
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements/requirementsfakes"
+	. "code.cloudfoundry.org/cli/testhelpers/matchers"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -191,12 +191,10 @@ var _ = Describe("add-plugin-repo", func() {
 
 		Context("When connection could not be established", func() {
 			It("prints a tip", func() {
-				callAddPluginRepo([]string{"repo", "https://example.com:"})
+				callAddPluginRepo([]string{"repo", "https://broccoli.nonexistanttld:"})
 
 				Expect(ui.Outputs()).To(ContainSubstrings(
-					//[]string{"TIP: If you are behind a firewall and require an HTTP proxy, verify the https_proxy environment variable is correctly set. Else, check your network connection."},
-					// TODO: for some reason the above fails, changing to what is below
-					[]string{"https://example.com:/list is not responding. Please make sure it is a valid plugin repo."},
+					[]string{"TIP: If you are behind a firewall and require an HTTP proxy, verify the https_proxy environment variable is correctly set. Else, check your network connection."},
 				))
 			})
 		})

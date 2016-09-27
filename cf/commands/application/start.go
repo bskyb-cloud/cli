@@ -11,18 +11,19 @@ import (
 
 	"sync"
 
-	"github.com/cloudfoundry/cli/cf"
-	"github.com/cloudfoundry/cli/cf/api/appinstances"
-	"github.com/cloudfoundry/cli/cf/api/applications"
-	"github.com/cloudfoundry/cli/cf/api/logs"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
 	"sync/atomic"
+
+	"code.cloudfoundry.org/cli/cf"
+	"code.cloudfoundry.org/cli/cf/api/appinstances"
+	"code.cloudfoundry.org/cli/cf/api/applications"
+	"code.cloudfoundry.org/cli/cf/api/logs"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
 )
 
 const (
@@ -77,9 +78,10 @@ func (cmd *Start) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *Start) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *Start) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	if len(fc.Args()) != 1 {
 		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + commandregistry.Commands.CommandUsage("start"))
+		return nil, fmt.Errorf("Incorrect usage: %d arguments of %d required", len(fc.Args()), 1)
 	}
 
 	cmd.appReq = requirementsFactory.NewApplicationRequirement(fc.Args()[0])
@@ -90,7 +92,7 @@ func (cmd *Start) Requirements(requirementsFactory requirements.Factory, fc flag
 		cmd.appReq,
 	}
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *Start) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
@@ -150,7 +152,7 @@ func (cmd *Start) ApplicationStart(app models.Application, orgName, spaceName st
 				"SpaceName":   terminal.EntityNameColor(spaceName),
 				"CurrentUser": terminal.EntityNameColor(cmd.config.Username())}))
 
-		state := "STARTED"
+		state := "started"
 		return cmd.appRepo.Update(app.GUID, models.AppParams{State: &state})
 	})
 }
@@ -188,12 +190,17 @@ func (cmd *Start) WatchStaging(app models.Application, orgName, spaceName string
 		return models.Application{}, fmt.Errorf("%s failed to stage within %f minutes", app.Name, cmd.StagingTimeout.Minutes())
 	}
 
-	err = cmd.waitForOneRunningInstance(updatedApp)
-	if err != nil {
-		return models.Application{}, err
+	if app.InstanceCount > 0 {
+		err = cmd.waitForOneRunningInstance(updatedApp)
+		if err != nil {
+			return models.Application{}, err
+		}
+		cmd.ui.Say(terminal.HeaderColor(T("\nApp started\n")))
+		cmd.ui.Say("")
+	} else {
+		cmd.ui.Say(terminal.HeaderColor(T("\nApp state changed to started, but note that it has 0 instances.\n")))
+		cmd.ui.Say("")
 	}
-	cmd.ui.Say(terminal.HeaderColor(T("\nApp started\n")))
-	cmd.ui.Say("")
 	cmd.ui.Ok()
 
 	//detectedstartcommand on first push is not present until starting completes

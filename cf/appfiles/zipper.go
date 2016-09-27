@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/cloudfoundry/cli/cf/errors"
-	"github.com/cloudfoundry/gofileutils/fileutils"
+	"code.cloudfoundry.org/cli/cf/errors"
+	"code.cloudfoundry.org/gofileutils/fileutils"
 )
 
 //go:generate counterfeiter . Zipper
@@ -166,6 +166,7 @@ func writeZipFile(dir string, targetFile *os.File) error {
 		}
 
 		header.Name = filepath.ToSlash(fileName)
+		header.Method = zip.Deflate
 
 		if fileInfo.IsDir() {
 			header.Name += "/"

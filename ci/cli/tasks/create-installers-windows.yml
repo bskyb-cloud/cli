@@ -1,13 +1,9 @@
 ---
 platform: windows
 
-params:
-  SIGNTOOL_CERT_PATH:
-  SIGNTOOL_CERT_PASSWORD:
 
 inputs:
-- name: cf-cli-binaries
-- name: cli
+- name: extracted-binaries
 - name: cli-ci
 
 outputs:

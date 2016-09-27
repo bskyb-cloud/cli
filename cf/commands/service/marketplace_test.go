@@ -1,21 +1,21 @@
 package service_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/actors/servicebuilder/servicebuilderfakes"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/flags"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
-	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	"code.cloudfoundry.org/cli/cf/actors/servicebuilder/servicebuilderfakes"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/flags"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/requirements/requirementsfakes"
+	testcmd "code.cloudfoundry.org/cli/testhelpers/commands"
+	testconfig "code.cloudfoundry.org/cli/testhelpers/configuration"
+	testterm "code.cloudfoundry.org/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/cloudfoundry/cli/cf/commands/service"
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	"code.cloudfoundry.org/cli/cf/commands/service"
+	. "code.cloudfoundry.org/cli/testhelpers/matchers"
 )
 
 var _ = Describe("marketplace command", func() {
@@ -85,9 +85,10 @@ var _ = Describe("marketplace command", func() {
 				It("should fail with usage", func() {
 					flagContext.Parse("blahblah")
 
-					reqs := cmd.Requirements(requirementsFactory, flagContext)
+					reqs, err := cmd.Requirements(requirementsFactory, flagContext)
+					Expect(err).NotTo(HaveOccurred())
 
-					err := testcmd.RunRequirements(reqs)
+					err = testcmd.RunRequirements(reqs)
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(ContainSubstring("Incorrect Usage"))
 					Expect(err.Error()).To(ContainSubstring("No argument required"))

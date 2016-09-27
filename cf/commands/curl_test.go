@@ -5,19 +5,19 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cloudfoundry/cli/cf/api/apifakes"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/errors"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
-	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
-	"github.com/cloudfoundry/gofileutils/fileutils"
+	"code.cloudfoundry.org/cli/cf/api/apifakes"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/errors"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/requirements/requirementsfakes"
+	testcmd "code.cloudfoundry.org/cli/testhelpers/commands"
+	testconfig "code.cloudfoundry.org/cli/testhelpers/configuration"
+	testterm "code.cloudfoundry.org/cli/testhelpers/terminal"
+	"code.cloudfoundry.org/gofileutils/fileutils"
 
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/trace"
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/trace"
+	. "code.cloudfoundry.org/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -50,6 +50,10 @@ var _ = Describe("curl command", func() {
 
 	runCurlWithInputs := func(args []string) bool {
 		return testcmd.RunCLICommand("curl", args, requirementsFactory, updateCommandDependency, false, ui)
+	}
+
+	runCurlAsPluginWithInputs := func(args []string) bool {
+		return testcmd.RunCLICommand("curl", args, requirementsFactory, updateCommandDependency, true, ui)
 	}
 
 	It("fails with usage when not given enough input", func() {
@@ -207,6 +211,17 @@ var _ = Describe("curl command", func() {
 		runCurlWithInputs([]string{"/foo"})
 
 		Expect(ui.Outputs()).ToNot(ContainSubstrings([]string{"response for get"}))
+	})
+
+	It("prints the response even when verbose output is enabled if in a plugin call", func() {
+		trace.LoggingToStdout = true
+
+		curlRepo.ResponseHeader = "Content-Size:1024"
+		curlRepo.ResponseBody = "response for get"
+
+		runCurlAsPluginWithInputs([]string{"/foo"})
+
+		Expect(ui.Outputs()).To(ContainSubstrings([]string{"response for get"}))
 	})
 
 	It("prints a failure message when the response is not success", func() {

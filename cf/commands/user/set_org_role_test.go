@@ -3,20 +3,20 @@ package user_test
 import (
 	"errors"
 
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/commands/user"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/flags"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/commands/user"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/flags"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/requirements/requirementsfakes"
 
-	"github.com/cloudfoundry/cli/cf/api/apifakes"
-	"github.com/cloudfoundry/cli/cf/api/featureflags/featureflagsfakes"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	"code.cloudfoundry.org/cli/cf/api/apifakes"
+	"code.cloudfoundry.org/cli/cf/api/featureflags/featureflagsfakes"
+	testconfig "code.cloudfoundry.org/cli/testhelpers/configuration"
+	testterm "code.cloudfoundry.org/cli/testhelpers/terminal"
 
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	. "code.cloudfoundry.org/cli/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -78,7 +78,8 @@ var _ = Describe("SetOrgRole", func() {
 			})
 
 			It("fails with usage", func() {
-				Expect(func() { cmd.Requirements(factory, flagContext) }).To(Panic())
+				_, err := cmd.Requirements(factory, flagContext)
+				Expect(err).To(HaveOccurred())
 				Expect(ui.Outputs()).To(ContainSubstrings(
 					[]string{"Incorrect Usage. Requires USERNAME, ORG, ROLE as arguments"},
 					[]string{"NAME"},
@@ -93,14 +94,16 @@ var _ = Describe("SetOrgRole", func() {
 			})
 
 			It("returns a LoginRequirement", func() {
-				actualRequirements := cmd.Requirements(factory, flagContext)
+				actualRequirements, err := cmd.Requirements(factory, flagContext)
+				Expect(err).NotTo(HaveOccurred())
 				Expect(factory.NewLoginRequirementCallCount()).To(Equal(1))
 
 				Expect(actualRequirements).To(ContainElement(loginRequirement))
 			})
 
 			It("returns an OrgRequirement", func() {
-				actualRequirements := cmd.Requirements(factory, flagContext)
+				actualRequirements, err := cmd.Requirements(factory, flagContext)
+				Expect(err).NotTo(HaveOccurred())
 				Expect(factory.NewOrganizationRequirementCallCount()).To(Equal(1))
 				Expect(factory.NewOrganizationRequirementArgsForCall(0)).To(Equal("the-org-name"))
 
@@ -113,7 +116,8 @@ var _ = Describe("SetOrgRole", func() {
 				})
 
 				It("requests the set_roles_by_username flag", func() {
-					cmd.Requirements(factory, flagContext)
+					_, err := cmd.Requirements(factory, flagContext)
+					Expect(err).NotTo(HaveOccurred())
 					Expect(flagRepo.FindByNameCallCount()).To(Equal(1))
 					Expect(flagRepo.FindByNameArgsForCall(0)).To(Equal("set_roles_by_username"))
 				})
@@ -124,7 +128,8 @@ var _ = Describe("SetOrgRole", func() {
 					})
 
 					It("returns a UserRequirement", func() {
-						actualRequirements := cmd.Requirements(factory, flagContext)
+						actualRequirements, err := cmd.Requirements(factory, flagContext)
+						Expect(err).NotTo(HaveOccurred())
 						Expect(factory.NewUserRequirementCallCount()).To(Equal(1))
 						actualUsername, actualWantGUID := factory.NewUserRequirementArgsForCall(0)
 						Expect(actualUsername).To(Equal("the-user-name"))
@@ -140,7 +145,8 @@ var _ = Describe("SetOrgRole", func() {
 					})
 
 					It("returns a UserRequirement", func() {
-						actualRequirements := cmd.Requirements(factory, flagContext)
+						actualRequirements, err := cmd.Requirements(factory, flagContext)
+						Expect(err).NotTo(HaveOccurred())
 						Expect(factory.NewUserRequirementCallCount()).To(Equal(1))
 						actualUsername, actualWantGUID := factory.NewUserRequirementArgsForCall(0)
 						Expect(actualUsername).To(Equal("the-user-name"))
@@ -156,7 +162,8 @@ var _ = Describe("SetOrgRole", func() {
 					})
 
 					It("returns a UserRequirement", func() {
-						actualRequirements := cmd.Requirements(factory, flagContext)
+						actualRequirements, err := cmd.Requirements(factory, flagContext)
+						Expect(err).NotTo(HaveOccurred())
 						Expect(factory.NewUserRequirementCallCount()).To(Equal(1))
 						actualUsername, actualWantGUID := factory.NewUserRequirementArgsForCall(0)
 						Expect(actualUsername).To(Equal("the-user-name"))
@@ -173,7 +180,8 @@ var _ = Describe("SetOrgRole", func() {
 				})
 
 				It("returns a UserRequirement", func() {
-					actualRequirements := cmd.Requirements(factory, flagContext)
+					actualRequirements, err := cmd.Requirements(factory, flagContext)
+					Expect(err).NotTo(HaveOccurred())
 					Expect(factory.NewUserRequirementCallCount()).To(Equal(1))
 					actualUsername, actualWantGUID := factory.NewUserRequirementArgsForCall(0)
 					Expect(actualUsername).To(Equal("the-user-name"))

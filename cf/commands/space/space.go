@@ -4,17 +4,17 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/plugin/models"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/plugin/models"
 
-	"github.com/cloudfoundry/cli/cf/api/spacequotas"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/formatters"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/cf/api/spacequotas"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/formatters"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
 )
 
 type ShowSpace struct {
@@ -44,9 +44,10 @@ func (cmd *ShowSpace) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *ShowSpace) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *ShowSpace) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	if len(fc.Args()) != 1 {
 		cmd.ui.Failed(T("Incorrect Usage. Requires an argument\n\n") + commandregistry.Commands.CommandUsage("space"))
+		return nil, fmt.Errorf("Incorrect usage: %d arguments of %d required", len(fc.Args()), 1)
 	}
 
 	cmd.spaceReq = requirementsFactory.NewSpaceRequirement(fc.Args()[0])
@@ -57,7 +58,7 @@ func (cmd *ShowSpace) Requirements(requirementsFactory requirements.Factory, fc 
 		cmd.spaceReq,
 	}
 
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *ShowSpace) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
@@ -121,7 +122,10 @@ func (cmd *ShowSpace) Execute(c flags.FlagContext) error {
 
 		table.Add("", T("Space Quota:"), terminal.EntityNameColor(quotaString))
 
-		table.Print()
+		err = table.Print()
+		if err != nil {
+			return err
+		}
 	}
 	if c.Bool("security-group-rules") {
 		cmd.ui.Say("")
@@ -135,7 +139,10 @@ func (cmd *ShowSpace) Execute(c flags.FlagContext) error {
 				}
 				table.Add("", "", "", "")
 			}
-			table.Print()
+			err := table.Print()
+			if err != nil {
+				return err
+			}
 		}
 	}
 

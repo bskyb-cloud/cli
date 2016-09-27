@@ -2,14 +2,16 @@ package plugin
 
 import (
 	"fmt"
+	"sort"
 
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/pluginconfig"
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/utils"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/pluginconfig"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
+	"code.cloudfoundry.org/cli/utils"
+	"code.cloudfoundry.org/cli/utils/sortutils"
 )
 
 type Plugins struct {
@@ -35,7 +37,7 @@ func (cmd *Plugins) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *Plugins) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *Plugins) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	usageReq := requirements.NewUsageRequirement(commandregistry.CLICommandUsagePresenter(cmd),
 		T("No argument required"),
 		func() bool {
@@ -46,7 +48,7 @@ func (cmd *Plugins) Requirements(requirementsFactory requirements.Factory, fc fl
 	reqs := []requirements.Requirement{
 		usageReq,
 	}
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *Plugins) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {
@@ -70,7 +72,14 @@ func (cmd *Plugins) Execute(c flags.FlagContext) error {
 		table = cmd.ui.Table([]string{T("Plugin Name"), T("Version"), T("Command Name"), T("Command Help")})
 	}
 
-	for pluginName, metadata := range plugins {
+	var sortedPluginNames sortutils.Alphabetic
+	for k := range plugins {
+		sortedPluginNames = append(sortedPluginNames, k)
+	}
+	sort.Sort(sortedPluginNames)
+
+	for _, pluginName := range sortedPluginNames {
+		metadata := plugins[pluginName]
 		if metadata.Version.Major == 0 && metadata.Version.Minor == 0 && metadata.Version.Build == 0 {
 			version = "N/A"
 		} else {
@@ -104,6 +113,9 @@ func (cmd *Plugins) Execute(c flags.FlagContext) error {
 	cmd.ui.Ok()
 	cmd.ui.Say("")
 
-	table.Print()
+	err := table.Print()
+	if err != nil {
+		return err
+	}
 	return nil
 }

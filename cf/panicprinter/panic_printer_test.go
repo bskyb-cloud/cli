@@ -1,11 +1,10 @@
 package panicprinter_test
 
 import (
-	"github.com/cloudfoundry/cli/cf/errors"
-	. "github.com/cloudfoundry/cli/cf/panicprinter"
+	"code.cloudfoundry.org/cli/cf/errors"
+	. "code.cloudfoundry.org/cli/cf/panicprinter"
 
-	"github.com/cloudfoundry/cli/cf/terminal"
-	"github.com/cloudfoundry/cli/cf/terminal/terminalfakes"
+	"code.cloudfoundry.org/cli/cf/terminal/terminalfakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -32,12 +31,6 @@ var _ = Describe("Panic Printer", func() {
 			panicPrinter.DisplayCrashDialog("some-error", "some command", "some trace")
 			Expect(ui.SayCallCount()).To(Equal(1))
 			Expect(ui.SayArgsForCall(0)).To(Equal(CrashDialog("some-error", "some command", "some trace")))
-		})
-
-		It("does not print anything when given a string that is terminal.QuietPanic", func() {
-			err := terminal.QuietPanic
-			panicPrinter.DisplayCrashDialog(err, "some command", "some trace")
-			Expect(ui.SayCallCount()).To(Equal(0))
 		})
 
 		It("prints the unexpected error type message when not given a string or an error", func() {
@@ -67,9 +60,9 @@ var _ = Describe("Panic Printer", func() {
 	variable CF_TRACE set to true.
 
 	Also, please update to the latest cli and try the command again:
-	https://github.com/cloudfoundry/cli/releases
+	https://code.cloudfoundry.org/cli/releases
 
-	Please create an issue at: https://github.com/cloudfoundry/cli/issues
+	Please create an issue at: https://code.cloudfoundry.org/cli/issues
 
 	Include the below information when creating the issue:
 

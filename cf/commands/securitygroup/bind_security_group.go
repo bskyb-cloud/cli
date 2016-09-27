@@ -1,17 +1,19 @@
 package securitygroup
 
 import (
-	"github.com/cloudfoundry/cli/cf/api/organizations"
-	"github.com/cloudfoundry/cli/cf/api/securitygroups"
-	sgbinder "github.com/cloudfoundry/cli/cf/api/securitygroups/spaces"
-	"github.com/cloudfoundry/cli/cf/api/spaces"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/terminal"
+	"fmt"
+
+	"code.cloudfoundry.org/cli/cf/api/organizations"
+	"code.cloudfoundry.org/cli/cf/api/securitygroups"
+	sgbinder "code.cloudfoundry.org/cli/cf/api/securitygroups/spaces"
+	"code.cloudfoundry.org/cli/cf/api/spaces"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/cf/i18n"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/terminal"
 )
 
 type BindSecurityGroup struct {
@@ -41,14 +43,15 @@ func (cmd *BindSecurityGroup) MetaData() commandregistry.CommandMetadata {
 	}
 }
 
-func (cmd *BindSecurityGroup) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) []requirements.Requirement {
+func (cmd *BindSecurityGroup) Requirements(requirementsFactory requirements.Factory, fc flags.FlagContext) ([]requirements.Requirement, error) {
 	if len(fc.Args()) != 2 && len(fc.Args()) != 3 {
 		cmd.ui.Failed(T("Incorrect Usage. Requires SECURITY_GROUP and ORG, optional SPACE as arguments\n\n") + commandregistry.Commands.CommandUsage("bind-security-group"))
+		return nil, fmt.Errorf("Incorrect usage: %d arguments of %d required", len(fc.Args()), 3)
 	}
 
 	reqs := []requirements.Requirement{}
 	reqs = append(reqs, requirementsFactory.NewLoginRequirement())
-	return reqs
+	return reqs, nil
 }
 
 func (cmd *BindSecurityGroup) SetDependency(deps commandregistry.Dependency, pluginCall bool) commandregistry.Command {

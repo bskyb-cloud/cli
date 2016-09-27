@@ -5,22 +5,22 @@ import (
 	"io/ioutil"
 	"os"
 
-	planbuilderfakes "github.com/cloudfoundry/cli/cf/actors/planbuilder/planbuilderfakes"
-	"github.com/cloudfoundry/cli/cf/api/apifakes"
-	"github.com/cloudfoundry/cli/cf/commandregistry"
-	"github.com/cloudfoundry/cli/cf/configuration/coreconfig"
-	"github.com/cloudfoundry/cli/cf/models"
-	"github.com/cloudfoundry/cli/cf/requirements"
-	"github.com/cloudfoundry/cli/cf/requirements/requirementsfakes"
-	testcmd "github.com/cloudfoundry/cli/testhelpers/commands"
-	testconfig "github.com/cloudfoundry/cli/testhelpers/configuration"
-	testterm "github.com/cloudfoundry/cli/testhelpers/terminal"
+	planbuilderfakes "code.cloudfoundry.org/cli/cf/actors/planbuilder/planbuilderfakes"
+	"code.cloudfoundry.org/cli/cf/api/apifakes"
+	"code.cloudfoundry.org/cli/cf/commandregistry"
+	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
+	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/cf/requirements"
+	"code.cloudfoundry.org/cli/cf/requirements/requirementsfakes"
+	testcmd "code.cloudfoundry.org/cli/testhelpers/commands"
+	testconfig "code.cloudfoundry.org/cli/testhelpers/configuration"
+	testterm "code.cloudfoundry.org/cli/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/cloudfoundry/cli/cf/commands/service"
-	"github.com/cloudfoundry/cli/cf/flags"
-	. "github.com/cloudfoundry/cli/testhelpers/matchers"
+	"code.cloudfoundry.org/cli/cf/commands/service"
+	"code.cloudfoundry.org/cli/cf/flags"
+	. "code.cloudfoundry.org/cli/testhelpers/matchers"
 )
 
 var _ = Describe("update-service command", func() {
@@ -98,7 +98,8 @@ var _ = Describe("update-service command", func() {
 				fc := flags.NewFlagContext(cmd.MetaData().Flags)
 				fc.Parse("potato", "-p", "plan-name")
 
-				reqs := cmd.Requirements(requirementsFactory, fc)
+				reqs, err := cmd.Requirements(requirementsFactory, fc)
+				Expect(err).NotTo(HaveOccurred())
 				Expect(reqs).NotTo(BeEmpty())
 
 				Expect(reqs).To(ContainElement(requirements.Passing{Type: "minAPIVersionReq"}))
@@ -110,7 +111,8 @@ var _ = Describe("update-service command", func() {
 				fc := flags.NewFlagContext(cmd.MetaData().Flags)
 				fc.Parse("potato")
 
-				reqs := cmd.Requirements(requirementsFactory, fc)
+				reqs, err := cmd.Requirements(requirementsFactory, fc)
+				Expect(err).NotTo(HaveOccurred())
 				Expect(reqs).NotTo(BeEmpty())
 
 				Expect(reqs).NotTo(ContainElement(requirements.Passing{Type: "minAPIVersionReq"}))

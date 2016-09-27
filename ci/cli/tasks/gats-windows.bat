@@ -1,5 +1,5 @@
 SET GOPATH=%CD%\gopath
-SET GATSPATH=%GOPATH%\src\github.com\cloudfoundry\cli-acceptance-tests
+SET GATSPATH=%GOPATH%\src\code.cloudfoundry.org\cli-acceptance-tests
 
 SET PATH=C:\Go\bin;%PATH%
 SET PATH=C:\Program Files\Git\cmd\;%PATH%
@@ -9,6 +9,7 @@ SET PATH=C:\Program Files\cURL\bin;%PATH%
 SET PATH=%CD%;%PATH%
 
 SET /p DOMAIN=<%CD%\bosh-lite-lock\name
+SET CF_API=api.%DOMAIN%
 call %CD%\cli-ci\ci\cli\tasks\create-cats-config.bat
 SET CONFIG=%CD%\config.json
 
@@ -21,5 +22,6 @@ popd
 go get -v github.com/onsi/ginkgo/ginkgo
 
 cd %GATSPATH%
+ginkgo.exe -r -nodes=4 -slowSpecThreshold=30 -randomizeSuites ./integration
 ginkgo.exe -r -nodes=4 -slowSpecThreshold=120 -randomizeSuites -skipPackage application ./gats
 ginkgo.exe -r -nodes=4 -slowSpecThreshold=120 -randomizeSuites ./gats/application

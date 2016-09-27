@@ -1,30 +1,72 @@
 # Contributing to CLI
 
-The Cloud Foundry team uses GitHub and accepts contributions via
-[pull request](https://help.github.com/articles/using-pull-requests).
+The Cloud Foundry team uses GitHub and accepts code contributions via
+[pull requests](https://help.github.com/articles/using-pull-requests).
+If your contribution includes a change that is exposed to cf CLI users
+(e.g. introducing a new command or flag), please submit an issue
+to discuss it first.
+Major new feature proposals generally entail a publicly viewable
+google document with commenting allowed to be discussed on the [cf-dev](https://lists.cloudfoundry.org/archives/list/cf-dev@lists.cloudfoundry.org/) mailing list.
 
 ## Contributor License Agreement
 
 Follow these steps to make a contribution to any of our open source repositories:
 
 1. Ensure that you have completed our CLA Agreement for
-  [individuals](http://www.cloudfoundry.org/individualcontribution.pdf) or
-  [corporations](http://www.cloudfoundry.org/corpcontribution.pdf).
+  [individuals](https://www.cloudfoundry.org/wp-content/uploads/2015/09/CFF_Individual_CLA.pdf) or
+  [corporations](https://www.cloudfoundry.org/wp-content/uploads/2015/09/CFF_Corporate_CLA.pdf).
 
-## General Workflow
+## Setup
 
-Major new feature proposals are given as a publicly viewable google document with commenting allowed and discussed on the [cf-dev](https://lists.cloudfoundry.org/archives/list/cf-dev@lists.cloudfoundry.org/) mailing list.
-
-1. Install [Go 1.6.x](https://golang.org)
+1. Install [Go 1.7.1](https://golang.org/dl/) or up
 1. Create a directory where you would like to store the source for Go projects and their binaries (e.g. `$HOME/go`)
 1. Set an environment variable, `GOPATH`, pointing at the directory you created
 1. Get the `cf` source: `go get github.com/cloudfoundry/cli`
   * (Ignore any warnings about "no buildable Go source files")
 1. [Fork this repository](https://help.github.com/articles/fork-a-repo/), adding your fork as a remote
 1. Run our bootstrap script, `bin/bootstrap`
+
+## Compiling the Binary
+
+This will build a static binary, without ``-tags netgo``, it will dynamically link to the local networking library.
+
+### Linux 32-bit
+
+```
+CGO_ENABLED=0 GOARCH=386 GOOS=linux go build -a -tags netgo -installsuffix netgo -ldflags '-extldflags "-static"' -o out/cf-cli_linux_i686 .
+```
+
+### Linux 64-bit
+
+```
+CGO_ENABLED=0 GOARCH=amd64 GOOS=linux go build -a -tags netgo -installsuffix netgo -ldflags '-extldflags "-static"' -o out/cf-cli_linux_x86-64 .
+```
+
+### Windows 32-bit
+
+```
+GOARCH=386 GOOS=windows go build -tags="forceposix" -o out/cf-cli_win32.exe .
+```
+
+### Windows 64-bit
+
+```
+GOARCH=amd64 GOOS=windows go build -tags="forceposix" -o out/cf-cli_winx64.exe .
+```
+
+### OSX
+
+```
+GOARCH=amd64 GOOS=darwin go build -o out/cf-cli_osx .
+```
+
+## Workflow
+
+1. Run all the existing tests with `bin/test` to ensure they pass
 1. Write a new test, see it fail when running `bin/test` (or `ginkgo -p path/to/the/package/being/tested`)
 1. Write code to pass the test
 1. Repeat the above two steps until the feature is complete
+1. Run all the existing tests with `bin/test` to ensure they *still* pass
 1. Submit a [pull request](https://help.github.com/articles/using-pull-requests/) to the `master` branch
 
 **_*_ For development guide on writing a cli plugin, see [here](https://github.com/cloudfoundry/cli/tree/master/plugin_examples)**
@@ -95,7 +137,7 @@ to be logged in, and the actual behavior of the command itself. You can find it 
 
 ## i18n
 
-If you are adding new strings or updating existing strings within the CLI code, you'll need to update the binary representation of the translation files. This file is generated/maintained using [i18n4go](https://github.com/krishicks/i18n4go), [goi18n](https://github.com/nicksnyder/go-i18n), and `bin/generate-language-resources`.
+If you are adding new strings or updating existing strings within the CLI code, you'll need to update the binary representation of the translation files. This file is generated/maintained using [i18n4go](https://github.com/XenoPhex/i18n4go), [goi18n](https://github.com/nicksnyder/go-i18n), and `bin/generate-language-resources`.
 
 After adding/changing strings supplied to the goi18n `T()` translation func, run the following to update the translations binary:
 
