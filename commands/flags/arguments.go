@@ -165,8 +165,8 @@ type RenameServiceArgs struct {
 }
 
 type BindServiceArgs struct {
-	AppName         string `positional-arg-name:"APP_NAME" required:"true" description:"The application name"`
-	ServiceInstance string `positional-arg-name:"SERVICE_INSTANCE" required:"true" description:"The service instance"`
+	AppName             string `positional-arg-name:"APP_NAME" required:"true" description:"The application name"`
+	ServiceInstanceName string `positional-arg-name:"SERVICE_INSTANCE" required:"true" description:"The service instance"`
 }
 
 type RouteServiceArgs struct {
@@ -208,7 +208,7 @@ type SetHealthCheckArgs struct {
 type CreateBuildpackArgs struct {
 	Buildpack string `positional-arg-name:"BUILDPACK" required:"true" description:"The buildpack"`
 	Path      string `positional-arg-name:"PATH" required:"true" description:"The path to the buildpack file"`
-	Position  string `positional-arg-name:"POSITION" required:"true" description:"The position that sets priority"`
+	Position  int    `positional-arg-name:"POSITION" required:"true" description:"The position that sets priority"`
 }
 
 type RenameBuildpackArgs struct {

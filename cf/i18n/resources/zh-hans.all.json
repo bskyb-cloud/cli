@@ -328,6 +328,10 @@
     "translation": "应用程序 {{.AppName}} 已绑定到 {{.ServiceName}}。"
   },
   {
+    "id": "App {{.AppName}} not found",
+    "translation": ""
+  },
+  {
     "id": "Append API request diagnostics to a log file",
     "translation": "将 API 请求诊断附加到日志文件"
   },
@@ -2108,6 +2112,10 @@
     "translation": "正在以 {{.Username}} 身份删除配额 {{.QuotaName}}..."
   },
   {
+    "id": "Deleting route {{.Route}} ...",
+    "translation": ""
+  },
+  {
     "id": "Deleting route {{.Route}}...",
     "translation": "正在删除路径 {{.Route}}..."
   },
@@ -2920,6 +2928,10 @@
     "translation": "正在以 {{.Username}} 身份获取路由器组...\n"
   },
   {
+    "id": "Getting routes as {{.CurrentUser}} ...",
+    "translation": ""
+  },
+  {
     "id": "Getting routes as {{.Username}} ...\n",
     "translation": "正在以 {{.Username}} 身份获取路径...\n"
   },
@@ -3628,6 +3640,10 @@
     "translation": "buildpack 编译打包的最长等待时间（分钟）"
   },
   {
+    "id": "Max wait time to establish a connection, including name resolution, in seconds",
+    "translation": ""
+  },
+  {
     "id": "Maximum amount of memory an application instance can have (e.g. 1024M, 1G, 10G)",
     "translation": "应用程序实例可以具有的最大内存量（例如，1024M、1G、10G）"
   },
@@ -4044,6 +4060,14 @@
     "translation": "清单路径"
   },
   {
+    "id": "Path used in combination with HOSTNAME and DOMAIN to specify the route to bind",
+    "translation": ""
+  },
+  {
+    "id": "Path used in combination with HOSTNAME and DOMAIN to specify the route to unbind",
+    "translation": ""
+  },
+  {
     "id": "Path used to identify the HTTP route",
     "translation": "用于识别 HTTP 路径的路径"
   },
@@ -4232,6 +4256,10 @@
     "translation": "对组织信息和报告具有只读访问权\n"
   },
   {
+    "id": "Really delete orphaned routes?",
+    "translation": ""
+  },
+  {
     "id": "Really delete orphaned routes?{{.Prompt}}",
     "translation": "真的要删除孤立的路径吗？{{.Prompt}}"
   },
@@ -4258,6 +4286,10 @@
   {
     "id": "Received invalid SSL certificate from ",
     "translation": "从以下源收到的 SSL 证书无效"
+  },
+  {
+    "id": "Recreate the app's executable artifact using the latest pushed app files and the latest environment (variables, service bindings, buildpack, stack, etc.)",
+    "translation": ""
   },
   {
     "id": "Recursively remove a service and child objects from Cloud Foundry database without making requests to a service broker",
@@ -4668,6 +4700,10 @@
     "translation": "服务实例 {{.ServiceInstanceName}} 不存在。"
   },
   {
+    "id": "Service instance {{.ServiceInstance}} not found",
+    "translation": ""
+  },
+  {
     "id": "Service instance: {{.ServiceName}}",
     "translation": "服务实例: {{.ServiceName}}"
   },
@@ -4918,6 +4954,10 @@
   {
     "id": "Status: {{.State}}",
     "translation": "状态: {{.State}}"
+  },
+  {
+    "id": "Stop all instances of the app, then start them again. This may cause downtime.",
+    "translation": ""
   },
   {
     "id": "Stop an app",

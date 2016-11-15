@@ -52,6 +52,10 @@
     "translation": "App "
   },
   {
+    "id": "App {{.AppName}} not found",
+    "translation": ""
+  },
+  {
     "id": "Application lifecycle:",
     "translation": "Application lifecycle:"
   },
@@ -1116,6 +1120,10 @@
     "translation": "Delete an HTTP route:\\n      CF_NAME delete-route DOMAIN [--hostname HOSTNAME] [--path PATH] [-f]\\n\\n   Delete a TCP route:\\n      CF_NAME delete-route DOMAIN --port PORT [-f]\\n\\nEXAMPLES:\\n   CF_NAME delete-route example.com                              # example.com\\n   CF_NAME delete-route example.com --hostname myhost            # myhost.example.com\\n   CF_NAME delete-route example.com --hostname myhost --path foo # myhost.example.com/foo\\n   CF_NAME delete-route example.com --port 5000                  # example.com:5000"
   },
   {
+    "id": "Deleting route {{.Route}} ...",
+    "translation": ""
+  },
+  {
     "id": "ENVIRONMENT:",
     "translation": ""
   },
@@ -1184,6 +1192,10 @@
     "translation": ""
   },
   {
+    "id": "Getting routes as {{.CurrentUser}} ...",
+    "translation": ""
+  },
+  {
     "id": "Global options:",
     "translation": "Global options:"
   },
@@ -1218,6 +1230,10 @@
   {
     "id": "Map an HTTP route:\\n      CF_NAME map-route APP_NAME DOMAIN [--hostname HOSTNAME] [--path PATH]\\n\\n   Map a TCP route:\\n      CF_NAME map-route APP_NAME DOMAIN (--port PORT | --random-port)\\n\\nEXAMPLES:\\n   CF_NAME map-route my-app example.com                              # example.com\\n   CF_NAME map-route my-app example.com --hostname myhost            # myhost.example.com\\n   CF_NAME map-route my-app example.com --hostname myhost --path foo # myhost.example.com/foo\\n   CF_NAME map-route my-app example.com --port 5000                  # example.com:5000",
     "translation": "Map an HTTP route:\\n      CF_NAME map-route APP_NAME DOMAIN [--hostname HOSTNAME] [--path PATH]\\n\\n   Map a TCP route:\\n      CF_NAME map-route APP_NAME DOMAIN (--port PORT | --random-port)\\n\\nEXAMPLES:\\n   CF_NAME map-route my-app example.com                              # example.com\\n   CF_NAME map-route my-app example.com --hostname myhost            # myhost.example.com\\n   CF_NAME map-route my-app example.com --hostname myhost --path foo # myhost.example.com/foo\\n   CF_NAME map-route my-app example.com --port 5000                  # example.com:5000"
+  },
+  {
+    "id": "Max wait time to establish a connection, including name resolution, in seconds",
+    "translation": "Max wait time to establish a connection, including name resolution, in seconds"
   },
   {
     "id": "NAME",
@@ -1308,6 +1324,14 @@
     "translation": "Path to file of JSON describing security group rules"
   },
   {
+    "id": "Path used in combination with HOSTNAME and DOMAIN to specify the route to bind",
+    "translation": ""
+  },
+  {
+    "id": "Path used in combination with HOSTNAME and DOMAIN to specify the route to unbind",
+    "translation": ""
+  },
+  {
     "id": "Plan: {{.ServicePlanName}}",
     "translation": "Plan: {{.ServicePlanName}}"
   },
@@ -1318,6 +1342,14 @@
   {
     "id": "Push a single app (with or without a manifest):\\n   CF_NAME push APP_NAME [-b BUILDPACK_NAME] [-c COMMAND] [-d DOMAIN] [-f MANIFEST_PATH] [--docker-image DOCKER_IMAGE]\\n   [-i NUM_INSTANCES] [-k DISK] [-m MEMORY] [--hostname HOST] [-p PATH] [-s STACK] [-t TIMEOUT] [-u HEALTH_CHECK_TYPE] [--route-path ROUTE_PATH]\\n   [--no-hostname] [--no-manifest] [--no-route] [--no-start] [--random-route]\\n\\n   Push multiple apps with a manifest:\\n   cf push [-f MANIFEST_PATH]",
     "translation": "Push a single app (with or without a manifest):\\n   CF_NAME push APP_NAME [-b BUILDPACK_NAME] [-c COMMAND] [-d DOMAIN] [-f MANIFEST_PATH] [--docker-image DOCKER_IMAGE]\\n   [-i NUM_INSTANCES] [-k DISK] [-m MEMORY] [--hostname HOST] [-p PATH] [-s STACK] [-t TIMEOUT] [-u HEALTH_CHECK_TYPE] [--route-path ROUTE_PATH]\\n   [--no-hostname] [--no-manifest] [--no-route] [--no-start] [--random-route]\\n\\n   Push multiple apps with a manifest:\\n   cf push [-f MANIFEST_PATH]"
+  },
+  {
+    "id": "Really delete orphaned routes?",
+    "translation": ""
+  },
+  {
+    "id": "Recreate the app's executable artifact using the latest pushed app files and the latest environment (variables, service bindings, buildpack, stack, etc.)",
+    "translation": "Recreate the app's executable artifact using the latest pushed app files and the latest environment (variables, service bindings, buildpack, stack, etc.)"
   },
   {
     "id": "Repository: ",
@@ -1364,6 +1396,10 @@
     "translation": "Service instance"
   },
   {
+    "id": "Service instance {{.ServiceInstance}} not found",
+    "translation": ""
+  },
+  {
     "id": "Service offering",
     "translation": "Service offering"
   },
@@ -1402,6 +1438,10 @@
   {
     "id": "Status: {{.State}}",
     "translation": "Status: {{.State}}"
+  },
+  {
+    "id": "Stop all instances of the app, then start them again. This may cause downtime.",
+    "translation": ""
   },
   {
     "id": "StrictHostKeychecking=no",

@@ -328,6 +328,10 @@
     "translation": "O app {{.AppName}} já está ligado a {{.ServiceName}}."
   },
   {
+    "id": "App {{.AppName}} not found",
+    "translation": ""
+  },
+  {
     "id": "Append API request diagnostics to a log file",
     "translation": "Anexar diagnósticos de solicitação de API a um arquivo de log"
   },
@@ -2108,6 +2112,10 @@
     "translation": "Excluindo a cota {{.QuotaName}} como {{.Username}}..."
   },
   {
+    "id": "Deleting route {{.Route}} ...",
+    "translation": ""
+  },
+  {
     "id": "Deleting route {{.Route}}...",
     "translation": "Excluindo a rota {{.Route}}..."
   },
@@ -2920,6 +2928,10 @@
     "translation": "Obtendo grupos do roteadores como {{.Username}}...\n"
   },
   {
+    "id": "Getting routes as {{.CurrentUser}} ...",
+    "translation": ""
+  },
+  {
     "id": "Getting routes as {{.Username}} ...\n",
     "translation": "Obtendo rotas como {{.Username}}...\n"
   },
@@ -3628,6 +3640,10 @@
     "translation": "Tempo máximo de espera para preparação do buildpack, em minutos"
   },
   {
+    "id": "Max wait time to establish a connection, including name resolution, in seconds",
+    "translation": ""
+  },
+  {
     "id": "Maximum amount of memory an application instance can have (e.g. 1024M, 1G, 10G)",
     "translation": "Quantia máxima de memória que uma instância de aplicativo pode ter (por exemplo, 1024 M, 1 G, 10 G)"
   },
@@ -4044,6 +4060,14 @@
     "translation": "Caminho para o manifest"
   },
   {
+    "id": "Path used in combination with HOSTNAME and DOMAIN to specify the route to bind",
+    "translation": ""
+  },
+  {
+    "id": "Path used in combination with HOSTNAME and DOMAIN to specify the route to unbind",
+    "translation": ""
+  },
+  {
     "id": "Path used to identify the HTTP route",
     "translation": "Caminho usado para identificar a rota HTTP"
   },
@@ -4232,6 +4256,10 @@
     "translation": "Acesso somente leitura a informações e relatórios da organização\n"
   },
   {
+    "id": "Really delete orphaned routes?",
+    "translation": ""
+  },
+  {
     "id": "Really delete orphaned routes?{{.Prompt}}",
     "translation": "Realmente excluir as rotas órfãs?{{.Prompt}}"
   },
@@ -4258,6 +4286,10 @@
   {
     "id": "Received invalid SSL certificate from ",
     "translation": "Certificado SSL inválido recebido de "
+  },
+  {
+    "id": "Recreate the app's executable artifact using the latest pushed app files and the latest environment (variables, service bindings, buildpack, stack, etc.)",
+    "translation": ""
   },
   {
     "id": "Recursively remove a service and child objects from Cloud Foundry database without making requests to a service broker",
@@ -4668,6 +4700,10 @@
     "translation": "A instância de serviço {{.ServiceInstanceName}} não existe."
   },
   {
+    "id": "Service instance {{.ServiceInstance}} not found",
+    "translation": ""
+  },
+  {
     "id": "Service instance: {{.ServiceName}}",
     "translation": "Instância de serviço: {{.ServiceName}}"
   },
@@ -4917,6 +4953,10 @@
   },
   {
     "id": "Status: {{.State}}",
+    "translation": ""
+  },
+  {
+    "id": "Stop all instances of the app, then start them again. This may cause downtime.",
     "translation": ""
   },
   {

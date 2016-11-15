@@ -9,10 +9,10 @@ import (
 
 	"code.cloudfoundry.org/cli/cf/cmd"
 	"code.cloudfoundry.org/cli/commands"
-	"code.cloudfoundry.org/cli/commands/ui"
 	"code.cloudfoundry.org/cli/commands/v2"
-	"code.cloudfoundry.org/cli/utils/config"
+	"code.cloudfoundry.org/cli/utils/configv3"
 	"code.cloudfoundry.org/cli/utils/panichandler"
+	"code.cloudfoundry.org/cli/utils/ui"
 	"github.com/jessevdk/go-flags"
 )
 
@@ -89,7 +89,7 @@ func parse(args []string) {
 			}
 		case flags.ErrRequired:
 			fmt.Fprintf(os.Stderr, "Incorrect Usage: %s\n\n", flagErr.Error())
-			parse(append([]string{"help"}, args...))
+			parse([]string{"help", args[0]})
 			os.Exit(1)
 		case flags.ErrUnknownCommand:
 			cmd.Main(os.Getenv("CF_TRACE"), os.Args)
@@ -124,11 +124,11 @@ func isOption(s string) bool {
 }
 
 func executionWrapper(cmd flags.Commander, args []string) error {
-	cfConfig, err := config.LoadConfig()
+	cfConfig, err := configv3.LoadConfig()
 	if err != nil {
 		return err
 	}
-	defer config.WriteConfig(cfConfig)
+	defer configv3.WriteConfig(cfConfig)
 
 	if extendedCmd, ok := cmd.(commands.ExtendedCommander); ok {
 		commandUI, err := ui.NewUI(cfConfig)

@@ -6,11 +6,11 @@ import (
 	"strings"
 
 	"code.cloudfoundry.org/cli/actors/configactions"
-	"code.cloudfoundry.org/cli/api/cloudcontrollerv2"
+	"code.cloudfoundry.org/cli/api/cloudcontroller/ccv2"
 	oldCmd "code.cloudfoundry.org/cli/cf/cmd"
 	"code.cloudfoundry.org/cli/commands"
 	"code.cloudfoundry.org/cli/commands/flags"
-	"code.cloudfoundry.org/cli/commands/ui"
+	"code.cloudfoundry.org/cli/commands/v2/common"
 )
 
 //go:generate counterfeiter . APIConfigActor
@@ -33,7 +33,7 @@ type ApiCommand struct {
 }
 
 func (cmd *ApiCommand) Setup(config commands.Config, ui commands.UI) error {
-	cmd.Actor = configactions.NewActor(config, cloudcontrollerv2.NewCloudControllerClient())
+	cmd.Actor = configactions.NewActor(config, ccv2.NewCloudControllerClient())
 	cmd.UI = ui
 	cmd.Config = config
 	return nil
@@ -45,7 +45,7 @@ func (cmd *ApiCommand) Execute(args []string) error {
 		return nil
 	}
 
-	cmd.UI.DisplayText("This command is in EXPERIMENTAL stage and may change without notice")
+	cmd.UI.DisplayText(ExperimentalWarning)
 	cmd.UI.DisplayNewline()
 
 	if cmd.Unset {
@@ -99,7 +99,7 @@ func (cmd *ApiCommand) SetAPI() error {
 
 	_, err := cmd.Actor.SetTarget(api, cmd.SkipSSLValidation)
 	if err != nil {
-		return cmd.handleError(err)
+		return common.HandleError(err)
 	}
 
 	if strings.HasPrefix(api, "http:") {
@@ -117,15 +117,4 @@ func (_ ApiCommand) processURL(apiURL string) string {
 
 	}
 	return apiURL
-}
-
-func (cmd ApiCommand) handleError(err error) error {
-	switch e := err.(type) {
-	case cloudcontrollerv2.UnverifiedServerError:
-		return ui.InvalidSSLCertError{API: cmd.OptionalArgs.URL}
-
-	case cloudcontrollerv2.RequestError:
-		return ui.APIRequestError{Err: e}
-	}
-	return err
 }
