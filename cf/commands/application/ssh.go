@@ -59,13 +59,12 @@ func (cmd *SSH) MetaData() commandregistry.CommandMetadata {
 	fs["request-pseudo-tty"] = &flags.BoolFlag{Name: "request-pseudo-tty", ShortName: "t", Usage: T("Request pseudo-tty allocation")}
 	fs["force-pseudo-tty"] = &flags.BoolFlag{Name: "force-pseudo-tty", ShortName: "tt", Usage: T("Force pseudo-tty allocation")}
 	fs["disable-pseudo-tty"] = &flags.BoolFlag{Name: "disable-pseudo-tty", ShortName: "T", Usage: T("Disable pseudo-tty allocation")}
-	fs["instance"] = &flags.IntFlag{Name: "instance", ShortName: "instance", Usage: T("DEA application instance index")} // DEA only
 
 	return commandregistry.CommandMetadata{
 		Name:        "ssh",
 		Description: T("SSH to an application container instance"),
 		Usage: []string{
-			T("CF_NAME ssh APP_NAME [-i app-instance-index] [--instance dea-app-instance] [-c command] [-L [bind_address:]port:host:hostport] [--skip-host-validation] [--skip-remote-execution] [--request-pseudo-tty] [--force-pseudo-tty] [--disable-pseudo-tty]"),
+			T("CF_NAME ssh APP_NAME [-i app-instance-index] [-c command] [-L [bind_address:]port:host:hostport] [--skip-host-validation] [--skip-remote-execution] [--request-pseudo-tty] [--force-pseudo-tty] [--disable-pseudo-tty]"),
 		},
 		Flags: fs,
 	}
@@ -208,7 +207,7 @@ var ExecuteCmd = func(appname string, args []string) (err error) {
 
 func (cmd *SSH) executeNimbusDEA(fc flags.FlagContext, app models.Application) error {
 
-	instance := cmd.opts.Instance
+	instance := int(cmd.opts.Index)
 	sshapi := cmd.appSshRepo
 
 	cmd.ui.Say("SSHing to application %s, instance %s...",

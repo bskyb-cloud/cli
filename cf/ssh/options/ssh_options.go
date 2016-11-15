@@ -29,8 +29,6 @@ type SSHOptions struct {
 	SkipRemoteExecution bool
 	TerminalRequest     TTYRequest
 	ForwardSpecs        []ForwardSpec
-
-	Instance int // Nimbus DEA only
 }
 
 func NewSSHOptions(fc flags.FlagContext) (*SSHOptions, error) {
@@ -41,8 +39,6 @@ func NewSSHOptions(fc flags.FlagContext) (*SSHOptions, error) {
 	sshOptions.SkipHostValidation = fc.Bool("k")
 	sshOptions.SkipRemoteExecution = fc.Bool("N")
 	sshOptions.Command = fc.StringSlice("c")
-
-	sshOptions.Instance = fc.Int("instance") // Nimbus DEA only
 
 	if fc.IsSet("L") {
 		for _, arg := range fc.StringSlice("L") {

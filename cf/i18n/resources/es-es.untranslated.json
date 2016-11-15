@@ -860,10 +860,6 @@
     "translation": "CF_NAME spaces"
   },
   {
-    "id": "CF_NAME ssh APP_NAME [-i app-instance-index] [--instance dea-app-instance] [-c command] [-L [bind_address:]port:host:hostport] [--skip-host-validation] [--skip-remote-execution] [--request-pseudo-tty] [--force-pseudo-tty] [--disable-pseudo-tty]",
-    "translation": "CF_NAME ssh APP_NAME [-i app-instance-index] [--instance dea-app-instance] [-c command] [-L [bind_address:]port:host:hostport] [--skip-host-validation] [--skip-remote-execution] [--request-pseudo-tty] [--force-pseudo-tty] [--disable-pseudo-tty]"
-  },
-  {
     "id": "CF_NAME ssh APP_NAME [-i app-instance-index] [-c command] [-L [bind_address:]port:host:hostport] [--skip-host-validation] [--skip-remote-execution] [--request-pseudo-tty] [--force-pseudo-tty] [--disable-pseudo-tty]",
     "translation": ""
   },
@@ -1126,10 +1122,6 @@
   {
     "id": "Create an HTTP route:\\n      CF_NAME create-route SPACE DOMAIN [--hostname HOSTNAME] [--path PATH]\\n\\n   Create a TCP route:\\n      CF_NAME create-route SPACE DOMAIN (--port PORT | --random-port)\\n\\nEXAMPLES:\\n   CF_NAME create-route my-space example.com                             # example.com\\n   CF_NAME create-route my-space example.com --hostname myapp            # myapp.example.com\\n   CF_NAME create-route my-space example.com --hostname myapp --path foo # myapp.example.com/foo\\n   CF_NAME create-route my-space example.com --port 5000                 # example.com:5000",
     "translation": "Create an HTTP route:\\n      CF_NAME create-route SPACE DOMAIN [--hostname HOSTNAME] [--path PATH]\\n\\n   Create a TCP route:\\n      CF_NAME create-route SPACE DOMAIN (--port PORT | --random-port)\\n\\nEXAMPLES:\\n   CF_NAME create-route my-space example.com                             # example.com\\n   CF_NAME create-route my-space example.com --hostname myapp            # myapp.example.com\\n   CF_NAME create-route my-space example.com --hostname myapp --path foo # myapp.example.com/foo\\n   CF_NAME create-route my-space example.com --port 5000                 # example.com:5000"
-  },
-  {
-    "id": "DEA application instance index",
-    "translation": "DEA application instance index"
   },
   {
     "id": "DISK",
@@ -1805,10 +1797,6 @@
   },
   {
     "id": "identity",
-    "translation": ""
-  },
-  {
-    "id": "instance",
     "translation": ""
   },
   {
