@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 
-# run bin/replace-sha and add nimbus to Version in app_constants.go: Version = "6.22.2-nimbus-e480663"
-# change the version
-
 set -e -x
 
-export VERSION="v6.22.2"
 export OUTDIR=$PWD/out
 
 GOARCH=amd64 GOOS=windows ./bin/build && cp $OUTDIR/cf $OUTDIR/cf-windows-amd64.exe
