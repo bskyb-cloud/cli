@@ -46,6 +46,11 @@ run:
 
       def install
         bin.install 'cf'
+        (bash_completion/"cf-cli").write <<-completion
+    $(cat ../cli/ci/installers/completion/cf)
+        completion
+        doc.install 'LICENSE'
+        doc.install 'NOTICE'
       end
 
       test do

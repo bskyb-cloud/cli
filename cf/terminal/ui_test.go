@@ -5,19 +5,18 @@ import (
 	"os"
 	"strings"
 
-	"code.cloudfoundry.org/cli/cf"
 	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
 	"code.cloudfoundry.org/cli/cf/i18n"
 	"code.cloudfoundry.org/cli/cf/models"
 	"code.cloudfoundry.org/cli/cf/trace/tracefakes"
-	"code.cloudfoundry.org/cli/utils/testhelpers/configuration"
-	testconfig "code.cloudfoundry.org/cli/utils/testhelpers/configuration"
-	io_helpers "code.cloudfoundry.org/cli/utils/testhelpers/io"
+	"code.cloudfoundry.org/cli/util/testhelpers/configuration"
+	testconfig "code.cloudfoundry.org/cli/util/testhelpers/configuration"
+	io_helpers "code.cloudfoundry.org/cli/util/testhelpers/io"
 	go_i18n "github.com/nicksnyder/go-i18n/i18n"
 
 	. "code.cloudfoundry.org/cli/cf/terminal"
 	"code.cloudfoundry.org/cli/cf/trace"
-	. "code.cloudfoundry.org/cli/utils/testhelpers/matchers"
+	. "code.cloudfoundry.org/cli/util/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -395,7 +394,7 @@ var _ = Describe("UI", func() {
 			config.SetMinCLIVersion("6.0.0")
 			config.SetMinRecommendedCLIVersion("6.5.0")
 			config.SetAPIVersion("2.15.1")
-			cf.Version = "5.0.0"
+			config.SetCLIVersion("5.0.0")
 			output = io_helpers.CaptureOutput(func() {
 				ui := NewUI(os.Stdin, os.Stdout, NewTeePrinter(os.Stdout), fakeLogger)
 				ui.NotifyUpdateIfNeeded(config)
@@ -412,7 +411,7 @@ var _ = Describe("UI", func() {
 			config.SetMinCLIVersion("6.0.0")
 			config.SetMinRecommendedCLIVersion("6.5.0")
 			config.SetAPIVersion("2.15.1")
-			cf.Version = "6.0.0"
+			config.SetCLIVersion("6.0.0")
 			output = io_helpers.CaptureOutput(func() {
 				ui := NewUI(os.Stdin, os.Stdout, NewTeePrinter(os.Stdout), fakeLogger)
 				ui.NotifyUpdateIfNeeded(config)

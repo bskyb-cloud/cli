@@ -1,8 +1,10 @@
 package api_test
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -14,8 +16,8 @@ import (
 	"code.cloudfoundry.org/cli/cf/net"
 	"code.cloudfoundry.org/cli/cf/terminal/terminalfakes"
 	"code.cloudfoundry.org/cli/cf/trace/tracefakes"
-	testconfig "code.cloudfoundry.org/cli/utils/testhelpers/configuration"
-	testnet "code.cloudfoundry.org/cli/utils/testhelpers/net"
+	testconfig "code.cloudfoundry.org/cli/util/testhelpers/configuration"
+	testnet "code.cloudfoundry.org/cli/util/testhelpers/net"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -77,6 +79,7 @@ var _ = Describe("Endpoints Repository", func() {
 		testServer = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			testServerFn(w, r)
 		}))
+		testServer.Config.ErrorLog = log.New(&bytes.Buffer{}, "", 0)
 		gateway = net.NewCloudControllerGateway(coreConfig, time.Now, new(terminalfakes.FakeUI), new(tracefakes.FakePrinter), "")
 		gateway.SetTrustedCerts(testServer.TLS.Certificates)
 		repo = NewEndpointRepository(gateway)
@@ -109,7 +112,6 @@ var _ = Describe("Endpoints Repository", func() {
 
 				Expect(err).NotTo(HaveOccurred())
 				Expect(config.AuthorizationEndpoint).To(Equal("https://login.example.com"))
-				Expect(config.LoggregatorEndpoint).To(Equal("wss://loggregator.foo.example.org:443"))
 				Expect(config.DopplerEndpoint).To(Equal("wss://doppler.foo.example.org:4443"))
 				Expect(endpoint).To(Equal(testServer.URL))
 				Expect(config.SSHOAuthClient).To(Equal("ssh-client-id"))

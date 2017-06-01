@@ -1,14 +1,16 @@
 package cloudcontroller_test
 
 import (
+	"fmt"
 	"net/http"
+	"runtime"
+	"strings"
 
 	. "code.cloudfoundry.org/cli/api/cloudcontroller"
-
+	"code.cloudfoundry.org/cli/api/cloudcontroller/ccerror"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/ghttp"
-	"github.com/tedsuo/rata"
 )
 
 type DummyResponse struct {
@@ -17,125 +19,15 @@ type DummyResponse struct {
 }
 
 var _ = Describe("Cloud Controller Connection", func() {
-	var (
-		connection *CloudControllerConnection
-		FooRequest string
-		routes     rata.Routes
-	)
+	var connection *CloudControllerConnection
 
 	BeforeEach(func() {
-		FooRequest = "Foo"
-		routes = rata.Routes{
-			{Path: "/v2/foo", Method: http.MethodGet, Name: FooRequest},
-		}
-		connection = NewConnection(server.URL(), routes, true)
+		connection = NewConnection(Config{SkipSSLValidation: true})
 	})
 
 	Describe("Make", func() {
-		Describe("HTTP request generation", func() {
-			BeforeEach(func() {
-				server.AppendHandlers(
-					CombineHandlers(
-						VerifyRequest(http.MethodGet, "/v2/foo", "q=a:b&q=c:d"),
-						RespondWith(http.StatusOK, "{}"),
-					),
-				)
-			})
-
-			Context("when generating the request via a RequestName", func() {
-				It("sends the request to the server", func() {
-					request := NewRequest(
-						FooRequest,
-						nil,
-						nil,
-						map[string][]string{
-							"q": {"a:b", "c:d"},
-						},
-					)
-
-					err := connection.Make(request, &Response{})
-					Expect(err).NotTo(HaveOccurred())
-
-					Expect(server.ReceivedRequests()).To(HaveLen(1))
-				})
-
-				Context("when an error is encountered", func() {
-					It("returns the error", func() {
-						request := NewRequest(
-							"some-invalid-request-name",
-							nil,
-							nil,
-							nil,
-						)
-
-						err := connection.Make(request, &Response{})
-						Expect(err).To(MatchError("No route exists with the name some-invalid-request-name"))
-					})
-				})
-			})
-
-			Context("when generating the request via an URI", func() {
-				It("sends the request to the server", func() {
-					request := NewRequestFromURI(
-						"/v2/foo?q=a:b&q=c:d",
-						http.MethodGet,
-						nil,
-					)
-
-					err := connection.Make(request, &Response{})
-					Expect(err).NotTo(HaveOccurred())
-
-					Expect(server.ReceivedRequests()).To(HaveLen(1))
-				})
-
-				Context("when an error is encountered", func() {
-					It("returns the error", func() {
-						request := NewRequestFromURI(
-							"/v2/foo?q=a:b&q=c:d",
-							"INVALID:METHOD",
-							nil,
-						)
-
-						err := connection.Make(request, &Response{})
-						Expect(err).To(MatchError("net/http: invalid method \"INVALID:METHOD\""))
-					})
-				})
-			})
-		})
-
-		Describe("Request Headers", func() {
-			BeforeEach(func() {
-				server.AppendHandlers(
-					CombineHandlers(
-						VerifyRequest(http.MethodGet, "/v2/foo", ""),
-						VerifyHeaderKV("foo", "bar"),
-						VerifyHeaderKV("accept", "application/json"),
-						VerifyHeaderKV("content-type", "application/json"),
-						RespondWith(http.StatusOK, "{}"),
-					),
-				)
-			})
-
-			Context("when passed headers", func() {
-				It("passes headers to the server", func() {
-					request := NewRequestFromURI(
-						"/v2/foo",
-						http.MethodGet,
-						http.Header{
-							"foo": {"bar"},
-						},
-					)
-
-					err := connection.Make(request, &Response{})
-					Expect(err).NotTo(HaveOccurred())
-
-					Expect(server.ReceivedRequests()).To(HaveLen(1))
-				})
-			})
-		})
-
 		Describe("Data Unmarshalling", func() {
-			var request Request
+			var request *http.Request
 
 			BeforeEach(func() {
 				response := `{
@@ -149,11 +41,9 @@ var _ = Describe("Cloud Controller Connection", func() {
 					),
 				)
 
-				request = NewRequestFromURI(
-					"/v2/foo",
-					http.MethodGet,
-					nil,
-				)
+				var err error
+				request, err = http.NewRequest(http.MethodGet, fmt.Sprintf("%s/v2/foo", server.URL()), nil)
+				Expect(err).ToNot(HaveOccurred())
 			})
 
 			Context("when passed a response with a result set", func() {
@@ -181,6 +71,33 @@ var _ = Describe("Cloud Controller Connection", func() {
 			})
 		})
 
+		Describe("HTTP Response", func() {
+			var request *http.Request
+
+			BeforeEach(func() {
+				response := `{}`
+				server.AppendHandlers(
+					CombineHandlers(
+						VerifyRequest(http.MethodGet, "/v2/foo", ""),
+						RespondWith(http.StatusOK, response),
+					),
+				)
+
+				var err error
+				request, err = http.NewRequest(http.MethodGet, fmt.Sprintf("%s/v2/foo", server.URL()), nil)
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			It("returns the status", func() {
+				response := Response{}
+
+				err := connection.Make(request, &response)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(response.HTTPResponse.Status).To(Equal("200 OK"))
+			})
+		})
+
 		Describe("Response Headers", func() {
 			Describe("X-Cf-Warnings", func() {
 				BeforeEach(func() {
@@ -193,15 +110,11 @@ var _ = Describe("Cloud Controller Connection", func() {
 				})
 
 				It("returns them in Response", func() {
-					request := NewRequest(
-						FooRequest,
-						nil,
-						nil,
-						nil,
-					)
+					request, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/v2/foo", server.URL()), nil)
+					Expect(err).ToNot(HaveOccurred())
 
 					var response Response
-					err := connection.Make(request, &response)
+					err = connection.Make(request, &response)
 					Expect(err).NotTo(HaveOccurred())
 
 					Expect(server.ReceivedRequests()).To(HaveLen(1))
@@ -219,24 +132,20 @@ var _ = Describe("Cloud Controller Connection", func() {
 		Describe("Errors", func() {
 			Context("when the server does not exist", func() {
 				BeforeEach(func() {
-					connection = NewConnection("http://i.hope.this.doesnt.exist.com", routes, false)
+					connection = NewConnection(Config{})
 				})
 
 				It("returns a RequestError", func() {
-					request := NewRequest(
-						FooRequest,
-						nil,
-						nil,
-						nil,
-					)
+					request, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/v2/foo", "http://garbledyguk.com"), nil)
+					Expect(err).ToNot(HaveOccurred())
 
 					var response Response
-					err := connection.Make(request, &response)
+					err = connection.Make(request, &response)
 					Expect(err).To(HaveOccurred())
 
-					requestErr, ok := err.(RequestError)
+					requestErr, ok := err.(ccerror.RequestError)
 					Expect(ok).To(BeTrue())
-					Expect(requestErr.Error()).To(MatchRegexp(".*http://i.hope.this.doesnt.exist.com/v2/foo.*[nN]o such host"))
+					Expect(requestErr.Error()).To(MatchRegexp(".*http://garbledyguk.com/v2/foo.*[nN]o such host"))
 				})
 			})
 
@@ -249,25 +158,51 @@ var _ = Describe("Cloud Controller Connection", func() {
 							),
 						)
 
-						connection = NewConnection(server.URL(), routes, false)
+						connection = NewConnection(Config{})
 					})
 
 					It("returns a UnverifiedServerError", func() {
-						request := NewRequest(
-							FooRequest,
-							nil,
-							nil,
-							nil,
-						)
+						request, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s", server.URL()), nil)
+						Expect(err).ToNot(HaveOccurred())
 
 						var response Response
-						err := connection.Make(request, &response)
-						Expect(err).To(MatchError(UnverifiedServerError{URL: server.URL()}))
+						err = connection.Make(request, &response)
+						Expect(err).To(MatchError(ccerror.UnverifiedServerError{URL: server.URL()}))
 					})
 				})
 			})
 
-			Describe("RawCCError", func() {
+			Context("when the server's certificate does not match the hostname", func() {
+				Context("skipSSLValidation is false", func() {
+					BeforeEach(func() {
+						if runtime.GOOS == "windows" {
+							Skip("ssl validation has a different order on windows, will not be returned properly")
+						}
+						server.AppendHandlers(
+							CombineHandlers(
+								VerifyRequest(http.MethodGet, "/"),
+							),
+						)
+
+						connection = NewConnection(Config{})
+					})
+
+					// loopback.cli.ci.cf-app.com is a custom DNS record setup to point to 127.0.0.1
+					It("returns a SSLValidationHostnameError", func() {
+						altHostURL := strings.Replace(server.URL(), "127.0.0.1", "loopback.cli.ci.cf-app.com", -1)
+						request, err := http.NewRequest(http.MethodGet, altHostURL, nil)
+						Expect(err).ToNot(HaveOccurred())
+
+						var response Response
+						err = connection.Make(request, &response)
+						Expect(err).To(MatchError(ccerror.SSLValidationHostnameError{
+							Message: "x509: certificate is valid for example.com, not loopback.cli.ci.cf-app.com",
+						}))
+					})
+				})
+			})
+
+			Describe("RawHTTPStatusError", func() {
 				var ccResponse string
 				BeforeEach(func() {
 					ccResponse = `{
@@ -279,24 +214,21 @@ var _ = Describe("Cloud Controller Connection", func() {
 					server.AppendHandlers(
 						CombineHandlers(
 							VerifyRequest(http.MethodGet, "/v2/foo"),
-							RespondWith(http.StatusNotFound, ccResponse),
+							RespondWith(http.StatusNotFound, ccResponse, http.Header{"X-Vcap-Request-Id": {"6e0b4379-f5f7-4b2b-56b0-9ab7e96eed95", "6e0b4379-f5f7-4b2b-56b0-9ab7e96eed95::7445d9db-c31e-410d-8dc5-9f79ec3fc26f"}}),
 						),
 					)
 				})
 
 				It("returns a CCRawResponse", func() {
-					request := NewRequest(
-						FooRequest,
-						nil,
-						nil,
-						nil,
-					)
+					request, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/v2/foo", server.URL()), nil)
+					Expect(err).ToNot(HaveOccurred())
 
 					var response Response
-					err := connection.Make(request, &response)
-					Expect(err).To(MatchError(RawCCError{
+					err = connection.Make(request, &response)
+					Expect(err).To(MatchError(ccerror.RawHTTPStatusError{
 						StatusCode:  http.StatusNotFound,
 						RawResponse: []byte(ccResponse),
+						RequestIDs:  []string{"6e0b4379-f5f7-4b2b-56b0-9ab7e96eed95", "6e0b4379-f5f7-4b2b-56b0-9ab7e96eed95::7445d9db-c31e-410d-8dc5-9f79ec3fc26f"},
 					}))
 
 					Expect(server.ReceivedRequests()).To(HaveLen(1))

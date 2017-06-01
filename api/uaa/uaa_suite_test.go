@@ -3,12 +3,12 @@ package uaa_test
 import (
 	"bytes"
 	"log"
+	"testing"
 
+	. "code.cloudfoundry.org/cli/api/uaa"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/ghttp"
-
-	"testing"
 )
 
 func TestUaa(t *testing.T) {
@@ -34,3 +34,15 @@ var _ = SynchronizedAfterSuite(func() {
 var _ = BeforeEach(func() {
 	server.Reset()
 })
+
+func NewTestUAAClientAndStore() *Client {
+	client := NewClient(Config{
+		AppName:           "CF CLI UAA API Test",
+		AppVersion:        "Unknown",
+		ClientID:          "client-id",
+		ClientSecret:      "client-secret",
+		SkipSSLValidation: true,
+		URL:               server.URL(),
+	})
+	return client
+}

@@ -2,6 +2,7 @@
 package ccv2fakes
 
 import (
+	"net/http"
 	"sync"
 
 	"code.cloudfoundry.org/cli/api/cloudcontroller"
@@ -9,13 +10,16 @@ import (
 )
 
 type FakeConnectionWrapper struct {
-	MakeStub        func(passedRequest cloudcontroller.Request, passedResponse *cloudcontroller.Response) error
+	MakeStub        func(request *http.Request, passedResponse *cloudcontroller.Response) error
 	makeMutex       sync.RWMutex
 	makeArgsForCall []struct {
-		passedRequest  cloudcontroller.Request
+		request        *http.Request
 		passedResponse *cloudcontroller.Response
 	}
 	makeReturns struct {
+		result1 error
+	}
+	makeReturnsOnCall map[int]struct {
 		result1 error
 	}
 	WrapStub        func(innerconnection cloudcontroller.Connection) cloudcontroller.Connection
@@ -26,23 +30,29 @@ type FakeConnectionWrapper struct {
 	wrapReturns struct {
 		result1 cloudcontroller.Connection
 	}
+	wrapReturnsOnCall map[int]struct {
+		result1 cloudcontroller.Connection
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeConnectionWrapper) Make(passedRequest cloudcontroller.Request, passedResponse *cloudcontroller.Response) error {
+func (fake *FakeConnectionWrapper) Make(request *http.Request, passedResponse *cloudcontroller.Response) error {
 	fake.makeMutex.Lock()
+	ret, specificReturn := fake.makeReturnsOnCall[len(fake.makeArgsForCall)]
 	fake.makeArgsForCall = append(fake.makeArgsForCall, struct {
-		passedRequest  cloudcontroller.Request
+		request        *http.Request
 		passedResponse *cloudcontroller.Response
-	}{passedRequest, passedResponse})
-	fake.recordInvocation("Make", []interface{}{passedRequest, passedResponse})
+	}{request, passedResponse})
+	fake.recordInvocation("Make", []interface{}{request, passedResponse})
 	fake.makeMutex.Unlock()
 	if fake.MakeStub != nil {
-		return fake.MakeStub(passedRequest, passedResponse)
-	} else {
-		return fake.makeReturns.result1
+		return fake.MakeStub(request, passedResponse)
 	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fake.makeReturns.result1
 }
 
 func (fake *FakeConnectionWrapper) MakeCallCount() int {
@@ -51,10 +61,10 @@ func (fake *FakeConnectionWrapper) MakeCallCount() int {
 	return len(fake.makeArgsForCall)
 }
 
-func (fake *FakeConnectionWrapper) MakeArgsForCall(i int) (cloudcontroller.Request, *cloudcontroller.Response) {
+func (fake *FakeConnectionWrapper) MakeArgsForCall(i int) (*http.Request, *cloudcontroller.Response) {
 	fake.makeMutex.RLock()
 	defer fake.makeMutex.RUnlock()
-	return fake.makeArgsForCall[i].passedRequest, fake.makeArgsForCall[i].passedResponse
+	return fake.makeArgsForCall[i].request, fake.makeArgsForCall[i].passedResponse
 }
 
 func (fake *FakeConnectionWrapper) MakeReturns(result1 error) {
@@ -64,8 +74,21 @@ func (fake *FakeConnectionWrapper) MakeReturns(result1 error) {
 	}{result1}
 }
 
+func (fake *FakeConnectionWrapper) MakeReturnsOnCall(i int, result1 error) {
+	fake.MakeStub = nil
+	if fake.makeReturnsOnCall == nil {
+		fake.makeReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.makeReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeConnectionWrapper) Wrap(innerconnection cloudcontroller.Connection) cloudcontroller.Connection {
 	fake.wrapMutex.Lock()
+	ret, specificReturn := fake.wrapReturnsOnCall[len(fake.wrapArgsForCall)]
 	fake.wrapArgsForCall = append(fake.wrapArgsForCall, struct {
 		innerconnection cloudcontroller.Connection
 	}{innerconnection})
@@ -73,9 +96,11 @@ func (fake *FakeConnectionWrapper) Wrap(innerconnection cloudcontroller.Connecti
 	fake.wrapMutex.Unlock()
 	if fake.WrapStub != nil {
 		return fake.WrapStub(innerconnection)
-	} else {
-		return fake.wrapReturns.result1
 	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fake.wrapReturns.result1
 }
 
 func (fake *FakeConnectionWrapper) WrapCallCount() int {
@@ -93,6 +118,18 @@ func (fake *FakeConnectionWrapper) WrapArgsForCall(i int) cloudcontroller.Connec
 func (fake *FakeConnectionWrapper) WrapReturns(result1 cloudcontroller.Connection) {
 	fake.WrapStub = nil
 	fake.wrapReturns = struct {
+		result1 cloudcontroller.Connection
+	}{result1}
+}
+
+func (fake *FakeConnectionWrapper) WrapReturnsOnCall(i int, result1 cloudcontroller.Connection) {
+	fake.WrapStub = nil
+	if fake.wrapReturnsOnCall == nil {
+		fake.wrapReturnsOnCall = make(map[int]struct {
+			result1 cloudcontroller.Connection
+		})
+	}
+	fake.wrapReturnsOnCall[i] = struct {
 		result1 cloudcontroller.Connection
 	}{result1}
 }

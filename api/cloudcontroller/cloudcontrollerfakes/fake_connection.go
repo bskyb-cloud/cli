@@ -2,38 +2,45 @@
 package cloudcontrollerfakes
 
 import (
+	"net/http"
 	"sync"
 
 	"code.cloudfoundry.org/cli/api/cloudcontroller"
 )
 
 type FakeConnection struct {
-	MakeStub        func(passedRequest cloudcontroller.Request, passedResponse *cloudcontroller.Response) error
+	MakeStub        func(request *http.Request, passedResponse *cloudcontroller.Response) error
 	makeMutex       sync.RWMutex
 	makeArgsForCall []struct {
-		passedRequest  cloudcontroller.Request
+		request        *http.Request
 		passedResponse *cloudcontroller.Response
 	}
 	makeReturns struct {
+		result1 error
+	}
+	makeReturnsOnCall map[int]struct {
 		result1 error
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeConnection) Make(passedRequest cloudcontroller.Request, passedResponse *cloudcontroller.Response) error {
+func (fake *FakeConnection) Make(request *http.Request, passedResponse *cloudcontroller.Response) error {
 	fake.makeMutex.Lock()
+	ret, specificReturn := fake.makeReturnsOnCall[len(fake.makeArgsForCall)]
 	fake.makeArgsForCall = append(fake.makeArgsForCall, struct {
-		passedRequest  cloudcontroller.Request
+		request        *http.Request
 		passedResponse *cloudcontroller.Response
-	}{passedRequest, passedResponse})
-	fake.recordInvocation("Make", []interface{}{passedRequest, passedResponse})
+	}{request, passedResponse})
+	fake.recordInvocation("Make", []interface{}{request, passedResponse})
 	fake.makeMutex.Unlock()
 	if fake.MakeStub != nil {
-		return fake.MakeStub(passedRequest, passedResponse)
-	} else {
-		return fake.makeReturns.result1
+		return fake.MakeStub(request, passedResponse)
 	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fake.makeReturns.result1
 }
 
 func (fake *FakeConnection) MakeCallCount() int {
@@ -42,15 +49,27 @@ func (fake *FakeConnection) MakeCallCount() int {
 	return len(fake.makeArgsForCall)
 }
 
-func (fake *FakeConnection) MakeArgsForCall(i int) (cloudcontroller.Request, *cloudcontroller.Response) {
+func (fake *FakeConnection) MakeArgsForCall(i int) (*http.Request, *cloudcontroller.Response) {
 	fake.makeMutex.RLock()
 	defer fake.makeMutex.RUnlock()
-	return fake.makeArgsForCall[i].passedRequest, fake.makeArgsForCall[i].passedResponse
+	return fake.makeArgsForCall[i].request, fake.makeArgsForCall[i].passedResponse
 }
 
 func (fake *FakeConnection) MakeReturns(result1 error) {
 	fake.MakeStub = nil
 	fake.makeReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeConnection) MakeReturnsOnCall(i int, result1 error) {
+	fake.MakeStub = nil
+	if fake.makeReturnsOnCall == nil {
+		fake.makeReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.makeReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
 }

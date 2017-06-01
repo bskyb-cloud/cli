@@ -12,15 +12,15 @@ import (
 	"code.cloudfoundry.org/cli/cf/requirements/requirementsfakes"
 	"code.cloudfoundry.org/cli/cf/trace/tracefakes"
 	"code.cloudfoundry.org/cli/plugin/models"
-	testcmd "code.cloudfoundry.org/cli/utils/testhelpers/commands"
-	testconfig "code.cloudfoundry.org/cli/utils/testhelpers/configuration"
-	testterm "code.cloudfoundry.org/cli/utils/testhelpers/terminal"
+	testcmd "code.cloudfoundry.org/cli/util/testhelpers/commands"
+	testconfig "code.cloudfoundry.org/cli/util/testhelpers/configuration"
+	testterm "code.cloudfoundry.org/cli/util/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
 	"os"
 
-	. "code.cloudfoundry.org/cli/utils/testhelpers/matchers"
+	. "code.cloudfoundry.org/cli/util/testhelpers/matchers"
 )
 
 var _ = Describe("space-users command", func() {
@@ -116,7 +116,7 @@ var _ = Describe("space-users command", func() {
 			user3.Username = "user3"
 			user4 := models.UserFields{}
 			user4.Username = "user4"
-			userRepo.ListUsersInSpaceForRoleStub = func(_ string, roleName models.Role) ([]models.UserFields, error) {
+			userRepo.ListUsersInSpaceForRoleWithNoUAAStub = func(_ string, roleName models.Role) ([]models.UserFields, error) {
 				userFields := map[models.Role][]models.UserFields{
 					models.RoleSpaceManager:   {user, user2},
 					models.RoleSpaceDeveloper: {user4},
@@ -133,9 +133,9 @@ var _ = Describe("space-users command", func() {
 			Expect(actualSpaceName).To(Equal("my-space"))
 			Expect(actualOrgGUID).To(Equal("org1-guid"))
 
-			Expect(userRepo.ListUsersInSpaceForRoleCallCount()).To(Equal(3))
+			Expect(userRepo.ListUsersInSpaceForRoleWithNoUAACallCount()).To(Equal(3))
 			for i, expectedRole := range []models.Role{models.RoleSpaceManager, models.RoleSpaceDeveloper, models.RoleSpaceAuditor} {
-				spaceGUID, actualRole := userRepo.ListUsersInSpaceForRoleArgsForCall(i)
+				spaceGUID, actualRole := userRepo.ListUsersInSpaceForRoleWithNoUAAArgsForCall(i)
 				Expect(spaceGUID).To(Equal("space1-guid"))
 				Expect(actualRole).To(Equal(expectedRole))
 			}
@@ -152,41 +152,18 @@ var _ = Describe("space-users command", func() {
 			))
 		})
 
-		Context("when cc api verson is >= 2.21.0", func() {
-			BeforeEach(func() {
-				configRepo.SetAPIVersion("2.22.0")
-			})
-
-			It("calls ListUsersInSpaceForRoleWithNoUAA()", func() {
-				runCommand("my-org", "my-sapce")
-
-				Expect(userRepo.ListUsersInSpaceForRoleWithNoUAACallCount()).To(BeNumerically(">=", 1))
-				Expect(userRepo.ListUsersInSpaceForRoleCallCount()).To(Equal(0))
-			})
-
-			It("fails with an error when user network call fails", func() {
-				userRepo.ListUsersInSpaceForRoleWithNoUAAStub = func(_ string, role models.Role) ([]models.UserFields, error) {
-					if role == models.RoleSpaceManager {
-						return []models.UserFields{}, errors.New("internet badness occurred")
-					}
-					return []models.UserFields{}, nil
+		It("fails with an error when user network call fails", func() {
+			userRepo.ListUsersInSpaceForRoleWithNoUAAStub = func(_ string, role models.Role) ([]models.UserFields, error) {
+				if role == models.RoleSpaceManager {
+					return []models.UserFields{}, errors.New("internet badness occurred")
 				}
-				runCommand("my-org", "my-space")
-				Expect(ui.Outputs()).To(BeInDisplayOrder(
-					[]string{"Getting users in org", "Org1"},
-					[]string{"internet badness occurred"},
-				))
-			})
-		})
-
-		Context("when cc api verson is < 2.21.0", func() {
-			It("calls ListUsersInSpaceForRole()", func() {
-				configRepo.SetAPIVersion("2.20.0")
-				runCommand("my-org", "my-space")
-
-				Expect(userRepo.ListUsersInSpaceForRoleWithNoUAACallCount()).To(Equal(0))
-				Expect(userRepo.ListUsersInSpaceForRoleCallCount()).To(BeNumerically(">=", 1))
-			})
+				return []models.UserFields{}, nil
+			}
+			runCommand("my-org", "my-space")
+			Expect(ui.Outputs()).To(BeInDisplayOrder(
+				[]string{"Getting users in org", "Org1"},
+				[]string{"internet badness occurred"},
+			))
 		})
 	})
 
@@ -208,7 +185,7 @@ var _ = Describe("space-users command", func() {
 
 			user := models.UserFields{}
 			user.Username = "mr-pointy-hair"
-			userRepo.ListUsersInSpaceForRoleStub = func(_ string, roleName models.Role) ([]models.UserFields, error) {
+			userRepo.ListUsersInSpaceForRoleWithNoUAAStub = func(_ string, roleName models.Role) ([]models.UserFields, error) {
 				userFields := map[models.Role][]models.UserFields{
 					models.RoleSpaceManager:   {user},
 					models.RoleSpaceDeveloper: {},
@@ -237,10 +214,6 @@ var _ = Describe("space-users command", func() {
 		var (
 			pluginUserModel []plugin_models.GetSpaceUsers_Model
 		)
-
-		BeforeEach(func() {
-			configRepo.SetAPIVersion("2.22.0")
-		})
 
 		Context("single roles", func() {
 			BeforeEach(func() {

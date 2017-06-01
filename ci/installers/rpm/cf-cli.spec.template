@@ -1,26 +1,27 @@
-Summary: Cloud Foundry command line client 
-Name: cf-cli 
+Summary: Cloud Foundry CLI
+Name: cf-cli
 Release: 1
-Group: Development/Tools 
-License: Apache 
+Group: Development/Tools
+License: ASL 2.0
+URL: https://github.com/cloudfoundry/cli
+BugUrl: https://github.com/cloudfoundry/cli/issues
 Source: %{expand:%%(pwd)}
 
 %description
-%{summary}
+Cloud Foundry CLI is the official command line client for Cloud Foundry.
 
-%prep
-rm -rf $RPM_BUILD_ROOT
-mkdir -p $RPM_BUILD_ROOT/usr/bin
-mkdir -p $RPM_BUILD_ROOT/usr/share/doc/cf-cli
-cd $RPM_BUILD_ROOT
-cp %{SOURCEURL0}/cf ./usr/bin/cf
-cp %{SOURCEURL0}/COPYING ./usr/share/doc/cf-cli/COPYING
+%install
+%{__rm} -rf %{buildroot}
+%{__install} -Dp -m0755 %{SOURCEURL0}/cf %{buildroot}%{_bindir}/cf
+%{__install} -Dp -m0644 %{SOURCEURL0}/LICENSE %{buildroot}%{_defaultdocdir}/cf-cli/LICENSE
+%{__install} -Dp -m0644 %{SOURCEURL0}/NOTICE %{buildroot}%{_defaultdocdir}/cf-cli/NOTICE
+%{__install} -Dp -m0644 %{SOURCEURL0}/cf.bash %{buildroot}%{_sysconfdir}/bash_completion.d/cf.bash
 
 %clean
-rm -rf "$RPM_BUILD_ROOT"
+%{__rm} -rf %{buildroot}
 
 %files
-%defattr(644,root,root)
-/usr/share/doc/cf-cli/COPYING
-%defattr(755,root,root)
-/usr/bin/cf
+%{_bindir}/cf
+%{_sysconfdir}/bash_completion.d/cf.bash
+%license %{_defaultdocdir}/cf-cli/LICENSE
+%license %{_defaultdocdir}/cf-cli/NOTICE

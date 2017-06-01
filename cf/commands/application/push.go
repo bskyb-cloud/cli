@@ -27,7 +27,7 @@ import (
 	"code.cloudfoundry.org/cli/cf/models"
 	"code.cloudfoundry.org/cli/cf/requirements"
 	"code.cloudfoundry.org/cli/cf/terminal"
-	"code.cloudfoundry.org/cli/utils/words/generator"
+	"code.cloudfoundry.org/cli/util/words/generator"
 )
 
 type Push struct {
@@ -66,9 +66,9 @@ func (cmd *Push) MetaData() commandregistry.CommandMetadata {
 	fs["hostname"] = &flags.StringFlag{Name: "hostname", ShortName: "n", Usage: T("Hostname (e.g. my-subdomain)")}
 	fs["p"] = &flags.StringFlag{ShortName: "p", Usage: T("Path to app directory or to a zip file of the contents of the app directory")}
 	fs["s"] = &flags.StringFlag{ShortName: "s", Usage: T("Stack to use (a stack is a pre-built file system, including an operating system, that can run apps)")}
-	fs["t"] = &flags.StringFlag{ShortName: "t", Usage: T("Maximum time (in seconds) for CLI to wait for application start, other server side timeouts may apply")}
+	fs["t"] = &flags.StringFlag{ShortName: "t", Usage: T("Time (in seconds) allowed to elapse between starting up an app and the first healthy response from the app")}
 	fs["docker-image"] = &flags.StringFlag{Name: "docker-image", ShortName: "o", Usage: T("Docker-image to be used (e.g. user/docker-image-name)")}
-	fs["health-check-type"] = &flags.StringFlag{Name: "health-check-type", ShortName: "u", Usage: T("Application health check type (e.g. 'port' or 'none')")}
+	fs["health-check-type"] = &flags.StringFlag{Name: "health-check-type", ShortName: "u", Usage: T("Application health check type (Default: 'port', 'none' accepted for 'process', 'http' implies endpoint '/')")}
 	fs["no-hostname"] = &flags.BoolFlag{Name: "no-hostname", Usage: T("Map the root domain to this app")}
 	fs["no-manifest"] = &flags.BoolFlag{Name: "no-manifest", Usage: T("Ignore manifest file")}
 	fs["no-route"] = &flags.BoolFlag{Name: "no-route", Usage: T("Do not map a route to this app and remove routes from previous pushes of this app")}
@@ -99,7 +99,7 @@ func (cmd *Push) MetaData() commandregistry.CommandMetadata {
 			fmt.Sprintf("[-p %s] ", T("PATH")),
 			fmt.Sprintf("[-s %s] ", T("STACK")),
 			fmt.Sprintf("[-t %s] ", T("TIMEOUT")),
-			fmt.Sprintf("[-u %s] ", T("HEALTH_CHECK_TYPE")),
+			fmt.Sprintf("[-u %s] ", T("(process | port | http)")),
 			fmt.Sprintf("[--route-path %s] ", T("ROUTE_PATH")),
 			"\n   ",
 			// Commented to hide app-ports for release #117189491
@@ -248,6 +248,16 @@ func (cmd *Push) Execute(c flags.FlagContext) error {
 				}
 			}
 
+			// if the user did not provide a health-check-http-endpoint
+			// and one doesn't exist already in the cloud
+			// set to default
+			if appParams.HealthCheckType != nil && *appParams.HealthCheckType == "http" {
+				if appParams.HealthCheckHTTPEndpoint == nil && existingApp.HealthCheckHTTPEndpoint == "" {
+					endpoint := "/"
+					appParams.HealthCheckHTTPEndpoint = &endpoint
+				}
+			}
+
 			app, err = cmd.appRepo.Update(existingApp.GUID, appParams)
 			if err != nil {
 				return err
@@ -263,6 +273,14 @@ func (cmd *Push) Execute(c flags.FlagContext) error {
 					"SpaceName": terminal.EntityNameColor(cmd.config.SpaceFields().Name),
 					"Username":  terminal.EntityNameColor(cmd.config.Username())}))
 
+			// if the user did not provide a health-check-http-endpoint
+			// set to default
+			if appParams.HealthCheckType != nil && *appParams.HealthCheckType == "http" {
+				if appParams.HealthCheckHTTPEndpoint == nil {
+					endpoint := "/"
+					appParams.HealthCheckHTTPEndpoint = &endpoint
+				}
+			}
 			app, err = cmd.appRepo.Create(appParams)
 			if err != nil {
 				return err
@@ -783,13 +801,15 @@ func (cmd *Push) getAppParamsFromContext(c flags.FlagContext) (models.AppParams,
 		appParams.HealthCheckTimeout = &timeout
 	}
 
-	if healthCheckType := c.String("u"); healthCheckType != "" {
-		if healthCheckType != "port" && healthCheckType != "none" {
-			return models.AppParams{}, fmt.Errorf("Error: %s", fmt.Errorf(T("Invalid health-check-type param: {{.healthCheckType}}",
-				map[string]interface{}{"healthCheckType": healthCheckType})))
-		}
-
+	healthCheckType := c.String("u")
+	switch healthCheckType {
+	case "":
+		// do nothing
+	case "http", "none", "port", "process":
 		appParams.HealthCheckType = &healthCheckType
+	default:
+		return models.AppParams{}, fmt.Errorf("Error: %s", fmt.Errorf(T("Invalid health-check-type param: {{.healthCheckType}}",
+			map[string]interface{}{"healthCheckType": healthCheckType})))
 	}
 
 	return appParams, nil
@@ -813,7 +833,13 @@ func (cmd *Push) uploadApp(appGUID, appDir, appDirOrZipFile string, localFiles [
 		return err
 	}
 
-	remoteFiles, hasFileToUpload, err := cmd.actor.GatherFiles(localFiles, appDir, uploadDir)
+	remoteFiles, hasFileToUpload, err := cmd.actor.GatherFiles(localFiles, appDir, uploadDir, true)
+
+	if httpError, isHTTPError := err.(errors.HTTPError); isHTTPError && httpError.StatusCode() == 504 {
+		cmd.ui.Warn("Resource matching API timed out; pushing all app files.")
+		remoteFiles, hasFileToUpload, err = cmd.actor.GatherFiles(localFiles, appDir, uploadDir, false)
+	}
+
 	if err != nil {
 		return err
 	}

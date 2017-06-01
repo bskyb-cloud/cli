@@ -96,6 +96,10 @@
     "translation": "   通过 'CF_NAME quotas' 查看允许的配额"
   },
   {
+    "id": " (Default: {{.DefaultValue}})",
+    "translation": " (Default: {{.DefaultValue}})"
+  },
+  {
     "id": " added as '",
     "translation": " 已添加为"
   },
@@ -148,10 +152,6 @@
     "translation": "' 不是注册的命令。请参阅 'cf help'"
   },
   {
-    "id": "'cf help -a' lists all commands with short descriptions. See 'cf help \u003ccommand\u003e' to read about a specific command.",
-    "translation": ""
-  },
-  {
     "id": "'routes' should be a list",
     "translation": "'routes' 应为一个列表"
   },
@@ -160,12 +160,24 @@
     "translation": "还接受 '{{.VersionShort}}' 和 '{{.VersionLong}}'。"
   },
   {
+    "id": "(process | port | http)",
+    "translation": "(process | port | http)"
+  },
+  {
     "id": ") already exists.",
     "translation": ") 已存在。"
   },
   {
-    "id": "**Attention: Plugins are binaries written by potentially untrusted authors. Install and use plugins at your own risk.**\n\nDo you want to install the plugin {{.Plugin}}? (y or n)",
-    "translation": "**注意: 插件是由可能不可信的作者编写的二进制文件。安装并使用插件所产生的风险，由您自行承担。\n\n要安装插件 {{.Plugin}} 吗？（y 或 n）"
+    "id": "**Attention: Plugins are binaries written by potentially untrusted authors. Install and use plugins at your own risk.**\n\nDo you want to install the plugin {{.Plugin}}?",
+    "translation": "**注意: 插件是由可能不可信的作者编写的二进制文件。安装并使用插件所产生的风险，由您自行承担。\n\n要安装插件 {{.Plugin}} 吗？"
+  },
+  {
+    "id": "**EXPERIMENTAL** Create a V3 App",
+    "translation": ""
+  },
+  {
+    "id": "**EXPERIMENTAL** Uploads a V3 Package",
+    "translation": ""
   },
   {
     "id": "A command line tool to interact with Cloud Foundry",
@@ -212,6 +224,10 @@
     "translation": "API 端点（例如，https://api.example.com）"
   },
   {
+    "id": "API endpoint not found at '{{.URL}}'",
+    "translation": ""
+  },
+  {
     "id": "API endpoint:",
     "translation": "API 端点: "
   },
@@ -226,10 +242,6 @@
   {
     "id": "API endpoint: {{.Endpoint}}",
     "translation": "API 端点: {{.Endpoint}}"
-  },
-  {
-    "id": "API version",
-    "translation": ""
   },
   {
     "id": "APPS",
@@ -312,8 +324,16 @@
     "translation": "应用程序实例限制"
   },
   {
+    "id": "App is not staged.",
+    "translation": ""
+  },
+  {
     "id": "App name is a required field",
     "translation": "应用程序名称是必填字段"
+  },
+  {
+    "id": "App {{.AppName}} already exists.",
+    "translation": ""
   },
   {
     "id": "App {{.AppName}} does not exist.",
@@ -328,6 +348,10 @@
     "translation": "应用程序 {{.AppName}} 已绑定到 {{.ServiceName}}。"
   },
   {
+    "id": "App {{.AppName}} is already started",
+    "translation": ""
+  },
+  {
     "id": "App {{.AppName}} not found",
     "translation": ""
   },
@@ -336,7 +360,7 @@
     "translation": "将 API 请求诊断附加到日志文件"
   },
   {
-    "id": "Application health check type (e.g. 'port' or 'none')",
+    "id": "Application health check type (Default: 'port', 'none' accepted for 'process', 'http' implies endpoint '/')",
     "translation": "应用程序运行状况检查类型（例如，'port' 或 'none'）"
   },
   {
@@ -360,6 +384,14 @@
     "translation": "不得为应用程序 {{.AppName}} 同时配置 'routes' 和 'no-hostname'"
   },
   {
+    "id": "Applications in this space will be placed in isolation segment {{.orgIsolationSegment}}.",
+    "translation": ""
+  },
+  {
+    "id": "Applications in this space will be placed in the platform default isolation segment.",
+    "translation": ""
+  },
+  {
     "id": "Apps:",
     "translation": "应用程序: "
   },
@@ -378,6 +410,10 @@
   {
     "id": "Assign an org role to a user",
     "translation": "为用户分配组织角色"
+  },
+  {
+    "id": "Assign the isolation segment that apps in a space are started in",
+    "translation": ""
   },
   {
     "id": "Assigned Value",
@@ -518,6 +554,10 @@
   {
     "id": "Byte quantity must be an integer with a unit of measurement like M, MB, G, or GB",
     "translation": "字节数量必须是带计量单位（例如，M、MB、G 或 GB）的整数"
+  },
+  {
+    "id": "CANCELING",
+    "translation": ""
   },
   {
     "id": "CF_NAME add-plugin-repo PrivateRepo https://myprivaterepo.com/repo/",
@@ -664,6 +704,10 @@
     "translation": ""
   },
   {
+    "id": "CF_NAME create-isolation-segment SEGMENT_NAME\\n\\nNOTES:\\n   The isolation segment name must match the placement tag applied to the Diego cell.",
+    "translation": ""
+  },
+  {
     "id": "CF_NAME create-org ORG",
     "translation": ""
   },
@@ -696,7 +740,7 @@
     "translation": ""
   },
   {
-    "id": "CF_NAME create-security-group SECURITY_GROUP PATH_TO_JSON_RULES_FILE\\n\\n   The provided path can be an absolute or relative path to a file.  The file should have\\n   a single array with JSON objects inside describing the rules.  The JSON Base Object is\\n   omitted and only the square brackets and associated child object are required in the file.\\n\\n   Valid json file example:\\n   [\\n     {\\n       \\\"protocol\\\": \\\"tcp\\\",\\n       \\\"destination\\\": \\\"10.244.1.18\\\",\\n       \\\"ports\\\": \\\"3306\\\"\\n     }\\n   ]",
+    "id": "CF_NAME create-security-group SECURITY_GROUP PATH_TO_JSON_RULES_FILE\\n\\n   The provided path can be an absolute or relative path to a file.  The file should have\\n   a single array with JSON objects inside describing the rules.  The JSON Base Object is\\n   omitted and only the square brackets and associated child object are required in the file.\\n\\n   Valid json file example:\\n   [\\n     {\\n       \\\"protocol\\\": \\\"tcp\\\",\\n       \\\"destination\\\": \\\"10.0.11.0/24\\\",\\n       \\\"ports\\\": \\\"80,443\\\",\\n       \\\"description\\\": \\\"Allow http and https traffic from ZoneA\\\"\\n     }\\n   ]",
     "translation": ""
   },
   {
@@ -764,6 +808,10 @@
     "translation": ""
   },
   {
+    "id": "CF_NAME create-user USERNAME PASSWORD\\n   CF_NAME create-user USERNAME --origin ORIGIN\\n\\nEXAMPLES:\\n   cf create-user j.smith@example.com S3cr3t                  # internal user\\n   cf create-user j.smith@example.com --origin ldap           # LDAP user\\n   cf create-user j.smith@example.com --origin provider-alias # SAML or OpenID Connect federated user",
+    "translation": ""
+  },
+  {
     "id": "CF_NAME create-user-provided-service SERVICE_INSTANCE [-p CREDENTIALS] [-l SYSLOG_DRAIN_URL] [-r ROUTE_SERVICE_URL]\n\n   Pass comma separated credential parameter names to enable interactive mode:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p \"comma, separated, parameter, names\"\n\n   Pass credential parameters as JSON to create a service non-interactively:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p '{\"key1\":\"value1\",\"key2\":\"value2\"}'\n\n   Specify a path to a file containing JSON:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p PATH_TO_FILE",
     "translation": "CF_NAME create-user-provided-service SERVICE_INSTANCE [-p CREDENTIALS] [-l SYSLOG_DRAIN_URL] [-r ROUTE_SERVICE_URL]\n\n   传递逗号分隔的凭证参数名称以启用交互方式: \n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p \"comma, separated, parameter, names\"\n\n   将凭证参数作为 JSON 传递，从而以非交互方式创建服务: \n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p '{\"key1\":\"value1\",\"key2\":\"value2\"}'\n\n   指定包含 JSON 的文件的路径: \n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p PATH_TO_FILE"
   },
@@ -817,6 +865,10 @@
   },
   {
     "id": "CF_NAME delete-domain DOMAIN [-f]",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME delete-isolation-segment SEGMENT_NAME",
     "translation": ""
   },
   {
@@ -880,7 +932,7 @@
     "translation": ""
   },
   {
-    "id": "CF_NAME delete-space SPACE [-f]",
+    "id": "CF_NAME delete-space SPACE [-o ORG] [-f]",
     "translation": ""
   },
   {
@@ -897,6 +949,10 @@
   },
   {
     "id": "CF_NAME disable-feature-flag FEATURE_NAME",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME disable-org-isolation ORG_NAME SEGMENT_NAME",
     "translation": ""
   },
   {
@@ -917,6 +973,10 @@
   },
   {
     "id": "CF_NAME enable-feature-flag FEATURE_NAME",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME enable-org-isolation ORG_NAME SEGMENT_NAME",
     "translation": ""
   },
   {
@@ -960,10 +1020,6 @@
     "translation": ""
   },
   {
-    "id": "CF_NAME get-schema SERVICE_INSTANCE",
-    "translation": ""
-  },
-  {
     "id": "CF_NAME help [COMMAND]",
     "translation": ""
   },
@@ -988,6 +1044,10 @@
     "translation": ""
   },
   {
+    "id": "CF_NAME isolation-segments",
+    "translation": ""
+  },
+  {
     "id": "CF_NAME list-plugin-repos",
     "translation": ""
   },
@@ -996,8 +1056,8 @@
     "translation": "CF_NAME login（省略用户名和密码以通过交互方式登录 - CF_NAME 将提示输入用户名和密码）"
   },
   {
-    "id": "CF_NAME login --sso (CF_NAME will provide a url to obtain a one-time password to login)",
-    "translation": "CF_NAME login --sso（CF_NAME 将提供 URL 用于获取一次性登录密码）"
+    "id": "CF_NAME login --sso (CF_NAME will provide a url to obtain a one-time passcode to login)",
+    "translation": "CF_NAME login --sso [--sso-passcode PASSCODE]（CF_NAME 将提供 URL 用于获取一次性登录密码）"
   },
   {
     "id": "CF_NAME login -u name@example.com -p \"\\\"password\\\"\" (escape quotes if used in password)",
@@ -1012,11 +1072,11 @@
     "translation": "CF_NAME login -u name@example.com -p pa55woRD（指定用户名和密码作为自变量）"
   },
   {
-    "id": "CF_NAME login [-a API_URL] [-u USERNAME] [-p PASSWORD] [-o ORG] [-s SPACE]\n\n",
+    "id": "CF_NAME login [-a API_URL] [-u USERNAME] [-p PASSWORD] [-o ORG] [-s SPACE] [--sso | --sso-passcode PASSCODE]\n\n",
     "translation": ""
   },
   {
-    "id": "CF_NAME login [-a API_URL] [-u USERNAME] [-p PASSWORD] [-o ORG] [-s SPACE]\\n\\nWARNING:\\n   Providing your password as a command line option is highly discouraged\\n   Your password may be visible to others and may be recorded in your shell history\\n\\nEXAMPLES:\\n   CF_NAME login (omit username and password to login interactively -- CF_NAME will prompt for both)\\n   CF_NAME login -u name@example.com -p pa55woRD (specify username and password as arguments)\\n   CF_NAME login -u name@example.com -p \\\"my password\\\" (use quotes for passwords with a space)\\n   CF_NAME login -u name@example.com -p \\\"\\\\\\\"password\\\\\\\"\\\" (escape quotes if used in password)\\n   CF_NAME login --sso (CF_NAME will provide a url to obtain a one-time password to login)",
+    "id": "CF_NAME login [-a API_URL] [-u USERNAME] [-p PASSWORD] [-o ORG] [-s SPACE] [--sso | --sso-passcode PASSCODE]\\n\\nWARNING:\\n   Providing your password as a command line option is highly discouraged\\n   Your password may be visible to others and may be recorded in your shell history\\n\\nEXAMPLES:\\n   CF_NAME login (omit username and password to login interactively -- CF_NAME will prompt for both)\\n   CF_NAME login -u name@example.com -p pa55woRD (specify username and password as arguments)\\n   CF_NAME login -u name@example.com -p \\\"my password\\\" (use quotes for passwords with a space)\\n   CF_NAME login -u name@example.com -p \\\"\\\\\\\"password\\\\\\\"\\\" (escape quotes if used in password)\\n   CF_NAME login --sso (CF_NAME will provide a url to obtain a one-time passcode to login)",
     "translation": ""
   },
   {
@@ -1168,6 +1228,10 @@
     "translation": ""
   },
   {
+    "id": "CF_NAME reset-space-isolation-segment SPACE_NAME",
+    "translation": ""
+  },
+  {
     "id": "CF_NAME restage APP_NAME",
     "translation": ""
   },
@@ -1185,6 +1249,10 @@
   },
   {
     "id": "CF_NAME routes [--orglevel]",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME run-task APP_NAME COMMAND [-k DISK] [-m MEMORY] [--name TASK_NAME]\\n\\nTIP:\\n   Use 'cf logs' to display the logs of the app and all its tasks. If your task name is unique, grep this command's output for the task name to view task-specific logs.\\n\\nEXAMPLES:\\n   CF_NAME run-task my-app \\\"bundle exec rake db:migrate\\\" --name migrate",
     "translation": ""
   },
   {
@@ -1260,8 +1328,8 @@
     "translation": ""
   },
   {
-    "id": "CF_NAME set-health-check APP_NAME ('port' | 'none')",
-    "translation": ""
+    "id": "CF_NAME set-health-check APP_NAME (process | port | http [--endpoint PATH])\\n\\nTIP: 'none' has been deprecated but is accepted for 'process'.\\n\\nEXAMPLES:\\n   cf set-health-check worker-app process\\n   cf set-health-check my-web-app http --endpoint /foo",
+    "translation": "CF_NAME set-health-check APP_NAME (process | port | http [--endpoint PATH])\\n\\nTIP: 'none' has been deprecated but is accepted for 'process'.\\n\\nEXAMPLES:\\n   cf set-health-check worker-app process\\n   cf set-health-check my-web-app http --endpoint /foo"
   },
   {
     "id": "CF_NAME set-org-role USERNAME ORG ROLE\n\n",
@@ -1288,7 +1356,7 @@
     "translation": ""
   },
   {
-    "id": "CF_NAME set-schema SERVICE_INSTANCE SCHEME_FILENAME",
+    "id": "CF_NAME set-space-isolation-segment SPACE_NAME SEGMENT_NAME",
     "translation": ""
   },
   {
@@ -1385,6 +1453,14 @@
   },
   {
     "id": "CF_NAME target [-o ORG] [-s SPACE]",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME tasks APP_NAME",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME terminate-task APP_NAME TASK_ID\\n\\nEXAMPLES:\\n   CF_NAME terminate-task my-app 3",
     "translation": ""
   },
   {
@@ -1500,7 +1576,7 @@
     "translation": ""
   },
   {
-    "id": "CF_NAME update-security-group SECURITY_GROUP PATH_TO_JSON_RULES_FILE\\n\\n   The provided path can be an absolute or relative path to a file.\\n   It should have a single array with JSON objects inside describing the rules.\\n\\nTIP: Changes will not apply to existing running applications until they are restarted.",
+    "id": "CF_NAME update-security-group SECURITY_GROUP PATH_TO_JSON_RULES_FILE\\n\\n   The provided path can be an absolute or relative path to a file.\\n   It should have a single array with JSON objects inside describing the rules.\\n\\n   Valid json file example:\\n   [\\n     {\\n       \\\"protocol\\\": \\\"tcp\\\",\\n       \\\"destination\\\": \\\"10.0.11.0/24\\\",\\n       \\\"ports\\\": \\\"80,443\\\",\\n       \\\"description\\\": \\\"Allow http and https traffic from ZoneA\\\"\\n     }\\n   ]\\n\\nTIP: Changes will not apply to existing running applications until they are restarted.",
     "translation": ""
   },
   {
@@ -1568,7 +1644,11 @@
     "translation": ""
   },
   {
-    "id": "CF_NAME v3apps",
+    "id": "CF_NAME v3-create-app --name [name]",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME v3-create-package --name [name]",
     "translation": ""
   },
   {
@@ -1585,6 +1665,10 @@
   },
   {
     "id": "CLI plugin management:",
+    "translation": ""
+  },
+  {
+    "id": "COLOR must be \"true\" or \"false\"",
     "translation": ""
   },
   {
@@ -1648,6 +1732,10 @@
     "translation": "更改服务实例的服务套餐"
   },
   {
+    "id": "Change type of health check performed on an app",
+    "translation": "Change type of health check performed on an app"
+  },
+  {
     "id": "Change user password",
     "translation": "更改用户密码"
   },
@@ -1660,6 +1748,10 @@
     "translation": "正在检查路径..."
   },
   {
+    "id": "Cloud Foundry API version {{.APIVersion}} requires CLI version {{.MinCLIVersion}}. You are currently on version {{.BinaryVersion}}. To upgrade your CLI, please visit: https://github.com/cloudfoundry/cli#downloads",
+    "translation": ""
+  },
+  {
     "id": "Cloud Foundry API version {{.APIVer}} requires CLI version {{.CLIMin}}.  You are currently on version {{.CLIVer}}. To upgrade your CLI, please visit: https://github.com/cloudfoundry/cli#downloads",
     "translation": "Cloud Foundry API V{{.APIVer}} 需要 CLI V{{.CLIMin}}。您目前的版本是 {{.CLIVer}}。要升级 CLI，请访问: https://github.com/cloudfoundry/cli#downloads"
   },
@@ -1670,10 +1762,6 @@
   {
     "id": "Comma delimited list of ports the application may listen on",
     "translation": "应用程序可能用于侦听的端口的逗号分隔列表"
-  },
-  {
-    "id": "Comma delimited list of ports the application may listen on\" hidden:\"true",
-    "translation": ""
   },
   {
     "id": "Command Help",
@@ -1706,10 +1794,6 @@
   {
     "id": "Computing sha1 for installed plugins, this may take a while ...",
     "translation": "正在计算所安装插件的 sha1，这可能需要一点时间..."
-  },
-  {
-    "id": "ConnectTimeout=5",
-    "translation": ""
   },
   {
     "id": "Connected, dumping recent logs for app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.Username}}...\n",
@@ -1856,6 +1940,10 @@
     "translation": "为已成功推送的应用程序创建应用程序清单"
   },
   {
+    "id": "Create an isolation segment",
+    "translation": ""
+  },
+  {
     "id": "Create an org",
     "translation": "创建组织"
   },
@@ -1872,6 +1960,10 @@
     "translation": "为服务实例创建密钥"
   },
   {
+    "id": "Creating V3 app {{.AppName}} in org {{.CurrentOrg}} / space {{.CurrentSpace}} as {{.CurrentUser}}...",
+    "translation": ""
+  },
+  {
     "id": "Creating an app manifest from current settings of app ",
     "translation": "正在根据应用程序的当前设置创建应用程序清单"
   },
@@ -1886,6 +1978,10 @@
   {
     "id": "Creating domain {{.DomainName}} for org {{.OrgName}} as {{.Username}}...",
     "translation": "正在以 {{.Username}} 身份为组织 {{.OrgName}} 创建域 {{.DomainName}}..."
+  },
+  {
+    "id": "Creating isolation segment {{.SegmentName}} as {{.CurrentUser}}...",
+    "translation": ""
   },
   {
     "id": "Creating org {{.OrgName}} as {{.Username}}...",
@@ -1942,6 +2038,10 @@
   {
     "id": "Creating space {{.SpaceName}} in org {{.OrgName}} as {{.CurrentUser}}...",
     "translation": "正在以 {{.CurrentUser}} 身份在组织 {{.OrgName}} 中创建空间 {{.SpaceName}}..."
+  },
+  {
+    "id": "Creating task for app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
+    "translation": ""
   },
   {
     "id": "Creating user provided service {{.ServiceName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
@@ -2076,12 +2176,20 @@
     "translation": "删除应用程序"
   },
   {
+    "id": "Delete an isolation segment",
+    "translation": ""
+  },
+  {
     "id": "Delete an org",
     "translation": "删除组织"
   },
   {
     "id": "Delete cancelled",
     "translation": "删除操作已取消"
+  },
+  {
+    "id": "Delete space within specified org",
+    "translation": ""
   },
   {
     "id": "Deletes a security group",
@@ -2098,6 +2206,10 @@
   {
     "id": "Deleting domain {{.DomainName}} as {{.Username}}...",
     "translation": "正在以 {{.Username}} 身份删除域 {{.DomainName}}..."
+  },
+  {
+    "id": "Deleting isolation segment {{.SegmentName}} as {{.CurrentUser}}...",
+    "translation": ""
   },
   {
     "id": "Deleting key {{.ServiceKeyName}} for service instance {{.ServiceInstanceName}} as {{.CurrentUser}}...",
@@ -2340,6 +2452,10 @@
     "translation": "正在以 {{.Username}} 身份启用对组织 {{.OrgName}} 的服务 {{.ServiceName}} 的套餐 {{.PlanName}} 的访问..."
   },
   {
+    "id": "Enabling isolation segment {{.SegmentName}} for org {{.OrgName}} as {{.CurrentUser}}...",
+    "translation": ""
+  },
+  {
     "id": "Enabling ssh support for '{{.AppName}}'...",
     "translation": "正在启用对 '{{.AppName}}' 的 SSH 支持..."
   },
@@ -2349,6 +2465,10 @@
   },
   {
     "id": "Endpoint deprecated",
+    "translation": ""
+  },
+  {
+    "id": "Entitle an organization to an isolation segment",
     "translation": ""
   },
   {
@@ -2384,6 +2504,10 @@
     "translation": "创建用户 {{.TargetUser}} 时出错。\n{{.Error}}"
   },
   {
+    "id": "Error creating user {{.User}}.",
+    "translation": ""
+  },
+  {
     "id": "Error deleting buildpack {{.Name}}\n{{.Error}}",
     "translation": "删除 buildpack {{.Name}} 时出错\n{{.Error}}"
   },
@@ -2394,6 +2518,10 @@
   {
     "id": "Error deleting domain {{.DomainName}}\n{{.Err}}",
     "translation": "删除域 {{.DomainName}} 时出错\n{{.Err}}"
+  },
+  {
+    "id": "Error deleting user {{.Username}} \nMultiple users with that username found. Please use 'cf curl' to delete the user by guid instead.",
+    "translation": ""
   },
   {
     "id": "Error disabling ssh support for ",
@@ -2484,10 +2612,6 @@
     "translation": "从存储库获取插件元数据时出错: "
   },
   {
-    "id": "Error getting ssh details: ",
-    "translation": ""
-  },
-  {
     "id": "Error getting the redirected location: {{.Error}}",
     "translation": "获取重定向的位置时出错: {{.Error}}"
   },
@@ -2556,14 +2680,6 @@
     "translation": "读取来自服务器的响应时出错: "
   },
   {
-    "id": "Error reading schema file: ",
-    "translation": ""
-  },
-  {
-    "id": "Error reading schema: ",
-    "translation": ""
-  },
-  {
     "id": "Error refreshing config: ",
     "translation": ""
   },
@@ -2604,7 +2720,7 @@
     "translation": "检索堆栈时出错: {{.Error}}"
   },
   {
-    "id": "Error running ssh command: ",
+    "id": "Error running task: {{.CloudControllerMessage}}",
     "translation": ""
   },
   {
@@ -2612,11 +2728,11 @@
     "translation": "保存清单时出错: {{.Error}}"
   },
   {
-    "id": "Error setting schema: ",
+    "id": "Error staging application: {{.Message}}",
     "translation": ""
   },
   {
-    "id": "Error tmp dir: ",
+    "id": "Error staging application: {{.Message}}\n\nTIP: Use '{{.BuildpackCommand}}' to see a list of supported buildpacks.",
     "translation": ""
   },
   {
@@ -2634,10 +2750,6 @@
   {
     "id": "Error uploading buildpack {{.Name}}\n{{.Error}}",
     "translation": "上传 buildpack {{.Name}} 时出错\n{{.Error}}"
-  },
-  {
-    "id": "Error writing ssh keys to tmp file: ",
-    "translation": ""
   },
   {
     "id": "Error writing to tmp file: {{.Err}}",
@@ -2844,10 +2956,6 @@
     "translation": "为 SSH 客户机获取一次性密码"
   },
   {
-    "id": "Get a service schema. Currently only supported in the webproxy.",
-    "translation": ""
-  },
-  {
     "id": "Get the health_check_type value of an app",
     "translation": "获取应用程序的 health_check_type 值"
   },
@@ -2880,6 +2988,10 @@
     "translation": "正在以 {{.Username}} 身份获取组织 {{.OrgName}}/空间 {{.SpaceName}} 中应用程序 {{.AppName}} 的文件..."
   },
   {
+    "id": "Getting health check type for app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.Username}}...",
+    "translation": "Getting health_check_type value for {{.AppName}}"
+  },
+  {
     "id": "Getting health_check_type value for ",
     "translation": "正在获取以下项的 health_check_type 值: "
   },
@@ -2894,6 +3006,10 @@
   {
     "id": "Getting info for space {{.TargetSpace}} in org {{.OrgName}} as {{.CurrentUser}}...",
     "translation": "正在以 {{.CurrentUser}} 身份获取组织 {{.OrgName}} 中空间 {{.TargetSpace}} 的信息..."
+  },
+  {
+    "id": "Getting isolation segments as {{.CurrentUser}}...",
+    "translation": ""
   },
   {
     "id": "Getting key {{.ServiceKeyName}} for service instance {{.ServiceInstanceName}} as {{.CurrentUser}}...",
@@ -3028,6 +3144,10 @@
     "translation": "正在以 {{.Username}} 身份获取组织 {{.OrganizationName}}/空间 {{.SpaceName}} 中的堆栈..."
   },
   {
+    "id": "Getting tasks for app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
+    "translation": ""
+  },
+  {
     "id": "Getting users in org {{.TargetOrg}} / space {{.TargetSpace}} as {{.CurrentUser}}",
     "translation": "正在以 {{.CurrentUser}} 身份获取组织 {{.TargetOrg}}/空间 {{.TargetSpace}} 中的用户"
   },
@@ -3040,7 +3160,7 @@
     "translation": ""
   },
   {
-    "id": "HEALTH_CHECK_TYPE",
+    "id": "HEALTH_CHECK_TYPE must be \"port\", \"process\", or \"http\"",
     "translation": ""
   },
   {
@@ -3058,6 +3178,10 @@
   {
     "id": "HTTP method (GET,POST,PUT,DELETE,etc)",
     "translation": "HTTP 方法（GET、POST、PUT、DELETE 等）"
+  },
+  {
+    "id": "Health check type must be 'http' to set a health check HTTP endpoint.",
+    "translation": "Health check type must be 'http' to set a health check HTTP endpoint."
   },
   {
     "id": "Hostname (e.g. my-subdomain)",
@@ -3092,6 +3216,10 @@
     "translation": ""
   },
   {
+    "id": "ISOLATION SEGMENTS:",
+    "translation": ""
+  },
+  {
     "id": "Ignore manifest file",
     "translation": "忽略清单文件"
   },
@@ -3104,16 +3232,16 @@
     "translation": "在 Windows PowerShell 中，使用双引号括起来的转义 JSON: \"{\\\"valid\\\":\\\"json\\\"}\""
   },
   {
+    "id": "In order to move running applications to this isolation segment, they must be restarted.",
+    "translation": ""
+  },
+  {
     "id": "Include response headers in the output",
     "translation": "在输出中包含响应头"
   },
   {
     "id": "Incorrect Usage",
     "translation": "用法不正确"
-  },
-  {
-    "id": "Incorrect Usage.",
-    "translation": ""
   },
   {
     "id": "Incorrect Usage. An argument is missing or not correctly enclosed.\n\n",
@@ -3316,8 +3444,20 @@
     "translation": "用法不正确: "
   },
   {
+    "id": "Incorrect Usage: the required argument `{{.ArgumentName}}` was not provided",
+    "translation": ""
+  },
+  {
     "id": "Incorrect json format: file: {{.JSONFile}}\n\t\t\nValid json file example:\n[\n  {\n    \"protocol\": \"tcp\",\n    \"destination\": \"10.244.1.18\",\n    \"ports\": \"3306\"\n  }\n]",
     "translation": "JSON 格式不正确: 文件: {{.JSONFile}}\n\t\t\n有效的 JSON 文件示例: \n[\n  {\n    \"protocol\": \"tcp\",\n    \"destination\": \"10.244.1.18\",\n    \"ports\": \"3306\"\n  }\n]"
+  },
+  {
+    "id": "Incorrect usage: --sso-passcode flag cannot be used with --sso",
+    "translation": ""
+  },
+  {
+    "id": "Incorrect usage: Value for {{.ArgumentName}} must be {{.ExpectedType}}",
+    "translation": ""
   },
   {
     "id": "Incorrect usage: app-instance-index cannot be negative",
@@ -3460,6 +3600,26 @@
     "translation": "邀请和管理用户，选择和更改套餐，以及设置支出限制\n"
   },
   {
+    "id": "Isolation segment '{{.Name}}' not found.",
+    "translation": ""
+  },
+  {
+    "id": "Isolation segment {{.IsolationSegmentName}} already exists.",
+    "translation": ""
+  },
+  {
+    "id": "Isolation segment {{.IsolationSegmentName}} does not exist.",
+    "translation": ""
+  },
+  {
+    "id": "Job ({{.JobGUID}}) failed: {{.Message}}",
+    "translation": ""
+  },
+  {
+    "id": "Job ({{.JobGUID}}) polling timeout has been reached. The operation may still be running on the CF instance. Your CF operator may have more information.",
+    "translation": ""
+  },
+  {
     "id": "Last Operation",
     "translation": "上次操作"
   },
@@ -3478,6 +3638,10 @@
   {
     "id": "List all buildpacks",
     "translation": "列出所有 buildpack"
+  },
+  {
+    "id": "List all isolation segments",
+    "translation": ""
   },
   {
     "id": "List all orgs",
@@ -3560,6 +3724,10 @@
     "translation": "列出服务代理程序"
   },
   {
+    "id": "List tasks of an app",
+    "translation": ""
+  },
+  {
     "id": "Listing Installed Plugins...",
     "translation": "正在列出已安装的插件..."
   },
@@ -3586,10 +3754,6 @@
   {
     "id": "Logging out...",
     "translation": "正在注销..."
-  },
-  {
-    "id": "Loggregator endpoint missing from config file",
-    "translation": "配置文件中缺少 Loggregator 端点"
   },
   {
     "id": "Looking up '{{.filePath}}' from repository '{{.repoName}}'",
@@ -3664,10 +3828,6 @@
     "translation": "可使用保留端口创建的最大路径数（缺省值: 0）"
   },
   {
-    "id": "Maximum time (in seconds) for CLI to wait for application start, other server side timeouts may apply",
-    "translation": "CLI 等待应用程序启动的最长时间（秒），其他服务器端超时可能适用"
-  },
-  {
     "id": "Memory limit (e.g. 256M, 1024M, 1G)",
     "translation": "内存限制（例如，256M、1024M、1G）"
   },
@@ -3708,6 +3868,10 @@
     "translation": "注册的存储库的名称，指定的插件位于其中"
   },
   {
+    "id": "Name to give the task (generated if omitted)",
+    "translation": ""
+  },
+  {
     "id": "New Password",
     "translation": "新密码"
   },
@@ -3746,6 +3910,10 @@
   {
     "id": "No domains found",
     "translation": "找不到域"
+  },
+  {
+    "id": "No doppler loggregator endpoint found. Cannot retrieve logs.",
+    "translation": "配置文件中缺少 Loggregator 端点"
   },
   {
     "id": "No events for app {{.AppName}}",
@@ -3820,7 +3988,7 @@
     "translation": "无目标空间，请使用 '{{.CFTargetCommand}}'"
   },
   {
-    "id": "No space targeted, use '{{.Command}}' to target a space",
+    "id": "No space targeted, use '{{.Command}}' to target a space.",
     "translation": "无目标空间，请使用 '{{.Command}}' 来确定目标空间"
   },
   {
@@ -3904,6 +4072,10 @@
     "translation": "组织:"
   },
   {
+    "id": "One-time passcode",
+    "translation": ""
+  },
+  {
     "id": "Option '--app-ports'",
     "translation": ""
   },
@@ -3980,6 +4152,14 @@
     "translation": "组织"
   },
   {
+    "id": "Organization '{{.Name}}' not found.",
+    "translation": ""
+  },
+  {
+    "id": "Origin for mapping a user account to a user in an external identity provider",
+    "translation": ""
+  },
+  {
     "id": "Override path to default config directory",
     "translation": "覆盖缺省配置目录的路径"
   },
@@ -3996,11 +4176,15 @@
     "translation": ""
   },
   {
+    "id": "PENDING",
+    "translation": ""
+  },
+  {
     "id": "PORT",
     "translation": ""
   },
   {
-    "id": "PROXY SERVICE",
+    "id": "POSITION",
     "translation": ""
   },
   {
@@ -4042,6 +4226,10 @@
   {
     "id": "Path not allowed in TCP route {{.RouteName}}",
     "translation": "TCP 路径 {{.RouteName}} 中不允许路径"
+  },
+  {
+    "id": "Path on the app",
+    "translation": "Path on the app"
   },
   {
     "id": "Path to app directory or to a zip file of the contents of the app directory",
@@ -4172,6 +4360,10 @@
     "translation": "进程被以下信号终止: {{.Signal}}。已退出，并带有 {{.ExitCode}}"
   },
   {
+    "id": "Prompt for a one-time passcode to login",
+    "translation": ""
+  },
+  {
     "id": "Property '{{.PropertyName}}' found in manifest. This feature is no longer supported. Please remove it and try again.",
     "translation": "在清单中找到了属性 '{{.PropertyName}}'。此功能不再受支持。请将其除去，然后重试。"
   },
@@ -4196,7 +4388,7 @@
     "translation": "推送单个应用程序（使用或不使用清单）"
   },
   {
-    "id": "Push a single app (with or without a manifest):\\n   CF_NAME push APP_NAME [-b BUILDPACK_NAME] [-c COMMAND] [-d DOMAIN] [-f MANIFEST_PATH] [--docker-image DOCKER_IMAGE]\\n   [-i NUM_INSTANCES] [-k DISK] [-m MEMORY] [--hostname HOST] [-p PATH] [-s STACK] [-t TIMEOUT] [-u HEALTH_CHECK_TYPE] [--route-path ROUTE_PATH]\\n   [--no-hostname] [--no-manifest] [--no-route] [--no-start] [--random-route]\\n\\n   Push multiple apps with a manifest:\\n   cf push [-f MANIFEST_PATH]",
+    "id": "Push a single app (with or without a manifest):\\n   CF_NAME push APP_NAME [-b BUILDPACK_NAME] [-c COMMAND] [-d DOMAIN] [-f MANIFEST_PATH] [--docker-image DOCKER_IMAGE]\\n   [-i NUM_INSTANCES] [-k DISK] [-m MEMORY] [--hostname HOST] [-p PATH] [-s STACK] [-t TIMEOUT] [-u (process | port | http)] [--route-path ROUTE_PATH]\\n   [--no-hostname] [--no-manifest] [--no-route] [--no-start] [--random-route]\\n\\n   Push multiple apps with a manifest:\\n   cf push [-f MANIFEST_PATH]",
     "translation": ""
   },
   {
@@ -4236,6 +4428,14 @@
     "translation": "响应: "
   },
   {
+    "id": "ROLE must be \"OrgManager\", \"BillingManager\" and \"OrgAuditor\"",
+    "translation": ""
+  },
+  {
+    "id": "ROLE must be \"SpaceManager\", \"SpaceDeveloper\" and \"SpaceAuditor\"",
+    "translation": ""
+  },
+  {
     "id": "ROLES:\n",
     "translation": "角色:\n"
   },
@@ -4252,6 +4452,10 @@
     "translation": ""
   },
   {
+    "id": "RUNNING",
+    "translation": ""
+  },
+  {
     "id": "Read-only access to org info and reports\n",
     "translation": "对组织信息和报告具有只读访问权\n"
   },
@@ -4262,6 +4466,14 @@
   {
     "id": "Really delete orphaned routes?{{.Prompt}}",
     "translation": "真的要删除孤立的路径吗？{{.Prompt}}"
+  },
+  {
+    "id": "Really delete the isolation segment {{.IsolationSegmentName}}?",
+    "translation": ""
+  },
+  {
+    "id": "Really delete the org {{.OrgName}}, including its spaces, apps, service instances, routes, private domains and space-scoped service brokers?",
+    "translation": ""
   },
   {
     "id": "Really delete the {{.ModelType}} {{.ModelName}} and everything associated with it?",
@@ -4322,6 +4534,10 @@
   {
     "id": "Remove an org role from a user",
     "translation": "除去用户的组织角色"
+  },
+  {
+    "id": "Removing entitlement to isolation segment {{.SegmentName}} from org {{.OrgName}} as {{.CurrentUser}}...",
+    "translation": ""
   },
   {
     "id": "Removing env variable {{.VarName}} from app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
@@ -4428,6 +4644,18 @@
     "translation": "保留路径端口"
   },
   {
+    "id": "Reset the isolation segment assignment of a space to the org's default",
+    "translation": ""
+  },
+  {
+    "id": "Resetting isolation segment assignment of space {{.SpaceName}} in org {{.OrgName}} as {{.CurrentUser}}...",
+    "translation": ""
+  },
+  {
+    "id": "Resource matching API timed out; pushing all app files.",
+    "translation": ""
+  },
+  {
     "id": "Restage an app",
     "translation": "重新编译打包应用程序"
   },
@@ -4492,6 +4720,14 @@
     "translation": "检索与空间关联的所有安全组的规则"
   },
   {
+    "id": "Retrieve the rules for all the security groups associated with the space.",
+    "translation": ""
+  },
+  {
+    "id": "Retrieving logs for app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.Username}}...",
+    "translation": ""
+  },
+  {
     "id": "Retrieving status of all flagged features as {{.Username}}...",
     "translation": "正在以 {{.Username}} 身份检索所有已标记功能的状态..."
   },
@@ -4506,6 +4742,10 @@
   {
     "id": "Retrieving the contents of the staging environment variable group as {{.Username}}...",
     "translation": "正在以 {{.Username}} 身份检索编译打包环境变量组的内容..."
+  },
+  {
+    "id": "Revoke an organization's entitlement to an isolation segment",
+    "translation": ""
   },
   {
     "id": "Route and domain management:",
@@ -4548,8 +4788,16 @@
     "translation": "规则"
   },
   {
+    "id": "Run a one-off task on an app",
+    "translation": ""
+  },
+  {
     "id": "Running Environment Variable Groups:",
     "translation": "运行环境变量组: "
+  },
+  {
+    "id": "Running applications need a restart to be moved there.",
+    "translation": ""
   },
   {
     "id": "SECURITY GROUP",
@@ -4620,15 +4868,19 @@
     "translation": "空间:"
   },
   {
-    "id": "SSH Finished\n",
-    "translation": ""
-  },
-  {
     "id": "SSH to an application container instance",
     "translation": "通过 SSH 连接到应用程序容器实例"
   },
   {
+    "id": "SSL Certificate Error {{.Message}}\nTIP: Use 'cf api --skip-ssl-validation' to continue with an insecure API endpoint",
+    "translation": ""
+  },
+  {
     "id": "STACK",
+    "translation": ""
+  },
+  {
+    "id": "SUCCEEDED",
     "translation": ""
   },
   {
@@ -4636,12 +4888,12 @@
     "translation": "正在以 {{.CurrentUser}} 身份扩展组织 {{.OrgName}}/空间 {{.SpaceName}} 中的应用程序 {{.AppName}}..."
   },
   {
-    "id": "Schema file invalid: ",
-    "translation": ""
-  },
-  {
     "id": "Security Groups:",
     "translation": "安全组: "
+  },
+  {
+    "id": "Security group '{{.Name}}' not found.",
+    "translation": ""
   },
   {
     "id": "Security group {{.security_group}} does not exist",
@@ -4650,6 +4902,10 @@
   {
     "id": "Security group {{.security_group}} {{.error_message}}",
     "translation": "安全组 {{.security_group}} {{.error_message}}"
+  },
+  {
+    "id": "See 'cf help \u003ccommand\u003e' to read about a specific command.",
+    "translation": ""
   },
   {
     "id": "Select a space (or press enter to skip):",
@@ -4764,15 +5020,7 @@
     "translation": "设置或查看目标组织或空间"
   },
   {
-    "id": "Set schema for a service. Currently only supported in the webproxy.",
-    "translation": ""
-  },
-  {
-    "id": "Set to none",
-    "translation": ""
-  },
-  {
-    "id": "Set to port",
+    "id": "Set to 'port' or 'none'",
     "translation": ""
   },
   {
@@ -4864,6 +5112,10 @@
     "translation": "显示空间用户（按角色）"
   },
   {
+    "id": "Show the type of health check performed on an app",
+    "translation": "Show the type of health check performed on an app"
+  },
+  {
     "id": "Showing current scale of app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
     "translation": "正在以 {{.CurrentUser}} 身份显示组织 {{.OrgName}}/空间 {{.SpaceName}} 中应用程序 {{.AppName}} 的当前扩展..."
   },
@@ -4886,6 +5138,10 @@
   {
     "id": "Space",
     "translation": "空间"
+  },
+  {
+    "id": "Space '{{.Name}}' not found.",
+    "translation": ""
   },
   {
     "id": "Space Quota Definition {{.QuotaName}} already exists",
@@ -4932,6 +5188,14 @@
     "translation": "启动应用程序超时\n\n提示: 应用程序必须在侦听正确的端口。不要对端口硬编码，而是使用 $PORT 环境变量。"
   },
   {
+    "id": "Start app timeout\n\nTIP: Application must be listening on the right port. Instead of hard coding the port, use the $PORT environment variable.\n\nUse '{{.BinaryName}} logs {{.AppName}} --recent' for more information",
+    "translation": ""
+  },
+  {
+    "id": "Start unsuccessful\n\nTIP: use '{{.BinaryName}} logs {{.AppName}} --recent' for more information",
+    "translation": ""
+  },
+  {
     "id": "Start unsuccessful\n\nTIP: use '{{.Command}}' for more information",
     "translation": "启动成功\n\n提示: 使用 '{{.Command}}' 可获取更多信息"
   },
@@ -4968,12 +5232,12 @@
     "translation": "正在以 {{.CurrentUser}} 身份停止组织 {{.OrgName}}/空间 {{.SpaceName}} 中的应用程序 {{.AppName}}..."
   },
   {
-    "id": "StrictHostKeychecking=no",
-    "translation": ""
-  },
-  {
     "id": "System-Provided:",
     "translation": "系统提供的项: "
+  },
+  {
+    "id": "TASK_ID",
+    "translation": ""
   },
   {
     "id": "TIMEOUT",
@@ -4988,6 +5252,14 @@
     "translation": "提示: \n   使用 'CF_NAME create-user-provided-service' 可使用户提供的服务可供 CF 应用程序使用"
   },
   {
+    "id": "TIP: An app restart is required for the change to take affect.",
+    "translation": "TIP: An app restart is required for the change to take affect."
+  },
+  {
+    "id": "TIP: Assign roles with '{{.BinaryName}} set-org-role' and '{{.BinaryName}} set-space-role'.",
+    "translation": ""
+  },
+  {
     "id": "TIP: Changes will not apply to existing running applications until they are restarted.",
     "translation": "提示: 现有运行中应用程序仅在重新启动之后才会应用更改。"
   },
@@ -4996,7 +5268,7 @@
     "translation": "提示: 如果您在防火墙后面，并且需要 HTTP 代理，请验证 https_proxy 环境变量是否正确设置。或者，检查网络连接。"
   },
   {
-    "id": "TIP: No space targeted, use '{{.CfTargetCommand}}' to target a space",
+    "id": "TIP: No space targeted, use '{{.CfTargetCommand}}' to target a space.",
     "translation": "提示: 无目标空间，请使用 '{{.CfTargetCommand}}' 来确定目标空间"
   },
   {
@@ -5040,8 +5312,28 @@
     "translation": "目标空间 {{.SpaceName}}\n"
   },
   {
+    "id": "Task has been submitted successfully for execution.",
+    "translation": ""
+  },
+  {
+    "id": "Task must have a droplet. Specify droplet or assign current droplet to app.",
+    "translation": ""
+  },
+  {
+    "id": "Task workers are unavailable.",
+    "translation": ""
+  },
+  {
+    "id": "Terminate a running task of an app",
+    "translation": ""
+  },
+  {
     "id": "Terminate the running application Instance at the given index and instantiate a new instance of the application with the same index",
     "translation": "在给定索引处终止运行中应用程序实例，并使用相同索引对应用程序的新实例进行实例化"
+  },
+  {
+    "id": "Terminating task {{.TaskSequenceID}} of app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
+    "translation": ""
   },
   {
     "id": "The API endpoint",
@@ -5080,6 +5372,14 @@
     "translation": ""
   },
   {
+    "id": "The command to execute",
+    "translation": ""
+  },
+  {
+    "id": "The desired application name",
+    "translation": ""
+  },
+  {
     "id": "The domain",
     "translation": ""
   },
@@ -5113,6 +5413,10 @@
   },
   {
     "id": "The index of the application instance",
+    "translation": ""
+  },
+  {
+    "id": "The isolation segment name",
     "translation": ""
   },
   {
@@ -5193,6 +5497,10 @@
   },
   {
     "id": "The organization group name",
+    "translation": ""
+  },
+  {
+    "id": "The organization name",
     "translation": ""
   },
   {
@@ -5304,8 +5612,16 @@
     "translation": "无法访问目标 API 端点。"
   },
   {
+    "id": "The task's unique sequence ID",
+    "translation": ""
+  },
+  {
     "id": "The token",
     "translation": ""
+  },
+  {
+    "id": "The token expired, was revoked, or the token ID is incorrect. Please log back in to re-authenticate.",
+    "translation": "The token expired, was revoked, or the token ID is incorrect. Please log back in to re-authenticate."
   },
   {
     "id": "The token label",
@@ -5340,6 +5656,14 @@
     "translation": "对 '{{.RepoURL}}' 执行请求时发生错误: {{.Error}}\n{{.Tip}}"
   },
   {
+    "id": "These are commonly used commands. Use 'cf help -a' to see all, with descriptions.",
+    "translation": ""
+  },
+  {
+    "id": "This action impacts all orgs using this domain.\nDeleting it will remove associated routes and could make any app with this domain, in any org, unreachable.\nAre you sure you want to delete the domain {{.DomainName}}? ",
+    "translation": "此域在所有组织之间共享。\n将其删除会除去所有关联的路径，并将导致使用此域的任何应用程序都不可访问。\n确定要删除域 {{.DomainName}} 吗？"
+  },
+  {
     "id": "This command",
     "translation": "此命令"
   },
@@ -5348,12 +5672,12 @@
     "translation": ""
   },
   {
-    "id": "This command requires the Routing API. Your targeted endpoint reports it is not enabled.",
-    "translation": "此命令需要路由 API。但您的目标端点报告称并未启用路由 API。"
+    "id": "This command requires CF API version {{.MinimumVersion}}. Your target is {{.CurrentVersion}}.",
+    "translation": ""
   },
   {
-    "id": "This domain is shared across all orgs.\nDeleting it will remove all associated routes, and will make any app with this domain unreachable.\nAre you sure you want to delete the domain {{.DomainName}}? ",
-    "translation": "此域在所有组织之间共享。\n将其删除会除去所有关联的路径，并将导致使用此域的任何应用程序都不可访问。\n确定要删除域 {{.DomainName}} 吗？"
+    "id": "This command requires the Routing API. Your targeted endpoint reports it is not enabled.",
+    "translation": "此命令需要路由 API。但您的目标端点报告称并未启用路由 API。"
   },
   {
     "id": "This is for backwards compatibility",
@@ -5370,6 +5694,10 @@
   {
     "id": "This will cause the app to restart. Are you sure you want to scale {{.AppName}}?",
     "translation": "这将导致应用程序重新启动。确定要扩展 {{.AppName}} 吗？"
+  },
+  {
+    "id": "Time (in seconds) allowed to elapse between starting up an app and the first healthy response from the app",
+    "translation": "CLI 等待应用程序启动的最长时间（秒），其他服务器端超时可能适用"
   },
   {
     "id": "Timeout for async HTTP requests",
@@ -5624,6 +5952,14 @@
     "translation": "正在更新 buildpack {{.BuildpackName}}..."
   },
   {
+    "id": "Updating health check type for app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.Username}}...",
+    "translation": ""
+  },
+  {
+    "id": "Updating isolation segment of space {{.SpaceName}} in org {{.OrgName}} as {{.CurrentUser}}...",
+    "translation": ""
+  },
+  {
     "id": "Updating quota {{.QuotaName}} as {{.Username}}...",
     "translation": "正在以 {{.Username}} 身份更新配额 {{.QuotaName}}..."
   },
@@ -5656,6 +5992,10 @@
     "translation": "正在将 {{.AppName}} health_check_type 更新为 '{{.HealthCheckType}}'"
   },
   {
+    "id": "Uploading V3 app {{.AppName}} in org {{.CurrentOrg}} / space {{.CurrentSpace}} as {{.CurrentUser}}...",
+    "translation": ""
+  },
+  {
     "id": "Uploading app files from: {{.Path}}",
     "translation": "正在从以下位置上传应用程序文件: {{.Path}}"
   },
@@ -5672,10 +6012,6 @@
     "translation": "正在上传 {{.ZipFileBytes}}，{{.FileCount}} 个文件"
   },
   {
-    "id": "Usage",
-    "translation": ""
-  },
-  {
     "id": "Usage:",
     "translation": ""
   },
@@ -5686,10 +6022,6 @@
   {
     "id": "Use '{{.Name}}' to view or set your target org and space",
     "translation": "使用 '{{.Name}}' 可查看或设置目标组织和空间"
-  },
-  {
-    "id": "Use a one-time password to login",
-    "translation": "使用一次性密码登录"
   },
   {
     "id": "User provided tags",
@@ -5706,10 +6038,6 @@
   {
     "id": "User:",
     "translation": "用户: "
-  },
-  {
-    "id": "UserKnownHostsFile=/dev/null",
-    "translation": ""
   },
   {
     "id": "Username",
@@ -5776,6 +6104,10 @@
     "translation": "警告: 这是 Cloud Foundry 的内部操作；不会联系服务代理程序，并且不会更改服务实例的资源。此操作的主要用例是通过将服务实例从 V1 套餐重新映射到 V2 套餐，将实现 V1 服务代理程序 API 的服务代理程序替换为实现 V2 API 的代理程序。我们建议将 V1 套餐设置为专用套餐或者关闭 V1 代理程序，以阻止创建更多实例。一旦迁移了服务实例，就可以从 Cloud Foundry 中除去 V1 服务和套餐。"
   },
   {
+    "id": "Waiting for app to start...",
+    "translation": ""
+  },
+  {
     "id": "Warning: Insecure http API endpoint detected: secure https API endpoints are recommended",
     "translation": ""
   },
@@ -5836,6 +6168,10 @@
     "translation": ""
   },
   {
+    "id": "[hidden]",
+    "translation": ""
+  },
+  {
     "id": "access",
     "translation": "访问权"
   },
@@ -5854,6 +6190,14 @@
   {
     "id": "already exists",
     "translation": "已存在"
+  },
+  {
+    "id": "api endpoint:",
+    "translation": ""
+  },
+  {
+    "id": "api version:",
+    "translation": ""
   },
   {
     "id": "app",
@@ -5876,8 +6220,16 @@
     "translation": "应用程序"
   },
   {
+    "id": "apps:",
+    "translation": ""
+  },
+  {
     "id": "auth request failed",
     "translation": "认证请求失败"
+  },
+  {
+    "id": "billingmanager",
+    "translation": ""
   },
   {
     "id": "bound apps",
@@ -5924,12 +6276,28 @@
     "translation": "崩溃"
   },
   {
+    "id": "create-isolation-segment",
+    "translation": ""
+  },
+  {
+    "id": "delete-isolation-segment",
+    "translation": ""
+  },
+  {
     "id": "description",
     "translation": "描述"
   },
   {
+    "id": "destination",
+    "translation": ""
+  },
+  {
     "id": "details",
     "translation": "详细信息"
+  },
+  {
+    "id": "disable-org-isolation",
+    "translation": ""
   },
   {
     "id": "disallowed",
@@ -5980,8 +6348,16 @@
     "translation": "'routes' 中的每个路径都必须有一个 'route' 属性"
   },
   {
+    "id": "enable-org-isolation",
+    "translation": ""
+  },
+  {
     "id": "enabled",
     "translation": "已启用"
+  },
+  {
+    "id": "endpoint (for http type):",
+    "translation": ""
   },
   {
     "id": "env var '{{.PropertyName}}' should not be null",
@@ -6004,11 +6380,7 @@
     "translation": "免费或付费"
   },
   {
-    "id": "get-schema",
-    "translation": ""
-  },
-  {
-    "id": "gocf",
+    "id": "health check type:",
     "translation": ""
   },
   {
@@ -6026,10 +6398,6 @@
   {
     "id": "host",
     "translation": "主机"
-  },
-  {
-    "id": "identity",
-    "translation": ""
   },
   {
     "id": "instance memory",
@@ -6052,6 +6420,10 @@
     "translation": "实例: "
   },
   {
+    "id": "integer",
+    "translation": ""
+  },
+  {
     "id": "invalid inherit path in manifest",
     "translation": "清单中的继承路径无效"
   },
@@ -6064,6 +6436,18 @@
     "translation": "环境变量 CF_STARTUP_TIMEOUT 的值无效\n{{.Err}}"
   },
   {
+    "id": "isolation segment:",
+    "translation": ""
+  },
+  {
+    "id": "isolation segments:",
+    "translation": ""
+  },
+  {
+    "id": "isolation-segments",
+    "translation": ""
+  },
+  {
     "id": "label",
     "translation": "标签"
   },
@@ -6074,6 +6458,10 @@
   {
     "id": "last uploaded:",
     "translation": "上次上传时间: "
+  },
+  {
+    "id": "lifecycle",
+    "translation": ""
   },
   {
     "id": "limited",
@@ -6116,6 +6504,10 @@
     "translation": "组织"
   },
   {
+    "id": "org:",
+    "translation": ""
+  },
+  {
     "id": "orgs",
     "translation": "组织"
   },
@@ -6148,8 +6540,16 @@
     "translation": "端口"
   },
   {
+    "id": "ports",
+    "translation": ""
+  },
+  {
     "id": "position",
     "translation": "位置"
+  },
+  {
+    "id": "protocol",
+    "translation": ""
   },
   {
     "id": "provider",
@@ -6192,6 +6592,10 @@
     "translation": "保留路径端口"
   },
   {
+    "id": "reset-space-isolation-segment",
+    "translation": ""
+  },
+  {
     "id": "route ports",
     "translation": "路径端口"
   },
@@ -6200,12 +6604,24 @@
     "translation": "路径"
   },
   {
+    "id": "routes:",
+    "translation": ""
+  },
+  {
+    "id": "run-task",
+    "translation": ""
+  },
+  {
     "id": "running",
     "translation": "正在运行"
   },
   {
     "id": "security group",
     "translation": "安全组"
+  },
+  {
+    "id": "security groups:",
+    "translation": ""
   },
   {
     "id": "service",
@@ -6248,7 +6664,11 @@
     "translation": "服务"
   },
   {
-    "id": "set-schema",
+    "id": "services:",
+    "translation": ""
+  },
+  {
+    "id": "set-space-isolation-segment",
     "translation": ""
   },
   {
@@ -6264,8 +6684,16 @@
     "translation": "空间"
   },
   {
+    "id": "space quota:",
+    "translation": ""
+  },
+  {
     "id": "space quotas:",
     "translation": "空间配额: "
+  },
+  {
+    "id": "space:",
+    "translation": ""
   },
   {
     "id": "spaces:",
@@ -6312,8 +6740,20 @@
     "translation": "针对以下项的 SSH 支持未启用"
   },
   {
+    "id": "sso-passcode",
+    "translation": ""
+  },
+  {
     "id": "stack:",
     "translation": "堆栈: "
+  },
+  {
+    "id": "start command:",
+    "translation": ""
+  },
+  {
+    "id": "start time",
+    "translation": ""
   },
   {
     "id": "starting",
@@ -6336,6 +6776,22 @@
     "translation": "在执行 1 次重定向后已停止"
   },
   {
+    "id": "task id:",
+    "translation": ""
+  },
+  {
+    "id": "task name:",
+    "translation": ""
+  },
+  {
+    "id": "tasks",
+    "translation": ""
+  },
+  {
+    "id": "terminate-task",
+    "translation": ""
+  },
+  {
     "id": "time",
     "translation": "时间"
   },
@@ -6354,6 +6810,10 @@
   {
     "id": "type",
     "translation": "类型"
+  },
+  {
+    "id": "uaa",
+    "translation": ""
   },
   {
     "id": "unknown authority",
@@ -6384,8 +6844,16 @@
     "translation": "用户"
   },
   {
+    "id": "user {{.User}} already exists",
+    "translation": ""
+  },
+  {
     "id": "user-provided",
     "translation": "用户提供的项"
+  },
+  {
+    "id": "user:",
+    "translation": ""
   },
   {
     "id": "username",
@@ -6410,6 +6878,14 @@
   {
     "id": "{{.AppInstanceLimit}} app instance limit",
     "translation": "{{.AppInstanceLimit}} 应用程序实例限制"
+  },
+  {
+    "id": "{{.AppName}} failed to stage within {{.Timeout}} minutes",
+    "translation": ""
+  },
+  {
+    "id": "{{.BinaryName}} version {{.VersionString}}",
+    "translation": ""
   },
   {
     "id": "{{.CFName}} api",
@@ -6474,6 +6950,14 @@
   {
     "id": "{{.MemoryLimit}}M memory limit",
     "translation": "{{.MemoryLimit}}M 内存限制"
+  },
+  {
+    "id": "{{.MemorySize}} x {{.NumInstances}} instances",
+    "translation": ""
+  },
+  {
+    "id": "{{.Message}}\nNote that this command requires CF API version 3.0.0+.",
+    "translation": ""
   },
   {
     "id": "{{.ModelType}} {{.ModelName}} already exists",

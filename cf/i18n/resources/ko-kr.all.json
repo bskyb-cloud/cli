@@ -96,6 +96,10 @@
     "translation": "   'CF_NAME 할당량'에서 허용 가능한 할당량 보기"
   },
   {
+    "id": " (Default: {{.DefaultValue}})",
+    "translation": " (Default: {{.DefaultValue}})"
+  },
+  {
     "id": " added as '",
     "translation": " 다른 이름으로 추가됨 '"
   },
@@ -148,10 +152,6 @@
     "translation": "'이(가) 등록된 명령이 아닙니다. 'cf 도움말'을 참조하십시오."
   },
   {
-    "id": "'cf help -a' lists all commands with short descriptions. See 'cf help \u003ccommand\u003e' to read about a specific command.",
-    "translation": ""
-  },
-  {
     "id": "'routes' should be a list",
     "translation": "'routes'는 목록이어야 함"
   },
@@ -160,12 +160,24 @@
     "translation": "'{{.VersionShort}}' 및 '{{.VersionLong}}'도 허용됩니다. "
   },
   {
+    "id": "(process | port | http)",
+    "translation": "(process | port | http)"
+  },
+  {
     "id": ") already exists.",
     "translation": ")이(가) 이미 있습니다."
   },
   {
-    "id": "**Attention: Plugins are binaries written by potentially untrusted authors. Install and use plugins at your own risk.**\n\nDo you want to install the plugin {{.Plugin}}? (y or n)",
-    "translation": "**주의: 플러그인은 잠재적으로 신뢰할 수 없는 작성자가 쓴 2진입니다. 플러그인 설치와 사용에 따른 위험은 사용자의 몫입니다.**\n\n{{.Plugin}} 플러그인을 설치하시겠습니까? (y 또는 n)"
+    "id": "**Attention: Plugins are binaries written by potentially untrusted authors. Install and use plugins at your own risk.**\n\nDo you want to install the plugin {{.Plugin}}?",
+    "translation": "**주의: 플러그인은 잠재적으로 신뢰할 수 없는 작성자가 쓴 2진입니다. 플러그인 설치와 사용에 따른 위험은 사용자의 몫입니다.**\n\n{{.Plugin}} 플러그인을 설치하시겠습니까?"
+  },
+  {
+    "id": "**EXPERIMENTAL** Create a V3 App",
+    "translation": ""
+  },
+  {
+    "id": "**EXPERIMENTAL** Uploads a V3 Package",
+    "translation": ""
   },
   {
     "id": "A command line tool to interact with Cloud Foundry",
@@ -212,6 +224,10 @@
     "translation": "API 엔드포인트(예: https://api.example.com)"
   },
   {
+    "id": "API endpoint not found at '{{.URL}}'",
+    "translation": ""
+  },
+  {
     "id": "API endpoint:",
     "translation": "API 엔드포인트:"
   },
@@ -226,10 +242,6 @@
   {
     "id": "API endpoint: {{.Endpoint}}",
     "translation": "API 엔드포인트: {{.Endpoint}}"
-  },
-  {
-    "id": "API version",
-    "translation": ""
   },
   {
     "id": "APPS",
@@ -312,8 +324,16 @@
     "translation": "앱 인스턴스 한계"
   },
   {
+    "id": "App is not staged.",
+    "translation": ""
+  },
+  {
     "id": "App name is a required field",
     "translation": "앱 이름은 필수 필드임"
+  },
+  {
+    "id": "App {{.AppName}} already exists.",
+    "translation": ""
   },
   {
     "id": "App {{.AppName}} does not exist.",
@@ -328,6 +348,10 @@
     "translation": "{{.AppName}} 앱이 이미 {{.ServiceName}}에 바인딩되어 있습니다."
   },
   {
+    "id": "App {{.AppName}} is already started",
+    "translation": ""
+  },
+  {
     "id": "App {{.AppName}} not found",
     "translation": ""
   },
@@ -336,7 +360,7 @@
     "translation": "로그 파일에 API 요청 진단 추가"
   },
   {
-    "id": "Application health check type (e.g. 'port' or 'none')",
+    "id": "Application health check type (Default: 'port', 'none' accepted for 'process', 'http' implies endpoint '/')",
     "translation": "애플리케이션 상태 확인 유형(예: '포트' 또는 '없음')"
   },
   {
@@ -360,6 +384,14 @@
     "translation": "{{.AppName}} 애플리케이션을 'routes' 및 'no-hostname' 둘 다로 구성할 수 없음"
   },
   {
+    "id": "Applications in this space will be placed in isolation segment {{.orgIsolationSegment}}.",
+    "translation": ""
+  },
+  {
+    "id": "Applications in this space will be placed in the platform default isolation segment.",
+    "translation": ""
+  },
+  {
     "id": "Apps:",
     "translation": "앱:"
   },
@@ -378,6 +410,10 @@
   {
     "id": "Assign an org role to a user",
     "translation": "사용자에게 조직 역할 지정"
+  },
+  {
+    "id": "Assign the isolation segment that apps in a space are started in",
+    "translation": ""
   },
   {
     "id": "Assigned Value",
@@ -518,6 +554,10 @@
   {
     "id": "Byte quantity must be an integer with a unit of measurement like M, MB, G, or GB",
     "translation": "바이트 양은 M, MB, G 또는 GB와 같은 측정 단위를 사용하는 정수여야 함"
+  },
+  {
+    "id": "CANCELING",
+    "translation": ""
   },
   {
     "id": "CF_NAME add-plugin-repo PrivateRepo https://myprivaterepo.com/repo/",
@@ -664,6 +704,10 @@
     "translation": ""
   },
   {
+    "id": "CF_NAME create-isolation-segment SEGMENT_NAME\\n\\nNOTES:\\n   The isolation segment name must match the placement tag applied to the Diego cell.",
+    "translation": ""
+  },
+  {
     "id": "CF_NAME create-org ORG",
     "translation": ""
   },
@@ -696,7 +740,7 @@
     "translation": ""
   },
   {
-    "id": "CF_NAME create-security-group SECURITY_GROUP PATH_TO_JSON_RULES_FILE\\n\\n   The provided path can be an absolute or relative path to a file.  The file should have\\n   a single array with JSON objects inside describing the rules.  The JSON Base Object is\\n   omitted and only the square brackets and associated child object are required in the file.\\n\\n   Valid json file example:\\n   [\\n     {\\n       \\\"protocol\\\": \\\"tcp\\\",\\n       \\\"destination\\\": \\\"10.244.1.18\\\",\\n       \\\"ports\\\": \\\"3306\\\"\\n     }\\n   ]",
+    "id": "CF_NAME create-security-group SECURITY_GROUP PATH_TO_JSON_RULES_FILE\\n\\n   The provided path can be an absolute or relative path to a file.  The file should have\\n   a single array with JSON objects inside describing the rules.  The JSON Base Object is\\n   omitted and only the square brackets and associated child object are required in the file.\\n\\n   Valid json file example:\\n   [\\n     {\\n       \\\"protocol\\\": \\\"tcp\\\",\\n       \\\"destination\\\": \\\"10.0.11.0/24\\\",\\n       \\\"ports\\\": \\\"80,443\\\",\\n       \\\"description\\\": \\\"Allow http and https traffic from ZoneA\\\"\\n     }\\n   ]",
     "translation": ""
   },
   {
@@ -764,6 +808,10 @@
     "translation": ""
   },
   {
+    "id": "CF_NAME create-user USERNAME PASSWORD\\n   CF_NAME create-user USERNAME --origin ORIGIN\\n\\nEXAMPLES:\\n   cf create-user j.smith@example.com S3cr3t                  # internal user\\n   cf create-user j.smith@example.com --origin ldap           # LDAP user\\n   cf create-user j.smith@example.com --origin provider-alias # SAML or OpenID Connect federated user",
+    "translation": ""
+  },
+  {
     "id": "CF_NAME create-user-provided-service SERVICE_INSTANCE [-p CREDENTIALS] [-l SYSLOG_DRAIN_URL] [-r ROUTE_SERVICE_URL]\n\n   Pass comma separated credential parameter names to enable interactive mode:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p \"comma, separated, parameter, names\"\n\n   Pass credential parameters as JSON to create a service non-interactively:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p '{\"key1\":\"value1\",\"key2\":\"value2\"}'\n\n   Specify a path to a file containing JSON:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p PATH_TO_FILE",
     "translation": "CF_NAME create-user-provided-service SERVICE_INSTANCE [-p CREDENTIALS] [-l SYSLOG_DRAIN_URL] [-r ROUTE_SERVICE_URL]\n\n   쉼표로 구분된 신임 정보 매개변수 이름을 전달하여 대화식 모드 사용:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p \"comma, separated, parameter, names\"\n\n   신임 정보 매개변수를 JSON으로 전달하여 비대화식으로 서비스 작성:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p '{\"key1\":\"value1\",\"key2\":\"value2\"}'\n\n   JSON을 포함하는 파일에 대한 경로 지정:\n   CF_NAME create-user-provided-service SERVICE_INSTANCE -p PATH_TO_FILE"
   },
@@ -817,6 +865,10 @@
   },
   {
     "id": "CF_NAME delete-domain DOMAIN [-f]",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME delete-isolation-segment SEGMENT_NAME",
     "translation": ""
   },
   {
@@ -880,7 +932,7 @@
     "translation": ""
   },
   {
-    "id": "CF_NAME delete-space SPACE [-f]",
+    "id": "CF_NAME delete-space SPACE [-o ORG] [-f]",
     "translation": ""
   },
   {
@@ -897,6 +949,10 @@
   },
   {
     "id": "CF_NAME disable-feature-flag FEATURE_NAME",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME disable-org-isolation ORG_NAME SEGMENT_NAME",
     "translation": ""
   },
   {
@@ -917,6 +973,10 @@
   },
   {
     "id": "CF_NAME enable-feature-flag FEATURE_NAME",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME enable-org-isolation ORG_NAME SEGMENT_NAME",
     "translation": ""
   },
   {
@@ -960,10 +1020,6 @@
     "translation": ""
   },
   {
-    "id": "CF_NAME get-schema SERVICE_INSTANCE",
-    "translation": ""
-  },
-  {
     "id": "CF_NAME help [COMMAND]",
     "translation": ""
   },
@@ -988,6 +1044,10 @@
     "translation": ""
   },
   {
+    "id": "CF_NAME isolation-segments",
+    "translation": ""
+  },
+  {
     "id": "CF_NAME list-plugin-repos",
     "translation": ""
   },
@@ -996,8 +1056,8 @@
     "translation": "CF_NAME login(대화식으로 로그인하려면 사용자 이름 및 비밀번호 생략 -- CF_NAME이 두 항목에 대한 프롬프트 표시)"
   },
   {
-    "id": "CF_NAME login --sso (CF_NAME will provide a url to obtain a one-time password to login)",
-    "translation": "CF_NAME login --sso(CF_NAME이 로그인하기 위해 일회성 비밀번호를 얻을 URL을 제공함)"
+    "id": "CF_NAME login --sso (CF_NAME will provide a url to obtain a one-time passcode to login)",
+    "translation": "CF_NAME login --sso [--sso-passcode PASSCODE](CF_NAME이 로그인하기 위해 일회성 비밀번호를 얻을 URL을 제공함)"
   },
   {
     "id": "CF_NAME login -u name@example.com -p \"\\\"password\\\"\" (escape quotes if used in password)",
@@ -1012,11 +1072,11 @@
     "translation": "CF_NAME login -u name@example.com -p pa55woRD(사용자 이름과 비밀번호를 인수로 지정)"
   },
   {
-    "id": "CF_NAME login [-a API_URL] [-u USERNAME] [-p PASSWORD] [-o ORG] [-s SPACE]\n\n",
+    "id": "CF_NAME login [-a API_URL] [-u USERNAME] [-p PASSWORD] [-o ORG] [-s SPACE] [--sso | --sso-passcode PASSCODE]\n\n",
     "translation": ""
   },
   {
-    "id": "CF_NAME login [-a API_URL] [-u USERNAME] [-p PASSWORD] [-o ORG] [-s SPACE]\\n\\nWARNING:\\n   Providing your password as a command line option is highly discouraged\\n   Your password may be visible to others and may be recorded in your shell history\\n\\nEXAMPLES:\\n   CF_NAME login (omit username and password to login interactively -- CF_NAME will prompt for both)\\n   CF_NAME login -u name@example.com -p pa55woRD (specify username and password as arguments)\\n   CF_NAME login -u name@example.com -p \\\"my password\\\" (use quotes for passwords with a space)\\n   CF_NAME login -u name@example.com -p \\\"\\\\\\\"password\\\\\\\"\\\" (escape quotes if used in password)\\n   CF_NAME login --sso (CF_NAME will provide a url to obtain a one-time password to login)",
+    "id": "CF_NAME login [-a API_URL] [-u USERNAME] [-p PASSWORD] [-o ORG] [-s SPACE] [--sso | --sso-passcode PASSCODE]\\n\\nWARNING:\\n   Providing your password as a command line option is highly discouraged\\n   Your password may be visible to others and may be recorded in your shell history\\n\\nEXAMPLES:\\n   CF_NAME login (omit username and password to login interactively -- CF_NAME will prompt for both)\\n   CF_NAME login -u name@example.com -p pa55woRD (specify username and password as arguments)\\n   CF_NAME login -u name@example.com -p \\\"my password\\\" (use quotes for passwords with a space)\\n   CF_NAME login -u name@example.com -p \\\"\\\\\\\"password\\\\\\\"\\\" (escape quotes if used in password)\\n   CF_NAME login --sso (CF_NAME will provide a url to obtain a one-time passcode to login)",
     "translation": ""
   },
   {
@@ -1168,6 +1228,10 @@
     "translation": ""
   },
   {
+    "id": "CF_NAME reset-space-isolation-segment SPACE_NAME",
+    "translation": ""
+  },
+  {
     "id": "CF_NAME restage APP_NAME",
     "translation": ""
   },
@@ -1185,6 +1249,10 @@
   },
   {
     "id": "CF_NAME routes [--orglevel]",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME run-task APP_NAME COMMAND [-k DISK] [-m MEMORY] [--name TASK_NAME]\\n\\nTIP:\\n   Use 'cf logs' to display the logs of the app and all its tasks. If your task name is unique, grep this command's output for the task name to view task-specific logs.\\n\\nEXAMPLES:\\n   CF_NAME run-task my-app \\\"bundle exec rake db:migrate\\\" --name migrate",
     "translation": ""
   },
   {
@@ -1260,8 +1328,8 @@
     "translation": ""
   },
   {
-    "id": "CF_NAME set-health-check APP_NAME ('port' | 'none')",
-    "translation": ""
+    "id": "CF_NAME set-health-check APP_NAME (process | port | http [--endpoint PATH])\\n\\nTIP: 'none' has been deprecated but is accepted for 'process'.\\n\\nEXAMPLES:\\n   cf set-health-check worker-app process\\n   cf set-health-check my-web-app http --endpoint /foo",
+    "translation": "CF_NAME set-health-check APP_NAME (process | port | http [--endpoint PATH])\\n\\nTIP: 'none' has been deprecated but is accepted for 'process'.\\n\\nEXAMPLES:\\n   cf set-health-check worker-app process\\n   cf set-health-check my-web-app http --endpoint /foo"
   },
   {
     "id": "CF_NAME set-org-role USERNAME ORG ROLE\n\n",
@@ -1288,7 +1356,7 @@
     "translation": ""
   },
   {
-    "id": "CF_NAME set-schema SERVICE_INSTANCE SCHEME_FILENAME",
+    "id": "CF_NAME set-space-isolation-segment SPACE_NAME SEGMENT_NAME",
     "translation": ""
   },
   {
@@ -1385,6 +1453,14 @@
   },
   {
     "id": "CF_NAME target [-o ORG] [-s SPACE]",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME tasks APP_NAME",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME terminate-task APP_NAME TASK_ID\\n\\nEXAMPLES:\\n   CF_NAME terminate-task my-app 3",
     "translation": ""
   },
   {
@@ -1500,7 +1576,7 @@
     "translation": ""
   },
   {
-    "id": "CF_NAME update-security-group SECURITY_GROUP PATH_TO_JSON_RULES_FILE\\n\\n   The provided path can be an absolute or relative path to a file.\\n   It should have a single array with JSON objects inside describing the rules.\\n\\nTIP: Changes will not apply to existing running applications until they are restarted.",
+    "id": "CF_NAME update-security-group SECURITY_GROUP PATH_TO_JSON_RULES_FILE\\n\\n   The provided path can be an absolute or relative path to a file.\\n   It should have a single array with JSON objects inside describing the rules.\\n\\n   Valid json file example:\\n   [\\n     {\\n       \\\"protocol\\\": \\\"tcp\\\",\\n       \\\"destination\\\": \\\"10.0.11.0/24\\\",\\n       \\\"ports\\\": \\\"80,443\\\",\\n       \\\"description\\\": \\\"Allow http and https traffic from ZoneA\\\"\\n     }\\n   ]\\n\\nTIP: Changes will not apply to existing running applications until they are restarted.",
     "translation": ""
   },
   {
@@ -1568,7 +1644,11 @@
     "translation": ""
   },
   {
-    "id": "CF_NAME v3apps",
+    "id": "CF_NAME v3-create-app --name [name]",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME v3-create-package --name [name]",
     "translation": ""
   },
   {
@@ -1585,6 +1665,10 @@
   },
   {
     "id": "CLI plugin management:",
+    "translation": ""
+  },
+  {
+    "id": "COLOR must be \"true\" or \"false\"",
     "translation": ""
   },
   {
@@ -1648,6 +1732,10 @@
     "translation": "서비스 인스턴스의 서비스 플랜 변경"
   },
   {
+    "id": "Change type of health check performed on an app",
+    "translation": "Change type of health check performed on an app"
+  },
+  {
     "id": "Change user password",
     "translation": "사용자 비밀번호 변경"
   },
@@ -1660,6 +1748,10 @@
     "translation": "라우트 확인 중..."
   },
   {
+    "id": "Cloud Foundry API version {{.APIVersion}} requires CLI version {{.MinCLIVersion}}. You are currently on version {{.BinaryVersion}}. To upgrade your CLI, please visit: https://github.com/cloudfoundry/cli#downloads",
+    "translation": ""
+  },
+  {
     "id": "Cloud Foundry API version {{.APIVer}} requires CLI version {{.CLIMin}}.  You are currently on version {{.CLIVer}}. To upgrade your CLI, please visit: https://github.com/cloudfoundry/cli#downloads",
     "translation": "Cloud Foundry API 버전 {{.APIVer}}에는 CLI 버전 {{.CLIMin}}이(가) 필요합니다. 현재 버전 {{.CLIVer}}에 있습니다. CLI를 업그레이드하려면 https://github.com/cloudfoundry/cli#downloads를 방문하십시오."
   },
@@ -1670,10 +1762,6 @@
   {
     "id": "Comma delimited list of ports the application may listen on",
     "translation": "애플리케이션이 청취할 수 있는 포트를 쉼표로 구분한 목록"
-  },
-  {
-    "id": "Comma delimited list of ports the application may listen on\" hidden:\"true",
-    "translation": ""
   },
   {
     "id": "Command Help",
@@ -1706,10 +1794,6 @@
   {
     "id": "Computing sha1 for installed plugins, this may take a while ...",
     "translation": "설치된 플러그인의 sha1을 계산 중입니다. 계산하는 데 시간이 걸릴 수 있습니다 ..."
-  },
-  {
-    "id": "ConnectTimeout=5",
-    "translation": ""
   },
   {
     "id": "Connected, dumping recent logs for app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.Username}}...\n",
@@ -1856,6 +1940,10 @@
     "translation": "성공적으로 푸시된 앱에 대한 앱 Manifest 작성"
   },
   {
+    "id": "Create an isolation segment",
+    "translation": ""
+  },
+  {
     "id": "Create an org",
     "translation": "조직 작성"
   },
@@ -1872,6 +1960,10 @@
     "translation": "서비스 인스턴스의 키 작성"
   },
   {
+    "id": "Creating V3 app {{.AppName}} in org {{.CurrentOrg}} / space {{.CurrentSpace}} as {{.CurrentUser}}...",
+    "translation": ""
+  },
+  {
     "id": "Creating an app manifest from current settings of app ",
     "translation": "앱의 현재 설정에서 앱 Manifest 작성 "
   },
@@ -1886,6 +1978,10 @@
   {
     "id": "Creating domain {{.DomainName}} for org {{.OrgName}} as {{.Username}}...",
     "translation": "{{.Username}}(으)로 {{.OrgName}} 조직의 {{.DomainName}} 도메인 작성 중..."
+  },
+  {
+    "id": "Creating isolation segment {{.SegmentName}} as {{.CurrentUser}}...",
+    "translation": ""
   },
   {
     "id": "Creating org {{.OrgName}} as {{.Username}}...",
@@ -1942,6 +2038,10 @@
   {
     "id": "Creating space {{.SpaceName}} in org {{.OrgName}} as {{.CurrentUser}}...",
     "translation": "{{.CurrentUser}}(으)로 {{.OrgName}} 조직의 {{.SpaceName}} 영역 작성 중..."
+  },
+  {
+    "id": "Creating task for app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
+    "translation": ""
   },
   {
     "id": "Creating user provided service {{.ServiceName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
@@ -2076,12 +2176,20 @@
     "translation": "앱 삭제"
   },
   {
+    "id": "Delete an isolation segment",
+    "translation": ""
+  },
+  {
     "id": "Delete an org",
     "translation": "조직 삭제"
   },
   {
     "id": "Delete cancelled",
     "translation": "삭제 취소됨"
+  },
+  {
+    "id": "Delete space within specified org",
+    "translation": ""
   },
   {
     "id": "Deletes a security group",
@@ -2098,6 +2206,10 @@
   {
     "id": "Deleting domain {{.DomainName}} as {{.Username}}...",
     "translation": "{{.Username}}(으)로 {{.DomainName}} 도메인 삭제 중..."
+  },
+  {
+    "id": "Deleting isolation segment {{.SegmentName}} as {{.CurrentUser}}...",
+    "translation": ""
   },
   {
     "id": "Deleting key {{.ServiceKeyName}} for service instance {{.ServiceInstanceName}} as {{.CurrentUser}}...",
@@ -2340,6 +2452,10 @@
     "translation": "{{.Username}}(으)로 {{.OrgName}} 조직에서 사용할 {{.ServiceName}} 서비스의 {{.PlanName}} 플랜에 대한 액세스 사용 설정 중..."
   },
   {
+    "id": "Enabling isolation segment {{.SegmentName}} for org {{.OrgName}} as {{.CurrentUser}}...",
+    "translation": ""
+  },
+  {
     "id": "Enabling ssh support for '{{.AppName}}'...",
     "translation": "'{{.AppName}}'에 대한 SSH 지원 사용 설정 중..."
   },
@@ -2349,6 +2465,10 @@
   },
   {
     "id": "Endpoint deprecated",
+    "translation": ""
+  },
+  {
+    "id": "Entitle an organization to an isolation segment",
     "translation": ""
   },
   {
@@ -2384,6 +2504,10 @@
     "translation": "사용자 {{.TargetUser}} 작성 중에 오류가 발생했습니다.\n{{.Error}}"
   },
   {
+    "id": "Error creating user {{.User}}.",
+    "translation": ""
+  },
+  {
     "id": "Error deleting buildpack {{.Name}}\n{{.Error}}",
     "translation": "{{.Name}} 빌드팩 삭제 중에 오류 발생\n{{.Error}}"
   },
@@ -2394,6 +2518,10 @@
   {
     "id": "Error deleting domain {{.DomainName}}\n{{.Err}}",
     "translation": "{{.DomainName}} 도메인 삭제 중에 오류 발생\n{{.Err}}"
+  },
+  {
+    "id": "Error deleting user {{.Username}} \nMultiple users with that username found. Please use 'cf curl' to delete the user by guid instead.",
+    "translation": ""
   },
   {
     "id": "Error disabling ssh support for ",
@@ -2484,10 +2612,6 @@
     "translation": "저장소에서 플러그인 메타데이터를 가져오는 중에 오류 발생: "
   },
   {
-    "id": "Error getting ssh details: ",
-    "translation": ""
-  },
-  {
     "id": "Error getting the redirected location: {{.Error}}",
     "translation": "경로 재지정된 위치를 가져오는 중에 오류 발생: {{.Error}}"
   },
@@ -2556,14 +2680,6 @@
     "translation": "서버에서 응답을 읽는 중에 오류 발생: "
   },
   {
-    "id": "Error reading schema file: ",
-    "translation": ""
-  },
-  {
-    "id": "Error reading schema: ",
-    "translation": ""
-  },
-  {
     "id": "Error refreshing config: ",
     "translation": ""
   },
@@ -2604,7 +2720,7 @@
     "translation": "스택을 검색하는 중에 오류 발생: {{.Error}}"
   },
   {
-    "id": "Error running ssh command: ",
+    "id": "Error running task: {{.CloudControllerMessage}}",
     "translation": ""
   },
   {
@@ -2612,11 +2728,11 @@
     "translation": "Manifest 저장 중에 오류 발생: {{.Error}}"
   },
   {
-    "id": "Error setting schema: ",
+    "id": "Error staging application: {{.Message}}",
     "translation": ""
   },
   {
-    "id": "Error tmp dir: ",
+    "id": "Error staging application: {{.Message}}\n\nTIP: Use '{{.BuildpackCommand}}' to see a list of supported buildpacks.",
     "translation": ""
   },
   {
@@ -2634,10 +2750,6 @@
   {
     "id": "Error uploading buildpack {{.Name}}\n{{.Error}}",
     "translation": "{{.Name}} 빌드팩 업로드 중에 오류 발생\n{{.Error}}"
-  },
-  {
-    "id": "Error writing ssh keys to tmp file: ",
-    "translation": ""
   },
   {
     "id": "Error writing to tmp file: {{.Err}}",
@@ -2844,10 +2956,6 @@
     "translation": "SSH 클라이언트의 일회성 비밀번호 가져오기"
   },
   {
-    "id": "Get a service schema. Currently only supported in the webproxy.",
-    "translation": ""
-  },
-  {
     "id": "Get the health_check_type value of an app",
     "translation": "앱의 health_check_type 값 가져오기"
   },
@@ -2880,6 +2988,10 @@
     "translation": "{{.Username}}(으)로 {{.OrgName}} 조직/{{.SpaceName}} 영역의 {{.AppName}} 앱에 사용할 파일을 가져오는 중..."
   },
   {
+    "id": "Getting health check type for app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.Username}}...",
+    "translation": "Getting health_check_type value for {{.AppName}}"
+  },
+  {
     "id": "Getting health_check_type value for ",
     "translation": "health_check_type 값을 가져올 대상 "
   },
@@ -2894,6 +3006,10 @@
   {
     "id": "Getting info for space {{.TargetSpace}} in org {{.OrgName}} as {{.CurrentUser}}...",
     "translation": "{{.CurrentUser}}(으)로 {{.OrgName}} 조직의 {{.TargetSpace}} 영역에 대한 정보를 가져오는 중..."
+  },
+  {
+    "id": "Getting isolation segments as {{.CurrentUser}}...",
+    "translation": ""
   },
   {
     "id": "Getting key {{.ServiceKeyName}} for service instance {{.ServiceInstanceName}} as {{.CurrentUser}}...",
@@ -3028,6 +3144,10 @@
     "translation": "{{.Username}}(으)로 {{.OrganizationName}} 조직/{{.SpaceName}} 영역의 스택을 가져오는 중..."
   },
   {
+    "id": "Getting tasks for app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
+    "translation": ""
+  },
+  {
     "id": "Getting users in org {{.TargetOrg}} / space {{.TargetSpace}} as {{.CurrentUser}}",
     "translation": "{{.CurrentUser}}(으)로 {{.TargetOrg}} 조직/{{.TargetSpace}} 영역의 사용자 가져오기"
   },
@@ -3040,7 +3160,7 @@
     "translation": ""
   },
   {
-    "id": "HEALTH_CHECK_TYPE",
+    "id": "HEALTH_CHECK_TYPE must be \"port\", \"process\", or \"http\"",
     "translation": ""
   },
   {
@@ -3058,6 +3178,10 @@
   {
     "id": "HTTP method (GET,POST,PUT,DELETE,etc)",
     "translation": "HTTP 메소드(GET, POST, PUT, DELETE 등)"
+  },
+  {
+    "id": "Health check type must be 'http' to set a health check HTTP endpoint.",
+    "translation": "Health check type must be 'http' to set a health check HTTP endpoint."
   },
   {
     "id": "Hostname (e.g. my-subdomain)",
@@ -3092,6 +3216,10 @@
     "translation": ""
   },
   {
+    "id": "ISOLATION SEGMENTS:",
+    "translation": ""
+  },
+  {
     "id": "Ignore manifest file",
     "translation": "Manifest 파일 무시"
   },
@@ -3104,16 +3232,16 @@
     "translation": "Windows PowerShell에서 큰따옴표, 이스케이프된 JSON을 사용: \"{\\\"valid\\\":\\\"json\\\"}\""
   },
   {
+    "id": "In order to move running applications to this isolation segment, they must be restarted.",
+    "translation": ""
+  },
+  {
     "id": "Include response headers in the output",
     "translation": "출력에 응답 헤더 포함"
   },
   {
     "id": "Incorrect Usage",
     "translation": "올바르지 않은 사용법"
-  },
-  {
-    "id": "Incorrect Usage.",
-    "translation": ""
   },
   {
     "id": "Incorrect Usage. An argument is missing or not correctly enclosed.\n\n",
@@ -3316,8 +3444,20 @@
     "translation": "올바르지 않은 사용법:"
   },
   {
+    "id": "Incorrect Usage: the required argument `{{.ArgumentName}}` was not provided",
+    "translation": ""
+  },
+  {
     "id": "Incorrect json format: file: {{.JSONFile}}\n\t\t\nValid json file example:\n[\n  {\n    \"protocol\": \"tcp\",\n    \"destination\": \"10.244.1.18\",\n    \"ports\": \"3306\"\n  }\n]",
     "translation": "올바르지 않은 JSON 형식: 파일: {{.JSONFile}}\n\t\t\n올바른 JSON 파일 예:\n[\n  {\n    \"protocol\": \"tcp\",\n    \"destination\": \"10.244.1.18\",\n    \"ports\": \"3306\"\n  }\n]"
+  },
+  {
+    "id": "Incorrect usage: --sso-passcode flag cannot be used with --sso",
+    "translation": ""
+  },
+  {
+    "id": "Incorrect usage: Value for {{.ArgumentName}} must be {{.ExpectedType}}",
+    "translation": ""
   },
   {
     "id": "Incorrect usage: app-instance-index cannot be negative",
@@ -3460,6 +3600,26 @@
     "translation": "사용자 초대 및 관리, 플랜 선택 및 변경, 지출 한계 설정\n"
   },
   {
+    "id": "Isolation segment '{{.Name}}' not found.",
+    "translation": ""
+  },
+  {
+    "id": "Isolation segment {{.IsolationSegmentName}} already exists.",
+    "translation": ""
+  },
+  {
+    "id": "Isolation segment {{.IsolationSegmentName}} does not exist.",
+    "translation": ""
+  },
+  {
+    "id": "Job ({{.JobGUID}}) failed: {{.Message}}",
+    "translation": ""
+  },
+  {
+    "id": "Job ({{.JobGUID}}) polling timeout has been reached. The operation may still be running on the CF instance. Your CF operator may have more information.",
+    "translation": ""
+  },
+  {
     "id": "Last Operation",
     "translation": "마지막 조작"
   },
@@ -3478,6 +3638,10 @@
   {
     "id": "List all buildpacks",
     "translation": "모든 빌드팩 나열"
+  },
+  {
+    "id": "List all isolation segments",
+    "translation": ""
   },
   {
     "id": "List all orgs",
@@ -3560,6 +3724,10 @@
     "translation": "서비스 브로커 나열"
   },
   {
+    "id": "List tasks of an app",
+    "translation": ""
+  },
+  {
     "id": "Listing Installed Plugins...",
     "translation": "설치된 플러그인 나열 중..."
   },
@@ -3586,10 +3754,6 @@
   {
     "id": "Logging out...",
     "translation": "로그아웃 중..."
-  },
-  {
-    "id": "Loggregator endpoint missing from config file",
-    "translation": "구성 파일에서 Loggregator 엔드포인트 누락"
   },
   {
     "id": "Looking up '{{.filePath}}' from repository '{{.repoName}}'",
@@ -3664,10 +3828,6 @@
     "translation": "예약된 포트에서 작성될 수 있는 최대 라우트 수(기본값: 0)"
   },
   {
-    "id": "Maximum time (in seconds) for CLI to wait for application start, other server side timeouts may apply",
-    "translation": "CLI가 애플리케이션이 시작되도록 대기하는 최대 시간(초)입니다. 다른 서버 측 제한시간이 적용될 수 있습니다."
-  },
-  {
     "id": "Memory limit (e.g. 256M, 1024M, 1G)",
     "translation": "메모리 한계(예: 256M, 1024M, 1G)"
   },
@@ -3708,6 +3868,10 @@
     "translation": "지정된 플러그인이 위치한 등록된 저장소 이름"
   },
   {
+    "id": "Name to give the task (generated if omitted)",
+    "translation": ""
+  },
+  {
     "id": "New Password",
     "translation": "새 비밀번호"
   },
@@ -3746,6 +3910,10 @@
   {
     "id": "No domains found",
     "translation": "도메인을 찾을 수 없음"
+  },
+  {
+    "id": "No doppler loggregator endpoint found. Cannot retrieve logs.",
+    "translation": "구성 파일에서 Loggregator 엔드포인트 누락"
   },
   {
     "id": "No events for app {{.AppName}}",
@@ -3820,7 +3988,7 @@
     "translation": "대상 지정된 영역이 없습니다. '{{.CFTargetCommand}}'을(를) 사용하십시오."
   },
   {
-    "id": "No space targeted, use '{{.Command}}' to target a space",
+    "id": "No space targeted, use '{{.Command}}' to target a space.",
     "translation": "대상 지정된 영역이 없습니다. 영역을 대상 지정하려면 '{{.Command}}'을(를) 사용하십시오."
   },
   {
@@ -3904,6 +4072,10 @@
     "translation": "조직:"
   },
   {
+    "id": "One-time passcode",
+    "translation": ""
+  },
+  {
     "id": "Option '--app-ports'",
     "translation": ""
   },
@@ -3980,6 +4152,14 @@
     "translation": "조직"
   },
   {
+    "id": "Organization '{{.Name}}' not found.",
+    "translation": ""
+  },
+  {
+    "id": "Origin for mapping a user account to a user in an external identity provider",
+    "translation": ""
+  },
+  {
     "id": "Override path to default config directory",
     "translation": "경로를 기본 구성 디렉토리로 대체"
   },
@@ -3996,11 +4176,15 @@
     "translation": "경로"
   },
   {
+    "id": "PENDING",
+    "translation": ""
+  },
+  {
     "id": "PORT",
     "translation": "포트"
   },
   {
-    "id": "PROXY SERVICE",
+    "id": "POSITION",
     "translation": ""
   },
   {
@@ -4042,6 +4226,10 @@
   {
     "id": "Path not allowed in TCP route {{.RouteName}}",
     "translation": "TCP 라우트 {{.RouteName}}에서 경로가 허용되지 않음"
+  },
+  {
+    "id": "Path on the app",
+    "translation": "Path on the app"
   },
   {
     "id": "Path to app directory or to a zip file of the contents of the app directory",
@@ -4172,6 +4360,10 @@
     "translation": "{{.Signal}} 신호로 프로세스가 종료되었습니다. 종료되고 다음이 발생합니다. {{.ExitCode}}"
   },
   {
+    "id": "Prompt for a one-time passcode to login",
+    "translation": ""
+  },
+  {
     "id": "Property '{{.PropertyName}}' found in manifest. This feature is no longer supported. Please remove it and try again.",
     "translation": "Manifest에서 '{{.PropertyName}}' 특성을 찾을 수 없습니다. 이 기능은 더 이상 지원되지 않습니다. 특성을 제거한 후 다시 시도하십시오."
   },
@@ -4196,7 +4388,7 @@
     "translation": "단일 앱 푸시(Manifest 사용 또는 사용 안 함)"
   },
   {
-    "id": "Push a single app (with or without a manifest):\\n   CF_NAME push APP_NAME [-b BUILDPACK_NAME] [-c COMMAND] [-d DOMAIN] [-f MANIFEST_PATH] [--docker-image DOCKER_IMAGE]\\n   [-i NUM_INSTANCES] [-k DISK] [-m MEMORY] [--hostname HOST] [-p PATH] [-s STACK] [-t TIMEOUT] [-u HEALTH_CHECK_TYPE] [--route-path ROUTE_PATH]\\n   [--no-hostname] [--no-manifest] [--no-route] [--no-start] [--random-route]\\n\\n   Push multiple apps with a manifest:\\n   cf push [-f MANIFEST_PATH]",
+    "id": "Push a single app (with or without a manifest):\\n   CF_NAME push APP_NAME [-b BUILDPACK_NAME] [-c COMMAND] [-d DOMAIN] [-f MANIFEST_PATH] [--docker-image DOCKER_IMAGE]\\n   [-i NUM_INSTANCES] [-k DISK] [-m MEMORY] [--hostname HOST] [-p PATH] [-s STACK] [-t TIMEOUT] [-u (process | port | http)] [--route-path ROUTE_PATH]\\n   [--no-hostname] [--no-manifest] [--no-route] [--no-start] [--random-route]\\n\\n   Push multiple apps with a manifest:\\n   cf push [-f MANIFEST_PATH]",
     "translation": ""
   },
   {
@@ -4236,6 +4428,14 @@
     "translation": "응답:"
   },
   {
+    "id": "ROLE must be \"OrgManager\", \"BillingManager\" and \"OrgAuditor\"",
+    "translation": ""
+  },
+  {
+    "id": "ROLE must be \"SpaceManager\", \"SpaceDeveloper\" and \"SpaceAuditor\"",
+    "translation": ""
+  },
+  {
     "id": "ROLES:\n",
     "translation": "역할:\n"
   },
@@ -4252,6 +4452,10 @@
     "translation": ""
   },
   {
+    "id": "RUNNING",
+    "translation": ""
+  },
+  {
     "id": "Read-only access to org info and reports\n",
     "translation": "조직 정보 및 보고서에 대한 읽기 전용 액세스\n"
   },
@@ -4262,6 +4466,14 @@
   {
     "id": "Really delete orphaned routes?{{.Prompt}}",
     "translation": "고아인 라우트를 삭제하시겠습니까?{{.Prompt}}"
+  },
+  {
+    "id": "Really delete the isolation segment {{.IsolationSegmentName}}?",
+    "translation": ""
+  },
+  {
+    "id": "Really delete the org {{.OrgName}}, including its spaces, apps, service instances, routes, private domains and space-scoped service brokers?",
+    "translation": ""
   },
   {
     "id": "Really delete the {{.ModelType}} {{.ModelName}} and everything associated with it?",
@@ -4322,6 +4534,10 @@
   {
     "id": "Remove an org role from a user",
     "translation": "사용자에게서 조직 역할 제거"
+  },
+  {
+    "id": "Removing entitlement to isolation segment {{.SegmentName}} from org {{.OrgName}} as {{.CurrentUser}}...",
+    "translation": ""
   },
   {
     "id": "Removing env variable {{.VarName}} from app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
@@ -4428,6 +4644,18 @@
     "translation": "예약된 라우트 포트"
   },
   {
+    "id": "Reset the isolation segment assignment of a space to the org's default",
+    "translation": ""
+  },
+  {
+    "id": "Resetting isolation segment assignment of space {{.SpaceName}} in org {{.OrgName}} as {{.CurrentUser}}...",
+    "translation": ""
+  },
+  {
+    "id": "Resource matching API timed out; pushing all app files.",
+    "translation": ""
+  },
+  {
     "id": "Restage an app",
     "translation": "앱 다시 스테이징"
   },
@@ -4492,6 +4720,14 @@
     "translation": "영역과 연관된 모든 보안 그룹의 규칙 검색"
   },
   {
+    "id": "Retrieve the rules for all the security groups associated with the space.",
+    "translation": ""
+  },
+  {
+    "id": "Retrieving logs for app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.Username}}...",
+    "translation": ""
+  },
+  {
     "id": "Retrieving status of all flagged features as {{.Username}}...",
     "translation": "{{.Username}}(으)로 모든 플래그 지정된 기능의 상태 검색 중..."
   },
@@ -4506,6 +4742,10 @@
   {
     "id": "Retrieving the contents of the staging environment variable group as {{.Username}}...",
     "translation": "{{.Username}}(으)로 스테이징 환경 변수 그룹의 컨텐츠 검색 중..."
+  },
+  {
+    "id": "Revoke an organization's entitlement to an isolation segment",
+    "translation": ""
   },
   {
     "id": "Route and domain management:",
@@ -4548,8 +4788,16 @@
     "translation": "규칙"
   },
   {
+    "id": "Run a one-off task on an app",
+    "translation": ""
+  },
+  {
     "id": "Running Environment Variable Groups:",
     "translation": "실행 환경 변수 그룹:"
+  },
+  {
+    "id": "Running applications need a restart to be moved there.",
+    "translation": ""
   },
   {
     "id": "SECURITY GROUP",
@@ -4620,28 +4868,32 @@
     "translation": "영역:"
   },
   {
-    "id": "SSH Finished\n",
-    "translation": ""
-  },
-  {
     "id": "SSH to an application container instance",
     "translation": "애플리케이션 컨테이너 인스턴스에 대한 SSH"
+  },
+  {
+    "id": "SSL Certificate Error {{.Message}}\nTIP: Use 'cf api --skip-ssl-validation' to continue with an insecure API endpoint",
+    "translation": ""
   },
   {
     "id": "STACK",
     "translation": "스택"
   },
   {
+    "id": "SUCCEEDED",
+    "translation": ""
+  },
+  {
     "id": "Scaling app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
     "translation": "{{.CurrentUser}}(으)로 {{.OrgName}} 조직/{{.SpaceName}} 영역에서 {{.AppName}} 앱 스케일링 중..."
   },
   {
-    "id": "Schema file invalid: ",
-    "translation": ""
-  },
-  {
     "id": "Security Groups:",
     "translation": "보안 그룹:"
+  },
+  {
+    "id": "Security group '{{.Name}}' not found.",
+    "translation": ""
   },
   {
     "id": "Security group {{.security_group}} does not exist",
@@ -4650,6 +4902,10 @@
   {
     "id": "Security group {{.security_group}} {{.error_message}}",
     "translation": "보안 그룹 {{.security_group}} {{.error_message}}"
+  },
+  {
+    "id": "See 'cf help \u003ccommand\u003e' to read about a specific command.",
+    "translation": ""
   },
   {
     "id": "Select a space (or press enter to skip):",
@@ -4764,15 +5020,7 @@
     "translation": "대상 지정된 조직이나 영역 설정 또는 보기"
   },
   {
-    "id": "Set schema for a service. Currently only supported in the webproxy.",
-    "translation": ""
-  },
-  {
-    "id": "Set to none",
-    "translation": ""
-  },
-  {
-    "id": "Set to port",
+    "id": "Set to 'port' or 'none'",
     "translation": ""
   },
   {
@@ -4864,6 +5112,10 @@
     "translation": "역할순으로 영역 사용자 표시"
   },
   {
+    "id": "Show the type of health check performed on an app",
+    "translation": "Show the type of health check performed on an app"
+  },
+  {
     "id": "Showing current scale of app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
     "translation": "{{.CurrentUser}}(으)로 {{.OrgName}} 조직/{{.SpaceName}} 영역에서 {{.AppName}} 앱의 현재 스케일 표시 중..."
   },
@@ -4886,6 +5138,10 @@
   {
     "id": "Space",
     "translation": "영역"
+  },
+  {
+    "id": "Space '{{.Name}}' not found.",
+    "translation": ""
   },
   {
     "id": "Space Quota Definition {{.QuotaName}} already exists",
@@ -4932,6 +5188,14 @@
     "translation": "앱 시작 제한시간 초과\n\n팁: 애플리케이션이 올바른 포트에서 청취 중이어야 합니다. 포트를 하드 코딩하는 대신 $PORT 환경 변수를 사용하십시오."
   },
   {
+    "id": "Start app timeout\n\nTIP: Application must be listening on the right port. Instead of hard coding the port, use the $PORT environment variable.\n\nUse '{{.BinaryName}} logs {{.AppName}} --recent' for more information",
+    "translation": ""
+  },
+  {
+    "id": "Start unsuccessful\n\nTIP: use '{{.BinaryName}} logs {{.AppName}} --recent' for more information",
+    "translation": ""
+  },
+  {
     "id": "Start unsuccessful\n\nTIP: use '{{.Command}}' for more information",
     "translation": "시작 실패\n\n팁: 자세한 정보는 '{{.Command}}'을(를) 사용하십시오."
   },
@@ -4968,12 +5232,12 @@
     "translation": "{{.CurrentUser}}(으)로 {{.OrgName}} 조직/{{.SpaceName}} 영역에서 {{.AppName}} 앱 중지 중..."
   },
   {
-    "id": "StrictHostKeychecking=no",
-    "translation": ""
-  },
-  {
     "id": "System-Provided:",
     "translation": "시스템 제공:"
+  },
+  {
+    "id": "TASK_ID",
+    "translation": ""
   },
   {
     "id": "TIMEOUT",
@@ -4988,6 +5252,14 @@
     "translation": "팁:\n  'CF_NAME create-user-provided-service'를 사용하여 CF 앱에서 사용자 제공 서비스를 사용할 수 있도록 설정하십시오."
   },
   {
+    "id": "TIP: An app restart is required for the change to take affect.",
+    "translation": "TIP: An app restart is required for the change to take affect."
+  },
+  {
+    "id": "TIP: Assign roles with '{{.BinaryName}} set-org-role' and '{{.BinaryName}} set-space-role'.",
+    "translation": ""
+  },
+  {
     "id": "TIP: Changes will not apply to existing running applications until they are restarted.",
     "translation": "팁: 애플리케이션을 다시 시작할 때까지 기존 실행 애플리케이션에 변경사항이 적용되지 않습니다."
   },
@@ -4996,7 +5268,7 @@
     "translation": "팁: 방화벽 뒤에 있고 HTTP 프록시가 필요한 경우 https_proxy 환경 변수가 올바르게 설정되었는지 확인하십시오. 그렇지 않은 경우, 네트워크 연결을 확인하십시오. "
   },
   {
-    "id": "TIP: No space targeted, use '{{.CfTargetCommand}}' to target a space",
+    "id": "TIP: No space targeted, use '{{.CfTargetCommand}}' to target a space.",
     "translation": "팁: 대상 지정된 영역이 없습니다. 영역을 대상 지정하려면 '{{.CfTargetCommand}}'을(를) 사용하십시오."
   },
   {
@@ -5040,8 +5312,28 @@
     "translation": "대상 지정된 영역 {{.SpaceName}}\n"
   },
   {
+    "id": "Task has been submitted successfully for execution.",
+    "translation": ""
+  },
+  {
+    "id": "Task must have a droplet. Specify droplet or assign current droplet to app.",
+    "translation": ""
+  },
+  {
+    "id": "Task workers are unavailable.",
+    "translation": ""
+  },
+  {
+    "id": "Terminate a running task of an app",
+    "translation": ""
+  },
+  {
     "id": "Terminate the running application Instance at the given index and instantiate a new instance of the application with the same index",
     "translation": "주어진 색인에서 실행 중인 애플리케이션 인스턴스를 종료하고 애플리케이션의 새 인스턴스를 동일한 색인으로 인스턴스화합니다"
+  },
+  {
+    "id": "Terminating task {{.TaskSequenceID}} of app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
+    "translation": ""
   },
   {
     "id": "The API endpoint",
@@ -5080,6 +5372,14 @@
     "translation": ""
   },
   {
+    "id": "The command to execute",
+    "translation": ""
+  },
+  {
+    "id": "The desired application name",
+    "translation": ""
+  },
+  {
     "id": "The domain",
     "translation": ""
   },
@@ -5113,6 +5413,10 @@
   },
   {
     "id": "The index of the application instance",
+    "translation": ""
+  },
+  {
+    "id": "The isolation segment name",
     "translation": ""
   },
   {
@@ -5193,6 +5497,10 @@
   },
   {
     "id": "The organization group name",
+    "translation": ""
+  },
+  {
+    "id": "The organization name",
     "translation": ""
   },
   {
@@ -5304,8 +5612,16 @@
     "translation": "대상 API 엔드포인트에 도달할 수 없습니다. "
   },
   {
+    "id": "The task's unique sequence ID",
+    "translation": ""
+  },
+  {
     "id": "The token",
     "translation": ""
+  },
+  {
+    "id": "The token expired, was revoked, or the token ID is incorrect. Please log back in to re-authenticate.",
+    "translation": "The token expired, was revoked, or the token ID is incorrect. Please log back in to re-authenticate."
   },
   {
     "id": "The token label",
@@ -5340,6 +5656,14 @@
     "translation": "'{{.RepoURL}}'에 대한 요청 수행 중에 오류가 발생함: {{.Error}}\n{{.Tip}}"
   },
   {
+    "id": "These are commonly used commands. Use 'cf help -a' to see all, with descriptions.",
+    "translation": ""
+  },
+  {
+    "id": "This action impacts all orgs using this domain.\nDeleting it will remove associated routes and could make any app with this domain, in any org, unreachable.\nAre you sure you want to delete the domain {{.DomainName}}? ",
+    "translation": "모든 조직에서 이 도메인을 공유합니다.\n이 도메인을 삭제하면 연관된 모든 라우트가 제거되고 이 도메인이 있는 앱에 도달할 수 없습니다.\n{{.DomainName}} 도메인을 삭제하시겠습니까? "
+  },
+  {
     "id": "This command",
     "translation": "이 명령"
   },
@@ -5348,12 +5672,12 @@
     "translation": ""
   },
   {
-    "id": "This command requires the Routing API. Your targeted endpoint reports it is not enabled.",
-    "translation": "이 명령에는 라우팅 API가 필요합니다. 대상 엔드포인트에서 해당 항목이 사용으로 설정되지 않았음을 보고합니다."
+    "id": "This command requires CF API version {{.MinimumVersion}}. Your target is {{.CurrentVersion}}.",
+    "translation": ""
   },
   {
-    "id": "This domain is shared across all orgs.\nDeleting it will remove all associated routes, and will make any app with this domain unreachable.\nAre you sure you want to delete the domain {{.DomainName}}? ",
-    "translation": "모든 조직에서 이 도메인을 공유합니다.\n이 도메인을 삭제하면 연관된 모든 라우트가 제거되고 이 도메인이 있는 앱에 도달할 수 없습니다.\n{{.DomainName}} 도메인을 삭제하시겠습니까? "
+    "id": "This command requires the Routing API. Your targeted endpoint reports it is not enabled.",
+    "translation": "이 명령에는 라우팅 API가 필요합니다. 대상 엔드포인트에서 해당 항목이 사용으로 설정되지 않았음을 보고합니다."
   },
   {
     "id": "This is for backwards compatibility",
@@ -5370,6 +5694,10 @@
   {
     "id": "This will cause the app to restart. Are you sure you want to scale {{.AppName}}?",
     "translation": "앱이 다시 시작되도록 합니다. {{.AppName}}을(를) 스케일링하시겠습니까?"
+  },
+  {
+    "id": "Time (in seconds) allowed to elapse between starting up an app and the first healthy response from the app",
+    "translation": "CLI가 애플리케이션이 시작되도록 대기하는 최대 시간(초)입니다. 다른 서버 측 제한시간이 적용될 수 있습니다."
   },
   {
     "id": "Timeout for async HTTP requests",
@@ -5624,6 +5952,14 @@
     "translation": "{{.BuildpackName}} 빌드팩 업데이트 중..."
   },
   {
+    "id": "Updating health check type for app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.Username}}...",
+    "translation": ""
+  },
+  {
+    "id": "Updating isolation segment of space {{.SpaceName}} in org {{.OrgName}} as {{.CurrentUser}}...",
+    "translation": ""
+  },
+  {
     "id": "Updating quota {{.QuotaName}} as {{.Username}}...",
     "translation": "{{.Username}}(으)로 {{.QuotaName}} 할당량 업데이트 중..."
   },
@@ -5656,6 +5992,10 @@
     "translation": "{{.AppName}} health_check_type을 '{{.HealthCheckType}}'(으)로 업데이트"
   },
   {
+    "id": "Uploading V3 app {{.AppName}} in org {{.CurrentOrg}} / space {{.CurrentSpace}} as {{.CurrentUser}}...",
+    "translation": ""
+  },
+  {
     "id": "Uploading app files from: {{.Path}}",
     "translation": "업로드 중인 앱 파일 원본 위치: {{.Path}}"
   },
@@ -5672,10 +6012,6 @@
     "translation": "{{.ZipFileBytes}}, {{.FileCount}} 파일 업로드"
   },
   {
-    "id": "Usage",
-    "translation": ""
-  },
-  {
     "id": "Usage:",
     "translation": ""
   },
@@ -5686,10 +6022,6 @@
   {
     "id": "Use '{{.Name}}' to view or set your target org and space",
     "translation": "대상 조직과 영역을 보거나 설정하려면 '{{.Name}}'을(를) 사용하십시오."
-  },
-  {
-    "id": "Use a one-time password to login",
-    "translation": "일회성 비밀번호를 사용하여 로그인"
   },
   {
     "id": "User provided tags",
@@ -5706,10 +6038,6 @@
   {
     "id": "User:",
     "translation": "사용자:"
-  },
-  {
-    "id": "UserKnownHostsFile=/dev/null",
-    "translation": ""
   },
   {
     "id": "Username",
@@ -5776,6 +6104,10 @@
     "translation": "경고: 이 조작은 Cloud Foundry의 내부 조작입니다. 서비스 브로커에 접속하지 않으며 서비스 인스턴스의 리소스는 변경되지 않습니다. 이 조작의 기본 유스 케이스는 v1 플랜에서 v2 플랜으로 서비스 인스턴스를 다시 맵핑하여 v1 서비스 브로커 API를 구현하는 서비스 브로커를 v2 API를 구현하는 브로커로 바꾸는 것입니다. v1 플랜을 개인용으로 작성하거나 추가 인스턴스가 작성되지 않도록 v1 브로커를 종료하는 것이 좋습니다. 서비스 인스턴스가 마이그레이션되면 v1 서비스와 플랜을 Cloud Foundry에서 제거할 수 있습니다."
   },
   {
+    "id": "Waiting for app to start...",
+    "translation": ""
+  },
+  {
     "id": "Warning: Insecure http API endpoint detected: secure https API endpoints are recommended",
     "translation": ""
   },
@@ -5836,6 +6168,10 @@
     "translation": "[글로벌 옵션] 명령 [인수...] [명령 옵션]"
   },
   {
+    "id": "[hidden]",
+    "translation": ""
+  },
+  {
     "id": "access",
     "translation": "액세스"
   },
@@ -5854,6 +6190,14 @@
   {
     "id": "already exists",
     "translation": "이미 있음"
+  },
+  {
+    "id": "api endpoint:",
+    "translation": ""
+  },
+  {
+    "id": "api version:",
+    "translation": ""
   },
   {
     "id": "app",
@@ -5876,8 +6220,16 @@
     "translation": "앱"
   },
   {
+    "id": "apps:",
+    "translation": ""
+  },
+  {
     "id": "auth request failed",
     "translation": "인증 요청 실패"
+  },
+  {
+    "id": "billingmanager",
+    "translation": ""
   },
   {
     "id": "bound apps",
@@ -5924,12 +6276,28 @@
     "translation": "충돌 중"
   },
   {
+    "id": "create-isolation-segment",
+    "translation": ""
+  },
+  {
+    "id": "delete-isolation-segment",
+    "translation": ""
+  },
+  {
     "id": "description",
     "translation": "설명"
   },
   {
+    "id": "destination",
+    "translation": ""
+  },
+  {
     "id": "details",
     "translation": "세부사항"
+  },
+  {
+    "id": "disable-org-isolation",
+    "translation": ""
   },
   {
     "id": "disallowed",
@@ -5980,8 +6348,16 @@
     "translation": "'routes'의 각 라우트는 'route' 특성을 가져야 함"
   },
   {
+    "id": "enable-org-isolation",
+    "translation": ""
+  },
+  {
     "id": "enabled",
     "translation": "사용"
+  },
+  {
+    "id": "endpoint (for http type):",
+    "translation": ""
   },
   {
     "id": "env var '{{.PropertyName}}' should not be null",
@@ -6004,11 +6380,7 @@
     "translation": "무료 또는 유료"
   },
   {
-    "id": "get-schema",
-    "translation": ""
-  },
-  {
-    "id": "gocf",
+    "id": "health check type:",
     "translation": ""
   },
   {
@@ -6026,10 +6398,6 @@
   {
     "id": "host",
     "translation": "호스트"
-  },
-  {
-    "id": "identity",
-    "translation": ""
   },
   {
     "id": "instance memory",
@@ -6052,6 +6420,10 @@
     "translation": "인스턴스:"
   },
   {
+    "id": "integer",
+    "translation": ""
+  },
+  {
     "id": "invalid inherit path in manifest",
     "translation": "Manifest에서 올바르지 않은 상속 경로"
   },
@@ -6064,6 +6436,18 @@
     "translation": "환경 변수 CF_STARTUP_TIMEOUT에 올바르지 않은 값\n{{.Err}}"
   },
   {
+    "id": "isolation segment:",
+    "translation": ""
+  },
+  {
+    "id": "isolation segments:",
+    "translation": ""
+  },
+  {
+    "id": "isolation-segments",
+    "translation": ""
+  },
+  {
     "id": "label",
     "translation": "레이블"
   },
@@ -6074,6 +6458,10 @@
   {
     "id": "last uploaded:",
     "translation": "마지막으로 업로드함:"
+  },
+  {
+    "id": "lifecycle",
+    "translation": ""
   },
   {
     "id": "limited",
@@ -6116,6 +6504,10 @@
     "translation": "조직"
   },
   {
+    "id": "org:",
+    "translation": ""
+  },
+  {
     "id": "orgs",
     "translation": "조직"
   },
@@ -6148,8 +6540,16 @@
     "translation": "포트"
   },
   {
+    "id": "ports",
+    "translation": ""
+  },
+  {
     "id": "position",
     "translation": "위치"
+  },
+  {
+    "id": "protocol",
+    "translation": ""
   },
   {
     "id": "provider",
@@ -6192,6 +6592,10 @@
     "translation": "예약된 라우트 포트"
   },
   {
+    "id": "reset-space-isolation-segment",
+    "translation": ""
+  },
+  {
     "id": "route ports",
     "translation": "라우트 포트"
   },
@@ -6200,12 +6604,24 @@
     "translation": "라우트"
   },
   {
+    "id": "routes:",
+    "translation": ""
+  },
+  {
+    "id": "run-task",
+    "translation": ""
+  },
+  {
     "id": "running",
     "translation": "실행 중"
   },
   {
     "id": "security group",
     "translation": "보안 그룹"
+  },
+  {
+    "id": "security groups:",
+    "translation": ""
   },
   {
     "id": "service",
@@ -6248,7 +6664,11 @@
     "translation": "서비스"
   },
   {
-    "id": "set-schema",
+    "id": "services:",
+    "translation": ""
+  },
+  {
+    "id": "set-space-isolation-segment",
     "translation": ""
   },
   {
@@ -6264,8 +6684,16 @@
     "translation": "영역"
   },
   {
+    "id": "space quota:",
+    "translation": ""
+  },
+  {
     "id": "space quotas:",
     "translation": "영역 할당량:"
+  },
+  {
+    "id": "space:",
+    "translation": ""
   },
   {
     "id": "spaces:",
@@ -6312,8 +6740,20 @@
     "translation": "SSH 지원이 사용으로 설정되지 않은 대상"
   },
   {
+    "id": "sso-passcode",
+    "translation": ""
+  },
+  {
     "id": "stack:",
     "translation": "스택:"
+  },
+  {
+    "id": "start command:",
+    "translation": ""
+  },
+  {
+    "id": "start time",
+    "translation": ""
   },
   {
     "id": "starting",
@@ -6336,6 +6776,22 @@
     "translation": "1회 경로 재지정 후 중지됨"
   },
   {
+    "id": "task id:",
+    "translation": ""
+  },
+  {
+    "id": "task name:",
+    "translation": ""
+  },
+  {
+    "id": "tasks",
+    "translation": ""
+  },
+  {
+    "id": "terminate-task",
+    "translation": ""
+  },
+  {
     "id": "time",
     "translation": "시간"
   },
@@ -6354,6 +6810,10 @@
   {
     "id": "type",
     "translation": "유형"
+  },
+  {
+    "id": "uaa",
+    "translation": ""
   },
   {
     "id": "unknown authority",
@@ -6384,8 +6844,16 @@
     "translation": "사용자"
   },
   {
+    "id": "user {{.User}} already exists",
+    "translation": ""
+  },
+  {
     "id": "user-provided",
     "translation": "사용자 제공"
+  },
+  {
+    "id": "user:",
+    "translation": ""
   },
   {
     "id": "username",
@@ -6410,6 +6878,14 @@
   {
     "id": "{{.AppInstanceLimit}} app instance limit",
     "translation": "{{.AppInstanceLimit}} 앱 인스턴스 한계"
+  },
+  {
+    "id": "{{.AppName}} failed to stage within {{.Timeout}} minutes",
+    "translation": ""
+  },
+  {
+    "id": "{{.BinaryName}} version {{.VersionString}}",
+    "translation": ""
   },
   {
     "id": "{{.CFName}} api",
@@ -6474,6 +6950,14 @@
   {
     "id": "{{.MemoryLimit}}M memory limit",
     "translation": "{{.MemoryLimit}}M 메모리 한계"
+  },
+  {
+    "id": "{{.MemorySize}} x {{.NumInstances}} instances",
+    "translation": ""
+  },
+  {
+    "id": "{{.Message}}\nNote that this command requires CF API version 3.0.0+.",
+    "translation": ""
   },
   {
     "id": "{{.ModelType}} {{.ModelName}} already exists",

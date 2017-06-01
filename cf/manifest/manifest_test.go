@@ -5,11 +5,11 @@ import (
 	"strings"
 
 	"code.cloudfoundry.org/cli/cf/manifest"
-	"code.cloudfoundry.org/cli/utils/generic"
+	"code.cloudfoundry.org/cli/util/generic"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	. "code.cloudfoundry.org/cli/utils/testhelpers/matchers"
+	. "code.cloudfoundry.org/cli/util/testhelpers/matchers"
 )
 
 func NewManifest(path string, data generic.Map) (m *manifest.Manifest) {
@@ -315,6 +315,28 @@ var _ = Describe("Manifests", func() {
 		Expect(apps[0].UseRandomRoute).To(BeTrue())
 	})
 
+	Context("when the health-check-type is 'http'", func() {
+		Context("when health-check-http-endpoint IS provided", func() {
+			It("sets http-health-check-endpoint to the provided endpoint", func() {
+				m := NewManifest("/some/path", generic.NewMap(map[interface{}]interface{}{
+					"applications": []interface{}{
+						map[interface{}]interface{}{
+							"health-check-type":          "http",
+							"health-check-http-endpoint": "/some-endpoint",
+						},
+					},
+				}))
+
+				apps, err := m.Applications()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(len(apps)).To(Equal(1))
+
+				Expect(*apps[0].HealthCheckType).To(Equal("http"))
+				Expect(*apps[0].HealthCheckHTTPEndpoint).To(Equal("/some-endpoint"))
+			})
+		})
+	})
+
 	It("removes duplicated values in 'hosts' and 'domains'", func() {
 		m := NewManifest("/some/path", generic.NewMap(map[interface{}]interface{}{
 			"applications": []interface{}{
@@ -514,9 +536,12 @@ var _ = Describe("Manifests", func() {
 				"applications": []interface{}{
 					generic.NewMap(map[interface{}]interface{}{
 						"env": map[interface{}]interface{}{
-							"string-key": "value",
-							"int-key":    1,
-							"float-key":  11.1,
+							"string-key":      "value",
+							"int-key":         1,
+							"float-key":       11.1,
+							"large-int-key":   123456789,
+							"large-float-key": 123456789.12345678,
+							"bool-key":        false,
 						},
 					}),
 				},
@@ -526,8 +551,11 @@ var _ = Describe("Manifests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect((*app[0].EnvironmentVars)["string-key"]).To(Equal("value"))
-			Expect((*app[0].EnvironmentVars)["int-key"]).To(Equal(1))
-			Expect((*app[0].EnvironmentVars)["float-key"]).To(Equal(11.1))
+			Expect((*app[0].EnvironmentVars)["int-key"]).To(Equal("1"))
+			Expect((*app[0].EnvironmentVars)["float-key"]).To(Equal("11.1"))
+			Expect((*app[0].EnvironmentVars)["large-int-key"]).To(Equal("123456789"))
+			Expect((*app[0].EnvironmentVars)["large-float-key"]).To(Equal("123456789.12345678"))
+			Expect((*app[0].EnvironmentVars)["bool-key"]).To(Equal("false"))
 		})
 	})
 

@@ -1,3 +1,706 @@
+## 6.26.0
+* Bump version to 6.26.0
+* fix running app count, add red color to app and start commands
+* pipeline to order retro cheese
+* remove v3apps command
+* cf space displays org default iso seg if the space doesn't have one
+* adds the NOTICE file for the go-ccapi dependency
+* display security group rule descriptions in space summary
+* prevent `cf space` and `cf org` from throwing
+* corrected the error message which is displayed
+* fix cloudcontroller errors and v3 NewActor params
+* reset-space-isolation-segment command
+* trigger cats-diego on the bosh-lock rather than cli
+* update the go-ccapi dependency to latest
+* move all the api errors into a single package
+* properly use 'on_failure' and 'ensure' in pipeline
+* update noaa library to latest
+* log integration test does not hardcode API/0
+* removed bosh lites 3, 4, and 5 from the infrastructure pipeline
+* cloud_controller_worker was moved to cc-worker instance group
+* make everything consistent in v2 and v3
+* robustify space command integration tests
+* make timestamp regex match more real possible times
+* updated delete-org prompt message to say what it may delete
+* check to see whether tty before measuring terminal
+* move tty detection into config
+* perform v2 api check before fetching staging security group rules
+* remove experimental flag from refactored commands
+* fix tests that failed due to staticfile_buildpack changes
+* windows!!!
+* create-package command
+* updated integration tests not to test for ">" in prompts
+* do not output non-json request bodies
+* do not reread body for POST requests, it's unnecessary
+* removed ">>" from confirmation prompts
+* do not focus tests in master :(
+* repair a typo
+* improved the error message when deleting a username that is not unique
+* cleanup-integration deletes 1000 users per run
+* prevent future time-sinks by calling cleanup early
+* don't error out if user does not have CAPI v3
+* formatted vendored code
+* updated the sections "Installers" and "Binaries" that are auto generated in the release notes
+* updated "SEE ALSO:" help text for create-space and space commands
+* Merge pull request #1106 from glyn/tolerate-$ZSH
+* Merge pull request #1107 from alphagov/update_crypto
+* increase slow spec threshold from 30 to 60 in integration tests
+* use random ports for TCP routes to prevent collisions
+* configure the pipeline to consume cf-acceptance-tests instead of cf-release
+* reconfigure the pipeline to consume cf-acceptance-tests directly
+* Prevent test failing under zsh
+* add missing translations
+* add skip
+* Add v3-create-app
+* added a test as a reminder that we should remove the API version checks in 6 months time
+* Update crypto library
+* edit cf start integration test to not check for isolation segment row
+* display verbose staging failure message upon `cf start [app name]`
+* reconfigure pipeline to run integration tests and cats-diego in serial on hardknox
+* fix tty toggle
+* prevent the last command in cleanup-integration from killing the pipeline task
+* remove v3 version check from app and start commands
+* randomize port numbers to reduce chance of collision
+* pass credentials the concourse way
+* run integration-windows with 16 nodes
+* move integration-windows over to hardknox
+* add translations
+* hide CF_PASSWORD from output
+* revert back to using CLI's docker image
+* pin to golang 1.7 and add `bosh2` to our docker
+* update the number of nodes for cats-diego to 16
+* revert (for the weekend) changes made to integration-linux
+* ensure that cleanup is called against hardknox
+* make integration-linux run against hardknox
+* adding isolation segment info to cf app and start command
+* only display tip on NoAppDetectedErrors
+* cats-diego now runs agains hardknox
+* replace entire map instead of single value
+* add override to skip ssl verification for cc worker
+* remove backend compatibility tests for diego-only
+* space command displays variables with color
+* updated the hardknox pipeline to get ops files from the cli repo
+* wrap RequestErrors in HandleError
+* enable diego_docker for CATS
+* move infrastructure ops files to cli repo (instead of cli-private)
+* repair config task yml
+* concourse task to generate cats config for hardknox
+* tables with headers display lowercase bold headers
+* rename ui.DisplayTable to ui.DisplayKeyValueTable
+* make lookup case insensitive
+* repair API endpoint prefixing in login test helper
+* fix integration test login
+* lowercase all the things
+* add ops-file for overriding memory defaults
+* update related commands on isolation segment commands
+* correct command name in help text for related command, delete-isolation-segment
+* add the grootfs-release to the infrastructure pipeline
+* don't rebuild unless we say so
+* debug pipeline
+* pipeline to deploy hardknox enviroment
+* fixed rendering row under table
+* Merge pull request #1094 from jfmyers9/master
+* fixed title render issue
+* fixed rendering issue
+* org and space commands do not mention isolation segments on old APIs
+* v3 isolation segments commands check minimum api version
+* edit usage text for set-space-isolation-segment
+* space command shows assigned isolation segment
+* update task integration tests to reflect change in CC error message
+* added grootfs-release to the infrastructure pipeline
+* sort tasks by sequence id in the actor layer
+* add task to combine inputs into single outputs dir
+* improved action message for the revoke org isolation command
+* Merge branch 'master' of https://github.com/cloudfoundry/cli
+* make error message windows-compliant
+* updated ui flavor text
+* fix pipeline
+* org managers can set a space's isolation segment
+* create intermediate dirs for log files in
+* remove hack to add links, new V3 API min is 3.12.0
+* fix output name
+* param-to-file task has input and output
+* Concourse task to write a param to a file
+* created NewSpaceName for use integration tests
+* new helper method for returning a new access token
+* let's just try deleting this
+* lets try updating ginkgo?
+* implement wrappable table for all relevant commannds
+* add integration test for disable-org-isolation
+* unify CC client creation
+* update ginkgo and gomega dependencies
+* unfocus tests
+* update translations
+* fix races in test
+* add disable-org-isolation command
+* add UI for DisableOrgIsolation
+* Repaired PollStart and added unit tests
+* Reworded error string
+* add delete-isolation-segment to cleanup script
+* don't forget to set auth client like in V2!
+* commands timeout properly and display /v2/info with -v
+* installation instructions should be copy/pasteable
+* add an extra newline after ok message when listing isolation segments
+* replace unicode elipses with ascii
+* add isolation segment row to cf org command
+* Add space between key-value table and security rules
+* only use one level of directories for log files
+* set the CF_DIAL_TIMEOUT
+* adding additional locking around all ui display
+* Revert "remove experimental flag from app and org"
+* mutex all the things!
+* Merge pull request #1090 from fujitsu-cf/typo_correction
+* Corrected a typo in the command line, `cf config -locale` to `cf config --locale`
+* Merge branch 'master' of https://github.com/cloudfoundry/cli
+* change argument order to match help text
+* change argument order to match help text
+* new isolation-segments command
+* update log integration tests until
+* use read only org/space for target tests
+* use consistent import pattern for command tests
+* extra object is unnecessary, just omit extra fields
+* Space command refactor
+* standardize and document  v3 API request constant naming convention
+* documentation for v2 API request constant naming convention
+* add mutex in start/stop of RequestLoggerTerminalDisplay
+* fixed minor typos
+* remove experimental flag from app and org
+* working version of refactored log command
+* updated the PR section of the contributor's guide
+* display assigning text with flavor
+* only regenerate i18n resource prior to bump
+* standardize rata request names
+* fixed integration
+* Repair the ability to use URLs for {create,update}-buildpack
+* enable org isolation command layer
+* enable isolation segment actor and api methods and tests
+* Merge pull request #1083 from artdevjs/patch-1
+* deliberately skip install step in travis build
+* remove ginkgo install on Travis CI
+* edit /bin/test to build ginkgo from vendor
+* translations for bind-security-group
+* api layer for binding security group to space
+* actor layer for bind-security-group
+* Replace shell variable with rpm build macro
+* added integration tests and fini command layer for bind-security-group
+* bind-security-group integration tests and some command layer code
+* add to master help, display warning if iso seg already exists
+* add delete-isolation-segment command
+* fixed layout
+* moved code contribution section to top, mention refactor
+* fixed text prompt translations
+* Update README.md
+* added noaa max retries
+* fixed it done
+* fixed race conditions in v2action
+* update to the latest NOAA library
+* start command displays verbose noaa logging
+* fixed noaa client error handling during polling
+* filter and display only staging log messages on cf start
+* added more error handling in start command
+* added appStarting display
+* don't wait for a 0 instance app to start
+* don't error on RetryError, don't fail start if logging fails
+* add support to create isolation segments
+* update counterfeiter fakes
+* switch pipelines from `cf-netman` to `cf-networking`
+* org command uses org summary actor
+* fixed app command unit tests
+* cf app displays user friendly date
+* added example line for tab completion for binary downloads
+* updated CHANGELOG with v6.25.0 plugin changes
+* updated README with v6.25.0 plugin changes
+
+## 6.25.0
+* Bump version to 6.25.0
+* add bash completion to red hat rpm
+* modify rpmbuild step to follow best practices
+* Revert "disabled bash completion for environment variables on windows"
+* pipeline uses concourse temp tracker fix to deliver stories
+* GetApp_RouteSummary from plugin repo contains context path and port
+* add experimental flag to org command
+* disabled bash completion for environment variables on windows
+* removed unsupported sha hashes and filled in tests
+* Merge branch 'pivotal-danjahner-master'
+* Merge branch 'master' of https://github.com/pivotal-danjahner/cli into pivotal-danjahner-master
+* Don't run environment_variable_test on windows
+* Make assertion on UAA client unit test more generic
+* Org Refactor
+* fixed login command --sso-passcode UX
+* cf help displays plugin command aliases
+* fix push -u health check type override integration tests
+* use $ instead of \n for matching end of line
+* Remove skips now that set-health-check is done
+* backfill tests around completion case sensitivity
+* completions for environment variables should be case sensitive
+* removed focus from integration tests
+* `cf help <alias>` works for commands contributed by plugins
+* lazy login integration tests and --sso-passcode fixup
+* use script to add missing properties
+* add sso-passcode to general help, add translation for some languages
+* add feature to specify sso token via commandline
+* Add base64 encoded hash handling for SHA1 and SHA256
+* create-buildpack integration test cleans after itself
+* Merge branch 'dcarley-plugin_no_arguments'
+* Merge branch 'plugin_no_arguments' of https://github.com/dcarley/cf-cli into dcarley-plugin_no_arguments
+* remove side effects from EnvironmentVariable tests
+* disable tracker story delivery due to 400 response bug
+* added completion of environment variables to the set-env command
+* plugin: Friendly error when run without arguments
+* added bool/path hybrid completion for config --trace
+* added '/' to directory names for tab completion
+* removed dependency on go-flags Filename
+* added error message > arcane message for following commands
+* fixed more bash
+* weak bash scripting
+* pipeline checks out the diego repo corresponding to the diego-release version
+* updated bin/build with -ldflags "-w -s"
+* go build with -ldflags "-w -s" to reduce binary file size
+* checks if path exists when parsing push's -f and -p flag values
+* refactors in command/flag
+* Add support for SHA256 SSH fingerprints
+* OrgDeveloper is not a valid role
+* change back to previous working directory before cleanup
+* tab complete cf curl -d @
+* locale flag accepts underscores
+* cli supports bash completion on static multiple choice args & options
+* tab completion for file/json args
+* cli supports tab completion on file/directory args
+* sourced out bash completion in brew-formula to file in repo
+* added support for tab completion on file/directory options
+* cf cli tab completion automatically sourced if bash-completion installed
+* added bash tab completion for built-in commands (Mac OS)
+* added bash tab completion for built-in commands (Ubuntu)
+* added bash tab completion for built-in commands (Mac OS/Homebrew)
+* add quota definition GUID field to org
+* changed name of arguments displayed in run-task command help
+* cf help page displays run-task under common commands
+* run-task command now accepts option to configure task disk limit
+* add translations
+* do not focus
+* only color error log lines, not the headers
+* display tip for staging errors
+* display app start command in app info after start
+* do not display log headers during staging/startup
+* refactor app start
+* app update sends state, new GetApplication call
+* run task command now accepts option to adjust memory on task
+* improve error when refresh token is invalid
+* added italics
+* update plugins docs
+* Bump version to 6.24.0
+
+## 6.24.0
+* Bump version to 6.24.0
+* Revert "Bump version to 6.24.0"
+* Bump version to 6.24.0
+* do not clear the existing target when targeting space only fails
+* don't fail for commands running in parallel
+* clears existing target information when the target command fails
+* improved flag description for health check timeout in push command
+* create-app-manifest stores health check type and endpoint fields
+* cf push accepts manifests with attribute to set endpoint on http health checks
+* don't overwrite http endpoint with previous endpoint
+* remove focus
+* add health-check-http-endpoint to app manifest
+* app manifests take process and http health check types on `cf push`
+* include package_state and staging_failed_reason in application
+* check exit values in app integration tests
+* create bridge between UAA client and NOAA client
+* added health check types process and http to cf push arguments
+* integration tests for push with health check type
+* update integration tests to reflect change in get-health-check command
+* Update CONTRIBUTING.md
+* add port and http health check types on cf-set-health-check
+* display option defaults in help
+* deleted unused code and renamed function
+* moved v3 api error
+* custom written table printer due to multibyte characters
+* show endpoint in get-health-check output
+* refactor get-health-check command
+* integration test for get-health-check
+* removed experimental flag from target command
+* added details and application instance information
+* remove any code specific to CF 203 or earlier
+* remove shadows
+* update translations for set-health-check
+* add http health check type and deprecate none
+* updated version output format
+* added integration tests for target command
+* skip the app and target integration tests
+* add get-health-check after setting in integration tests
+* change updating health check output
+* refactor set-health-check
+* add HealthCheckType field to Application struct
+* HealthCheckType uses string field instead of bools
+* fix positional-arg-name in SetHealthCheckArgs
+* integration tests for set-health-check command
+* update manifest inheritance integration tests to display updated app
+* fixed integration tests for the app command - skipping until refactor work is done
+* make sure CheckTarget gets called with the right args
+* move v2 and v3 SharedActor to the command package
+* refactor app command
+* removed unused dependency: gopkg.in/check.v1
+* move check target logic from command to sharedaction
+* plugin API test expects loggregator endpoint to be empty
+* fixing CATS-linux (deprecated loggregator)
+* remove loggregatorlib from NOTICE
+* deleted loggregator endpoint from config
+* removed the loggregator library and respective dependencies
+* fix header
+* inline-relations-depth/summary warning godoc
+* godoc for error handling, pre-alpha warning, and missing explainations
+* API methods for app command refactor
+* integration tests for cf app
+* clarified CF_TRACE issue does not affect all plugins
+* when deleting targeted org, delete-org clears org and space from target
+* removed v3 cats from diego and linux
+* add netman-release to dies-lite pipeline
+* -randomizeSuites -> -randomizeAllSpecs, there's a difference
+* split integration into windows and linux
+* adding extra bosh-lite to pipeline
+* added integration tests around push manifest inheritance
+* added some more integration tests
+* started integration tests for manifest inheritance in cf push
+* add netman dependancy for CF251
+* tests have been deprecated, don't poll this resource.
+* remove unused config interface methods
+* move configaction into v2action
+* set bosh-lite kernel back to 3.19
+* on windows the default binary name is cli.exe
+* exit script if any suite fails
+* giving up on testing config write failure
+* use chattr instead of chmod to make config unwriteable
+* no more etcd!
+* change temp home dir prefix from gats to integration
+* write errors to stderr if deferred config write fails
+* update vendored dependencies
+* move job polling into API layer
+* v2action/space_test do not need config
+* setup error wrapper in new UAA client creation
+* move config out of UAA client into UAAAuthentication wrapper
+* pull in NOTICE files in dependencies using patched gvt
+* better org name in target command integration test
+* added known issue with CF trace and plugins
+* move skip to the first line to avoid unnecessary login
+* only run target tests if CF_CLI_EXPERIMENTAL=true
+* refactored some display code to use `ui.DisplayTable`
+* clean up create-installers-windows task
+
+## 6.23.1
+* Bump version to 6.23.1
+* reset author when amending commit
+* add LICENSE-WITH-3RD-PARTY-LICENSES to /usr/share/doc/cf-cli/LICENSE
+* /usr/share/doc/cf-cli/copyright has newlines replaced with .
+* fix line endings for windows
+* display CF icon on windows executables
+* change text that explains cf help -a in cf help output
+* update windows tasks to include LICENSE and NOTICE
+* adding LICENSE and notice to deb and RPMs
+* polling for job status in real time instead
+* added LICENSE and NOTICE to brew formula and deleted unnecessary formula
+* added NOTICE and LICENSE to osx installers
+* added NOTICE file and 3RD-PARTY-LICENSES to windows installers
+* add package manager installation to release notes
+* replace empty lines in DEBIAN/copyright with .
+* hidding the 'tt' flag since goflags has an issue supporting it
+* fix Debian licenses
+* move description to end of unexpected response message
+* add NOTICE file and 3RD-PARTY-LICENSES for apache dependencies to binaries
+* update RPM metadata
+* add godoc for actors and API
+* revert to full license (incl. appendix)
+* display X-Vcap-Request-Id for 5XX HTTP errors
+* backfilled integration tests
+* cleaned up the command and api tests to be more succint
+* remove extra lock from smoke-test-3
+* set binary version, sha and build date from ldflags
+* acceptance deploy-diego-release job requires bosh-lite-lock input
+* Revert "run tasks CATs if diego is enabled"
+* increase xargs parallelism
+* deploy jobs require bosh-lite-lock input
+* deploy diego requires bosh-lite-lock input
+* run tasks CATs if diego is enabled
+* hold lock until deployment is finished
+* update integration tests to match new error handling
+* add/switch additional error handling for the target command
+* integration tests check stderr for failure messages
+* improved readability by moving checks to the calling function
+* added CLI version validation to target command
+* add the api layer for target command
+* integration tests, command and actor for target command refactor
+* add task name to run-task output
+* add tip to run-task help
+* corrected cygwin limitation to password prompts, not other (confirmation) prompts
+* replaced issue # with proper hyperlink
+* job polling does not use goroutines
+* first draft, based on CONTRIBUTING.md steps
+* completed contribution steps
+* Merge pull request #1040 from afeld/patch-1
+* clean up the issue template
+* add pagination code from v2 into v3
+* create routing engine to generate base HTTP requests
+* move into ccv2 since v3 pagination is different
+* due to timing issues, the k+1th request is never guaranteed
+* run this test on windows again!
+* generic pagination!
+* add validations to delete-org, rename version test
+* split the organization lookup from delete org
+* handle data race
+* update error message
+* add polling to delete org
+* use ci so we don't accidently make a separate commit
+
+## 6.23.0
+* Bump version to 6.23.0
+* increase the dial timeout
+* the verbose integration test should be testing against a redacted request body
+* fix flakyness
+* properly display non-json request body in the loggers
+* Converts all everinoment variables in manifest to string
+* renamed push_test to push_command_test
+* display with flavor
+* save refresh token when refreshing auth token
+* added the logo
+* remove experimental flag from several commands
+* update go-interact and dependancy
+* switching to using a custom DNS record instead of xip.io
+* display request parameters when logging
+* display extra tip with client errors for V3 commands
+* skipping in windows
+* test SSLValidationHostnameError using xip.io
+* integration tests for delete-user cleans up after itself
+* Unset and reset environment variables during config unit tests
+* `delete-user` errors when deleting a non-unique user belonging to multiple origins
+* fix translation
+* always have CF_TRACE override config
+* added godocs comments to API layer
+* increasing dial timeout due to test flakiness
+* get a better error message from x509.HostnameError
+* run with experimental turned on
+* bold the request and response headers in trace output
+* added translations to updated `tasks` and `run-tasks` --help message
+* `tasks` and `run-tasks` "see-also" message recommends logs
+* add examples to create-user usage
+* set async to true for the delete
+* test display output in the correct buffer
+* consistent command names in integration tests
+* refactor delete-org command
+* v3 commands verify minimum API version
+* add postgres directory to diego-sql.yml path
+* add sql stubs to deploy-diego task
+* add app name/version to UAA client
+* add integration test for delete org
+* do not . import helpers
+* test the experimental code
+* create-user has support for --origin flag
+* do not escape HTML when printing JSON body
+* return the correct error when go-interact errors
+* wrap UAA errors for v3 commands
+* add logging to the UAA client for v3 commands
+* output external IP in CATs tests
+* switch to display warning to avoid printing 'FAILED'
+* update color dependancies
+* update proto buff, web sockets and ssh related packages
+* update golang extensions packages
+* update code.cloudfoundry.org vendored packages
+* use cf-release-repo as gopath, use gvt on windows
+* update ginkgo to support the -flakeAttempts flag
+* update ginkgo and gomega
+* move final cmd tests into plugins
+* adding -flakeAttempts flag to integration tests
+* remove GATs, it is no more it has ceased to be
+* moved GATs plugin tests into integration
+* added a common prefix for all users created in integration tests
+* remove application gats
+* clean up terminal logger output
+* refresh token tests check std.err for warnings if `CF_CLI_EXPERIMENTAL` is true
+* clean up user created in integration tests
+* added integration tests that verify refactored create-user command behaves correctly
+* add the create-user command to the refactor branch
+* add https:// to CF_API in windows integration test
+* the CATs version with the tar fix is not in cf-release master yet
+* this suite file was useless, so I'm removing it.
+* only call startWait.Done once in total
+* global tests have their own package
+* rename suite file
+* update paths
+* move tests into 'isolated' package
+* move helpers from suite to helpers package
+* adds the create-user command integration tests
+* stop skippin'
+* add cleanup as prep for running tests
+* xargs is dumb
+* clean up correctly, Anand screwed up
+* don't pipefail
+* 5 was too many
+* prevents a negative wait group counter from occurring
+* cloudcontroller and uaa connections reset previous http responses on retries and log correct response state
+* additional cleanup, just in case
+* don't display error twice, doing the hacky thing
+* authentication middleware resets original http body in retries
+* move version into common
+* rewrite some cmd unit tests as integration tests
+* set KeepAlive to 30 seconds in all Dialers
+* godoc warning people not to import these packages
+* refactored version command
+* git hook to prevent pushing commits with anonymous Pivotal user
+* disable broken character encoding cats
+* integration test for custom oauth client id and secret
+* set OAuth client and secret defaults in NewData
+* set OAuth client and secret defaults in LoadConfig
+* remove SetCFOAuthClient and SetCFOAuthClientSecret
+* move help and command list into common package
+* rename packages {v2,v3}/common -> {v2,v3}/shared
+* rename package command/flags -> command/flag
+* skipping these CATs tests since they don't actually work
+* share common code from commands/v2 and commands/v3
+* switch back to master, looks like the commit has been merged
+* rename commands to command
+* skipping test as it hasn't actually worked in a long time
+* Fix linux cat SKIPS variable setting
+* pend service key test from running
+* skip tasks tests for now, since they're borked
+* we don't need to run these tests
+* spaces are dumb
+* run all the tests?
+* find the default shared domain directly instead of using API URL
+* use random names for apps
+* ensure cleanup always occurs, also reduce parallelism
+* enables use of custom client id and secret when authenticating with UAA
+* moved most of the cli/cli-acceptance-tests over to integration
+* remove default CF OAuth Client
+* update ports to be comma separated in security group help text
+* default CFOAuthClient to "cf" if empty
+* Merge branch 's-matyukevich-cf-oauth-client2'
+* Merge branch 'cf-oauth-client' of git://github.com/s-matyukevich/cli into s-matyukevich-cf-oauth-client2
+* remove cli-private resource
+* add push test to integration suite
+* rotate homebrew tap github key
+* remove cli-private resource
+* remove unused sign-windows-binary task
+* remove dependency on the cli-private repo
+* use the develop branch of cf-release for cf-acceptance-tests
+* fix cli-integration resource uri
+* change public git resource URLs to https
+* created a read only org that is shared across tests
+* fix description on update-security-group-command
+* use more of the default eventually timeout
+* cleanup task for pipeline integration tests
+* add description to update-security-group help json
+* move integration test cleanup to a script
+* use the same org name prefix
+* add description to create-security-group help json
+* handle int parsing if passed in string
+* Bump NOAA
+* clean up all the orgs - integration tests
+* files are created in a tmp dir and cleaned up properly
+* why not just set the timeout higher?
+* does not retry on any POST requests
+* user-agent only contains the base command name
+* catch ErrMarshal in main to print help
+* update the flags parse integer error to be more user friendly
+* read verbose from config now, tell your friends.
+* display redacted authorization header in trace output
+* use default domain for service integration tests
+* skip portion of test because the test setup is incorrect
+* service-key command exits with 1 when not found
+* fix incorrect method call
+* refactor utils/ui package
+* move task commands under APPS in help -a output
+* add --name option to run-task command
+* add task commands to help -a
+* added the terminate-task command
+* change retry request logic to only trigger for 500
+* renamed ccv3 RunTask to NewTask per client naming convention
+* add message when targetting api without being logged in
+* update integration tests
+* handle errors for API endpoint mismatches
+* don't display extra target information in API cmd
+* align table display in API command
+* change the error message when the app is not staged
+* pretty prints the output from the api command
+* return a friendlier error when creating tasks in a diegoless environment
+* add cloudfoundry to windows worker path
+* pass the original body on every http request retry
+* update translations for the RunTaskError
+* remove focus
+* test empty tables properly for v3 tasks command
+* task running related errors are now displayed cleanly
+* windows has a slightly different message, so don't check the whole thing
+* task actor no longer returns TasksNotFoundError
+* update expected tables in integration tests for better match
+* optional protocal cuz of windows
+* add scheme to default apiURL for integration tests
+* changed name as it seems to work in preview but not after commit
+* added slack badge
+* added integration tests for v3 tasks command
+* added additional behavior to v3 tasks command
+* do not hardcode api URL in proxy integration tests
+* integration tests for verbose flag and proxy
+* added CF logo
+* add table display to tasks command
+* added the v3 tasks command
+* move common errors into cloudcontroller package
+* display full stack trace for panics
+* uaa client will adhere to the CF_DIAL_TIMEOUT
+* forgot that API won't have the config set, this should fix it
+* embed some structures and add some documentation
+* pass user-agent and connection headers to UAA requests
+* create new NewCloudControllerClient method and rename old one
+* skipping test in windows due to timing issues
+* update golang.org/x packages
+* update ginkgo/gomega
+* refactor ccv3 info test to reduce flakiness
+* CF_DIAL_TIMEOUT works with api/cloudcontroller/cloud_controller_connection
+* move API URL and SkipSSLValidation into TargetSettings struct
+* add User-Agent header to CloudControllerClient
+* return non CC errors in a generic wrapped error
+* adds newline in run-task output
+* clean up error handling
+* add run-task integration tests
+* rename requestOptions URI to URL
+* remove v2 dependency in v3 commands
+* refactor and backfill tests for run-task command
+* add CCv3 run-task command
+* remove build commands and link to Concourse task
+* add file logging to new CF_TRACE
+* add verbose logging to v2 commands
+* add a request logger wrapper
+* add ORG to usage message
+* Merge branch 'hyenaspots-delete-space-o-redux'
+* add comments about what we're skipping
+* take care of some gometalinter warnings
+* rename all the things
+* change Make interface to take in http.Request in UAA Client
+* change Make interface to take in http.Request
+* clean up in api command
+* exit early if target api and skip ssl configuration is the same
+* reduced time taken to get all resources pointing to cli repo
+* shortened wording
+* reducing time taken by concourse to get the cli repo
+* Revert "the integration package is not in the cli resource"
+* remove the final-cli resource because it is not used
+* re-add create-cats-config.bat to fix pipeline
+* Bump version to 6.22.2
+* Revert "Bump version to 6.23.0"
+* Merge branch 'delete-space-o-redux' of git://github.com/hyenaspots/cli into hyenaspots-delete-space-o-redux
+* Merge branch 'master' into delete-space-o-redux
+* Update translation strings
+* Update translation files
+* Remove unnecessary/redundant translation strings
+* Refactor delete-space to clean up after adding -o
+* Add the results of bin/test i18n translation resource updates
+* Add delete-space -o flag to V2 command list
+* Re-add symlink fixture that was somehow deleted during rebase on master
+* Fix bug needing space w/ same name in current org with -o flag
+* Remove targeted org requirement from delete-space when -o is present
+* Add -o flag (but still requires an org to be targeted)
+* build fixed
+* client password added
+* Merge branch 'master' of https://github.com/cloudfoundry/cli into cf-oauth-client
+* cf OAuth client added to config file
+
 ## 6.22.2
 * Bump version to 6.22.2
 * Revert "Bump version to 6.23.0"

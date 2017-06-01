@@ -6,82 +6,57 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
-	"strings"
-
-	"github.com/tedsuo/rata"
+	"time"
 )
 
 // UAAConnection represents the connection to UAA
 type UAAConnection struct {
-	HTTPClient       *http.Client
-	URL              string
-	requestGenerator *rata.RequestGenerator
+	HTTPClient *http.Client
 }
 
 // NewConnection returns a pointer to a new UAA Connection
-func NewConnection(APIURL string, routes rata.Routes, skipSSLValidation bool) *UAAConnection {
+func NewConnection(skipSSLValidation bool, dialTimeout time.Duration) *UAAConnection {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: skipSSLValidation,
 		},
 		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			KeepAlive: 30 * time.Second,
+			Timeout:   dialTimeout,
+		}).DialContext,
 	}
 
 	return &UAAConnection{
 		HTTPClient: &http.Client{Transport: tr},
-
-		URL:              strings.TrimRight(APIURL, "/"),
-		requestGenerator: rata.NewRequestGenerator(APIURL, routes),
 	}
 }
 
 // Make takes a passedRequest, converts it into an HTTP request and then
 // executes it. The response is then injected into passedResponse.
-func (connection *UAAConnection) Make(passedRequest Request, passedResponse *Response) error {
-	req, err := connection.createHTTPRequest(passedRequest)
-	if err != nil {
-		return err
-	}
+func (connection *UAAConnection) Make(request *http.Request, passedResponse *Response) error {
+	// In case this function is called from a retry, passedResponse may already
+	// be populated with a previous response. We reset in case there's an HTTP
+	// error and we don't repopulate it in populateResponse.
+	passedResponse.reset()
 
-	response, err := connection.HTTPClient.Do(req)
+	response, err := connection.HTTPClient.Do(request)
 	if err != nil {
-		return connection.processRequestErrors(err)
+		return connection.processRequestErrors(request, err)
 	}
-
-	defer response.Body.Close()
 
 	return connection.populateResponse(response, passedResponse)
 }
 
-func (connection *UAAConnection) createHTTPRequest(passedRequest Request) (*http.Request, error) {
-	request, err := connection.requestGenerator.CreateRequest(
-		passedRequest.RequestName,
-		passedRequest.Params,
-		passedRequest.Body,
-	)
-	request.URL.RawQuery = passedRequest.Query.Encode()
-	if err != nil {
-		return nil, err
-	}
-
-	if passedRequest.Header != nil {
-		request.Header = passedRequest.Header
-	}
-
-	// request.Header.Set("Connection", "close")
-	// request.Header.Set("User-Agent", "go-cli "+cf.Version+" / "+runtime.GOOS)
-
-	return request, nil
-}
-
-func (connection *UAAConnection) processRequestErrors(err error) error {
+func (connection *UAAConnection) processRequestErrors(request *http.Request, err error) error {
 	switch e := err.(type) {
 	case *url.Error:
 		if _, ok := e.Err.(x509.UnknownAuthorityError); ok {
 			return UnverifiedServerError{
-				URL: connection.URL,
+				URL: request.URL.String(),
 			}
 		}
 		return RequestError{Err: e}
@@ -91,16 +66,22 @@ func (connection *UAAConnection) processRequestErrors(err error) error {
 }
 
 func (connection *UAAConnection) populateResponse(response *http.Response, passedResponse *Response) error {
-	err := connection.handleStatusCodes(response)
+	passedResponse.HTTPResponse = response
+
+	rawBytes, err := ioutil.ReadAll(response.Body)
+	defer response.Body.Close()
+	if err != nil {
+		return err
+	}
+	passedResponse.RawResponse = rawBytes
+
+	err = connection.handleStatusCodes(response, passedResponse)
 	if err != nil {
 		return err
 	}
 
 	if passedResponse.Result != nil {
-		rawBytes, _ := ioutil.ReadAll(response.Body)
-		passedResponse.RawResponse = rawBytes
-
-		decoder := json.NewDecoder(bytes.NewBuffer(rawBytes))
+		decoder := json.NewDecoder(bytes.NewBuffer(passedResponse.RawResponse))
 		decoder.UseNumber()
 		err = decoder.Decode(passedResponse.Result)
 		if err != nil {
@@ -111,16 +92,12 @@ func (connection *UAAConnection) populateResponse(response *http.Response, passe
 	return nil
 }
 
-func (*UAAConnection) handleStatusCodes(response *http.Response) error {
+func (*UAAConnection) handleStatusCodes(response *http.Response, passedResponse *Response) error {
 	if response.StatusCode >= 400 {
-		var uaaErr Error
-		decoder := json.NewDecoder(response.Body)
-		err := decoder.Decode(&uaaErr)
-		if err != nil {
-			return err
+		return RawHTTPStatusError{
+			StatusCode:  response.StatusCode,
+			RawResponse: passedResponse.RawResponse,
 		}
-
-		return uaaErr
 	}
 
 	return nil

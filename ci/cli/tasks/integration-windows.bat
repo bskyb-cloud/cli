@@ -1,5 +1,6 @@
 SET GOPATH=%CD%\go
 SET GATSPATH=%GOPATH%\src\code.cloudfoundry.org\cli
+SET CF_DIAL_TIMEOUT=15
 
 SET PATH=C:\Go\bin;%PATH%
 SET PATH=C:\Program Files\Git\cmd\;%PATH%
@@ -9,7 +10,8 @@ SET PATH=C:\Program Files\cURL\bin;%PATH%
 SET PATH=%CD%;%PATH%
 
 SET /p DOMAIN=<%CD%\bosh-lite-lock\name
-SET CF_API=api.%DOMAIN%
+SET /p CF_PASSWORD=<%CD%\cf-credentials\cf-password
+SET CF_API=https://api.%DOMAIN%
 call %CD%\cli-ci\ci\cli\tasks\create-cats-config.bat
 SET CONFIG=%CD%\config.json
 
@@ -19,7 +21,8 @@ pushd %CD%\cf-cli-binaries
 	MOVE %CD%\cf-cli_winx64.exe ..\cf.exe
 popd
 
-go get -v github.com/onsi/ginkgo/ginkgo
+go get -v -u github.com/onsi/ginkgo/ginkgo
 
 cd %GATSPATH%
-ginkgo.exe -r -nodes=4 -slowSpecThreshold=30 -randomizeSuites ./integration
+ginkgo.exe -r -nodes=16 -flakeAttempts=2 -slowSpecThreshold=60 -randomizeAllSpecs -failFast ./integration/isolated || exit 1
+ginkgo.exe -r -flakeAttempts=2 -slowSpecThreshold=60 -randomizeAllSpecs -failFast ./integration/global ./integration/plugin || exit 1

@@ -12,10 +12,10 @@ import (
 	"code.cloudfoundry.org/cli/cf/requirements/requirementsfakes"
 
 	"code.cloudfoundry.org/cli/cf/api/authentication/authenticationfakes"
-	testconfig "code.cloudfoundry.org/cli/utils/testhelpers/configuration"
-	testterm "code.cloudfoundry.org/cli/utils/testhelpers/terminal"
+	testconfig "code.cloudfoundry.org/cli/util/testhelpers/configuration"
+	testterm "code.cloudfoundry.org/cli/util/testhelpers/terminal"
 
-	. "code.cloudfoundry.org/cli/utils/testhelpers/matchers"
+	. "code.cloudfoundry.org/cli/util/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -101,9 +101,7 @@ var _ = Describe("OneTimeSSHCode", func() {
 			cmd.Requirements(factory, flagContext)
 
 			endpointRepo.GetCCInfoReturns(
-				&coreconfig.CCInfo{
-					LoggregatorEndpoint: "loggregator/endpoint",
-				},
+				&coreconfig.CCInfo{},
 				"some-endpoint",
 				nil,
 			)
@@ -123,7 +121,6 @@ var _ = Describe("OneTimeSSHCode", func() {
 			ccInfo := &coreconfig.CCInfo{
 				APIVersion:               "some-version",
 				AuthorizationEndpoint:    "auth/endpoint",
-				LoggregatorEndpoint:      "loggregator/endpoint",
 				MinCLIVersion:            "min-cli-version",
 				MinRecommendedCLIVersion: "min-rec-cli-version",
 				SSHOAuthClient:           "some-client",

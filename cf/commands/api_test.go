@@ -8,8 +8,8 @@ import (
 	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
 	"code.cloudfoundry.org/cli/cf/errors"
 	"code.cloudfoundry.org/cli/cf/requirements/requirementsfakes"
-	testconfig "code.cloudfoundry.org/cli/utils/testhelpers/configuration"
-	testterm "code.cloudfoundry.org/cli/utils/testhelpers/terminal"
+	testconfig "code.cloudfoundry.org/cli/util/testhelpers/configuration"
+	testterm "code.cloudfoundry.org/cli/util/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -17,7 +17,7 @@ import (
 	"code.cloudfoundry.org/cli/cf/commands"
 	"code.cloudfoundry.org/cli/cf/configuration/coreconfig/coreconfigfakes"
 	"code.cloudfoundry.org/cli/cf/flags"
-	. "code.cloudfoundry.org/cli/utils/testhelpers/matchers"
+	. "code.cloudfoundry.org/cli/util/testhelpers/matchers"
 )
 
 var _ = Describe("Api", func() {
@@ -50,7 +50,6 @@ var _ = Describe("Api", func() {
 			return &coreconfig.CCInfo{
 				APIVersion:               config.APIVersion(),
 				AuthorizationEndpoint:    config.AuthenticationEndpoint(),
-				LoggregatorEndpoint:      "log/endpoint",
 				MinCLIVersion:            config.MinCLIVersion(),
 				MinRecommendedCLIVersion: config.MinRecommendedCLIVersion(),
 				SSHOAuthClient:           config.SSHOAuthClient(),

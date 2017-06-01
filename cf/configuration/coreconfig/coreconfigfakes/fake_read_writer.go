@@ -34,12 +34,6 @@ type FakeReadWriter struct {
 	authenticationEndpointReturns     struct {
 		result1 string
 	}
-	LoggregatorEndpointStub        func() string
-	loggregatorEndpointMutex       sync.RWMutex
-	loggregatorEndpointArgsForCall []struct{}
-	loggregatorEndpointReturns     struct {
-		result1 string
-	}
 	DopplerEndpointStub        func() string
 	dopplerEndpointMutex       sync.RWMutex
 	dopplerEndpointArgsForCall []struct{}
@@ -62,6 +56,18 @@ type FakeReadWriter struct {
 	accessTokenMutex       sync.RWMutex
 	accessTokenArgsForCall []struct{}
 	accessTokenReturns     struct {
+		result1 string
+	}
+	UAAOAuthClientStub        func() string
+	uAAOAuthClientMutex       sync.RWMutex
+	uAAOAuthClientArgsForCall []struct{}
+	uAAOAuthClientReturns     struct {
+		result1 string
+	}
+	UAAOAuthClientSecretStub        func() string
+	uAAOAuthClientSecretMutex       sync.RWMutex
+	uAAOAuthClientSecretArgsForCall []struct{}
+	uAAOAuthClientSecretReturns     struct {
 		result1 string
 	}
 	SSHOAuthClientStub        func() string
@@ -158,6 +164,12 @@ type FakeReadWriter struct {
 	minRecommendedCLIVersionReturns     struct {
 		result1 string
 	}
+	CLIVersionStub        func() string
+	cLIVersionMutex       sync.RWMutex
+	cLIVersionArgsForCall []struct{}
+	cLIVersionReturns     struct {
+		result1 string
+	}
 	AsyncTimeoutStub        func() uint
 	asyncTimeoutMutex       sync.RWMutex
 	asyncTimeoutArgsForCall []struct{}
@@ -216,11 +228,6 @@ type FakeReadWriter struct {
 	setAuthenticationEndpointArgsForCall []struct {
 		arg1 string
 	}
-	SetLoggregatorEndpointStub        func(string)
-	setLoggregatorEndpointMutex       sync.RWMutex
-	setLoggregatorEndpointArgsForCall []struct {
-		arg1 string
-	}
 	SetDopplerEndpointStub        func(string)
 	setDopplerEndpointMutex       sync.RWMutex
 	setDopplerEndpointArgsForCall []struct {
@@ -239,6 +246,16 @@ type FakeReadWriter struct {
 	SetAccessTokenStub        func(string)
 	setAccessTokenMutex       sync.RWMutex
 	setAccessTokenArgsForCall []struct {
+		arg1 string
+	}
+	SetUAAOAuthClientStub        func(string)
+	setUAAOAuthClientMutex       sync.RWMutex
+	setUAAOAuthClientArgsForCall []struct {
+		arg1 string
+	}
+	SetUAAOAuthClientSecretStub        func(string)
+	setUAAOAuthClientSecretMutex       sync.RWMutex
+	setUAAOAuthClientSecretArgsForCall []struct {
 		arg1 string
 	}
 	SetSSHOAuthClientStub        func(string)
@@ -295,6 +312,11 @@ type FakeReadWriter struct {
 	unSetPluginRepoMutex       sync.RWMutex
 	unSetPluginRepoArgsForCall []struct {
 		arg1 int
+	}
+	SetCLIVersionStub        func(string)
+	setCLIVersionMutex       sync.RWMutex
+	setCLIVersionArgsForCall []struct {
+		arg1 string
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
@@ -400,31 +422,6 @@ func (fake *FakeReadWriter) AuthenticationEndpointReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeReadWriter) LoggregatorEndpoint() string {
-	fake.loggregatorEndpointMutex.Lock()
-	fake.loggregatorEndpointArgsForCall = append(fake.loggregatorEndpointArgsForCall, struct{}{})
-	fake.recordInvocation("LoggregatorEndpoint", []interface{}{})
-	fake.loggregatorEndpointMutex.Unlock()
-	if fake.LoggregatorEndpointStub != nil {
-		return fake.LoggregatorEndpointStub()
-	} else {
-		return fake.loggregatorEndpointReturns.result1
-	}
-}
-
-func (fake *FakeReadWriter) LoggregatorEndpointCallCount() int {
-	fake.loggregatorEndpointMutex.RLock()
-	defer fake.loggregatorEndpointMutex.RUnlock()
-	return len(fake.loggregatorEndpointArgsForCall)
-}
-
-func (fake *FakeReadWriter) LoggregatorEndpointReturns(result1 string) {
-	fake.LoggregatorEndpointStub = nil
-	fake.loggregatorEndpointReturns = struct {
-		result1 string
-	}{result1}
-}
-
 func (fake *FakeReadWriter) DopplerEndpoint() string {
 	fake.dopplerEndpointMutex.Lock()
 	fake.dopplerEndpointArgsForCall = append(fake.dopplerEndpointArgsForCall, struct{}{})
@@ -521,6 +518,56 @@ func (fake *FakeReadWriter) AccessTokenCallCount() int {
 func (fake *FakeReadWriter) AccessTokenReturns(result1 string) {
 	fake.AccessTokenStub = nil
 	fake.accessTokenReturns = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakeReadWriter) UAAOAuthClient() string {
+	fake.uAAOAuthClientMutex.Lock()
+	fake.uAAOAuthClientArgsForCall = append(fake.uAAOAuthClientArgsForCall, struct{}{})
+	fake.recordInvocation("UAAOAuthClient", []interface{}{})
+	fake.uAAOAuthClientMutex.Unlock()
+	if fake.UAAOAuthClientStub != nil {
+		return fake.UAAOAuthClientStub()
+	} else {
+		return fake.uAAOAuthClientReturns.result1
+	}
+}
+
+func (fake *FakeReadWriter) UAAOAuthClientCallCount() int {
+	fake.uAAOAuthClientMutex.RLock()
+	defer fake.uAAOAuthClientMutex.RUnlock()
+	return len(fake.uAAOAuthClientArgsForCall)
+}
+
+func (fake *FakeReadWriter) UAAOAuthClientReturns(result1 string) {
+	fake.UAAOAuthClientStub = nil
+	fake.uAAOAuthClientReturns = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakeReadWriter) UAAOAuthClientSecret() string {
+	fake.uAAOAuthClientSecretMutex.Lock()
+	fake.uAAOAuthClientSecretArgsForCall = append(fake.uAAOAuthClientSecretArgsForCall, struct{}{})
+	fake.recordInvocation("UAAOAuthClientSecret", []interface{}{})
+	fake.uAAOAuthClientSecretMutex.Unlock()
+	if fake.UAAOAuthClientSecretStub != nil {
+		return fake.UAAOAuthClientSecretStub()
+	} else {
+		return fake.uAAOAuthClientSecretReturns.result1
+	}
+}
+
+func (fake *FakeReadWriter) UAAOAuthClientSecretCallCount() int {
+	fake.uAAOAuthClientSecretMutex.RLock()
+	defer fake.uAAOAuthClientSecretMutex.RUnlock()
+	return len(fake.uAAOAuthClientSecretArgsForCall)
+}
+
+func (fake *FakeReadWriter) UAAOAuthClientSecretReturns(result1 string) {
+	fake.UAAOAuthClientSecretStub = nil
+	fake.uAAOAuthClientSecretReturns = struct {
 		result1 string
 	}{result1}
 }
@@ -916,6 +963,31 @@ func (fake *FakeReadWriter) MinRecommendedCLIVersionReturns(result1 string) {
 	}{result1}
 }
 
+func (fake *FakeReadWriter) CLIVersion() string {
+	fake.cLIVersionMutex.Lock()
+	fake.cLIVersionArgsForCall = append(fake.cLIVersionArgsForCall, struct{}{})
+	fake.recordInvocation("CLIVersion", []interface{}{})
+	fake.cLIVersionMutex.Unlock()
+	if fake.CLIVersionStub != nil {
+		return fake.CLIVersionStub()
+	} else {
+		return fake.cLIVersionReturns.result1
+	}
+}
+
+func (fake *FakeReadWriter) CLIVersionCallCount() int {
+	fake.cLIVersionMutex.RLock()
+	defer fake.cLIVersionMutex.RUnlock()
+	return len(fake.cLIVersionArgsForCall)
+}
+
+func (fake *FakeReadWriter) CLIVersionReturns(result1 string) {
+	fake.CLIVersionStub = nil
+	fake.cLIVersionReturns = struct {
+		result1 string
+	}{result1}
+}
+
 func (fake *FakeReadWriter) AsyncTimeout() uint {
 	fake.asyncTimeoutMutex.Lock()
 	fake.asyncTimeoutArgsForCall = append(fake.asyncTimeoutArgsForCall, struct{}{})
@@ -1177,30 +1249,6 @@ func (fake *FakeReadWriter) SetAuthenticationEndpointArgsForCall(i int) string {
 	return fake.setAuthenticationEndpointArgsForCall[i].arg1
 }
 
-func (fake *FakeReadWriter) SetLoggregatorEndpoint(arg1 string) {
-	fake.setLoggregatorEndpointMutex.Lock()
-	fake.setLoggregatorEndpointArgsForCall = append(fake.setLoggregatorEndpointArgsForCall, struct {
-		arg1 string
-	}{arg1})
-	fake.recordInvocation("SetLoggregatorEndpoint", []interface{}{arg1})
-	fake.setLoggregatorEndpointMutex.Unlock()
-	if fake.SetLoggregatorEndpointStub != nil {
-		fake.SetLoggregatorEndpointStub(arg1)
-	}
-}
-
-func (fake *FakeReadWriter) SetLoggregatorEndpointCallCount() int {
-	fake.setLoggregatorEndpointMutex.RLock()
-	defer fake.setLoggregatorEndpointMutex.RUnlock()
-	return len(fake.setLoggregatorEndpointArgsForCall)
-}
-
-func (fake *FakeReadWriter) SetLoggregatorEndpointArgsForCall(i int) string {
-	fake.setLoggregatorEndpointMutex.RLock()
-	defer fake.setLoggregatorEndpointMutex.RUnlock()
-	return fake.setLoggregatorEndpointArgsForCall[i].arg1
-}
-
 func (fake *FakeReadWriter) SetDopplerEndpoint(arg1 string) {
 	fake.setDopplerEndpointMutex.Lock()
 	fake.setDopplerEndpointArgsForCall = append(fake.setDopplerEndpointArgsForCall, struct {
@@ -1295,6 +1343,54 @@ func (fake *FakeReadWriter) SetAccessTokenArgsForCall(i int) string {
 	fake.setAccessTokenMutex.RLock()
 	defer fake.setAccessTokenMutex.RUnlock()
 	return fake.setAccessTokenArgsForCall[i].arg1
+}
+
+func (fake *FakeReadWriter) SetUAAOAuthClient(arg1 string) {
+	fake.setUAAOAuthClientMutex.Lock()
+	fake.setUAAOAuthClientArgsForCall = append(fake.setUAAOAuthClientArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	fake.recordInvocation("SetUAAOAuthClient", []interface{}{arg1})
+	fake.setUAAOAuthClientMutex.Unlock()
+	if fake.SetUAAOAuthClientStub != nil {
+		fake.SetUAAOAuthClientStub(arg1)
+	}
+}
+
+func (fake *FakeReadWriter) SetUAAOAuthClientCallCount() int {
+	fake.setUAAOAuthClientMutex.RLock()
+	defer fake.setUAAOAuthClientMutex.RUnlock()
+	return len(fake.setUAAOAuthClientArgsForCall)
+}
+
+func (fake *FakeReadWriter) SetUAAOAuthClientArgsForCall(i int) string {
+	fake.setUAAOAuthClientMutex.RLock()
+	defer fake.setUAAOAuthClientMutex.RUnlock()
+	return fake.setUAAOAuthClientArgsForCall[i].arg1
+}
+
+func (fake *FakeReadWriter) SetUAAOAuthClientSecret(arg1 string) {
+	fake.setUAAOAuthClientSecretMutex.Lock()
+	fake.setUAAOAuthClientSecretArgsForCall = append(fake.setUAAOAuthClientSecretArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	fake.recordInvocation("SetUAAOAuthClientSecret", []interface{}{arg1})
+	fake.setUAAOAuthClientSecretMutex.Unlock()
+	if fake.SetUAAOAuthClientSecretStub != nil {
+		fake.SetUAAOAuthClientSecretStub(arg1)
+	}
+}
+
+func (fake *FakeReadWriter) SetUAAOAuthClientSecretCallCount() int {
+	fake.setUAAOAuthClientSecretMutex.RLock()
+	defer fake.setUAAOAuthClientSecretMutex.RUnlock()
+	return len(fake.setUAAOAuthClientSecretArgsForCall)
+}
+
+func (fake *FakeReadWriter) SetUAAOAuthClientSecretArgsForCall(i int) string {
+	fake.setUAAOAuthClientSecretMutex.RLock()
+	defer fake.setUAAOAuthClientSecretMutex.RUnlock()
+	return fake.setUAAOAuthClientSecretArgsForCall[i].arg1
 }
 
 func (fake *FakeReadWriter) SetSSHOAuthClient(arg1 string) {
@@ -1561,6 +1657,30 @@ func (fake *FakeReadWriter) UnSetPluginRepoArgsForCall(i int) int {
 	return fake.unSetPluginRepoArgsForCall[i].arg1
 }
 
+func (fake *FakeReadWriter) SetCLIVersion(arg1 string) {
+	fake.setCLIVersionMutex.Lock()
+	fake.setCLIVersionArgsForCall = append(fake.setCLIVersionArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	fake.recordInvocation("SetCLIVersion", []interface{}{arg1})
+	fake.setCLIVersionMutex.Unlock()
+	if fake.SetCLIVersionStub != nil {
+		fake.SetCLIVersionStub(arg1)
+	}
+}
+
+func (fake *FakeReadWriter) SetCLIVersionCallCount() int {
+	fake.setCLIVersionMutex.RLock()
+	defer fake.setCLIVersionMutex.RUnlock()
+	return len(fake.setCLIVersionArgsForCall)
+}
+
+func (fake *FakeReadWriter) SetCLIVersionArgsForCall(i int) string {
+	fake.setCLIVersionMutex.RLock()
+	defer fake.setCLIVersionMutex.RUnlock()
+	return fake.setCLIVersionArgsForCall[i].arg1
+}
+
 func (fake *FakeReadWriter) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -1572,8 +1692,6 @@ func (fake *FakeReadWriter) Invocations() map[string][][]interface{} {
 	defer fake.hasAPIEndpointMutex.RUnlock()
 	fake.authenticationEndpointMutex.RLock()
 	defer fake.authenticationEndpointMutex.RUnlock()
-	fake.loggregatorEndpointMutex.RLock()
-	defer fake.loggregatorEndpointMutex.RUnlock()
 	fake.dopplerEndpointMutex.RLock()
 	defer fake.dopplerEndpointMutex.RUnlock()
 	fake.uaaEndpointMutex.RLock()
@@ -1582,6 +1700,10 @@ func (fake *FakeReadWriter) Invocations() map[string][][]interface{} {
 	defer fake.routingAPIEndpointMutex.RUnlock()
 	fake.accessTokenMutex.RLock()
 	defer fake.accessTokenMutex.RUnlock()
+	fake.uAAOAuthClientMutex.RLock()
+	defer fake.uAAOAuthClientMutex.RUnlock()
+	fake.uAAOAuthClientSecretMutex.RLock()
+	defer fake.uAAOAuthClientSecretMutex.RUnlock()
 	fake.sSHOAuthClientMutex.RLock()
 	defer fake.sSHOAuthClientMutex.RUnlock()
 	fake.refreshTokenMutex.RLock()
@@ -1612,6 +1734,8 @@ func (fake *FakeReadWriter) Invocations() map[string][][]interface{} {
 	defer fake.minCLIVersionMutex.RUnlock()
 	fake.minRecommendedCLIVersionMutex.RLock()
 	defer fake.minRecommendedCLIVersionMutex.RUnlock()
+	fake.cLIVersionMutex.RLock()
+	defer fake.cLIVersionMutex.RUnlock()
 	fake.asyncTimeoutMutex.RLock()
 	defer fake.asyncTimeoutMutex.RUnlock()
 	fake.traceMutex.RLock()
@@ -1634,8 +1758,6 @@ func (fake *FakeReadWriter) Invocations() map[string][][]interface{} {
 	defer fake.setMinRecommendedCLIVersionMutex.RUnlock()
 	fake.setAuthenticationEndpointMutex.RLock()
 	defer fake.setAuthenticationEndpointMutex.RUnlock()
-	fake.setLoggregatorEndpointMutex.RLock()
-	defer fake.setLoggregatorEndpointMutex.RUnlock()
 	fake.setDopplerEndpointMutex.RLock()
 	defer fake.setDopplerEndpointMutex.RUnlock()
 	fake.setUaaEndpointMutex.RLock()
@@ -1644,6 +1766,10 @@ func (fake *FakeReadWriter) Invocations() map[string][][]interface{} {
 	defer fake.setRoutingAPIEndpointMutex.RUnlock()
 	fake.setAccessTokenMutex.RLock()
 	defer fake.setAccessTokenMutex.RUnlock()
+	fake.setUAAOAuthClientMutex.RLock()
+	defer fake.setUAAOAuthClientMutex.RUnlock()
+	fake.setUAAOAuthClientSecretMutex.RLock()
+	defer fake.setUAAOAuthClientSecretMutex.RUnlock()
 	fake.setSSHOAuthClientMutex.RLock()
 	defer fake.setSSHOAuthClientMutex.RUnlock()
 	fake.setRefreshTokenMutex.RLock()
@@ -1666,6 +1792,8 @@ func (fake *FakeReadWriter) Invocations() map[string][][]interface{} {
 	defer fake.setPluginRepoMutex.RUnlock()
 	fake.unSetPluginRepoMutex.RLock()
 	defer fake.unSetPluginRepoMutex.RUnlock()
+	fake.setCLIVersionMutex.RLock()
+	defer fake.setCLIVersionMutex.RUnlock()
 	return fake.invocations
 }
 

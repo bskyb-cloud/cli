@@ -15,11 +15,12 @@ var _ = Describe("V3 Config files", func() {
 		"Target": "api.example.com",
 		"APIVersion": "3",
 		"AuthorizationEndpoint": "auth.example.com",
-		"LoggregatorEndPoint": "loggregator.example.com",
 		"DopplerEndPoint": "doppler.example.com",
 		"UaaEndpoint": "uaa.example.com",
 		"RoutingAPIEndpoint": "routing-api.example.com",
 		"AccessToken": "the-access-token",
+		"UAAOAuthClient": "cf-oauth-client-id",
+		"UAAOAuthClientSecret": "cf-oauth-client-secret",
 		"SSHOAuthClient": "ssh-oauth-client-id",
 		"RefreshToken": "the-refresh-token",
 		"OrganizationFields": {
@@ -67,6 +68,8 @@ var _ = Describe("V3 Config files", func() {
 		"UaaEndpoint": "uaa.example.com",
 		"RoutingAPIEndpoint": "routing-api.example.com",
 		"AccessToken": "the-access-token",
+		"UAAOAuthClient": "cf-oauth-client-id",
+		"UAAOAuthClientSecret": "cf-oauth-client-secret",
 		"SSHOAuthClient": "ssh-oauth-client-id",
 		"RefreshToken": "the-refresh-token",
 		"OrganizationFields": {
@@ -101,18 +104,27 @@ var _ = Describe("V3 Config files", func() {
 		"MinRecommendedCLIVersion": "6.9.0"
 	}`
 
+	Describe("NewData", func() {
+		It("sets default values for UAAOAuthClient and CFOAUthCLientSecret", func() {
+			data := coreconfig.NewData()
+			Expect(data.UAAOAuthClient).To(Equal("cf"))
+			Expect(data.UAAOAuthClientSecret).To(Equal(""))
+		})
+	})
+
 	Describe("JSONMarshalV3", func() {
 		It("creates a JSON string from the config object", func() {
 			data := &coreconfig.Data{
 				Target:                   "api.example.com",
 				APIVersion:               "3",
 				AuthorizationEndpoint:    "auth.example.com",
-				LoggregatorEndPoint:      "loggregator.example.com",
 				RoutingAPIEndpoint:       "routing-api.example.com",
 				DopplerEndPoint:          "doppler.example.com",
 				UaaEndpoint:              "uaa.example.com",
 				AccessToken:              "the-access-token",
 				RefreshToken:             "the-refresh-token",
+				UAAOAuthClient:           "cf-oauth-client-id",
+				UAAOAuthClientSecret:     "cf-oauth-client-secret",
 				SSHOAuthClient:           "ssh-oauth-client-id",
 				MinCLIVersion:            "6.0.0",
 				MinRecommendedCLIVersion: "6.9.0",
@@ -157,12 +169,13 @@ var _ = Describe("V3 Config files", func() {
 				Target:                   "api.example.com",
 				APIVersion:               "3",
 				AuthorizationEndpoint:    "auth.example.com",
-				LoggregatorEndPoint:      "loggregator.example.com",
 				RoutingAPIEndpoint:       "routing-api.example.com",
 				DopplerEndPoint:          "doppler.example.com",
 				UaaEndpoint:              "uaa.example.com",
 				AccessToken:              "the-access-token",
 				RefreshToken:             "the-refresh-token",
+				UAAOAuthClient:           "cf-oauth-client-id",
+				UAAOAuthClientSecret:     "cf-oauth-client-secret",
 				SSHOAuthClient:           "ssh-oauth-client-id",
 				MinCLIVersion:            "6.0.0",
 				MinRecommendedCLIVersion: "6.9.0",

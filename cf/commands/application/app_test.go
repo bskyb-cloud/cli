@@ -17,13 +17,13 @@ import (
 	"code.cloudfoundry.org/cli/cf/requirements/requirementsfakes"
 	"code.cloudfoundry.org/cli/plugin/models"
 
-	testconfig "code.cloudfoundry.org/cli/utils/testhelpers/configuration"
-	testterm "code.cloudfoundry.org/cli/utils/testhelpers/terminal"
+	testconfig "code.cloudfoundry.org/cli/util/testhelpers/configuration"
+	testterm "code.cloudfoundry.org/cli/util/testhelpers/terminal"
 
 	"code.cloudfoundry.org/cli/cf/api/apifakes"
 	"code.cloudfoundry.org/cli/cf/api/appinstances/appinstancesfakes"
 
-	. "code.cloudfoundry.org/cli/utils/testhelpers/matchers"
+	. "code.cloudfoundry.org/cli/util/testhelpers/matchers"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -474,6 +474,8 @@ var _ = Describe("App", func() {
 					Expect(getAppModel.Routes[0].Guid).To(Equal("fake-route-guid"))
 					Expect(getAppModel.Routes[0].Domain.Name).To(Equal("fake-route-domain-name"))
 					Expect(getAppModel.Routes[0].Domain.Guid).To(Equal("fake-route-domain-guid"))
+					Expect(getAppModel.Routes[0].Path).To(Equal("some-path"))
+					Expect(getAppModel.Routes[0].Port).To(Equal(3333))
 					Expect(getAppModel.Services[0].Guid).To(Equal("fake-service-guid"))
 					Expect(getAppModel.Services[0].Name).To(Equal("fake-service-name"))
 
@@ -674,7 +676,9 @@ var getSummaryJSON string = `{
 		"domain": {
 			"guid": "fake-route-domain-guid",
 			"name": "fake-route-domain-name"
-		}
+		},
+		"path": "some-path",
+    "port": 3333
 	}
 	],
 	"running_instances": 1,

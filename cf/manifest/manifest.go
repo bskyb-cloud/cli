@@ -12,8 +12,8 @@ import (
 
 	"code.cloudfoundry.org/cli/cf/formatters"
 	"code.cloudfoundry.org/cli/cf/models"
-	"code.cloudfoundry.org/cli/utils/generic"
-	"code.cloudfoundry.org/cli/utils/words/generator"
+	"code.cloudfoundry.org/cli/util/generic"
+	"code.cloudfoundry.org/cli/util/words/generator"
 )
 
 type Manifest struct {
@@ -204,6 +204,8 @@ func mapToAppParams(basePath string, yamlMap generic.Map) (models.AppParams, err
 	appParams.ServicesToBind = sliceOrNil(yamlMap, "services", &errs)
 	appParams.EnvironmentVars = envVarOrEmptyMap(yamlMap, &errs)
 	appParams.HealthCheckType = stringVal(yamlMap, "health-check-type", &errs)
+	appParams.HealthCheckHTTPEndpoint = stringVal(yamlMap, "health-check-http-endpoint", &errs)
+
 	appParams.AppPorts = intSliceVal(yamlMap, "app-ports", &errs)
 	appParams.Routes = parseRoutes(yamlMap, &errs)
 
@@ -466,7 +468,7 @@ func envVarOrEmptyMap(yamlMap generic.Map, errs *[]error) *map[string]interface{
 
 		result := make(map[string]interface{}, envVars.Count())
 		generic.Each(envVars, func(key, value interface{}) {
-			result[key.(string)] = value
+			result[key.(string)] = interfaceToString(value)
 		})
 
 		return &result
@@ -485,6 +487,14 @@ func validateEnvVars(input generic.Map) (errs []error) {
 		}
 	})
 	return
+}
+
+func interfaceToString(value interface{}) string {
+	if f, ok := value.(float64); ok {
+		return strconv.FormatFloat(f, 'f', -1, 64)
+	}
+
+	return fmt.Sprint(value)
 }
 
 func parseRoutes(input generic.Map, errs *[]error) []models.ManifestRoute {

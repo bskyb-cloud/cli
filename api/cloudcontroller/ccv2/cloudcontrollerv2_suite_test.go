@@ -39,10 +39,23 @@ var _ = BeforeEach(func() {
 	server.Reset()
 })
 
-func NewTestClient() *CloudControllerClient {
+func NewTestClient(passed ...Config) *Client {
 	SetupV2InfoResponse()
-	client := NewCloudControllerClient()
-	warnings, err := client.TargetCF(server.URL(), true)
+
+	var config Config
+	if len(passed) > 0 {
+		config = passed[0]
+	} else {
+		config = Config{}
+	}
+	config.AppName = "CF CLI API V2 Test"
+	config.AppVersion = "Unknown"
+
+	client := NewClient(config)
+	warnings, err := client.TargetCF(TargetSettings{
+		SkipSSLValidation: true,
+		URL:               server.URL(),
+	})
 	Expect(err).ToNot(HaveOccurred())
 	Expect(warnings).To(BeEmpty())
 	return client

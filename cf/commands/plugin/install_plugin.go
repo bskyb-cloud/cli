@@ -18,8 +18,8 @@ import (
 	"code.cloudfoundry.org/cli/cf/requirements"
 	"code.cloudfoundry.org/cli/cf/terminal"
 	"code.cloudfoundry.org/cli/plugin"
-	"code.cloudfoundry.org/cli/utils"
-	"code.cloudfoundry.org/cli/utils/downloader"
+	"code.cloudfoundry.org/cli/util"
+	"code.cloudfoundry.org/cli/util/downloader"
 	"code.cloudfoundry.org/gofileutils/fileutils"
 
 	pluginRPCService "code.cloudfoundry.org/cli/plugin/rpc"
@@ -30,7 +30,7 @@ type PluginInstall struct {
 	config       coreconfig.Reader
 	pluginConfig pluginconfig.PluginConfiguration
 	pluginRepo   pluginrepo.PluginRepo
-	checksum     utils.Sha1Checksum
+	checksum     util.Sha1Checksum
 	rpcService   *pluginRPCService.CliRpcService
 }
 
@@ -95,7 +95,7 @@ func (cmd *PluginInstall) SetDependency(deps commandregistry.Dependency, pluginC
 func (cmd *PluginInstall) Execute(c flags.FlagContext) error {
 	if !cmd.confirmWithUser(
 		c,
-		T("**Attention: Plugins are binaries written by potentially untrusted authors. Install and use plugins at your own risk.**\n\nDo you want to install the plugin {{.Plugin}}? (y or n)",
+		T("**Attention: Plugins are binaries written by potentially untrusted authors. Install and use plugins at your own risk.**\n\nDo you want to install the plugin {{.Plugin}}?",
 			map[string]interface{}{
 				"Plugin": c.Args()[0],
 			}),

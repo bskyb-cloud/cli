@@ -12,19 +12,21 @@
 <b><a href="#contributing--build-instructions">Contributing</a></b>
 </p>
 
-
+<img src="https://raw.githubusercontent.com/cloudfoundry/logos/master/CF_Icon_4-colour.png" alt="CF logo" height="100" align="left"/>
 
 # Cloud Foundry CLI
+
 [![GitHub version](https://badge.fury.io/gh/cloudfoundry%2Fcli.svg)](https://github.com/cloudfoundry/cli/releases/latest)
 [![Documentation](https://img.shields.io/badge/docs-online-ff69b4.svg)](https://docs.cloudfoundry.org/cf-cli)
 [![Command help pages](https://img.shields.io/badge/command-help-lightgrey.svg)](https://cli.cloudfoundry.org)
+[![Slack](https://slack.cloudfoundry.org/badge.svg)](https://slack.cloudfoundry.org)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/cloudfoundry/cli/blob/master/LICENSE)
 [![Code Climate](https://codeclimate.com/github/cloudfoundry/cli/badges/gpa.svg)](https://codeclimate.com/github/cloudfoundry/cli)
 
-This is the official command line client for [Cloud Foundry](https://cloudfoundry.org).
+***Cloud Foundry CLI*** is the official command line client for [Cloud Foundry](https://cloudfoundry.org).
 Latest help of each command is [here](https://cli.cloudfoundry.org) (or run `cf help`);
 Further documentation is at the [docs page for the
-CLI](https://docs.cloudfoundry.org/cf-cli).  
+CLI](https://docs.cloudfoundry.org/cf-cli).
 
 If you have any questions, ask away on the #cli channel in [our Slack
 community](http://slack.cloudfoundry.org/) and the
@@ -34,7 +36,7 @@ on [Pivotal Tracker](https://www.pivotaltracker.com/s/projects/892938).
 
 ## Getting Started
 
-Download and run the installer for your platform from the [Downloads Section](#downloads).
+Download and install the cf CLI from the [Downloads Section](#downloads).
 
 Once installed, you can log in and push an app.
 ```sh
@@ -60,27 +62,26 @@ Check out our [community contributed CLI plugins](https://plugins.cloudfoundry.o
 **Mac OS X** (using [Homebrew](http://brew.sh/) via the [cloudfoundry tap](https://github.com/cloudfoundry/homebrew-tap)):
 
 ```sh
-$ brew tap cloudfoundry/tap
-$ brew install cf-cli
+brew install cloudfoundry/tap/cf-cli
 ```
 
 **Debian** and **Ubuntu** based Linux distributions:
 
 ```sh
 # ...first add the Cloud Foundry Foundation public key and package repository to your system
-$ wget -q -O - https://packages.cloudfoundry.org/debian/cli.cloudfoundry.org.key | sudo apt-key add -
-$ echo "deb http://packages.cloudfoundry.org/debian stable main" | sudo tee /etc/apt/sources.list.d/cloudfoundry-cli.list
+wget -q -O - https://packages.cloudfoundry.org/debian/cli.cloudfoundry.org.key | sudo apt-key add -
+echo "deb http://packages.cloudfoundry.org/debian stable main" | sudo tee /etc/apt/sources.list.d/cloudfoundry-cli.list
 # ...then, update your local package index, then finally install the cf CLI
-$ sudo apt-get update
-$ sudo apt-get install cf-cli
+sudo apt-get update
+sudo apt-get install cf-cli
 ```
 
 **Enterprise Linux** and **Fedora** systems (RHEL6/CentOS6 and up):
 ```sh
 # ...first configure the Cloud Foundry Foundation package repository
-$ sudo wget -O /etc/yum.repos.d/cloudfoundry-cli.repo https://packages.cloudfoundry.org/fedora/cloudfoundry-cli.repo
+sudo wget -O /etc/yum.repos.d/cloudfoundry-cli.repo https://packages.cloudfoundry.org/fedora/cloudfoundry-cli.repo
 # ...then, install the cf CLI (which will also download and add the public key to your system)
-$ sudo yum install cf-cli
+sudo yum install cf-cli
 ```
 
 ### Installers and compressed binaries
@@ -89,19 +90,21 @@ $ sudo yum install cf-cli
 | :---------------: | :---------------: |:---------------:| :------------:|
 | Installers | [pkg](https://cli.run.pivotal.io/stable?release=macosx64&source=github) | [zip](https://cli.run.pivotal.io/stable?release=windows64&source=github) | [rpm](https://cli.run.pivotal.io/stable?release=redhat64&source=github) / [deb](https://cli.run.pivotal.io/stable?release=debian64&source=github) |
 | Binaries | [tgz](https://cli.run.pivotal.io/stable?release=macosx64-binary&source=github) | [zip](https://cli.run.pivotal.io/stable?release=windows64-exe&source=github) | [tgz](https://cli.run.pivotal.io/stable?release=linux64-binary&source=github) |
+
 Release notes, and 32 bit releases can be found [here](https://github.com/cloudfoundry/cli/releases).
 
 **Download examples** with curl for Mac OS X and Linux binaries
 ```sh
 # ...download & extract Mac OS X binary
-$ curl -L "https://cli.run.pivotal.io/stable?release=macosx64-binary&source=github" | tar -zx
+curl -L "https://cli.run.pivotal.io/stable?release=macosx64-binary&source=github" | tar -zx
 # ...or Linux 64-bit binary
-$ curl -L "https://cli.run.pivotal.io/stable?release=linux64-binary&source=github" | tar -zx
+curl -L "https://cli.run.pivotal.io/stable?release=linux64-binary&source=github" | tar -zx
 # ...move it to /usr/local/bin or a location you know is in your $PATH
-$ mv cf /usr/local/bin
+mv cf /usr/local/bin
+# ...copy tab completion file on Ubuntu (takes affect after re-opening your shell)
+sudo curl -o /usr/share/bash-completion/completions/cf https://raw.githubusercontent.com/cloudfoundry/cli/master/ci/installers/completion/cf
 # ...and to confirm your cf CLI version
-$ cf --version
-cf version x.y.z-...
+cf --version
 ```
 
 #### Edge binaries
@@ -110,7 +113,8 @@ Follow these download links for [Mac OS X 64 bit](https://cli.run.pivotal.io/edg
 
 ## Known Issues
 
-* In Cygwin and Git Bash on Windows, interactive prompts (such as in `cf login`) do not work (see #171). Please use alternative commands (e.g. `cf api` and `cf auth` to `cf login`) or option `-f` to suppress the prompts.
+* In Cygwin and Git Bash on Windows, interactive password prompts (in `cf login`) do not work (see [issue #171](https://github.com/cloudfoundry/cli/issues/171)). Please use alternative commands (`cf api` and `cf auth` to `cf login`) to work around this.
+* API tracing to terminal (using `CF_TRACE=true`, `-v` option or `cf config --trace`) doesn't work well with some CLI plugin commands. Trace to file works fine. On Linux, `CF_TRACE=/dev/stdout` works too. See e.g. [this Diego-Enabler plugin issue](https://github.com/cloudfoundry-incubator/Diego-Enabler/issues/6).
 * .cfignore used in `cf push` must be in UTF8 encoding for CLI to interpret correctly.
 * On Linux, when encountering message "bash: .cf: No such file or directory", ensure that you're using the correct binary or installer for your architecture. See http://askubuntu.com/questions/133389/no-such-file-or-directory-but-the-file-exists
 

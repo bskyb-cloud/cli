@@ -11,7 +11,7 @@ import (
 
 	"code.cloudfoundry.org/cli/cf/api/authentication/authenticationfakes"
 	testapi "code.cloudfoundry.org/cli/cf/api/logs/logsfakes"
-	testconfig "code.cloudfoundry.org/cli/utils/testhelpers/configuration"
+	testconfig "code.cloudfoundry.org/cli/util/testhelpers/configuration"
 
 	"sync"
 
@@ -32,7 +32,6 @@ var _ = Describe("logs with noaa repository", func() {
 	BeforeEach(func() {
 		fakeNoaaConsumer = &testapi.FakeNoaaConsumer{}
 		config = testconfig.NewRepositoryWithDefaults()
-		config.SetLoggregatorEndpoint("loggregator.test.com")
 		config.SetDopplerEndpoint("doppler.test.com")
 		config.SetAccessToken("the-access-token")
 		fakeTokenRefresher = &authenticationfakes.FakeRepository{}

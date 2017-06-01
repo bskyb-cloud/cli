@@ -3,6 +3,7 @@ package ccv2_test
 import (
 	"net/http"
 
+	"code.cloudfoundry.org/cli/api/cloudcontroller/ccerror"
 	. "code.cloudfoundry.org/cli/api/cloudcontroller/ccv2"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -10,7 +11,7 @@ import (
 )
 
 var _ = Describe("Service Binding", func() {
-	var client *CloudControllerClient
+	var client *Client
 
 	BeforeEach(func() {
 		client = NewTestClient()
@@ -117,7 +118,7 @@ var _ = Describe("Service Binding", func() {
 
 		It("returns a not found error", func() {
 			warnings, err := client.DeleteServiceBinding("some-service-binding-guid")
-			Expect(err).To(MatchError(ResourceNotFoundError{
+			Expect(err).To(MatchError(ccerror.ResourceNotFoundError{
 				Message: "The service binding could not be found: some-service-binding-guid",
 			}))
 			Expect(warnings).To(ConsistOf(Warnings{"this is a warning"}))

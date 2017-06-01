@@ -2,14 +2,17 @@ package wrapper_test
 
 import (
 	"errors"
-	"fmt"
+	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"code.cloudfoundry.org/cli/api/cloudcontroller"
-	"code.cloudfoundry.org/cli/api/cloudcontroller/ccv2"
+	"code.cloudfoundry.org/cli/api/cloudcontroller/ccerror"
 	"code.cloudfoundry.org/cli/api/cloudcontroller/cloudcontrollerfakes"
 	. "code.cloudfoundry.org/cli/api/cloudcontroller/wrapper"
 	"code.cloudfoundry.org/cli/api/cloudcontroller/wrapper/wrapperfakes"
+	"code.cloudfoundry.org/cli/api/uaa"
+	"code.cloudfoundry.org/cli/api/uaa/wrapper/util"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -19,39 +22,56 @@ var _ = Describe("UAA Authentication", func() {
 	var (
 		fakeConnection *cloudcontrollerfakes.FakeConnection
 		fakeClient     *wrapperfakes.FakeUAAClient
+		inMemoryCache  *util.InMemoryCache
 
 		wrapper cloudcontroller.Connection
+		request *http.Request
+		inner   *UAAAuthentication
 	)
 
 	BeforeEach(func() {
 		fakeConnection = new(cloudcontrollerfakes.FakeConnection)
 		fakeClient = new(wrapperfakes.FakeUAAClient)
-		fakeClient.AccessTokenReturns("foobar")
+		inMemoryCache = util.NewInMemoryTokenCache()
+		inMemoryCache.SetAccessToken("a-ok")
 
-		inner := NewUAAAuthentication(fakeClient)
+		inner = NewUAAAuthentication(fakeClient, inMemoryCache)
 		wrapper = inner.Wrap(fakeConnection)
+
+		request = &http.Request{
+			Header: http.Header{},
+		}
 	})
 
 	Describe("Make", func() {
+		Context("when the client is nil", func() {
+			BeforeEach(func() {
+				inner.SetClient(nil)
+
+				fakeConnection.MakeReturns(ccerror.InvalidAuthTokenError{})
+			})
+
+			It("calls the connection without any side effects", func() {
+				wrapper.Make(request, nil)
+
+				Expect(fakeClient.RefreshAccessTokenCallCount()).To(Equal(0))
+				Expect(fakeConnection.MakeCallCount()).To(Equal(1))
+			})
+		})
+
 		Context("when the token is valid", func() {
 			It("adds authentication headers", func() {
-				request := cloudcontroller.Request{}
 				wrapper.Make(request, nil)
 
 				Expect(fakeConnection.MakeCallCount()).To(Equal(1))
 				authenticatedRequest, _ := fakeConnection.MakeArgsForCall(0)
 				headers := authenticatedRequest.Header
-				Expect(headers["Authorization"]).To(ConsistOf([]string{"foobar"}))
+				Expect(headers["Authorization"]).To(ConsistOf([]string{"a-ok"}))
 			})
 
 			Context("when the request already has headers", func() {
 				It("preserves existing headers", func() {
-					header := http.Header{}
-					header.Add("Existing", "header")
-
-					request := cloudcontroller.Request{
-						Header: header,
-					}
+					request.Header.Add("Existing", "header")
 					wrapper.Make(request, nil)
 
 					Expect(fakeConnection.MakeCallCount()).To(Equal(1))
@@ -65,7 +85,6 @@ var _ = Describe("UAA Authentication", func() {
 				It("returns nil", func() {
 					fakeConnection.MakeReturns(nil)
 
-					request := cloudcontroller.Request{}
 					err := wrapper.Make(request, nil)
 					Expect(err).ToNot(HaveOccurred())
 				})
@@ -76,7 +95,6 @@ var _ = Describe("UAA Authentication", func() {
 					innerError := errors.New("inner error")
 					fakeConnection.MakeReturns(innerError)
 
-					request := cloudcontroller.Request{}
 					err := wrapper.Make(request, nil)
 					Expect(err).To(Equal(innerError))
 				})
@@ -84,28 +102,54 @@ var _ = Describe("UAA Authentication", func() {
 		})
 
 		Context("when the token is invalid", func() {
-			BeforeEach(func() {
-				fakeConnection.MakeReturns(ccv2.InvalidAuthTokenError{})
+			var expectedBody string
 
-				count := 0
-				fakeClient.AccessTokenStub = func() string {
-					count = count + 1
-					return fmt.Sprintf("foobar-%d", count)
+			BeforeEach(func() {
+				expectedBody = "this body content should be preserved"
+				request.Body = ioutil.NopCloser(strings.NewReader(expectedBody))
+
+				makeCount := 0
+				fakeConnection.MakeStub = func(request *http.Request, response *cloudcontroller.Response) error {
+					body, err := ioutil.ReadAll(request.Body)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(string(body)).To(Equal(expectedBody))
+
+					if makeCount == 0 {
+						makeCount += 1
+						return ccerror.InvalidAuthTokenError{}
+					} else {
+						return nil
+					}
 				}
 
-				request := cloudcontroller.Request{}
-				wrapper.Make(request, nil)
+				inMemoryCache.SetAccessToken("what")
+
+				fakeClient.RefreshAccessTokenReturns(
+					uaa.RefreshToken{
+						AccessToken:  "foobar-2",
+						RefreshToken: "bananananananana",
+						Type:         "bearer",
+					},
+					nil,
+				)
+
+				err := wrapper.Make(request, nil)
+				Expect(err).ToNot(HaveOccurred())
 			})
 
 			It("should refresh the token", func() {
-				Expect(fakeClient.RefreshTokenCallCount()).To(Equal(1))
+				Expect(fakeClient.RefreshAccessTokenCallCount()).To(Equal(1))
 			})
 
 			It("should resend the request", func() {
 				Expect(fakeConnection.MakeCallCount()).To(Equal(2))
 
 				request, _ := fakeConnection.MakeArgsForCall(1)
-				Expect(request.Header.Get("Authorization")).To(Equal("foobar-2"))
+				Expect(request.Header.Get("Authorization")).To(Equal("bearer foobar-2"))
+			})
+
+			It("should save the refresh token", func() {
+				Expect(inMemoryCache.RefreshToken()).To(Equal("bananananananana"))
 			})
 		})
 	})

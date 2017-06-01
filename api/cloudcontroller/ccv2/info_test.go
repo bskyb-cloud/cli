@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"code.cloudfoundry.org/cli/api/cloudcontroller/ccerror"
 	. "code.cloudfoundry.org/cli/api/cloudcontroller/ccv2"
 
 	. "github.com/onsi/ginkgo"
@@ -15,7 +16,7 @@ var _ = Describe("Info", func() {
 	var (
 		serverAPIURL string
 
-		client *CloudControllerClient
+		client *Client
 	)
 
 	BeforeEach(func() {
@@ -59,8 +60,7 @@ var _ = Describe("Info", func() {
 			Expect(info.APIVersion).To(Equal("2.59.0"))
 			Expect(info.AuthorizationEndpoint).To(MatchRegexp("https://login.%s", serverAPIURL))
 			Expect(info.DopplerEndpoint).To(MatchRegexp("wss://doppler.%s", serverAPIURL))
-			Expect(info.LoggregatorEndpoint).To(MatchRegexp("wss://loggregator.%s", serverAPIURL))
-			Expect(info.MinimumCLIVersion).To(Equal("6.22.1"))
+			Expect(info.MinCLIVersion).To(Equal("6.22.1"))
 			Expect(info.MinimumRecommendedCLIVersion).To(BeEmpty())
 			Expect(info.Name).To(Equal("faceman test server"))
 			Expect(info.RoutingEndpoint).To(MatchRegexp("https://%s/routing", serverAPIURL))
@@ -71,6 +71,23 @@ var _ = Describe("Info", func() {
 			_, warnings, err := client.Info()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(warnings).To(ContainElement("this is a warning"))
+		})
+	})
+
+	Context("when the API response gives a bad API endpoint", func() {
+		BeforeEach(func() {
+			response := `i am banana`
+			server.AppendHandlers(
+				CombineHandlers(
+					VerifyRequest(http.MethodGet, "/v2/info"),
+					RespondWith(http.StatusNotFound, response),
+				),
+			)
+		})
+
+		It("returns back an APINotFoundError", func() {
+			_, _, err := client.Info()
+			Expect(err).To(MatchError(ccerror.APINotFoundError{URL: server.URL()}))
 		})
 	})
 })

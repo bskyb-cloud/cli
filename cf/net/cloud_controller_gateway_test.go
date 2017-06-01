@@ -1,7 +1,9 @@
 package net_test
 
 import (
+	"bytes"
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"time"
@@ -10,7 +12,7 @@ import (
 	"code.cloudfoundry.org/cli/cf/errors"
 	. "code.cloudfoundry.org/cli/cf/net"
 	"code.cloudfoundry.org/cli/cf/terminal/terminalfakes"
-	testconfig "code.cloudfoundry.org/cli/utils/testhelpers/configuration"
+	testconfig "code.cloudfoundry.org/cli/util/testhelpers/configuration"
 
 	"code.cloudfoundry.org/cli/cf/trace/tracefakes"
 	. "github.com/onsi/ginkgo"
@@ -45,6 +47,7 @@ var _ = Describe("Cloud Controller Gateway", func() {
 
 	It("parses error responses", func() {
 		ts := httptest.NewTLSServer(http.HandlerFunc(failingCloudControllerRequest))
+		ts.Config.ErrorLog = log.New(&bytes.Buffer{}, "", 0)
 		defer ts.Close()
 		gateway.SetTrustedCerts(ts.TLS.Certificates)
 
@@ -58,6 +61,7 @@ var _ = Describe("Cloud Controller Gateway", func() {
 
 	It("parses invalid token responses", func() {
 		ts := httptest.NewTLSServer(http.HandlerFunc(invalidTokenCloudControllerRequest))
+		ts.Config.ErrorLog = log.New(&bytes.Buffer{}, "", 0)
 		defer ts.Close()
 		gateway.SetTrustedCerts(ts.TLS.Certificates)
 

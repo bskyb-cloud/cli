@@ -1,3 +1,21 @@
+# Contributing to CLI
+
+The Cloud Foundry team uses GitHub and accepts code contributions via
+[pull requests](https://help.github.com/articles/using-pull-requests).
+
+Before working on a PR to the CLI code base, please reach out to us first via a GitHub issue or on our Slack #cli channel at cloudfoundry.slack.com. There are areas of the code base that contain a lot of complexity, and something which seems like a simple change may be more involved. In addition, the code base is undergoing re-architecturing/refactoring, and there may be work already planned that would accomplish the goals of the intended PR. The CLI team can work with you at the start of this process to determine the best path forward.
+
+After reaching out to the CLI team and the conclusion is to make a PR, please follow these steps:
+1. Ensure that you have either completed our CLA Agreement for [individuals](https://www.cloudfoundry.org/pdfs/CFF_Individual_CLA.pdf) or are a [public member](https://help.github.com/articles/publicizing-or-hiding-organization-membership/) of an organization that has signed the [corporate](https://www.cloudfoundry.org/pdfs/CFF_Corporate_CLA.pdf) CLA.
+1. Fork the project’s repository
+1. Create a feature branch (e.g. `git checkout -b better_cli`) and make changes on this branch
+  * Follow the previous sections on this page to set up your development environment, build `cf` and run the tests.
+1. Push to your fork (e.g. `git push origin better_cli`) and [submit a pull request](https://help.github.com/articles/creating-a-pull-request)
+
+If you have a CLA on file, your contribution will be analyzed for product fit and engineering quality prior to merging.  
+Note: All contributions must be sent using GitHub Pull Requests.  
+**Your pull request is much more likely to be accepted if it is small and focused with a clear message that conveys the intent of your change.** Tests are required for any changes.
+
 # Development Environment Setup
 
 ## Install Golang 1.7.1 or higher
@@ -45,6 +63,7 @@ ginkgo -r
 # Architecture Overview
 
 The CLI is divided into a few major components, including but not limited to:
+
 1. command
 1. actor
 1. API
@@ -63,41 +82,16 @@ The API package handles the HTTP requests to the API. The functions in this pack
 The CLI uses [GVT](https://github.com/FiloSottile/gvt) to manage vendored
 dependencies. Refer to the GVT documentation for managing dependencies.
 
-# Building the Binary
+If you are vendoring a new dependency, please read [License and Notice Files](https://github.com/cloudfoundry/cli/wiki/License-and-Notice-Files) to abide by third party licenses.
+
+# Compiling for Other Operating Systems and Architectures
 
 The supported platforms for the CF CLI are Linux (32-bit and 64-bit), Windows
-(32-bit and 64-bit) and OSX. These are the commands used to build the binaries
-for different platforms:
+(32-bit and 64-bit) and OSX. The commands that build the binaries can be seen
+in the [build binaries Concourse task](https://github.com/cloudfoundry/cli/blob/master/ci/cli/tasks/build-binaries.yml).
 
-## Linux 32-bit
-
-```
-CGO_ENABLED=0 GOARCH=386 GOOS=linux go build -a -tags netgo -installsuffix netgo -ldflags '-extldflags "-static"' -o out/cf-cli_linux_i686 .
-```
-
-## Linux 64-bit
-
-```
-CGO_ENABLED=0 GOARCH=amd64 GOOS=linux go build -a -tags netgo -installsuffix netgo -ldflags '-extldflags "-static"' -o out/cf-cli_linux_x86-64 .
-```
-
-## Windows 32-bit
-
-```
-GOARCH=386 GOOS=windows go build -tags="forceposix" -o out/cf-cli_win32.exe .
-```
-
-## Windows 64-bit
-
-```
-GOARCH=amd64 GOOS=windows go build -tags="forceposix" -o out/cf-cli_winx64.exe .
-```
-
-## OSX
-
-```
-GOARCH=amd64 GOOS=darwin go build -o out/cf-cli_osx .
-```
+See the [Go environment variables documentation](https://golang.org/doc/install/source#environment)
+for details on how to cross compile binaries for other architectures.
 
 # i18n translations
 
@@ -115,23 +109,9 @@ After running the above, be sure to commit the translations binary, `cf/resource
 
 # Plugins
 
-* [CF CLI plugin development guide](https://github.com/cloudfoundry/cli/tree/master/plugin_examples)
+* [CF CLI plugin development guide](https://github.com/cloudfoundry/cli/tree/master/plugin/plugin_examples)
 * [plugins repository](https://plugins.cloudfoundry.org/)
 
-# Contributing to CLI
-
-The Cloud Foundry team uses GitHub and accepts code contributions via
-[pull requests](https://help.github.com/articles/using-pull-requests).
-If your contribution includes a change that is exposed to cf CLI users
-(e.g. introducing a new command or flag), please submit an issue
-to discuss it first.
-Major new feature proposals generally entail a publicly viewable
-google document with commenting allowed to be discussed on the [cf-dev](https://lists.cloudfoundry.org/archives/list/cf-dev@lists.cloudfoundry.org/) mailing list.
-
-## Contributor License Agreement
-
-Follow these steps to make a contribution to any of our open source repositories:
-
-1. Ensure that you have completed our CLA Agreement for
-  [individuals](https://www.cloudfoundry.org/wp-content/uploads/2015/09/CFF_Individual_CLA.pdf) or
-  [corporations](https://www.cloudfoundry.org/wp-content/uploads/2015/09/CFF_Corporate_CLA.pdf).
+When importing the plugin code use `import "code.cloudfoundry.org/cli/plugin"`.
+Older plugins that import `github.com/cloudfoundry/cli/plugin` will still work
+as long they vendor the plugins directory.

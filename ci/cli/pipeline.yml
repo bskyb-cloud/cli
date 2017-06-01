@@ -1,5 +1,11 @@
 ---
 resource_types:
+# TODO: remove temp tracker resource when https://github.com/concourse/tracker-resource/issues/17 is fixed
+- name: tracker-resource-fixed
+  type: docker-image
+  source:
+    repository: concourse/tracker-resource
+
 - name: slack-notification
   type: docker-image
   source:
@@ -10,60 +16,34 @@ resources:
 - name: cli
   type: git
   source:
-    uri: git@github.com:cloudfoundry/cli
-    private_key: {{cf-cli-eng-github-private-key}}
+    uri: https://github.com/cloudfoundry/cli
     branch: master
     ignore_paths:
     - ci
     - integration
 
-- name: final-cli
-  type: git
-  source:
-    uri: git@github.com:cloudfoundry/cli
-    private_key: {{cf-cli-eng-github-private-key}}
-    branch: master
-    paths:
-    - ci/VERSION
-
-- name: cli-private
-  type: git
-  source:
-    uri: git@github.com:cloudfoundry/cli-private
-    private_key: {{cf-cli-eng-github-private-key}}
-    branch: master
-
 - name: cli-ci
   type: git
   source:
-    uri: git@github.com:cloudfoundry/cli
-    private_key: {{cf-cli-eng-github-private-key}}
+    uri: https://github.com/cloudfoundry/cli
     branch: master
     paths:
+    - bin
     - ci
-
-- name: cli-acceptance-tests
-  type: git
-  source:
-    uri: git@github.com:cloudfoundry/cli-acceptance-tests
-    private_key: {{cf-cli-eng-github-private-key}}
-    branch: master
 
 - name: cli-integration
   type: git
   source:
-    uri: git@github.com:cloudfoundry/cli
-    private_key: {{cf-cli-eng-github-private-key}}
+    uri: https://github.com/cloudfoundry/cli
     branch: master
     paths:
     - integration
 
-- name: cf-release-repo
+- name: cf-acceptance-tests
   type: git
   source:
-    uri: git@github.com:cloudfoundry/cf-release
-    private_key: {{cf-cli-eng-github-private-key}}
-    branch: master
+    uri: https://github.com/cloudfoundry/cf-acceptance-tests
+    branch: owned-by-cf-cli
 
 - name: cf-cli-binaries
   type: s3
@@ -189,7 +169,7 @@ resources:
     branch: master
     pool: bosh-lites-dea
 
-- name: bosh-lites-diego-pool
+- name: hardknox-pool
   type: pool
   source:
     uri: git@github.com:cloudfoundry/cli-pools
@@ -197,8 +177,9 @@ resources:
     branch: master
     pool: bosh-lites-diego
 
+# TODO: remove temp tracker resource when https://github.com/concourse/tracker-resource/issues/17 is fixed
 - name: cf-cli-tracker
-  type: tracker
+  type: tracker-resource-fixed
   source:
     token: {{cf-cli-public-tracker-token}}
     project_id: {{cf-cli-public-tracker-project-id}}
@@ -213,8 +194,7 @@ resources:
 - name: cli-ci-dockerfile
   type: git
   source:
-    uri: git@github.com:cloudfoundry/cli
-    private_key: {{cf-cli-eng-github-private-key}}
+    uri: https://github.com/cloudfoundry/cli
     branch: master
     paths: [ci/Dockerfile]
 
@@ -231,14 +211,21 @@ resources:
   source:
     url: {{slack-webhook-url}}
 
+- name: vars-store
+  type: git
+  source:
+    uri: git@github.com:cloudfoundry/cli-private
+    private_key: {{cli-private-github-private-key-write}}
+    branch: master
+
 groups:
 - name: cli
   jobs:
   - units
   - build-binaries
-  - gats
-  - cats-linux
+  - integration
   - cats-diego
+  - cats-linux
   - cats-windows
   - create-installers
 - name: images
@@ -252,8 +239,9 @@ jobs:
   - aggregate:
     - get: cli
       trigger: true
-    - get: final-cli
+      depth: 3
     - get: cli-ci
+      depth: 3
   - aggregate:
     - task: units-linux
       file: cli-ci/ci/cli/tasks/units-linux.yml
@@ -261,21 +249,21 @@ jobs:
          put: slack-alert
          params:
            channel: '#cli-firehose'
-           text: "linux unit tests failed OR errored :("
+           text: "linux unit tests failed :("
     - task: units-osx
       file: cli-ci/ci/cli/tasks/units-osx.yml
       on_failure:
          put: slack-alert
          params:
            channel: '#cli-firehose'
-           text: "osx unit tests failed OR errored :("
+           text: "osx unit tests failed :("
     - task: units-windows
       file: cli-ci/ci/cli/tasks/units-windows.yml
       on_failure:
          put: slack-alert
          params:
            channel: '#cli-firehose'
-           text: "windows unit tests failed OR errored :("
+           text: "windows unit tests failed :("
     - task: lint
       file: cli-ci/ci/cli/tasks/lint.yml
 
@@ -286,9 +274,9 @@ jobs:
     - get: cli
       trigger: true
       passed: [units]
-    - get: final-cli
-      passed: [units]
+      depth: 3
     - get: cli-ci
+      depth: 3
   - aggregate:
     - task: build
       file: cli-ci/ci/cli/tasks/build-binaries.yml
@@ -296,84 +284,123 @@ jobs:
          put: slack-alert
          params:
            channel: '#cli-firehose'
-           text: "build binaries failed OR errored :("
+           text: "build binaries failed :("
     - task: build-osx
       file: cli-ci/ci/cli/tasks/build-osx-binary.yml
       on_failure:
          put: slack-alert
          params:
            channel: '#cli-firehose'
-           text: "build osx binaries failed OR errored :("
+           text: "build osx binaries failed :("
   - task: combine-binaries
     file: cli-ci/ci/cli/tasks/combine-binaries.yml
   - put: cf-cli-binaries
     params:
       file: compiled/cf-cli-binaries.tgz
 
-- name: gats
+- name: integration
   serial: true
   plan:
   - aggregate:
-    - get: cf-cli-binaries
+    - get: cli
       trigger: true
       passed: [build-binaries]
-    - get: final-cli
+      depth: 3
+    - get: cf-cli-binaries
       passed: [build-binaries]
-    - get: cli
-      passed: [build-binaries]
-    - get: cli-acceptance-tests
     - get: cli-ci
+      depth: 3
     - get: cli-integration
+      depth: 3
+    - get: vars-store
     - put: bosh-lite-lock
-      resource: bosh-lites-dea-pool
+      resource: hardknox-pool
       params:
         acquire: true
-  - aggregate:
-    - do:
-      - task: linux-integration
-        file: cli-ci/ci/cli/tasks/integration-linux.yml
-      - task: linux-gats
-        file: cli-ci/ci/cli/tasks/gats-linux.yml
-      - task: windows-integration
-        file: cli-ci/ci/cli/tasks/integration-windows.yml
-      - task: windows-gats
-        file: cli-ci/ci/cli/tasks/gats-windows.yml
-        params:
-          ADMIN_USER: {{bosh-lite-admin-username}}
-          ADMIN_PASSWORD: {{bosh-lite-admin-password}}
-          GINKGO_ARGS: -slowSpecThreshold=120 -randomizeSuites -skipPackage application ./gats
-      - task: windows-gats-application
-        file: cli-ci/ci/cli/tasks/gats-windows.yml
-        params:
-          ADMIN_USER: {{bosh-lite-admin-username}}
-          ADMIN_PASSWORD: {{bosh-lite-admin-password}}
-          GINKGO_ARGS: -slowSpecThreshold=120 -randomizeSuites ./gats/application
+  - do:
+    - task: cleanup-integration
+      file: cli-ci/ci/cli/tasks/cleanup-integration.yml
+    - task: integration-windows
+      file: cli-ci/ci/cli/tasks/integration-windows.yml
+      input_mapping:
+        cf-credentials: cleanup-integration-outputs
       on_failure:
-         put: slack-alert
-         params:
-           channel: '#cli-firehose'
-           text: "gats failed OR errored :("
-    ensure:
-      put: bosh-lites-dea-pool
+        put: slack-alert
+        params:
+          channel: '#cli-firehose'
+          text: "windows integration failed :("
+      ensure:
+        task: cleanup-integration
+        file: cli-ci/ci/cli/tasks/cleanup-integration.yml
+    - task: integration-linux
+      file: cli-ci/ci/cli/tasks/integration-linux.yml
+      on_failure:
+        put: slack-alert
+        params:
+          channel: '#cli-firehose'
+          text: "linux integration failed :("
+      ensure:
+        task: cleanup-integration
+        file: cli-ci/ci/cli/tasks/cleanup-integration.yml
+  on_failure:
+    put: hardknox-pool
+    params:
+      release: bosh-lite-lock
+
+- name: cats-diego
+  serial: true
+  plan:
+  - aggregate:
+    - get: cli
+      passed: [integration]
+      depth: 3
+    - get: cf-acceptance-tests
+    - get: cf-cli-binaries
+      passed: [integration]
+    - get: cli-ci
+      depth: 3
+    - get: vars-store
+    - get: bosh-lite-lock
+      trigger: true
+      passed: [integration]
+      resource: hardknox-pool
+  - do:
+    - task: cats-config
+      file: cli-ci/ci/cli/tasks/cats-config-diego.yml
       params:
-        release: bosh-lite-lock
+        INCLUDE_V3: false
+        BROKER_START_TIMEOUT: 330
+        CF_PUSH_TIMEOUT: 210
+        DEFAULT_TIMEOUT: 60
+        LONG_CURL_TIMEOUT: 210
+    - task: cats
+      file: cli-ci/ci/cli/tasks/cats-linux.yml
+      params:
+        BACKEND: diego
+        NODES: 16
+      on_failure:
+        put: slack-alert
+        params:
+          channel: '#cli-firehose'
+          text: "cats diego failed :("
+      ensure:
+        put: hardknox-pool
+        params:
+          release: bosh-lite-lock
 
 - name: cats-linux
   serial: true
   plan:
   - aggregate:
-    - get: final-cli
-      passed: [build-binaries]
     - get: cli
-      passed: [build-binaries]
-    - get: cf-release-repo
-      params:
-        submodules:
-        - src/github.com/cloudfoundry/cf-acceptance-tests
-    - get: cf-cli-binaries
       trigger: true
       passed: [build-binaries]
+      depth: 3
+    - get: cf-acceptance-tests
+    - get: cf-cli-binaries
+      passed: [build-binaries]
     - get: cli-ci
+      depth: 3
     - put: bosh-lite-lock
       resource: bosh-lites-dea-pool
       params:
@@ -383,7 +410,7 @@ jobs:
       file: cli-ci/ci/cli/tasks/cats-config.yml
       params:
         BACKEND: dea
-        INCLUDE_V3: true
+        INCLUDE_V3: false
         BROKER_START_TIMEOUT: 330
         CF_PUSH_TIMEOUT: 210
         DEFAULT_TIMEOUT: 60
@@ -394,76 +421,28 @@ jobs:
         BACKEND: dea
         NODES: 10
       on_failure:
-         put: slack-alert
-         params:
-           channel: '#cli-firehose'
-           text: "cats linux failed OR errored :("
-    ensure:
-      put: bosh-lites-dea-pool
-      params:
-        release: bosh-lite-lock
-
-- name: cats-diego
-  serial: true
-  plan:
-  - aggregate:
-    - get: final-cli
-      passed: [build-binaries]
-    - get: cli
-      passed: [build-binaries]
-    - get: cf-release-repo
-      params:
-        submodules:
-        - src/github.com/cloudfoundry/cf-acceptance-tests
-    - get: cf-cli-binaries
-      trigger: true
-      passed: [build-binaries]
-    - get: cli-ci
-    - put: bosh-lite-lock
-      resource: bosh-lites-diego-pool
-      params:
-        acquire: true
-  - do:
-    - task: cats-config
-      file: cli-ci/ci/cli/tasks/cats-config.yml
-      params:
-        BACKEND: diego
-        INCLUDE_V3: true
-        BROKER_START_TIMEOUT: 330
-        CF_PUSH_TIMEOUT: 210
-        DEFAULT_TIMEOUT: 60
-        LONG_CURL_TIMEOUT: 210
-    - task: linux
-      file: cli-ci/ci/cli/tasks/cats-linux.yml
-      params:
-        BACKEND: diego
-        NODES: 6
-    ensure:
-      put: bosh-lites-diego-pool
-      params:
-        release: bosh-lite-lock
-    on_failure:
-       put: slack-alert
-       params:
-         channel: '#cli-firehose'
-         text: "cats diego failed OR errored :("
+        put: slack-alert
+        params:
+          channel: '#cli-firehose'
+          text: "cats linux failed :("
+      ensure:
+        put: bosh-lites-dea-pool
+        params:
+          release: bosh-lite-lock
 
 - name: cats-windows
   serial: true
   plan:
   - aggregate:
-    - get: cf-cli-binaries
+    - get: cli
       trigger: true
       passed: [build-binaries]
-    - get: final-cli
+      depth: 3
+    - get: cf-cli-binaries
       passed: [build-binaries]
-    - get: cli
-      passed: [build-binaries]
-    - get: cf-release-repo
-      params:
-        submodules:
-        - src/github.com/cloudfoundry/cf-acceptance-tests
+    - get: cf-acceptance-tests
     - get: cli-ci
+      depth: 3
     - put: bosh-lite-lock
       resource: bosh-lites-dea-pool
       params:
@@ -482,36 +461,35 @@ jobs:
       file: cli-ci/ci/cli/tasks/cats-windows.yml
       params:
         NODES: 10
-    ensure:
-      put: bosh-lites-dea-pool
-      params:
-        release: bosh-lite-lock
-    on_failure:
-       put: slack-alert
-       params:
-         channel: '#cli-firehose'
-         text: "cats windows failed OR errored :("
+      on_failure:
+         put: slack-alert
+         params:
+           channel: '#cli-firehose'
+           text: "cats windows failed :("
+      ensure:
+        put: bosh-lites-dea-pool
+        params:
+          release: bosh-lite-lock
 
 - name: create-installers
   serial: true
   plan:
   - aggregate:
-    - get: final-cli
-      passed: [cats-linux, cats-windows, cats-diego, gats]
     - get: cli
-      passed: [cats-linux, cats-windows, cats-diego, gats]
-    - get: cf-cli-binaries
       trigger: true
-      passed: [cats-linux, cats-windows, cats-diego, gats]
-    - get: cli-private
+      passed: [cats-linux, cats-windows, cats-diego]
+      depth: 3
+    - get: cf-cli-binaries
+      passed: [cats-linux, cats-windows, cats-diego]
     - get: cli-ci
+      depth: 3
   - task: extract-binaries
     file: cli-ci/ci/cli/tasks/extract-binaries.yml
     on_failure:
        put: slack-alert
        params:
          channel: '#cli-firehose'
-         text: "extracting the binaries in installer creation failed OR errored :("
+         text: "extracting the binaries in installer creation failed :("
   - aggregate:
     - task: unix
       file: cli-ci/ci/cli/tasks/create-installers.yml
@@ -519,21 +497,21 @@ jobs:
          put: slack-alert
          params:
            channel: '#cli-firehose'
-           text: "create unix installers failed OR errored :("
+           text: "create unix installers failed :("
     - task: windows
       file: cli-ci/ci/cli/tasks/create-installers-windows.yml
       on_failure:
          put: slack-alert
          params:
            channel: '#cli-firehose'
-           text: "create windows installer failed OR errored :("
+           text: "create windows installer failed :("
   - task: package-binaries
     file: cli-ci/ci/cli/tasks/package-binaries.yml
     on_failure:
        put: slack-alert
        params:
          channel: '#cli-firehose'
-         text: "extracting the binaries in installer creation failed OR errored :("
+         text: "extracting the binaries in installer creation failed :("
   - aggregate:
     - put: edge-linux-binary-32
       params:
@@ -571,10 +549,11 @@ jobs:
     - put: edge-windows-installer-64
       params:
         file: winstallers/cf-cli-installer_winx64.zip
-  - put: cf-cli-tracker
-    params:
-      repos:
-      - cli
+    # TODO: remove temp tracker resource when https://github.com/concourse/tracker-resource/issues/17 is fixed
+    - put: cf-cli-tracker
+      params:
+        repos:
+        - cli
 
 - name: create-cli-ci-image
   serial: true
@@ -582,6 +561,7 @@ jobs:
   - aggregate:
     - get: cli-ci-dockerfile
       trigger: true
+      depth: 3
     - get: golang
       trigger: true
       params: {save: true}

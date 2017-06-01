@@ -3,7 +3,6 @@ package commands_test
 import (
 	"strconv"
 
-	"code.cloudfoundry.org/cli/cf"
 	"code.cloudfoundry.org/cli/cf/api/authentication/authenticationfakes"
 	"code.cloudfoundry.org/cli/cf/api/organizations/organizationsfakes"
 	"code.cloudfoundry.org/cli/cf/api/spaces/spacesfakes"
@@ -12,13 +11,13 @@ import (
 	"code.cloudfoundry.org/cli/cf/configuration/coreconfig/coreconfigfakes"
 	"code.cloudfoundry.org/cli/cf/errors"
 	"code.cloudfoundry.org/cli/cf/models"
-	testcmd "code.cloudfoundry.org/cli/utils/testhelpers/commands"
-	testconfig "code.cloudfoundry.org/cli/utils/testhelpers/configuration"
-	testterm "code.cloudfoundry.org/cli/utils/testhelpers/terminal"
+	testcmd "code.cloudfoundry.org/cli/util/testhelpers/commands"
+	testconfig "code.cloudfoundry.org/cli/util/testhelpers/configuration"
+	testterm "code.cloudfoundry.org/cli/util/testhelpers/terminal"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	. "code.cloudfoundry.org/cli/utils/testhelpers/matchers"
+	. "code.cloudfoundry.org/cli/util/testhelpers/matchers"
 )
 
 var _ = Describe("Login Command", func() {
@@ -107,7 +106,7 @@ var _ = Describe("Login Command", func() {
 				return &coreconfig.CCInfo{
 					APIVersion:               "some-version",
 					AuthorizationEndpoint:    "auth/endpoint",
-					LoggregatorEndpoint:      "loggregator/endpoint",
+					DopplerEndpoint:          "doppler/endpoint",
 					MinCLIVersion:            minCLIVersion,
 					MinRecommendedCLIVersion: minRecommendedCLIVersion,
 					SSHOAuthClient:           "some-client",
@@ -175,7 +174,6 @@ var _ = Describe("Login Command", func() {
 				Expect(Config.SSHOAuthClient()).To(Equal("some-client"))
 				Expect(Config.MinCLIVersion()).To(Equal("1.0.0"))
 				Expect(Config.MinRecommendedCLIVersion()).To(Equal("1.0.0"))
-				Expect(Config.LoggregatorEndpoint()).To(Equal("loggregator/endpoint"))
 				Expect(Config.DopplerEndpoint()).To(Equal("doppler/endpoint"))
 				Expect(Config.RoutingAPIEndpoint()).To(Equal("routing/endpoint"))
 
@@ -260,23 +258,10 @@ var _ = Describe("Login Command", func() {
 			})
 		})
 
-		Describe("when the CLI version is below the minimum required", func() {
-			BeforeEach(func() {
-				minCLIVersion = "5.0.0"
-				minRecommendedCLIVersion = "5.5.0"
-			})
-
-			It("prompts users to upgrade if CLI version < min cli version requirement", func() {
-				ui.Inputs = []string{"http://api.example.com", "user@example.com", "password"}
-				cf.Version = "4.5.0"
-
-				testcmd.RunCLICommand("login", Flags, nil, updateCommandDependency, false, ui)
-
-				Expect(ui.Outputs()).To(ContainSubstrings(
-					[]string{"To upgrade your CLI"},
-					[]string{"5.0.0"},
-				))
-			})
+		It("displays an update notification", func() {
+			ui.Inputs = []string{"http://api.example.com", "user@example.com", "password"}
+			testcmd.RunCLICommand("login", Flags, nil, updateCommandDependency, false, ui)
+			Expect(ui.NotifyUpdateIfNeededCallCount).To(Equal(1))
 		})
 
 		It("tries to get the organizations", func() {
@@ -459,6 +444,33 @@ var _ = Describe("Login Command", func() {
 				})
 			})
 
+			Context("when the user provides the --sso-passcode flag", func() {
+				It("does not prompt the user for the passcode type prompts", func() {
+					Flags = []string{"--sso-passcode", "the-one-time-code", "-a", "api.example.com"}
+
+					testcmd.RunCLICommand("login", Flags, nil, updateCommandDependency, false, ui)
+
+					Expect(ui.Prompts).To(BeEmpty())
+					Expect(ui.PasswordPrompts).To(BeEmpty())
+					Expect(authRepo.AuthenticateCallCount()).To(Equal(1))
+					Expect(authRepo.AuthenticateArgsForCall(0)).To(Equal(map[string]string{
+						"passcode": "the-one-time-code",
+					}))
+				})
+			})
+
+			Context("when the user does provides both the --sso and --sso-passcode flags", func() {
+				It("errors with usage error and does not try to authenticate", func() {
+					Flags = []string{"--sso", "-sso-passcode", "the-one-time-code", "-a", "api.example.com"}
+					ui.Inputs = []string{"the-one-time-code"}
+
+					execution := testcmd.RunCLICommand("login", Flags, nil, updateCommandDependency, false, ui)
+					Expect(execution).To(BeFalse())
+
+					Expect(authRepo.AuthenticateCallCount()).To(Equal(0))
+				})
+			})
+
 			It("takes the password from the -p flag", func() {
 				Flags = []string{"-p", "the-password"}
 				ui.Inputs = []string{"api.example.com", "the-username", "the-account-number", "the-pin"}
@@ -542,7 +554,7 @@ var _ = Describe("Login Command", func() {
 				return &coreconfig.CCInfo{
 					APIVersion:               "some-version",
 					AuthorizationEndpoint:    "auth/endpoint",
-					LoggregatorEndpoint:      "loggregator/endpoint",
+					DopplerEndpoint:          "doppler/endpoint",
 					MinCLIVersion:            minCLIVersion,
 					MinRecommendedCLIVersion: minRecommendedCLIVersion,
 					SSHOAuthClient:           "some-client",
@@ -826,7 +838,6 @@ var _ = Describe("Login Command", func() {
 				Expect(Config.SSHOAuthClient()).To(Equal("some-client"))
 				Expect(Config.MinCLIVersion()).To(Equal("1.0.0"))
 				Expect(Config.MinRecommendedCLIVersion()).To(Equal("1.0.0"))
-				Expect(Config.LoggregatorEndpoint()).To(Equal("loggregator/endpoint"))
 				Expect(Config.DopplerEndpoint()).To(Equal("doppler/endpoint"))
 				Expect(Config.RoutingAPIEndpoint()).To(Equal("routing/endpoint"))
 

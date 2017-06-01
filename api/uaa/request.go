@@ -8,8 +8,8 @@ import (
 	"github.com/tedsuo/rata"
 )
 
-// Request contains all the elements of a UAA request
-type Request struct {
+// RequestOptions contains all the options to create an HTTP Request.
+type requestOptions struct {
 	// Header is the set of request headers
 	Header http.Header
 
@@ -26,24 +26,29 @@ type Request struct {
 	Body io.Reader
 }
 
-// NewRequest contains a constructed UAA request with some defaults. There is
-// an optional body that can be passed, however only the first body is used.
-func NewRequest(requestName string, params rata.Params, header http.Header, query url.Values, body ...io.Reader) Request {
-	if header == nil {
-		header = http.Header{}
-	}
-	header.Set("Accept", "application/json")
-
-	request := Request{
-		RequestName: requestName,
-		Params:      params,
-		Header:      header,
-		Query:       query,
+// newRequest returns a constructed http.Request with some defaults. The
+// request will terminate the connection after it is sent (via a 'Connection:
+// close' header).
+func (client *Client) newRequest(passedRequest requestOptions) (*http.Request, error) {
+	request, err := client.router.CreateRequest(
+		passedRequest.RequestName,
+		passedRequest.Params,
+		passedRequest.Body,
+	)
+	if err != nil {
+		return nil, err
 	}
 
-	if len(body) == 1 {
-		request.Body = body[0]
-	}
+	request.URL.RawQuery = passedRequest.Query.Encode()
 
-	return request
+	if passedRequest.Header != nil {
+		request.Header = passedRequest.Header
+	} else {
+		request.Header = http.Header{}
+	}
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Connection", "close")
+	request.Header.Set("User-Agent", client.userAgent)
+
+	return request, nil
 }

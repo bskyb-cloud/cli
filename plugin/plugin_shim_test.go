@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 
 	"code.cloudfoundry.org/cli/plugin"
-	"code.cloudfoundry.org/cli/utils/testhelpers/rpcserver"
-	"code.cloudfoundry.org/cli/utils/testhelpers/rpcserver/rpcserverfakes"
+	"code.cloudfoundry.org/cli/util/testhelpers/rpcserver"
+	"code.cloudfoundry.org/cli/util/testhelpers/rpcserver/rpcserverfakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -19,6 +19,14 @@ var _ = Describe("Command", func() {
 	)
 
 	Describe(".Start", func() {
+		It("Exits with status 1 and error message if no arguments are passed", func() {
+			args := []string{}
+			session, err := Start(exec.Command(validPluginPath, args...), GinkgoWriter, GinkgoWriter)
+			Expect(err).ToNot(HaveOccurred())
+			Eventually(session, 2).Should(Exit(1))
+			Expect(session).To(gbytes.Say("This cf CLI plugin is not intended to be run on its own"))
+		})
+
 		It("Exits with status 1 if it cannot ping the host port passed as an argument", func() {
 			args := []string{"0", "0"}
 			session, err := Start(exec.Command(validPluginPath, args...), GinkgoWriter, GinkgoWriter)

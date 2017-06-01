@@ -9,6 +9,7 @@ import (
 	"code.cloudfoundry.org/cli/cf/configuration/configurationfakes"
 	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
 	"code.cloudfoundry.org/cli/cf/models"
+	"code.cloudfoundry.org/cli/version"
 	"github.com/blang/semver"
 
 	. "github.com/onsi/ginkgo"
@@ -60,21 +61,6 @@ var _ = Describe("Configuration Repository", func() {
 		Eventually(finishReadCh).Should(BeClosed())
 	})
 
-	Context("when the doppler endpoint does not exist", func() {
-		It("should regex the loggregator endpoint value", func() {
-			config.SetLoggregatorEndpoint("http://loggregator.the-endpoint")
-			Expect(config.DopplerEndpoint()).To(Equal("http://doppler.the-endpoint"))
-		})
-	})
-
-	Context("when the doppler endpoint does not exist", func() {
-		It("should regex the loggregator endpoint value", func() {
-			config.SetLoggregatorEndpoint("http://loggregator.the-endpointffff")
-			config.SetDopplerEndpoint("http://doppler.the-endpoint")
-			Expect(config.DopplerEndpoint()).To(Equal("http://doppler.the-endpoint"))
-		})
-	})
-
 	It("has acccessor methods for all config fields", func() {
 		config.SetAPIEndpoint("http://api.the-endpoint")
 		Expect(config.APIEndpoint()).To(Equal("http://api.the-endpoint"))
@@ -85,17 +71,23 @@ var _ = Describe("Configuration Repository", func() {
 		config.SetAuthenticationEndpoint("http://auth.the-endpoint")
 		Expect(config.AuthenticationEndpoint()).To(Equal("http://auth.the-endpoint"))
 
-		config.SetLoggregatorEndpoint("http://loggregator.the-endpoint")
-		Expect(config.LoggregatorEndpoint()).To(Equal("http://loggregator.the-endpoint"))
-
 		config.SetUaaEndpoint("http://uaa.the-endpoint")
 		Expect(config.UaaEndpoint()).To(Equal("http://uaa.the-endpoint"))
 
 		config.SetAccessToken("the-token")
 		Expect(config.AccessToken()).To(Equal("the-token"))
 
+		config.SetUAAOAuthClient("cf-oauth-client-id")
+		Expect(config.UAAOAuthClient()).To(Equal("cf-oauth-client-id"))
+
+		config.SetUAAOAuthClientSecret("cf-oauth-client-secret")
+		Expect(config.UAAOAuthClientSecret()).To(Equal("cf-oauth-client-secret"))
+
 		config.SetSSHOAuthClient("oauth-client-id")
 		Expect(config.SSHOAuthClient()).To(Equal("oauth-client-id"))
+
+		config.SetDopplerEndpoint("doppler.the-endpoint")
+		Expect(config.DopplerEndpoint()).To(Equal("doppler.the-endpoint"))
 
 		config.SetRefreshToken("the-token")
 		Expect(config.RefreshToken()).To(Equal("the-token"))
@@ -261,8 +253,8 @@ var _ = Describe("Configuration Repository", func() {
 	})
 
 	Describe("IsMinCLIVersion", func() {
-		It("returns true when the actual version is BUILT_FROM_SOURCE", func() {
-			Expect(config.IsMinCLIVersion("BUILT_FROM_SOURCE")).To(BeTrue())
+		It("returns true when the actual version is the default version string", func() {
+			Expect(config.IsMinCLIVersion(version.DefaultVersion)).To(BeTrue())
 		})
 
 		It("returns true when the MinCLIVersion is empty", func() {

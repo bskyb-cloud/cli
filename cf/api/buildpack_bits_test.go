@@ -2,9 +2,11 @@ package api_test
 
 import (
 	"archive/zip"
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -17,13 +19,13 @@ import (
 	"code.cloudfoundry.org/cli/cf/configuration/coreconfig"
 	"code.cloudfoundry.org/cli/cf/models"
 	"code.cloudfoundry.org/cli/cf/net"
-	testconfig "code.cloudfoundry.org/cli/utils/testhelpers/configuration"
-	testnet "code.cloudfoundry.org/cli/utils/testhelpers/net"
+	testconfig "code.cloudfoundry.org/cli/util/testhelpers/configuration"
+	testnet "code.cloudfoundry.org/cli/util/testhelpers/net"
 
 	. "code.cloudfoundry.org/cli/cf/api"
 	"code.cloudfoundry.org/cli/cf/terminal/terminalfakes"
 	"code.cloudfoundry.org/cli/cf/trace/tracefakes"
-	. "code.cloudfoundry.org/cli/utils/testhelpers/matchers"
+	. "code.cloudfoundry.org/cli/util/testhelpers/matchers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -135,6 +137,7 @@ var _ = Describe("BuildpackBitsRepository", func() {
 
 			It("fails when the server's SSL cert cannot be verified", func() {
 				fileServer := httptest.NewTLSServer(buildpackFileServerHandler("example-buildpack.zip"))
+				fileServer.Config.ErrorLog = log.New(&bytes.Buffer{}, "", 0)
 				defer fileServer.Close()
 
 				_, _, apiErr := repo.CreateBuildpackZipFile(fileServer.URL + "/place/example-buildpack.zip")
