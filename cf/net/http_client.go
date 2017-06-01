@@ -51,6 +51,16 @@ func (cl *client) checkRedirect(req *http.Request, via []*http.Request) error {
 
 	prevReq := via[len(via)-1]
 	cl.copyHeaders(prevReq, req, getBaseDomain(req.URL.String()) == getBaseDomain(via[0].URL.String()))
+	//////////////////////////////////////
+	// s4 droplet download problem
+	// we need to drop the Authorization header, otherwise s4 uses it and returns "access denied" response
+	// cf curl /v2/apps/1f2e563c-7050-4c48-935a-971da3000ac3/droplet/download sends a redirect with blobstore url
+	// and referer header is poupulated with something like:
+	// Referer: https://api.cf.test-spa.bskyb.com/v2/apps/1f2e563c-7050-4c48-935a-971da3000ac3/droplet/download
+	if strings.HasSuffix(req.Header.Get("Referer"), "/droplet/download") {
+		req.Header.Del("Authorization")
+	}
+	//////////////////////////////////////
 	cl.dumper.DumpRequest(req)
 
 	return nil
