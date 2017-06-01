@@ -2,6 +2,7 @@
 
 set -e -x
 
+export VERSION="v6.26.0"
 export OUTDIR=$PWD/out
 
 GOARCH=amd64 GOOS=windows ./bin/build && cp $OUTDIR/cf $OUTDIR/cf-windows-amd64.exe
