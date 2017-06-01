@@ -360,6 +360,10 @@
     "translation": "CF_NAME files APP_NAME [PATH] [-i INSTANCE]\\n\\nTIP:\\n   To list and inspect files of an app running on the Diego backend, use 'CF_NAME ssh'"
   },
   {
+    "id": "CF_NAME get-schema SERVICE_INSTANCE",
+    "translation": ""
+  },
+  {
     "id": "CF_NAME install-plugin (LOCAL-PATH/TO/PLUGIN | URL | -r REPO_NAME PLUGIN_NAME) [-f]\\n\\n   Prompts for confirmation unless '-f' is provided.\\n\\nEXAMPLES:\\n   CF_NAME install-plugin ~/Downloads/plugin-foobar\\n   CF_NAME install-plugin https://example.com/plugin-foobar_linux_amd64\\n   CF_NAME install-plugin -r My-Repo plugin-echo",
     "translation": "CF_NAME install-plugin (LOCAL-PATH/TO/PLUGIN | URL | -r REPO_NAME PLUGIN_NAME) [-f]\\n\\n   Prompts for confirmation unless '-f' is provided.\\n\\nEXAMPLES:\\n   CF_NAME install-plugin ~/Downloads/plugin-foobar\\n   CF_NAME install-plugin https://example.com/plugin-foobar_linux_amd64\\n   CF_NAME install-plugin -r My-Repo plugin-echo"
   },
@@ -568,6 +572,10 @@
     "translation": "CF_NAME set-running-environment-variable-group '{\\\"name\\\":\\\"value\\\",\\\"name\\\":\\\"value\\\"}'"
   },
   {
+    "id": "CF_NAME set-schema SERVICE_INSTANCE SCHEME_FILENAME",
+    "translation": ""
+  },
+  {
     "id": "CF_NAME set-space-isolation-segment SPACE_NAME SEGMENT_NAME",
     "translation": "CF_NAME set-space-isolation-segment SPACE_NAME SEGMENT_NAME"
   },
@@ -768,6 +776,10 @@
     "translation": "Commands offered by installed plugins:"
   },
   {
+    "id": "ConnectTimeout=5",
+    "translation": ""
+  },
+  {
     "id": "Could not find service",
     "translation": "Could not find service"
   },
@@ -844,12 +856,24 @@
     "translation": "Error deleting user {{.Username}} \nMultiple users with that username found. Please use 'cf curl' to delete the user by guid instead."
   },
   {
+    "id": "Error getting ssh details: ",
+    "translation": ""
+  },
+  {
     "id": "Error parsing response",
     "translation": "Error parsing response"
   },
   {
     "id": "Error read/writing config: ",
     "translation": "Error read/writing config: "
+  },
+  {
+    "id": "Error reading schema file: ",
+    "translation": ""
+  },
+  {
+    "id": "Error reading schema: ",
+    "translation": ""
   },
   {
     "id": "Error refreshing config: ",
@@ -860,7 +884,15 @@
     "translation": "Error removing plugin binary: "
   },
   {
+    "id": "Error running ssh command: ",
+    "translation": ""
+  },
+  {
     "id": "Error running task: {{.CloudControllerMessage}}",
+    "translation": ""
+  },
+  {
+    "id": "Error setting schema: ",
     "translation": ""
   },
   {
@@ -872,8 +904,20 @@
     "translation": "Error staging application: {{.Message}}\n\nTIP: Use '{{.BuildpackCommand}}' to see a list of supported buildpacks."
   },
   {
+    "id": "Error tmp dir: ",
+    "translation": ""
+  },
+  {
+    "id": "Error writing ssh keys to tmp file: ",
+    "translation": ""
+  },
+  {
     "id": "Failed to create a local temporary zip file for the buildpack",
     "translation": "Failed to create a local temporary zip file for the buildpack"
+  },
+  {
+    "id": "Get a service schema. Currently only supported in the webproxy.",
+    "translation": ""
   },
   {
     "id": "Getting isolation segments as {{.CurrentUser}}...",
@@ -905,6 +949,10 @@
   },
   {
     "id": "In order to move running applications to this isolation segment, they must be restarted.",
+    "translation": ""
+  },
+  {
+    "id": "Incorrect Usage.",
     "translation": ""
   },
   {
@@ -1056,6 +1104,10 @@
     "translation": ""
   },
   {
+    "id": "PROXY SERVICE",
+    "translation": "PROXY SERVICE"
+  },
+  {
     "id": "Parameters as JSON",
     "translation": "Parameters as JSON"
   },
@@ -1120,6 +1172,10 @@
     "translation": "Recreate the app's executable artifact using the latest pushed app files and the latest environment (variables, service bindings, buildpack, stack, etc.)"
   },
   {
+    "id": "Referer",
+    "translation": ""
+  },
+  {
     "id": "Removing entitlement to isolation segment {{.SegmentName}} from org {{.OrgName}} as {{.CurrentUser}}...",
     "translation": "Removing entitlement to isolation segment {{.SegmentName}} from org {{.OrgName}} as {{.CurrentUser}}..."
   },
@@ -1164,6 +1220,10 @@
     "translation": ""
   },
   {
+    "id": "SSH Finished\n",
+    "translation": ""
+  },
+  {
     "id": "SSL Certificate Error {{.Message}}\nTIP: Use 'cf api --skip-ssl-validation' to continue with an insecure API endpoint",
     "translation": ""
   },
@@ -1173,6 +1233,10 @@
   },
   {
     "id": "SUCCEEDED",
+    "translation": ""
+  },
+  {
+    "id": "Schema file invalid: ",
     "translation": ""
   },
   {
@@ -1200,6 +1264,10 @@
     "translation": "Services integration:"
   },
   {
+    "id": "Set schema for a service. Currently only supported in the webproxy.",
+    "translation": ""
+  },
+  {
     "id": "Set to 'port' or 'none'",
     "translation": ""
   },
@@ -1221,6 +1289,10 @@
   },
   {
     "id": "Stop all instances of the app, then start them again. This may cause downtime.",
+    "translation": ""
+  },
+  {
+    "id": "StrictHostKeychecking=no",
     "translation": ""
   },
   {
@@ -1588,6 +1660,10 @@
     "translation": "Usage:"
   },
   {
+    "id": "UserKnownHostsFile=/dev/null",
+    "translation": ""
+  },
+  {
     "id": "Waiting for app to start...",
     "translation": ""
   },
@@ -1688,12 +1764,24 @@
     "translation": ""
   },
   {
+    "id": "get-schema",
+    "translation": ""
+  },
+  {
+    "id": "gocf",
+    "translation": ""
+  },
+  {
     "id": "health check type:",
     "translation": ""
   },
   {
     "id": "host",
     "translation": "host"
+  },
+  {
+    "id": "identity",
+    "translation": ""
   },
   {
     "id": "integer",
@@ -1769,6 +1857,10 @@
   },
   {
     "id": "services:",
+    "translation": ""
+  },
+  {
+    "id": "set-schema",
     "translation": ""
   },
   {

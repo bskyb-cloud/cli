@@ -1020,6 +1020,10 @@
     "translation": ""
   },
   {
+    "id": "CF_NAME get-schema SERVICE_INSTANCE",
+    "translation": ""
+  },
+  {
     "id": "CF_NAME help [COMMAND]",
     "translation": ""
   },
@@ -1353,6 +1357,10 @@
   },
   {
     "id": "CF_NAME set-running-environment-variable-group '{\\\"name\\\":\\\"value\\\",\\\"name\\\":\\\"value\\\"}'",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME set-schema SERVICE_INSTANCE SCHEME_FILENAME",
     "translation": ""
   },
   {
@@ -1794,6 +1802,10 @@
   {
     "id": "Computing sha1 for installed plugins, this may take a while ...",
     "translation": "Calculando sha1 para los plugins instalados, esta operación puede tardar un poco..."
+  },
+  {
+    "id": "ConnectTimeout=5",
+    "translation": ""
   },
   {
     "id": "Connected, dumping recent logs for app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.Username}}...\n",
@@ -2612,6 +2624,10 @@
     "translation": "Error al obtener metadatos de plugin desde el repositorio: "
   },
   {
+    "id": "Error getting ssh details: ",
+    "translation": ""
+  },
+  {
     "id": "Error getting the redirected location: {{.Error}}",
     "translation": "Error al obtener la ubicación redirigida: {{.Error}}"
   },
@@ -2680,6 +2696,14 @@
     "translation": "Error al leer la respuesta del servidor: "
   },
   {
+    "id": "Error reading schema file: ",
+    "translation": ""
+  },
+  {
+    "id": "Error reading schema: ",
+    "translation": ""
+  },
+  {
     "id": "Error refreshing config: ",
     "translation": ""
   },
@@ -2720,6 +2744,10 @@
     "translation": "Error al recuperar pilas: {{.Error}}"
   },
   {
+    "id": "Error running ssh command: ",
+    "translation": ""
+  },
+  {
     "id": "Error running task: {{.CloudControllerMessage}}",
     "translation": ""
   },
@@ -2728,11 +2756,19 @@
     "translation": "Error al guardar el manifiesto: {{.Error}}"
   },
   {
+    "id": "Error setting schema: ",
+    "translation": ""
+  },
+  {
     "id": "Error staging application: {{.Message}}",
     "translation": ""
   },
   {
     "id": "Error staging application: {{.Message}}\n\nTIP: Use '{{.BuildpackCommand}}' to see a list of supported buildpacks.",
+    "translation": ""
+  },
+  {
+    "id": "Error tmp dir: ",
     "translation": ""
   },
   {
@@ -2750,6 +2786,10 @@
   {
     "id": "Error uploading buildpack {{.Name}}\n{{.Error}}",
     "translation": "Error al cargar el paquete de compilación {{.Name}}\n{{.Error}}"
+  },
+  {
+    "id": "Error writing ssh keys to tmp file: ",
+    "translation": ""
   },
   {
     "id": "Error writing to tmp file: {{.Err}}",
@@ -2954,6 +2994,10 @@
   {
     "id": "Get a one time password for ssh clients",
     "translation": "Obtener una contraseña de un solo uso para los clientes de ssh"
+  },
+  {
+    "id": "Get a service schema. Currently only supported in the webproxy.",
+    "translation": ""
   },
   {
     "id": "Get the health_check_type value of an app",
@@ -3242,6 +3286,10 @@
   {
     "id": "Incorrect Usage",
     "translation": "Uso incorrecto"
+  },
+  {
+    "id": "Incorrect Usage.",
+    "translation": ""
   },
   {
     "id": "Incorrect Usage. An argument is missing or not correctly enclosed.\n\n",
@@ -4188,6 +4236,10 @@
     "translation": ""
   },
   {
+    "id": "PROXY SERVICE",
+    "translation": ""
+  },
+  {
     "id": "Paid service plans",
     "translation": "Planes de servicio de pago"
   },
@@ -4510,6 +4562,10 @@
   {
     "id": "Recursively remove a service instance and child objects from Cloud Foundry database without making requests to a service broker",
     "translation": "Eliminar recursivamente una instancia de servicio y objetos hijo de la base de datos de Cloud Foundry sin realizar solicitudes a un intermediario de servicio"
+  },
+  {
+    "id": "Referer",
+    "translation": ""
   },
   {
     "id": "Remove a plugin repository",
@@ -4868,6 +4924,10 @@
     "translation": "ESPACIOS:"
   },
   {
+    "id": "SSH Finished\n",
+    "translation": ""
+  },
+  {
     "id": "SSH to an application container instance",
     "translation": "SSH para una instancia del contenedor de la aplicación"
   },
@@ -4886,6 +4946,10 @@
   {
     "id": "Scaling app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
     "translation": "Escalando la app {{.AppName}} en la organización {{.OrgName}} / espacio {{.SpaceName}} como {{.CurrentUser}}..."
+  },
+  {
+    "id": "Schema file invalid: ",
+    "translation": ""
   },
   {
     "id": "Security Groups:",
@@ -5018,6 +5082,10 @@
   {
     "id": "Set or view the targeted org or space",
     "translation": "Establecer o ver el espacio o la organización de destino"
+  },
+  {
+    "id": "Set schema for a service. Currently only supported in the webproxy.",
+    "translation": ""
   },
   {
     "id": "Set to 'port' or 'none'",
@@ -5230,6 +5298,10 @@
   {
     "id": "Stopping app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
     "translation": "Deteniendo app {{.AppName}} en la organización {{.OrgName}} / espacio {{.SpaceName}} como {{.CurrentUser}}..."
+  },
+  {
+    "id": "StrictHostKeychecking=no",
+    "translation": ""
   },
   {
     "id": "System-Provided:",
@@ -6040,6 +6112,10 @@
     "translation": "Usuario:"
   },
   {
+    "id": "UserKnownHostsFile=/dev/null",
+    "translation": ""
+  },
+  {
     "id": "Username",
     "translation": "Nombre de usuario"
   },
@@ -6380,6 +6456,14 @@
     "translation": "gratuito o de pago"
   },
   {
+    "id": "get-schema",
+    "translation": ""
+  },
+  {
+    "id": "gocf",
+    "translation": ""
+  },
+  {
     "id": "health check type:",
     "translation": ""
   },
@@ -6397,6 +6481,10 @@
   },
   {
     "id": "host",
+    "translation": ""
+  },
+  {
+    "id": "identity",
     "translation": ""
   },
   {
@@ -6665,6 +6753,10 @@
   },
   {
     "id": "services:",
+    "translation": ""
+  },
+  {
+    "id": "set-schema",
     "translation": ""
   },
   {

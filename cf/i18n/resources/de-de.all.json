@@ -1360,11 +1360,11 @@
     "translation": ""
   },
   {
-    "id": "CF_NAME set-space-isolation-segment SPACE_NAME SEGMENT_NAME",
+    "id": "CF_NAME set-schema SERVICE_INSTANCE SCHEME_FILENAME",
     "translation": ""
   },
   {
-    "id": "CF_NAME set-schema SERVICE_INSTANCE SCHEME_FILENAME",
+    "id": "CF_NAME set-space-isolation-segment SPACE_NAME SEGMENT_NAME",
     "translation": ""
   },
   {
@@ -2744,11 +2744,11 @@
     "translation": "Fehler beim Abrufen der Stacks: {{.Error}}"
   },
   {
-    "id": "Error running task: {{.CloudControllerMessage}}",
+    "id": "Error running ssh command: ",
     "translation": ""
   },
   {
-    "id": "Error running ssh command: ",
+    "id": "Error running task: {{.CloudControllerMessage}}",
     "translation": ""
   },
   {
@@ -2756,15 +2756,15 @@
     "translation": "Fehler beim Speichern des Manifests: {{.Error}}"
   },
   {
+    "id": "Error setting schema: ",
+    "translation": ""
+  },
+  {
     "id": "Error staging application: {{.Message}}",
     "translation": ""
   },
   {
     "id": "Error staging application: {{.Message}}\n\nTIP: Use '{{.BuildpackCommand}}' to see a list of supported buildpacks.",
-    "translation": ""
-  },
-  {
-    "id": "Error setting schema: ",
     "translation": ""
   },
   {
@@ -4562,6 +4562,10 @@
   {
     "id": "Recursively remove a service instance and child objects from Cloud Foundry database without making requests to a service broker",
     "translation": "Entfernen Sie eine Serviceinstanz und untergeordnete Objekte rekursiv aus der Cloud Foundry-Datenbank, ohne Anforderungen an den Service-Broker zu stellen"
+  },
+  {
+    "id": "Referer",
+    "translation": ""
   },
   {
     "id": "Remove a plugin repository",
@@ -6456,6 +6460,10 @@
     "translation": ""
   },
   {
+    "id": "gocf",
+    "translation": ""
+  },
+  {
     "id": "health check type:",
     "translation": ""
   },
@@ -6748,11 +6756,11 @@
     "translation": ""
   },
   {
-    "id": "set-space-isolation-segment",
+    "id": "set-schema",
     "translation": ""
   },
   {
-    "id": "set-schema",
+    "id": "set-space-isolation-segment",
     "translation": ""
   },
   {

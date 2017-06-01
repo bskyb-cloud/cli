@@ -1020,6 +1020,10 @@
     "translation": ""
   },
   {
+    "id": "CF_NAME get-schema SERVICE_INSTANCE",
+    "translation": ""
+  },
+  {
     "id": "CF_NAME help [COMMAND]",
     "translation": ""
   },
@@ -1353,6 +1357,10 @@
   },
   {
     "id": "CF_NAME set-running-environment-variable-group '{\\\"name\\\":\\\"value\\\",\\\"name\\\":\\\"value\\\"}'",
+    "translation": ""
+  },
+  {
+    "id": "CF_NAME set-schema SERVICE_INSTANCE SCHEME_FILENAME",
     "translation": ""
   },
   {
@@ -1794,6 +1802,10 @@
   {
     "id": "Computing sha1 for installed plugins, this may take a while ...",
     "translation": "正在計算所安裝外掛程式的 sha1，這可能需要一些時間... "
+  },
+  {
+    "id": "ConnectTimeout=5",
+    "translation": ""
   },
   {
     "id": "Connected, dumping recent logs for app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.Username}}...\n",
@@ -2612,6 +2624,10 @@
     "translation": "從儲存庫取得外掛程式 meta 資料時發生錯誤: "
   },
   {
+    "id": "Error getting ssh details: ",
+    "translation": ""
+  },
+  {
     "id": "Error getting the redirected location: {{.Error}}",
     "translation": "取得重新導向的位置時發生錯誤: {{.Error}}"
   },
@@ -2680,6 +2696,14 @@
     "translation": "讀取伺服器的回應時發生錯誤: "
   },
   {
+    "id": "Error reading schema file: ",
+    "translation": ""
+  },
+  {
+    "id": "Error reading schema: ",
+    "translation": ""
+  },
+  {
     "id": "Error refreshing config: ",
     "translation": ""
   },
@@ -2720,6 +2744,10 @@
     "translation": "擷取堆疊時發生錯誤: {{.Error}}"
   },
   {
+    "id": "Error running ssh command: ",
+    "translation": ""
+  },
+  {
     "id": "Error running task: {{.CloudControllerMessage}}",
     "translation": ""
   },
@@ -2728,11 +2756,19 @@
     "translation": "儲存資訊清單時發生錯誤: {{.Error}}"
   },
   {
+    "id": "Error setting schema: ",
+    "translation": ""
+  },
+  {
     "id": "Error staging application: {{.Message}}",
     "translation": ""
   },
   {
     "id": "Error staging application: {{.Message}}\n\nTIP: Use '{{.BuildpackCommand}}' to see a list of supported buildpacks.",
+    "translation": ""
+  },
+  {
+    "id": "Error tmp dir: ",
     "translation": ""
   },
   {
@@ -2750,6 +2786,10 @@
   {
     "id": "Error uploading buildpack {{.Name}}\n{{.Error}}",
     "translation": "上傳建置套件 {{.Name}} 時發生錯誤\n{{.Error}}"
+  },
+  {
+    "id": "Error writing ssh keys to tmp file: ",
+    "translation": ""
   },
   {
     "id": "Error writing to tmp file: {{.Err}}",
@@ -2954,6 +2994,10 @@
   {
     "id": "Get a one time password for ssh clients",
     "translation": "取得 ssh 用戶端的一次性密碼"
+  },
+  {
+    "id": "Get a service schema. Currently only supported in the webproxy.",
+    "translation": ""
   },
   {
     "id": "Get the health_check_type value of an app",
@@ -3242,6 +3286,10 @@
   {
     "id": "Incorrect Usage",
     "translation": "用法不正確"
+  },
+  {
+    "id": "Incorrect Usage.",
+    "translation": ""
   },
   {
     "id": "Incorrect Usage. An argument is missing or not correctly enclosed.\n\n",
@@ -4188,6 +4236,10 @@
     "translation": ""
   },
   {
+    "id": "PROXY SERVICE",
+    "translation": ""
+  },
+  {
     "id": "Paid service plans",
     "translation": "付費服務方案"
   },
@@ -4510,6 +4562,10 @@
   {
     "id": "Recursively remove a service instance and child objects from Cloud Foundry database without making requests to a service broker",
     "translation": "遞迴地從 Cloud Foundry 資料庫中移除服務實例和子物件，而不對服務分配管理系統提出要求"
+  },
+  {
+    "id": "Referer",
+    "translation": ""
   },
   {
     "id": "Remove a plugin repository",
@@ -4868,6 +4924,10 @@
     "translation": "空間:"
   },
   {
+    "id": "SSH Finished\n",
+    "translation": ""
+  },
+  {
     "id": "SSH to an application container instance",
     "translation": "應用程式容器實例的 SSH"
   },
@@ -4886,6 +4946,10 @@
   {
     "id": "Scaling app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
     "translation": "正在以 {{.CurrentUser}} 身分擴充組織 {{.OrgName}}/空間 {{.SpaceName}} 中的應用程式 {{.AppName}}..."
+  },
+  {
+    "id": "Schema file invalid: ",
+    "translation": ""
   },
   {
     "id": "Security Groups:",
@@ -5018,6 +5082,10 @@
   {
     "id": "Set or view the targeted org or space",
     "translation": "設定或檢視目標組織或空間"
+  },
+  {
+    "id": "Set schema for a service. Currently only supported in the webproxy.",
+    "translation": ""
   },
   {
     "id": "Set to 'port' or 'none'",
@@ -5230,6 +5298,10 @@
   {
     "id": "Stopping app {{.AppName}} in org {{.OrgName}} / space {{.SpaceName}} as {{.CurrentUser}}...",
     "translation": "正在以 {{.CurrentUser}} 身分停止組織 {{.OrgName}}/空間 {{.SpaceName}} 中的應用程式 {{.AppName}}..."
+  },
+  {
+    "id": "StrictHostKeychecking=no",
+    "translation": ""
   },
   {
     "id": "System-Provided:",
@@ -6040,6 +6112,10 @@
     "translation": "使用者: "
   },
   {
+    "id": "UserKnownHostsFile=/dev/null",
+    "translation": ""
+  },
+  {
     "id": "Username",
     "translation": "使用者名稱"
   },
@@ -6380,6 +6456,14 @@
     "translation": "免費或付費"
   },
   {
+    "id": "get-schema",
+    "translation": ""
+  },
+  {
+    "id": "gocf",
+    "translation": ""
+  },
+  {
     "id": "health check type:",
     "translation": ""
   },
@@ -6398,6 +6482,10 @@
   {
     "id": "host",
     "translation": "主機"
+  },
+  {
+    "id": "identity",
+    "translation": ""
   },
   {
     "id": "instance memory",
@@ -6665,6 +6753,10 @@
   },
   {
     "id": "services:",
+    "translation": ""
+  },
+  {
+    "id": "set-schema",
     "translation": ""
   },
   {

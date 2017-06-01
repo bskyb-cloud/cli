@@ -1360,12 +1360,12 @@
     "translation": "CF_NAME set-running-environment-variable-group '{\\\"name\\\":\\\"value\\\",\\\"name\\\":\\\"value\\\"}'"
   },
   {
-    "id": "CF_NAME set-space-isolation-segment SPACE_NAME SEGMENT_NAME",
-    "translation": "CF_NAME set-space-isolation-segment SPACE_NAME SEGMENT_NAME"
-  },
-  {
     "id": "CF_NAME set-schema SERVICE_INSTANCE SCHEME_FILENAME",
     "translation": ""
+  },
+  {
+    "id": "CF_NAME set-space-isolation-segment SPACE_NAME SEGMENT_NAME",
+    "translation": "CF_NAME set-space-isolation-segment SPACE_NAME SEGMENT_NAME"
   },
   {
     "id": "CF_NAME set-space-quota SPACE-NAME SPACE-QUOTA-NAME",
@@ -2744,16 +2744,20 @@
     "translation": "Error retrieving stacks: {{.Error}}"
   },
   {
-    "id": "Error running task: {{.CloudControllerMessage}}",
+    "id": "Error running ssh command: ",
     "translation": ""
   },
   {
-    "id": "Error running ssh command: ",
+    "id": "Error running task: {{.CloudControllerMessage}}",
     "translation": ""
   },
   {
     "id": "Error saving manifest: {{.Error}}",
     "translation": "Error saving manifest: {{.Error}}"
+  },
+  {
+    "id": "Error setting schema: ",
+    "translation": ""
   },
   {
     "id": "Error staging application: {{.Message}}",
@@ -2762,10 +2766,6 @@
   {
     "id": "Error staging application: {{.Message}}\n\nTIP: Use '{{.BuildpackCommand}}' to see a list of supported buildpacks.",
     "translation": "Error staging application: {{.Message}}\n\nTIP: Use '{{.BuildpackCommand}}' to see a list of supported buildpacks."
-  },
-  {
-    "id": "Error setting schema: ",
-    "translation": ""
   },
   {
     "id": "Error tmp dir: ",
@@ -4562,6 +4562,10 @@
   {
     "id": "Recursively remove a service instance and child objects from Cloud Foundry database without making requests to a service broker",
     "translation": "Recursively remove a service instance and child objects from Cloud Foundry database without making requests to a service broker"
+  },
+  {
+    "id": "Referer",
+    "translation": ""
   },
   {
     "id": "Remove a plugin repository",
@@ -6452,11 +6456,15 @@
     "translation": "free or paid"
   },
   {
-    "id": "health check type:",
+    "id": "get-schema",
     "translation": ""
   },
   {
-    "id": "get-schema",
+    "id": "gocf",
+    "translation": ""
+  },
+  {
+    "id": "health check type:",
     "translation": ""
   },
   {
@@ -6748,11 +6756,11 @@
     "translation": ""
   },
   {
-    "id": "set-space-isolation-segment",
+    "id": "set-schema",
     "translation": ""
   },
   {
-    "id": "set-schema",
+    "id": "set-space-isolation-segment",
     "translation": ""
   },
   {
